@@ -1,8 +1,7 @@
 import random
 import os
 import pandas as pd
-import shapefile
-import subprocess
+# import shapefile
 import requests
 import zipfile
 
@@ -84,9 +83,19 @@ def set_up_test_table_pg(db, schema='working'):
         """.format(schema, table_name, i, c1, c2, lat, lon))
 
 
-def clean_up_test_table_pg(db):
+def set_up_test_shp(db, schema='working'):
+    """
+    very much a cheat, should be replaced with something that generates the shp from coords
+    """
+    set_up_test_table_pg(db, schema)
+    db.table_to_shp('pg_test_table_{}'.format(db.user), schema=schema,
+                    path=os.path.dirname(os.path.abspath(__file__)) + "\\test_data",
+                    shp_name='test.shp', srid=2263)
+
+
+def clean_up_test_table_pg(db, schema='working'):
     table_name = 'pg_test_table_{}'.format(db.user)
-    db.drop_table(table=table_name, schema='working')
+    db.drop_table(table=table_name, schema=schema)
 
 
 def set_up_two_test_tables_pg(db):
@@ -215,7 +224,7 @@ def set_up_shapefile():
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv", index=False)
     fle = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv"
 
-    pth = r'C:\Users\heyse\Desktop\Folder\code\pysqldb3\tests\test_data\\'
+    pth = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\"
 
     cmd = f'''ogr2ogr -f "ESRI Shapefile" {pth}test.shp -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326), some_value FROM sample" {fle}'''
@@ -225,12 +234,12 @@ def set_up_shapefile():
 
 def clean_up_shapefile():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-    shp = "test.shp"
-    for ext in ('shp', 'dbf', 'shx'):
-        os.remove(f'{fldr}\\test_data\\test.{ext}')
-
+    for ext in ('shp', 'dbf', 'shx', 'prj'):
+        try:
+            os.remove(f'{fldr}\\test_data\\test.{ext}')
+        except:
+            pass
     print ('Deleting any existing shp')
-    # Delete_management(os.path.join(fldr, shp))
 
 
 def set_up_schema(db):

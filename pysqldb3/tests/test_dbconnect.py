@@ -30,6 +30,8 @@ class TestMisc:
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
         helpers.set_up_test_table_sql(sql)
+        helpers.set_up_shapefile()
+        # helpers.set_up_test_shp(db, schema='working')
 
     def test_get_schemas_pg(self):
         schemas = db.get_schemas()

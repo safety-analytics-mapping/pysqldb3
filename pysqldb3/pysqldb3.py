@@ -7,12 +7,12 @@ import openpyxl
 import json
 import plotly.express as px
 
-from query import *
-from shapefile import *
-from data_io import *
-from __init__ import __version__
+from .query import *
+from .shapefile import *
+from .data_io import *
+from .__init__ import __version__
 
-from Config import write_config
+from .Config import write_config
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -903,7 +903,7 @@ class DbConnect:
 
         def contains_long_columns(df2):
             for c in list(df2.columns):
-                if df2[c].dtype in ('object', 'string', 'str'):
+                if df2[c].dtype in ('object', 'str'):
                     if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
                         print('Varchar column with length greater than 500 found; allowing max varchar length.')
                         return True
