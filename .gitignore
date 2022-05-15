@@ -134,6 +134,7 @@ dmypy.json
 # misc
 notes.txt
 tests/test_data/*
+*.xlsx
 
 # gis files
 *.gdb
