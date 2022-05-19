@@ -6,15 +6,16 @@ from typing import Optional, Union
 import openpyxl
 import json
 import plotly.express as px
+import os
+from .Config import write_config
+write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 from .query import *
 from .shapefile import *
 from .data_io import *
 from .__init__ import __version__
 
-from .Config import write_config
 
-write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
@@ -146,6 +147,7 @@ class DbConnect:
             self.type = config.get('DEFAULT DATABASE', 'type')
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
+            self.__set_type()
 
         # Only prompts user if missing necessary information
         if ((self.LDAP and not all((self.database, self.server))) or
