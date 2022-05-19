@@ -7,10 +7,10 @@ import openpyxl
 import json
 import plotly.express as px
 
-from .query import *
-from .shapefile import *
-from .data_io import *
-from .__init__ import __version__
+from query import *
+from shapefile import *
+from data_io import *
+from __init__ import __version__
 
 from .Config import write_config
 
