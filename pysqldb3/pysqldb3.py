@@ -6,15 +6,16 @@ from typing import Optional, Union
 import openpyxl
 import json
 import plotly.express as px
-
-from query import *
-from shapefile import *
-from data_io import *
-from __init__ import __version__
-
+import os
 from .Config import write_config
-
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
+
+from .query import *
+from .shapefile import *
+from .data_io import *
+from .__init__ import __version__
+
+
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
