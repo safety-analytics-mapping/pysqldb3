@@ -147,6 +147,7 @@ class DbConnect:
             self.type = config.get('DEFAULT DATABASE', 'type')
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
+            self.__set_type()
 
         # Only prompts user if missing necessary information
         if ((self.LDAP and not all((self.database, self.server))) or
