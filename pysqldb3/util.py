@@ -43,26 +43,29 @@ def clean_query_special_characters(query_string):
 def clean_geom_column(db, table, schema):
     """
     Checks for column named wkb_geometry and renames to geom
+    :param db: pysql.DbConect object
     :param table: table name
     :param schema: database schema name
     :return:
     """
     # Check if there is a geom column
     # Rename column to geom (only if wkb_geom or shape); otherwise could cause issues if more than 1 geom
+    db.query("""SELECT COLUMN_NAME 
+                FROM information_schema.COLUMNS 
+                WHERE data_type='USER-DEFINED' 
+                and TABLE_NAME='{t}'
+                and table_schema = '{s}'
+            """.format(t=table, s=schema), timeme=False, internal=True)
 
-    columns = [i[0] for i in db.get_table_columns(table, schema=schema) if i[1] in ('geometry', 'USER-DEFINED')]
-    for c in columns:
-        if c.lower() in ('wkb_geometry', 'shape', 'ogr_geometry'):
-            db.rename_column(schema, table, c, 'geom')
-
-            if db.type == MS:
-                try:
-                    db.query("""
-                        EXEC sp_rename N'{s}.{t}.ogr_{s}_{t}_{f}_sidx', N'{t}_geom_idx', N'INDEX';
-                    """.format(s=schema, t=table, f=c), timeme=False, internal=True)
-                except SystemExit as e:
-                    print(e)
-                    print('Warning - could not update index name after renaming geometry. It may not exist.')
+    if db.internal_data:
+        if db.internal_data[-1][0] == 'wkb_geometry':
+            c = 'wkb_geometry'
+            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
+                     timeme=False, internal=True)
+        elif db.internal_data[-1][0] == 'shape':
+            c = 'shape'
+            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
+                     timeme=False, internal=True)
 
 
 def get_unique_table_schema_string(tbl_str, db_type):
