@@ -1,6 +1,6 @@
 import getpass
-import pyodbc
 
+import pyodbc
 from tqdm import tqdm
 from typing import Optional, Union
 import openpyxl
@@ -11,12 +11,6 @@ from query import *
 from shapefile import *
 from data_io import *
 from __init__ import __version__
-
-from Config import write_config
-
-write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
-config = configparser.ConfigParser()
-config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 
 # noinspection PyArgumentList
@@ -124,10 +118,7 @@ class DbConnect:
         """
         if db_type == MS:
             default_schema = self.dfquery('select schema_name()', internal=True)
-            if default_schema.empty or default_schema.iloc[0][0] is None:
-                default_schema = 'dbo'
-            else:
-                default_schema = default_schema.iloc[0][0]
+            default_schema = default_schema.iloc[0][0]#.encode('utf-8')
             return default_schema
         elif db_type == PG:
             return 'public'
@@ -143,9 +134,9 @@ class DbConnect:
         :return: None
         """
         if self.default_connect:
-            self.type = config.get('DEFAULT DATABASE', 'type')
-            self.server = config.get('DEFAULT DATABASE', 'server')
-            self.database = config.get('DEFAULT DATABASE', 'database')
+            self.type = PG
+            self.server = 'localhost'  # todo set up a config with this
+            self.database = 'test'
 
         # Only prompts user if missing necessary information
         if ((self.LDAP and not all((self.database, self.server))) or
@@ -187,9 +178,10 @@ class DbConnect:
         :return: None
         """
         if self.use_native_driver:
-            driver = config.get('ODBC Drivers', 'NATIVE_DRIVER')
+            # driver = 'SQL Server Native Client 10.0'
+            driver = '{ODBC Driver 17 for SQL Server}'
         else:
-            driver = config.get('ODBC Drivers', 'ODBC_DRIVER')
+            driver = 'SQL Server'
 
             if self.connection_count == 0:
                 print('Warning:\n\tWithout SQL Server Native Client 10.0 \
@@ -313,7 +305,7 @@ class DbConnect:
             cleaned += 1
 
         if cleaned > 0:
-            print('Attempted to remove {} expired temp tables: {}'.format(cleaned, to_clean))
+            print('\n\nRemoved {} expired temp tables: {}'.format(cleaned, [i[0] + '.' + i[1] for i in to_clean]))
 
     def __remove_nonexistent_tables_from_logs(self):
         # type: (DbConnect) -> None
@@ -617,34 +609,6 @@ class DbConnect:
             self.query(PG_GET_SCHEMAS_QUERY, timeme=False, internal=True)
 
         return [schema_row[0] for schema_row in self.__get_most_recent_query_data(internal=True)]
-
-    def get_table_columns(self, table, schema=None, full=False):
-        if not schema:
-            schema = self.default_schema
-        if full:
-            columns = '*'
-        else:
-            columns = "column_name, data_type"
-
-        if self.type == PG:
-            self.query("""
-            SELECT {cols}
-            FROM information_schema.columns
-            WHERE table_schema = '{s}' 
-                AND table_name = '{t}'
-            ORDER BY ordinal_position;
-            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
-
-        if self.type == MS:
-            self.query("""
-            SELECT {cols}
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE table_schema = '{s}' 
-                AND table_name = '{t}'
-            ORDER BY ORDINAL_POSITION;
-            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
-
-        return self.__get_most_recent_query_data(internal=True)
 
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
               lock_table=None, return_df=False, days=7, internal=False):
@@ -1687,6 +1651,8 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd)
 
+        self.tables_created.append(schema + "." + table)
+
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
 
@@ -1726,6 +1692,8 @@ class DbConnect:
                         shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
+
+        self.tables_created.append(schema + "." + table)
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)

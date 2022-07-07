@@ -218,7 +218,7 @@ def set_up_shapefile():
     pth = r'C:\Users\heyse\Desktop\Folder\code\pysqldb3\tests\test_data\\'
 
     cmd = f'''ogr2ogr -f "ESRI Shapefile" {pth}test.shp -dialect sqlite -sql 
-    "SELECT gid, GeomFromText(WKT, 4326), some_value FROM sample" {fle}'''
+    "SELECT gid, GeomFromText(WKT), some_value FROM sample" {fle}'''
     os.system(cmd.replace('\n', ' '))
     print ('Sample shapefile ready...')
 

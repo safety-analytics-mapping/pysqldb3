@@ -124,6 +124,9 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
         spatial = 'MSSQL'
         nlt_spatial = '-nlt NONE'
 
+    if dest_table[0] != '"':
+        dest_table = dest_table.lower()
+
     if LDAP:
         cmd = SQL_TO_PG_LDAP_QRY_CMD.format(
             ms_pass='',
@@ -215,6 +218,9 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
         spatial = 'MSSQL'
         nlt_spatial = '-nlt NONE'
 
+    if dest_table[0] != '"':
+        dest_table = dest_table.lower()
+        
     if LDAP:
         cmd = SQL_TO_PG_LDAP_CMD.format(
             gdal_data=gdal_data_loc,
