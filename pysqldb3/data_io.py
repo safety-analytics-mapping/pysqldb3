@@ -1,8 +1,8 @@
 import subprocess
 import shlex
 
-from .cmds import *
-from .util import *
+from cmds import *
+from util import *
 
 
 def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, dest_table=None,

@@ -283,7 +283,7 @@ class Test_Table_to_CSV_PG:
                             schema=schema,
                             output_file=os.path.join(fldr, create_table_name + '.csv')
                             )
-        assert exc_info.type is OSError
+        assert exc_info.type is FileNotFoundError
 
         # clean up
         db.disconnect(quiet=True)
@@ -436,7 +436,7 @@ class Test_Table_to_CSV_MS:
                              schema=schema,
                              output_file=os.path.join(fldr, create_table_name + '.csv')
                              )
-        assert exc_info.type is OSError
+        assert exc_info.type is FileNotFoundError
 
         # clean up
         sql.disconnect(quiet=True)

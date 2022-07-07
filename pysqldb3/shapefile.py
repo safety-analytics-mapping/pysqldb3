@@ -1,9 +1,9 @@
 import shlex
 import subprocess
 
-from .cmds import *
-from .sql import *
-from .util import *
+from cmds import *
+from sql import *
+from util import *
 
 
 class Shapefile:
