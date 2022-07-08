@@ -1,7 +1,7 @@
 import random
 import os
 import pandas as pd
-import shapefile
+from .. import shapefile
 import subprocess
 import requests
 import zipfile
