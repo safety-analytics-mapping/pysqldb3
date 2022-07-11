@@ -581,7 +581,7 @@ class TestBulkXLSToTableMS:
         # Df Equality
         df1 = sql.dfquery("select * from {}".format(xls_table_name))
         df2 = pd.DataFrame([3, 4], columns=["sheet2"])
-        pd.testing.assert_frame_equal(df1, df2)
+        pd.testing.assert_frame_equal(df1[['sheet2']], df2)
 
         # Cleanup
         sql.drop_table(schema=sql.default_schema, table=xls_table_name)
