@@ -239,16 +239,16 @@ def set_up_schema(db):
             IF NOT EXISTS (
                 SELECT  schema_name
                 FROM    information_schema.schemata
-                WHERE   schema_name = 'pytest' 
+                WHERE   schema_name = 'risadmin' 
             ) 
              
             BEGIN
-            EXEC sp_executesql N'CREATE SCHEMA pytest'
+            EXEC sp_executesql N'CREATE SCHEMA risadmin'
             END
         """)
     if db.type == 'PG':
         db.query("""
-            create schema if not exists pytest;
+            create schema if not exists risadmin;
         """)
 
 def clean_up_schema(db):
@@ -256,4 +256,4 @@ def clean_up_schema(db):
         c = ' cascade'
     else:
         c = ''
-    db.query("DROP SCHEMA IF EXISTS pytest{};".format(c))
+    db.query("DROP SCHEMA IF EXISTS risadmin{};".format(c))

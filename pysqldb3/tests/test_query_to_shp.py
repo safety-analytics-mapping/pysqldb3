@@ -435,7 +435,7 @@ class TestQueryToShpMs:
         helpers.set_up_schema(sql)
 
     def test_query_to_shp_basic(self):
-        schema = 'pytest'
+        schema = 'risadmin'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
         sql.drop_table(schema=schema, table=test_table)
@@ -469,7 +469,7 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_pth(self):
-        schema = 'pytest'
+        schema = 'risadmin'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
         sql.drop_table(schema=schema, table=test_table)
@@ -535,7 +535,7 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_pth(self):
-        schema = 'pytest'
+        schema = 'risadmin'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
         sql.drop_table(schema=schema, table=test_table)
@@ -566,7 +566,7 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_pth_and_name(self):
-        schema = 'pytest'
+        schema = 'risadmin'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
         sql.drop_table(schema=schema, table=test_table)
@@ -649,7 +649,7 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_funky_field_names(self):
-        schema = 'pytest'
+        schema = 'risadmin'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -898,7 +898,7 @@ class TestQueryToShpMs:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql, schema='pytest')
-        sql.query("drop table {}.{}".format('pytest', sql.log_table))
+        sql.query("drop table {}.{}".format('risadmin', sql.log_table))
         sql.clean_up_new_tables()
         helpers.clean_up_schema(sql)
 

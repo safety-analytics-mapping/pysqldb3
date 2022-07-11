@@ -173,7 +173,7 @@ class TestCleanUpNewTablesMs:
     def test_clean_up_new_tables_rename(self):
         # csv_to_table
         table_name = 'test_new_table_92820_testing'
-        table_schema = 'test'
+        table_schema = 'working'
         sql.drop_table(table=table_name, schema=table_schema)
         sql.drop_table(table=table_name + '_rename', schema=table_schema)
 
@@ -283,7 +283,7 @@ class TestCleanUpNewTablesIO:
         # Setup
         sql.tables_created = []
         db.drop_table(schema='working', table=test_pg_to_sql_cleanup_table)
-
+        sql.drop_table(schema='dbo', table=test_pg_to_sql_cleanup_table)
         db.query("""
         create table working.{}(col1 int, col2 int);
 
