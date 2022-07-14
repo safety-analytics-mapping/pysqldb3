@@ -29,26 +29,13 @@ test_clean_up_new_table2 = 'test_new_table_testing_{}_2'.format(db.user)
 test_sql_to_pg_qry_cleanup_table = 'test_sql_to_pg_qry_cleanup_{}'.format(db.user)
 
 
+ms_schema = 'dbo'
+pg_schema = 'working'
+
+
 class TestCleanUpNewTablesPg:
     def test_clean_up_new_tables_basic(self):
-        db.drop_table(table=test_clean_up_new_table, schema='public')
-
-        # csv_to_table
-        db.query("""
-            CREATE TABLE {} (
-                id int,
-                column2 text,
-                column3 timestamp
-            );
-        """.format(test_clean_up_new_table))
-        assert db.table_exists(test_clean_up_new_table, schema='public')
-
-        db.clean_up_new_tables()
-        assert not db.table_exists(test_clean_up_new_table, schema='public')
-
-    def test_clean_up_new_tables_schema(self):
-        table_schema = 'working'
-        db.drop_table(table=test_clean_up_new_table, schema=table_schema)
+        db.drop_table(table=test_clean_up_new_table, schema=pg_schema)
 
         # csv_to_table
         db.query("""
@@ -57,19 +44,34 @@ class TestCleanUpNewTablesPg:
                 column2 text,
                 column3 timestamp
             );
-        """.format(table_schema, test_clean_up_new_table))
-
-        assert db.table_exists(test_clean_up_new_table, schema=table_schema)
+        """.format(pg_schema, test_clean_up_new_table))
+        assert db.table_exists(test_clean_up_new_table, schema=pg_schema)
 
         db.clean_up_new_tables()
-        assert not db.table_exists(test_clean_up_new_table, schema=table_schema)
+        assert not db.table_exists(test_clean_up_new_table, schema=pg_schema)
+
+    def test_clean_up_new_tables_schema(self):
+        db.drop_table(table=test_clean_up_new_table, schema=pg_schema)
+
+        # csv_to_table
+        db.query("""
+            CREATE TABLE {}.{} (
+                id int,
+                column2 text,
+                column3 timestamp
+            );
+        """.format(pg_schema, test_clean_up_new_table))
+
+        assert db.table_exists(test_clean_up_new_table, schema=pg_schema)
+
+        db.clean_up_new_tables()
+        assert not db.table_exists(test_clean_up_new_table, schema=pg_schema)
 
     def test_clean_up_new_tables_rename(self):
         # csv_to_table
         table_name = 'test_new_table_92820_testing'
-        table_schema = 'working'
-        db.drop_table(table=table_name, schema=table_schema)
-        db.drop_table(table=table_name + "_rename", schema=table_schema)
+        db.drop_table(table=table_name, schema=pg_schema)
+        db.drop_table(table=table_name + "_rename", schema=pg_schema)
 
         db.query("""
             CREATE TABLE {}.{} (
@@ -77,16 +79,16 @@ class TestCleanUpNewTablesPg:
                 column2 text,
                 column3 timestamp
             );
-        """.format(table_schema, table_name))
-        assert db.table_exists(table_name, schema=table_schema)
+        """.format(pg_schema, table_name))
+        assert db.table_exists(table_name, schema=pg_schema)
 
-        db.query("alter table {s}.{t} rename to {t}_rename".format(s=table_schema, t=table_name))
-        assert db.table_exists(table_name, schema=table_schema) == False
-        assert db.table_exists(table_name + '_rename', schema=table_schema)
+        db.query("alter table {s}.{t} rename to {t}_rename".format(s=pg_schema, t=table_name))
+        assert db.table_exists(table_name, schema=pg_schema) == False
+        assert db.table_exists(table_name + '_rename', schema=pg_schema)
 
         db.clean_up_new_tables()
-        assert db.table_exists(table_name, schema=table_schema) == False
-        assert db.table_exists(table_name + '_rename', schema=table_schema) == False
+        assert db.table_exists(table_name, schema=pg_schema) == False
+        assert db.table_exists(table_name + '_rename', schema=pg_schema) == False
 
     def test_clean_up_new_tables_temp(self):
         table_name = 'test_new_table_92820_testing'
@@ -111,32 +113,32 @@ class TestCleanUpNewTablesPg:
         db.clean_up_new_tables()
 
     def test_clean_up_new_tables_already_dropped(self):
-        db.drop_table(schema='public', table=test_clean_up_new_table)
-        db.drop_table(schema='public', table=test_clean_up_new_table + '_2')
+        db.drop_table(schema=pg_schema, table=test_clean_up_new_table)
+        db.drop_table(schema=pg_schema, table=test_clean_up_new_table + '_2')
 
         db.query("""
-            CREATE TABLE {} (
+            CREATE TABLE {}.{} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-        """.format(test_clean_up_new_table))
+        """.format(pg_schema, test_clean_up_new_table))
 
         db.query("""
-                    CREATE TABLE {} (
+                    CREATE TABLE {}.{} (
                         id int,
                         column2 text,
                         column3 timestamp
                     );
-        """.format(test_clean_up_new_table + '_2'))
+        """.format(pg_schema,test_clean_up_new_table + '_2'))
 
-        db.drop_table('public', test_clean_up_new_table)
-        assert not db.table_exists(test_clean_up_new_table, schema='public')
-        assert db.table_exists(test_clean_up_new_table + '_2', schema='public')
+        db.drop_table(pg_schema, test_clean_up_new_table)
+        assert not db.table_exists(test_clean_up_new_table, schema=pg_schema)
+        assert db.table_exists(test_clean_up_new_table + '_2', schema=pg_schema)
 
         db.clean_up_new_tables()
 
-        assert not db.table_exists(test_clean_up_new_table + '_2', schema='public')
+        assert not db.table_exists(test_clean_up_new_table + '_2', schema=pg_schema)
 
 
 class TestCleanUpNewTablesMs:
@@ -155,8 +157,7 @@ class TestCleanUpNewTablesMs:
         assert not sql.table_exists(test_clean_up_new_table, schema=sql.default_schema)
 
     def test_clean_up_new_tables_schema(self):
-        table_schema = 'dbo'
-        sql.drop_table(table=test_clean_up_new_table, schema=table_schema)
+        sql.drop_table(table=test_clean_up_new_table, schema=ms_schema)
 
         sql.query("""
             CREATE TABLE {}.{} (
@@ -164,18 +165,17 @@ class TestCleanUpNewTablesMs:
                 column2 text,
                 column3 timestamp
             );
-        """.format(table_schema, test_clean_up_new_table))
-        assert sql.table_exists(test_clean_up_new_table, schema=table_schema)
+        """.format(ms_schema, test_clean_up_new_table))
+        assert sql.table_exists(test_clean_up_new_table, schema=ms_schema)
 
         sql.clean_up_new_tables()
-        assert not sql.table_exists(test_clean_up_new_table, schema=table_schema)
+        assert not sql.table_exists(test_clean_up_new_table, schema=ms_schema)
 
     def test_clean_up_new_tables_rename(self):
         # csv_to_table
         table_name = 'test_new_table_92820_testing'
-        table_schema = 'working'
-        sql.drop_table(table=table_name, schema=table_schema)
-        sql.drop_table(table=table_name + '_rename', schema=table_schema)
+        sql.drop_table(table=table_name, schema=ms_schema)
+        sql.drop_table(table=table_name + '_rename', schema=ms_schema)
 
         sql.query("""
             CREATE TABLE {}.{} (
@@ -183,16 +183,16 @@ class TestCleanUpNewTablesMs:
                 column2 text,
                 column3 timestamp
             );
-        """.format(table_schema, table_name))
-        assert sql.table_exists(table_name, schema=table_schema)
+        """.format(ms_schema, table_name))
+        assert sql.table_exists(table_name, schema=ms_schema)
 
-        sql.query("EXEC sp_rename '{s}.{t}', '{t}_rename';".format(s=table_schema, t=table_name))
-        assert sql.table_exists(table_name, schema=table_schema) == False
-        assert sql.table_exists(table_name + '_rename', schema=table_schema)
+        sql.query("EXEC sp_rename '{s}.{t}', '{t}_rename';".format(s=ms_schema, t=table_name))
+        assert sql.table_exists(table_name, schema=ms_schema) == False
+        assert sql.table_exists(table_name + '_rename', schema=ms_schema)
 
         sql.clean_up_new_tables()
-        assert sql.table_exists(table_name, schema=table_schema) == False
-        assert sql.table_exists(table_name + '_rename', schema=table_schema) == False
+        assert sql.table_exists(table_name, schema=ms_schema) == False
+        assert sql.table_exists(table_name + '_rename', schema=ms_schema) == False
 
     def test_clean_up_new_tables_temp(self):
         table_name = 'test_new_table_92820_testing'
@@ -255,81 +255,81 @@ class TestCleanUpNewTablesIO:
 
         # Setup
         ris.tables_created = []
-        db.drop_table(schema='working', table=test_pg_to_pg_cleanup_table)
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
 
         db.query("""
-        create table working.{}(col1 int, col2 int);
+        create table {0}.{1}(col1 int, col2 int);
 
-        insert into working.{} values (1, 2);
-        """.format(test_pg_to_pg_cleanup_table, test_pg_to_pg_cleanup_table))
+        insert into {0}.{1} values (1, 2);
+        """.format(pg_schema, test_pg_to_pg_cleanup_table))
 
         assert len(ris.tables_created) == 0
-        assert not ris.table_exists(schema='working', table=test_pg_to_pg_cleanup_table)
+        assert not ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
 
-        pg_to_pg(from_pg=db, to_pg=ris, org_schema='working', org_table=test_pg_to_pg_cleanup_table,
-                 dest_schema='working')
+        pg_to_pg(from_pg=db, to_pg=ris, org_schema=pg_schema, org_table=test_pg_to_pg_cleanup_table,
+                 dest_schema=pg_schema)
 
-        assert ris.table_exists(schema='working', table=test_pg_to_pg_cleanup_table)
+        assert ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
         assert len(ris.tables_created) == 1
 
         ris.clean_up_new_tables()
 
-        assert not ris.table_exists(schema='working', table=test_pg_to_pg_cleanup_table)
+        assert not ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
         assert len(ris.tables_created) == 0
 
-        db.drop_table(schema='working', table=test_pg_to_pg_cleanup_table)
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
 
     def test_pg_to_sql(self):
         # Setup
         sql.tables_created = []
-        db.drop_table(schema='working', table=test_pg_to_sql_cleanup_table)
-        sql.drop_table(schema='dbo', table=test_pg_to_sql_cleanup_table)
+        db.drop_table(schema=pg_schema, table=test_pg_to_sql_cleanup_table)
+        sql.drop_table(schema=ms_schema, table=test_pg_to_sql_cleanup_table)
         db.query("""
-        create table working.{}(col1 int, col2 int);
+        create table {0}.{1}(col1 int, col2 int);
 
-        insert into working.{} values (1, 2);
-        """.format(test_pg_to_sql_cleanup_table, test_pg_to_sql_cleanup_table))
+        insert into {0}.{1} values (1, 2);
+        """.format(pg_schema, test_pg_to_sql_cleanup_table))
 
         assert len(sql.tables_created) == 0
-        assert not sql.table_exists(schema='dbo', table=test_pg_to_sql_cleanup_table)
+        assert not sql.table_exists(schema=ms_schema, table=test_pg_to_sql_cleanup_table)
 
-        pg_to_sql(pg=db, ms=sql, org_schema='working', org_table=test_pg_to_sql_cleanup_table, dest_schema='dbo')
+        pg_to_sql(pg=db, ms=sql, org_schema=pg_schema, org_table=test_pg_to_sql_cleanup_table, dest_schema=ms_schema)
 
-        assert sql.table_exists(schema='dbo', table=test_pg_to_sql_cleanup_table)
+        assert sql.table_exists(schema=ms_schema, table=test_pg_to_sql_cleanup_table)
         assert len(sql.tables_created) == 1
 
         sql.clean_up_new_tables()
 
-        assert not sql.table_exists(schema='dbo', table=test_pg_to_sql_cleanup_table)
+        assert not sql.table_exists(schema=ms_schema, table=test_pg_to_sql_cleanup_table)
         assert len(sql.tables_created) == 0
 
-        db.drop_table(schema='working', table=test_pg_to_sql_cleanup_table)
+        db.drop_table(schema=pg_schema, table=test_pg_to_sql_cleanup_table)
 
     def test_sql_to_pg(self):
         # Setup
         db.tables_created =[]
-        sql.drop_table(schema='dbo', table=test_sql_to_pg_cleanup_table)
+        sql.drop_table(schema=ms_schema, table=test_sql_to_pg_cleanup_table)
 
         # Create
         sql.query("""
-        create table dbo.{}(col1 int, col2 int);
-        insert into dbo.{} values (1, 2);
-        """.format(test_sql_to_pg_cleanup_table, test_sql_to_pg_cleanup_table))
+        create table {0}.{1} (col1 int, col2 int);
+        insert into {0}.{1} values (1, 2);
+        """.format(ms_schema, test_sql_to_pg_cleanup_table))
 
         assert len(db.tables_created) == 0
-        assert not db.table_exists(schema='working', table=test_sql_to_pg_cleanup_table)
+        assert not db.table_exists(schema=pg_schema, table=test_sql_to_pg_cleanup_table)
 
-        sql_to_pg(ms=sql, pg=db, org_schema='dbo', org_table=test_sql_to_pg_cleanup_table, dest_schema='working')
+        sql_to_pg(ms=sql, pg=db, org_schema=ms_schema, org_table=test_sql_to_pg_cleanup_table, dest_schema=pg_schema)
 
-        assert db.table_exists(schema='working', table=test_sql_to_pg_cleanup_table)
+        assert db.table_exists(schema=pg_schema, table=test_sql_to_pg_cleanup_table)
         assert len(db.tables_created) == 1
 
         db.clean_up_new_tables()
 
-        assert not db.table_exists(schema='working', table=test_sql_to_pg_cleanup_table)
+        assert not db.table_exists(schema=pg_schema, table=test_sql_to_pg_cleanup_table)
         assert len(db.tables_created) == 0
 
-        sql.drop_table(schema='dbo', table=test_sql_to_pg_cleanup_table)
+        sql.drop_table(schema=ms_schema, table=test_sql_to_pg_cleanup_table)
 
     def test_sql_to_pg_qry(self):
         # Setup
@@ -337,15 +337,15 @@ class TestCleanUpNewTablesIO:
         sql_query = "select 1 as col1, 2 as col2"
 
         assert len(db.tables_created) == 0
-        assert not db.table_exists(schema='working', table=test_sql_to_pg_qry_cleanup_table)
+        assert not db.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_cleanup_table)
 
         sql_to_pg_qry(ms=sql, pg=db, query=sql_query, dest_table=test_sql_to_pg_qry_cleanup_table,
-                      dest_schema='working')
+                      dest_schema=pg_schema)
 
-        assert db.table_exists(schema='working', table=test_sql_to_pg_qry_cleanup_table)
+        assert db.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_cleanup_table)
         assert len(db.tables_created) == 1
 
         db.clean_up_new_tables()
 
-        assert not db.table_exists(schema='working', table=test_sql_to_pg_qry_cleanup_table)
+        assert not db.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_cleanup_table)
         assert len(db.tables_created) == 0
