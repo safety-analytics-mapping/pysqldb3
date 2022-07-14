@@ -6,9 +6,6 @@ import subprocess
 import requests
 import zipfile
 
-# from arcpy import Delete_management, CreateFileGDB_management, CreateFeatureclass_management, \
-#     env, AddField_management, da, FeatureClassToShapefile_conversion
-
 
 def set_up_test_csv():
     data = {'id': {0: 1, 1: 2, 2: 3, 3: 4, 4: 5},
@@ -27,7 +24,6 @@ def set_up_test_csv():
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
-    # df.to_csv('tests/test_data/test.csv')
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
@@ -215,7 +211,7 @@ def set_up_shapefile():
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv", index=False)
     fle = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv"
 
-    pth = r'C:\Users\heyse\Desktop\Folder\code\pysqldb3\tests\test_data\\'
+    pth = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\"
 
     cmd = f'''ogr2ogr -f "ESRI Shapefile" {pth}test.shp -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326), some_value FROM sample" {fle}'''
@@ -248,8 +244,9 @@ def set_up_schema(db):
         """)
     if db.type == 'PG':
         db.query("""
-            create schema if not exists risadmin;
+            create schema if not exists working;
         """)
+
 
 def clean_up_schema(db):
     if db.type == 'PG':
@@ -257,3 +254,4 @@ def clean_up_schema(db):
     else:
         c = ''
     db.query("DROP SCHEMA IF EXISTS risadmin{};".format(c))
+
