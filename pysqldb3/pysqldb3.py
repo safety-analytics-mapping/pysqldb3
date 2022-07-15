@@ -903,7 +903,7 @@ class DbConnect:
 
         def contains_long_columns(df2):
             for c in list(df2.columns):
-                if df2[c].dtype in ('object', 'string', 'str'):
+                if df2[c].dtype in ('O','object', 'str'):
                     if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
                         print('Varchar column with length greater than 500 found; allowing max varchar length.')
                         return True
