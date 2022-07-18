@@ -36,7 +36,7 @@ pg_schema = 'working'
 class Test_Table_to_CSV_PG:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_schema(db)
+        helpers.set_up_schema(db, ms_schema=ms_schema)
         helpers.set_up_test_table_pg(db, schema=ms_schema)
 
     def test_table_to_csv_check_file(self):
@@ -409,7 +409,7 @@ class Test_Table_to_CSV_PG:
 class Test_Table_to_CSV_MS:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_schema(sql)
+        helpers.set_up_schema(sql, ms_schema=ms_schema)
         helpers.set_up_test_table_sql(sql, schema=ms_schema)
 
     def test_table_to_csv_check_file_bad_path(self):

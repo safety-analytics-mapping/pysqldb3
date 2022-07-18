@@ -229,29 +229,29 @@ def clean_up_shapefile():
     # Delete_management(os.path.join(fldr, shp))
 
 
-def set_up_schema(db):
+def set_up_schema(db, ms_schema='dbo', pg_schema='working'):
     if db.type == 'MS':
-        db.query("""
+        db.query(f"""
             IF NOT EXISTS (
                 SELECT  schema_name
                 FROM    information_schema.schemata
-                WHERE   schema_name = 'risadmin' 
+                WHERE   schema_name = '{ms_schema}' 
             ) 
              
             BEGIN
-            EXEC sp_executesql N'CREATE SCHEMA risadmin'
+            EXEC sp_executesql N'CREATE SCHEMA {ms_schema}'
             END
         """)
     if db.type == 'PG':
-        db.query("""
-            create schema if not exists working;
+        db.query(f"""
+            create schema if not exists {pg_schema};
         """)
 
 
-def clean_up_schema(db):
+def clean_up_schema(db, schema):
     if db.type == 'PG':
         c = ' cascade'
     else:
         c = ''
-    db.query("DROP SCHEMA IF EXISTS risadmin{};".format(c))
+    db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
 
