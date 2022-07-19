@@ -890,5 +890,5 @@ class TestQueryToShpMs:
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
         sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
         sql.clean_up_new_tables()
-        helpers.clean_up_schema(sql)
+        helpers.clean_up_schema(sql, ms_schema)
 
