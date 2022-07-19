@@ -1,13 +1,10 @@
 import random
 import os
 import pandas as pd
-import shapefile
+from .. import shapefile
 import subprocess
 import requests
 import zipfile
-
-# from arcpy import Delete_management, CreateFileGDB_management, CreateFeatureclass_management, \
-#     env, AddField_management, da, FeatureClassToShapefile_conversion
 
 
 def set_up_test_csv():
@@ -27,7 +24,6 @@ def set_up_test_csv():
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
-    # df.to_csv('tests/test_data/test.csv')
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
@@ -215,7 +211,7 @@ def set_up_shapefile():
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv", index=False)
     fle = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv"
 
-    pth = r'C:\Users\heyse\Desktop\Folder\code\pysqldb3\tests\test_data\\'
+    pth = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\"
 
     cmd = f'''ogr2ogr -f "ESRI Shapefile" {pth}test.shp -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT), some_value FROM sample" {fle}'''
@@ -233,27 +229,29 @@ def clean_up_shapefile():
     # Delete_management(os.path.join(fldr, shp))
 
 
-def set_up_schema(db):
+def set_up_schema(db, ms_schema='dbo', pg_schema='working'):
     if db.type == 'MS':
-        db.query("""
+        db.query(f"""
             IF NOT EXISTS (
                 SELECT  schema_name
                 FROM    information_schema.schemata
-                WHERE   schema_name = 'pytest' 
+                WHERE   schema_name = '{ms_schema}' 
             ) 
              
             BEGIN
-            EXEC sp_executesql N'CREATE SCHEMA pytest'
+            EXEC sp_executesql N'CREATE SCHEMA {ms_schema}'
             END
         """)
     if db.type == 'PG':
-        db.query("""
-            create schema if not exists pytest;
+        db.query(f"""
+            create schema if not exists {pg_schema};
         """)
 
-def clean_up_schema(db):
+
+def clean_up_schema(db, schema):
     if db.type == 'PG':
         c = ' cascade'
     else:
         c = ''
-    db.query("DROP SCHEMA IF EXISTS pytest{};".format(c))
+    db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
+

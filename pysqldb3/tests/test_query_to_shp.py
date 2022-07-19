@@ -30,10 +30,12 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 
 test_table = '__testing_query_to_shp_{}__'.format(db.user)
 
+ms_schema = 'risadmin'
+pg_schmma = 'working'
+
 
 class TestQueryToShpPg:
     def test_query_to_shp_basic(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -44,11 +46,11 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -57,12 +59,11 @@ class TestQueryToShpPg:
         assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schmma, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_pth(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -73,22 +74,21 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), path=fldr+'\\'+shp, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), path=fldr+'\\'+shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schmma, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_pth_and_shp(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -99,11 +99,12 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr+'\\'+'test_'+shp, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp,
+                        path=fldr+'\\'+'test_'+shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -112,12 +113,11 @@ class TestQueryToShpPg:
         assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schmma, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_pth(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -128,22 +128,22 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), path=fldr+'\\'+shp, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), path=fldr+'\\'+shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schmma, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_pth_and_shp(self):
-        schema = 'working'
+
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -154,22 +154,22 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr+'\\'+'test_'+shp, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp,
+                        path=fldr+'\\'+'test_'+shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schmma, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_quotes(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -180,22 +180,21 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=schema, table=test_table)
+        db.drop_table(schema=pg_schmma, table=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_funky_field_names(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -206,22 +205,21 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text','test text','test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=schema, table=test_table)
+        db.drop_table(schema=pg_schmma, table=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_long_names(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -236,22 +234,22 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', 'test text', now(), 123.456, st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=schema, table=test_table)
+        db.drop_table(schema=pg_schmma, table=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_shp_basic_no_data(self):
-        schema = 'working'
+
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -262,17 +260,18 @@ class TestQueryToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{} limit 0".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{} limit 0".format(pg_schmma, test_table),
+                        shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=schema, table=test_table)
+        db.drop_table(schema=pg_schmma, table=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -280,7 +279,6 @@ class TestQueryToShpPg:
                 print(e)
 
     def test_query_to_shp_data(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -299,20 +297,20 @@ class TestQueryToShpPg:
              'test text',
              '{lt}',
              now(), 123.456, st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table, lt='test ' * 51))  # The shapefile maximum field width is 254 lt set to 255
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table, lt='test ' * 51))  # The shapefile maximum field width is 254 lt set to 255
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        db.shp_to_table(path=fldr, table=test_table + 'QA', schema=schema,
+        db.shp_to_table(path=fldr, table=test_table + 'QA', schema=pg_schmma,
                         shp_name=shp, print_cmd=True)
 
-        db.query("""
+        db.query(f"""
         select
             t1.fld2 = t2.fld2,
             left(t1.fld3, 254) = t2.fld3,
@@ -320,15 +318,15 @@ class TestQueryToShpPg:
             t1.fld4::time = t2.fld4_tm::time, -- shapefiles cannot store datetimes
             t1.fld5 = t2.fld5,
             st_distance(t1.fld6, t2.geom) < 1 -- deafult name from pysqldb
-        from working.{} t1
-        join working.{}qa t2
+        from {pg_schmma}.{test_table} t1
+        join {pg_schmma}.{test_table}qa t2
         on t1.fld1=t2.fld1
-        """.format(test_table, test_table))
+        """)
         assert set(db.data[0]) == {True}
 
         # clean up
-        db.drop_table(schema=schema, table=test_table)
-        db.drop_table(schema=schema, table=test_table + 'qa')
+        db.drop_table(schema=pg_schmma, table=test_table)
+        db.drop_table(schema=pg_schmma, table=test_table + 'qa')
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
@@ -337,7 +335,6 @@ class TestQueryToShpPg:
                 print(e)
 
     def test_query_to_shp_data_longcolumn(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -356,20 +353,20 @@ class TestQueryToShpPg:
              'test text',
              '{lt}',
              now(), 123.456, st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table, lt='test ' * 51))  # The shapefile maximum field width is 254 lt set to 255
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schmma, t=test_table, lt='test ' * 51))  # The shapefile maximum field width is 254 lt set to 255
+        assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        db.shp_to_table(path=fldr, table=test_table + 'QA', schema=schema,
+        db.shp_to_table(path=fldr, table=test_table + 'QA', schema=pg_schmma,
                         shp_name=shp, print_cmd=True)
 
-        db.query("""
+        db.query(f"""
         select
             t1.fld2 = t2.fld2,
             left(t1.fld3, 254) = t2.fld3,
@@ -377,15 +374,15 @@ class TestQueryToShpPg:
             t1.longfld4::time = t2.longfld_tm::time, -- shapefiles cannot store datetimes
             t1.fld5 = t2.fld5,
             st_distance(t1.fld6, t2.geom) < 1 -- deafult name from pysqldb
-        from working.{} t1
-        join working.{}qa t2
+        from {pg_schmma}.{test_table} t1
+        join {pg_schmma}.{test_table}qa t2
         on t1.fld1=t2.fld1
-        """.format(test_table, test_table))
+        """)
         assert set(db.data[0]) == {True}
 
         # clean up
-        db.drop_table(schema=schema, table=test_table)
-        db.drop_table(schema=schema, table=test_table + 'qa')
+        db.drop_table(schema=pg_schmma, table=test_table)
+        db.drop_table(schema=pg_schmma, table=test_table + 'qa')
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
@@ -394,7 +391,6 @@ class TestQueryToShpPg:
                 print(e)
 
     def test_query_to_shp_sc(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test'
 
@@ -405,14 +401,14 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
 
         # Upload shp (with special character)
-        db.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema=schema, table=test_table)
+        db.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema=pg_schmma, table=test_table)
 
         # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
         # Though ogr uses LATIN1, our PG server stores things using UTF8; this is decoded and then encoded as LATIN1 to get the initial character.
-        assert list(db.dfquery("""select sc from {}.{}""".format(schema, test_table))['sc'])[0].encode('latin1') == '©'.encode('latin1')
+        assert list(db.dfquery("""select sc from {}.{}""".format(pg_schmma, test_table))['sc'])[0].encode('latin1') == '©'.encode('latin1')
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schmma, test_table)
         os.remove(os.path.join(fldr, shp + '.dbf'))
 
     def test_query_to_shp_bad_query(self):
@@ -432,13 +428,12 @@ class TestQueryToShpPg:
 class TestQueryToShpMs:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_schema(sql)
+        helpers.set_up_schema(sql, ms_schema=ms_schema)
 
     def test_query_to_shp_basic(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
 
         # create table
         sql.query("""
@@ -448,11 +443,11 @@ class TestQueryToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -461,7 +456,7 @@ class TestQueryToShpMs:
         assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -469,10 +464,9 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_pth(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
 
         # create table
         sql.query("""
@@ -482,17 +476,17 @@ class TestQueryToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), path=fldr + '\\' + shp, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), path=fldr + '\\' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -500,10 +494,9 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_pth_and_name(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
 
         # create table
         sql.query("""
@@ -513,11 +506,11 @@ class TestQueryToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp,
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp,
                         path=fldr + '\\' + 'test_' + shp, print_cmd=True)
 
         # check table in folder
@@ -527,7 +520,7 @@ class TestQueryToShpMs:
         # assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -535,10 +528,9 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_pth(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
 
         # create table
         sql.query("""
@@ -548,17 +540,17 @@ class TestQueryToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), path=fldr + '\\' + shp, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), path=fldr + '\\' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -566,10 +558,9 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_pth_and_name(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
 
         # create table
         sql.query("""
@@ -579,18 +570,18 @@ class TestQueryToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp,
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp,
                         path=fldr + '\\' + 'test_' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -649,7 +640,6 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_shp_basic_funky_field_names(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -661,17 +651,17 @@ class TestQueryToShpMs:
             (id, [t.txt], [1t txt], [t_txt], dte, geom)
             VALUES (1, 'test text','test text','test text', CURRENT_TIMESTAMP,
             geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -897,8 +887,8 @@ class TestQueryToShpMs:
 
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_test_table_sql(sql, schema='pytest')
-        sql.query("drop table {}.{}".format('pytest', sql.log_table))
+        helpers.clean_up_test_table_sql(sql, schema=ms_schema)
+        sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
         sql.clean_up_new_tables()
-        helpers.clean_up_schema(sql)
+        helpers.clean_up_schema(sql, ms_schema)
 
