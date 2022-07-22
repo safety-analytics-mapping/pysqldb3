@@ -1102,7 +1102,17 @@ class DbConnect:
                 cols = str(cols).replace("'", "")[1:-1]
             else:
                 # If not input_schema, use what GDAL created
-                cols = '*'
+                # cols = '*'
+                _ = self.get_table_columns(f'stg_{table}', schema=schema)
+                cols = []
+                for c in _:
+                    if len(set(c[0]) - {' ', ':', '.'}) != len(set(c[0])):
+                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_'))
+                    else:
+                        cols.append(c[0])
+                cols = str(cols).replace("'", "")[1:-1]
+
+
 
             if self.table_exists(schema=schema, table=table):
                 # Move into final table from stg

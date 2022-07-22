@@ -38,10 +38,11 @@ class TestXlsToTablePG:
 
         # Check to see if table is in database
         assert db.table_exists(table=xls_table_name, schema='working')
+        db.query("alter table working.{} drop column if exists ogc_fid".format(xls_table_name))
         db_df = db.dfquery("select * from working.{}".format(xls_table_name))
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
-        xls_df = pd.read_excel(fp)# .rename(columns={"Unnamed: 0": "unnamed: 0"})
+        xls_df = pd.read_excel(fp).rename(columns={"Unnamed: 0": "unnamed__0"})
         xls_df.columns = [c.lower().strip().replace(' ', '_').replace('.', '_').replace(':', '_') for c in xls_df.columns]
 
         # Assert df equality, including dtypes and columns
