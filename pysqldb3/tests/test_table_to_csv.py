@@ -36,8 +36,8 @@ pg_schema = 'working'
 class Test_Table_to_CSV_PG:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_schema(db, ms_schema=ms_schema)
-        helpers.set_up_test_table_pg(db, schema=ms_schema)
+        # helpers.set_up_schema(db, ms_schema=ms_schema)
+        helpers.set_up_test_table_pg(db, schema=pg_schema)
 
     def test_table_to_csv_check_file(self):
         schema = pg_schema
@@ -53,7 +53,7 @@ class Test_Table_to_CSV_PG:
             FROM
                 {s}.{pg}
             LIMIT 10
-        """.format(s=schema, t=create_table_name,pg=pg_table_name))
+        """.format(s=schema, t=create_table_name, pg=pg_table_name))
         assert db.table_exists(create_table_name, schema=schema)
 
         # table to csv
@@ -281,12 +281,12 @@ class Test_Table_to_CSV_PG:
         assert db.table_exists(create_table_name, schema=schema)
 
         # table to csv
-        with raises(IOError) as exc_info:
+        with raises(OSError) as exc_info:
             db.table_to_csv(create_table_name,
                             schema=schema,
                             output_file=os.path.join(fldr, create_table_name + '.csv')
                             )
-        assert exc_info.type is FileNotFoundError
+        assert exc_info.type is OSError
 
         # clean up
         db.disconnect(quiet=True)
@@ -397,7 +397,7 @@ class Test_Table_to_CSV_PG:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
-        helpers.clean_up_schema(db)
+        # helpers.clean_up_schema(db)
         db.clean_up_new_tables()
 
 
@@ -434,12 +434,12 @@ class Test_Table_to_CSV_MS:
         assert sql.table_exists(table=create_table_name, schema=schema)
 
         # table to csv
-        with raises(IOError) as exc_info:
+        with raises(OSError) as exc_info:
             sql.table_to_csv(create_table_name,
                              schema=schema,
                              output_file=os.path.join(fldr, create_table_name + '.csv')
                              )
-        assert exc_info.type is FileNotFoundError
+        assert exc_info.type is OSError
 
         # clean up
         sql.disconnect(quiet=True)
@@ -816,4 +816,4 @@ class Test_Table_to_CSV_MS:
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
         sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
         sql.clean_up_new_tables()
-        helpers.clean_up_schema(sql)
+        # helpers.clean_up_schema(sql, ms_schema)
