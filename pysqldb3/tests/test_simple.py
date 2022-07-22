@@ -22,10 +22,12 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
 
-sql2 = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        ldap=True,
+sql2 = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB', 'TYPE'),
+                        server=config.get('SECOND_SQL_DB', 'SERVER'),
+                        database=config.get('SECOND_SQL_DB', 'DB_NAME'),
+                        # ldap=True,
+                        user=config.get('SECOND_SQL_DB', 'DB_USER'),
+                        password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'),
                         use_native_driver=True)
 
 def test_connect():
