@@ -33,11 +33,12 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 #                              ldap=True)
 
 test_table = '__testing_query_to_shp_{}__'.format(db.user)
+ms_schema = 'risadmin'
+pg_schema = 'working'
 
 
 class TestTableToShpPg:
     def test_table_to_shp_basic(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -48,22 +49,21 @@ class TestTableToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schema, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=schema, shp_name=shp, path=fldr, print_cmd=True)
+        db.table_to_shp(test_table, schema=pg_schema, shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_table_to_shp_basic_pth(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -74,22 +74,21 @@ class TestTableToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schema, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=schema, path=fldr + '\\' + shp, print_cmd=True)
+        db.table_to_shp(test_table, schema=pg_schema, path=fldr + '\\' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_table_to_shp_basic_pth_w_name(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
@@ -100,22 +99,21 @@ class TestTableToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schema, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=schema, shp_name=shp,  path=fldr + '\\' + 'err_'+shp, print_cmd=True)
+        db.table_to_shp(test_table, schema=pg_schema, shp_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema, test_table)
+        db.drop_table(pg_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_table_to_shp_basic_quotes(self):
-        schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = test_table+'.shp'
 
@@ -126,17 +124,17 @@ class TestTableToShpPg:
 
             INSERT INTO {s}.{t}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
-        assert db.table_exists(test_table, schema=schema)
+        """.format(s=pg_schema, t=test_table))
+        assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema, path=fldr, shp_name=shp, print_cmd=True)
+        db.table_to_shp(test_table, pg_schema, path=fldr, shp_name=shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=schema, table=test_table)
+        db.drop_table(schema=pg_schema, table=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('.shp', '.'+ext)))
 
@@ -148,10 +146,9 @@ class TestTableToShpMs:
 
 
     def test_table_to_shp_basic(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
 
         # create table
         sql.query("""
@@ -161,17 +158,17 @@ class TestTableToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=schema, shp_name=shp, path=fldr, print_cmd=True)
+        sql.table_to_shp(test_table, schema=ms_schema, shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -179,10 +176,10 @@ class TestTableToShpMs:
                 pass
 
     def test_table_to_shp_basic_pth(self):
-        schema = 'pytest'
+
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
 
         # create table
         sql.query("""
@@ -192,17 +189,17 @@ class TestTableToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=schema, path=fldr + '\\' + shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema=ms_schema, path=fldr + '\\' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -210,11 +207,10 @@ class TestTableToShpMs:
                 pass
 
     def test_table_to_shp_basic_pth_w_name(self):
-        schema = 'pytest'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema=ms_schema, table=test_table)
         # create table
         sql.query("""
             CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
@@ -223,17 +219,17 @@ class TestTableToShpMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+        """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=schema, shp_name=shp ,path=fldr + '\\' + 'err_'+shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema=ms_schema, shp_name=shp ,path=fldr + '\\' + 'err_'+shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -241,10 +237,9 @@ class TestTableToShpMs:
                 pass
 
     def test_table_to_shp_basic_brackets(self):
-        schema = 'dbo'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = test_table+'.shp'
-        sql.drop_table(table=test_table, schema=schema)
+        sql.drop_table(table=test_table, schema=ms_schema)
 
         # create table
         sql.query("""
@@ -254,17 +249,17 @@ class TestTableToShpMs:
                     (id, txt, dte, geom)
                      VALUES (1, 'test text', CURRENT_TIMESTAMP,
                      geometry::Point(1015329.1, 213793.1, 2263))
-                """.format(s=schema, t=test_table))
-        assert sql.table_exists(test_table, schema=schema)
+                """.format(s=ms_schema, t=test_table))
+        assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=schema, path=fldr, shp_name=shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema=ms_schema, path=fldr, shp_name=shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        sql.drop_table(schema, test_table)
+        sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -273,7 +268,7 @@ class TestTableToShpMs:
 
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_test_table_sql(sql, schema='pytest')
+        helpers.clean_up_test_table_sql(sql, schema=ms_schema)
         sql.query("drop table {}.{}".format('pytest', sql.log_table))
         sql.clean_up_new_tables()
-        helpers.clean_up_schema(sql)
+        # helpers.clean_up_schema(sql, schema=ms_schema)
