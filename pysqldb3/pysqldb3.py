@@ -140,9 +140,9 @@ class DbConnect:
         :return: None
         """
         if self.default_connect:
-            self.type = PG
-            self.server = 'localhost'  # todo set up a config with this
-            self.database = 'test'
+            self.type = config.get('DEFAULT DATABASE', 'type')
+            self.server = config.get('DEFAULT DATABASE', 'server')
+            self.database = config.get('DEFAULT DATABASE', 'database')
 
         # Only prompts user if missing necessary information
         if ((self.LDAP and not all((self.database, self.server))) or
