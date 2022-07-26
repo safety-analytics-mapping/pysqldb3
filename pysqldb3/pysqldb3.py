@@ -616,6 +616,34 @@ class DbConnect:
 
         return [schema_row[0] for schema_row in self.__get_most_recent_query_data(internal=True)]
 
+    def get_table_columns(self, table, schema=None, full=False):
+        if not schema:
+            schema = self.default_schema
+        if full:
+            columns = '*'
+        else:
+            columns = "column_name, data_type"
+
+        if self.type == PG:
+            self.query("""
+            SELECT {cols}
+            FROM information_schema.columns
+            WHERE table_schema = '{s}' 
+                AND table_name = '{t}'
+            ORDER BY ordinal_position;
+            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+
+        if self.type == MS:
+            self.query("""
+            SELECT {cols}
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE table_schema = '{s}' 
+                AND table_name = '{t}'
+            ORDER BY ORDINAL_POSITION;
+            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+
+        return self.__get_most_recent_query_data(internal=True)
+    
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
               lock_table=None, return_df=False, days=7, internal=False):
         # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[None, pd.DataFrame]
