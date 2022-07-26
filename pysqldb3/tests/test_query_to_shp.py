@@ -426,9 +426,9 @@ class TestQueryToShpPg:
 
 
 class TestQueryToShpMs:
-    @classmethod
-    def setup_class(cls):
-        helpers.set_up_schema(sql, ms_schema=ms_schema)
+    # @classmethod
+    # def setup_class(cls):
+    #     helpers.set_up_schema(sql, ms_schema=ms_schema)
 
     def test_query_to_shp_basic(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
@@ -890,5 +890,5 @@ class TestQueryToShpMs:
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
         sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
         sql.clean_up_new_tables()
-        helpers.clean_up_schema(sql, ms_schema)
+        # helpers.clean_up_schema(sql, ms_schema)
 
