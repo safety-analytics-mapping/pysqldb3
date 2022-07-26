@@ -5,6 +5,11 @@ from .. import shapefile
 import subprocess
 import requests
 import zipfile
+from xlrd import open_workbook
+from xlutils.copy import copy
+
+
+DIR = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
 
 
 def set_up_test_csv():
@@ -255,3 +260,49 @@ def clean_up_schema(db, schema):
         c = ''
     db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
 
+def clean_up_shp(file_path):
+    for ext in ('.shp', '.dbf', '.shx', '.prj'):
+        clean_up_file(file_path.replace('.shp', ext))
+
+
+def clean_up_file(file_path):
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+        print ('%s file removed\n' % os.path.basename(file_path))
+
+
+def set_up_xls():
+    xls_file1 = os.path.join(DIR, 'test_xls.xls')
+    if os.path.isfile(xls_file1):
+        clean_up_file(xls_file1)
+
+    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'))
+    print ('%s created\n' % os.path.basename(xls_file1))
+
+    xls_file2 = os.path.join(DIR, 'test_xls_with_sheet.xls')
+    if os.path.isfile(xls_file2):
+        clean_up_file(xls_file2)
+
+    test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+
+    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet')
+    w = copy(open_workbook(xls_file2))
+    Sheet2 = w.add_sheet('Sheet2')
+    col, row = 0, 0
+    Sheet2.write(row, col, '')
+    row += 1
+    for i in range(len(test_df2)):
+        Sheet2.write(row, col, i)
+        row += 1
+    col, row = 1, 0
+    for c in test_df2.columns:
+        Sheet2.write(row, col, c)
+        row += 1
+        for r in test_df2[c]:
+            Sheet2.write(row, col, r)
+            row += 1
+        col += 1
+        row = 0
+    w.save(xls_file2)
+    print ('%s created\n' % os.path.basename(xls_file2))

@@ -403,6 +403,8 @@ class TestLogging:
         db.drop_table(table=table_for_testing_logging, schema='working')
 
     def test_excel_to_table_logging(self):
+        helpers.set_up_xls()
+
         fp = os.path.dirname(os.path.abspath(__file__)) + '/test_data/test_xls.xls'
 
         before_log_df = db.dfquery("""
