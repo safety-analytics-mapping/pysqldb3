@@ -52,6 +52,10 @@ class SqlDriver:
         self.native_driver = self.choose_max(native_drivers)
 
 
+def get_gdal_data_path():
+    return os.environ["GDAL_DATA"]
+
+
 def read_config(confi_path='.\config.cfg'):
     sections = defaultdict(dict)
 
@@ -85,6 +89,8 @@ def write_config(confi_path='.\config.cfg'):
                 odbc = SqlDriver()
                 existing_sections[rec_section]['ODBC_DRIVER']=odbc.odbc_driver
                 existing_sections[rec_section]['NATIVE_DRIVER']=odbc.native_driver
+            if rec_section == 'GDAL DATA':
+                existing_sections[rec_section]['ODBC_DRIVER']=get_gdal_data_path()
             else:
                 print(f'\nMissing section {rec_section} from config file. Plesae edit {confi_path} to add')
                 open_config = True
