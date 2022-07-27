@@ -29,7 +29,7 @@ class TestMisc:
     @classmethod
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
-        helpers.set_up_test_table_sql(sql)
+        helpers.set_up_test_table_sql(sql, sql.default_schema)
 
     def test_get_schemas_pg(self):
         schemas = db.get_schemas()
