@@ -1,6 +1,6 @@
 import getpass
-import pyodbc
 
+import pyodbc
 from tqdm import tqdm
 from typing import Optional, Union
 import openpyxl
@@ -124,10 +124,7 @@ class DbConnect:
         """
         if db_type == MS:
             default_schema = self.dfquery('select schema_name()', internal=True)
-            if default_schema.empty or default_schema.iloc[0][0] is None:
-                default_schema = 'dbo'
-            else:
-                default_schema = default_schema.iloc[0][0]
+            default_schema = default_schema.iloc[0][0]#.encode('utf-8')
             return default_schema
         elif db_type == PG:
             return 'public'
@@ -187,9 +184,10 @@ class DbConnect:
         :return: None
         """
         if self.use_native_driver:
-            driver = config.get('ODBC Drivers', 'NATIVE_DRIVER')
+            # driver = 'SQL Server Native Client 10.0'
+            driver = '{ODBC Driver 17 for SQL Server}'
         else:
-            driver = config.get('ODBC Drivers', 'ODBC_DRIVER')
+            driver = 'SQL Server'
 
             if self.connection_count == 0:
                 print('Warning:\n\tWithout SQL Server Native Client 10.0 \
@@ -313,7 +311,7 @@ class DbConnect:
             cleaned += 1
 
         if cleaned > 0:
-            print('Attempted to remove {} expired temp tables: {}'.format(cleaned, to_clean))
+            print('\n\nRemoved {} expired temp tables: {}'.format(cleaned, [i[0] + '.' + i[1] for i in to_clean]))
 
     def __remove_nonexistent_tables_from_logs(self):
         # type: (DbConnect) -> None
@@ -1697,6 +1695,8 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd)
 
+        self.tables_created.append(schema + "." + table)
+
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
 
@@ -1736,6 +1736,8 @@ class DbConnect:
                         shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
+
+        self.tables_created.append(schema + "." + table)
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)

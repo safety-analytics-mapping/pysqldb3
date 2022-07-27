@@ -69,8 +69,8 @@ class Test_rename_ms():
 
         # make sure temp rename is in th elog and non-temp rename is not
         ms.query("select table_name from {}.{}".format(ms.default_schema, ms.log_table))
-        assert rename in rename in [i[0] for i in ms.data]
-        assert not rename2 in rename in [i[0] for i in ms.data]
+        assert rename in ms.data[0]
+        assert not rename2 in ms.data[0]
 
         # clean up
         ms.drop_table(ms.default_schema, '{t}'.format(t=tbl))

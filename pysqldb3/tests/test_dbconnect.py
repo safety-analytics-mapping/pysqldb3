@@ -64,26 +64,6 @@ class TestMisc:
         # Assert same values
         assert set(schemas) == set(query_schema_df['schema_name'])
 
-    def test_get_columns_pg(self):
-        db.drop_table('working', table_for_testing)
-        db.query("create table {}.{} (test_int int, test_str varchar(10))".format('working', table_for_testing))
-        columns = db.get_table_columns(table_for_testing, schema='working')
-
-        # Assert correct columns
-        # cast to string to avoid issue with odbcs' return types
-        assert str(columns) == str([('test_int', 'integer'), ('test_str', 'character varying')])
-        db.drop_table('working', table_for_testing)
-
-    def test_get_columns_ms(self):
-        sql.drop_table(schema=sql.default_schema, table=table_for_testing)
-        sql.query("create table {}.{} (test_int int, test_str varchar(10))".format(sql.default_schema, table_for_testing))
-        columns = sql.get_table_columns(table_for_testing)
-
-        # Assert correct columns
-        # cast to string to avoid issue with odbcs' return types
-        assert str(columns) == str([('test_int', 'int'), ('test_str', 'varchar')])
-        sql.drop_table(schema=sql.default_schema, table=table_for_testing)
-
     def test_my_tables_pg_basic(self):
         db.drop_table(schema='working', table=table_for_testing)
         my_tables_df = db.my_tables(schema='working')
@@ -423,6 +403,8 @@ class TestLogging:
         db.drop_table(table=table_for_testing_logging, schema='working')
 
     def test_excel_to_table_logging(self):
+        helpers.set_up_xls()
+
         fp = os.path.dirname(os.path.abspath(__file__)) + '/test_data/test_xls.xls'
 
         before_log_df = db.dfquery("""
