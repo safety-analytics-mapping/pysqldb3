@@ -643,7 +643,7 @@ class DbConnect:
             """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
 
         return self.__get_most_recent_query_data(internal=True)
-    
+
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
               lock_table=None, return_df=False, days=7, internal=False):
         # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[None, pd.DataFrame]
