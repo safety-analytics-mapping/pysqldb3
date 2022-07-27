@@ -119,3 +119,10 @@ user={to_pg_user} password={to_pg_pass}" PG:"host={from_pg_host} port={from_pg_p
 dbname={from_pg_database}  user={from_pg_user} password={from_pg_pass}" {from_pg_schema}.{from_pg_table} 
 -lco OVERWRITE=yes -nln {to_pg_schema}.{to_pg_name} {nlt_spatial} -progress
 """.replace('\n', ' ')
+
+PG_TO_PG_QRY_CMD = """
+ogr2ogr -overwrite -f "PostgreSQL" PG:"host={to_pg_host} port={to_pg_port} dbname={to_pg_database} 
+user={to_pg_user} password={to_pg_pass}" PG:"host={from_pg_host} port={from_pg_port} 
+dbname={from_pg_database}  user={from_pg_user} password={from_pg_pass}"  -sql "{sql_select}"
+-lco OVERWRITE=yes -nln {to_pg_schema}.{to_pg_name} {nlt_spatial} -progress
+""".replace('\n', ' ')

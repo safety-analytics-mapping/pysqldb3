@@ -7,17 +7,17 @@ import pandas as pd
 from . import helpers
 from .. import pysqldb3 as pysqldb
 
-config = configparser.ConfigParser()
-config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
+test_config = configparser.ConfigParser()
+test_config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(default=True, password=config.get('PG_DB', 'DB_PASSWORD'),
-                       user=config.get('PG_DB', 'DB_USER'))
+db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSWORD'),
+                       user=test_config.get('PG_DB', 'DB_USER'))
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'))
+sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
+                        server=test_config.get('SQL_DB', 'SERVER'),
+                        database=test_config.get('SQL_DB', 'DB_NAME'),
+                        user=test_config.get('SQL_DB', 'DB_USER'),
+                        password=test_config.get('SQL_DB', 'DB_PASSWORD'))
 
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 sql_table_name = 'sql_test_table_{}'.format(sql.user)
@@ -29,9 +29,7 @@ class TestMisc:
     @classmethod
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
-        helpers.set_up_test_table_sql(sql)
-        helpers.set_up_shapefile()
-        # helpers.set_up_test_shp(db, schema='working')
+        helpers.set_up_test_table_sql(sql, sql.default_schema)
 
     def test_get_schemas_pg(self):
         schemas = db.get_schemas()
@@ -65,26 +63,6 @@ class TestMisc:
 
         # Assert same values
         assert set(schemas) == set(query_schema_df['schema_name'])
-
-    def test_get_columns_pg(self):
-        db.drop_table('working', table_for_testing)
-        db.query("create table {}.{} (test_int int, test_str varchar(10))".format('working', table_for_testing))
-        columns = db.get_table_columns(table_for_testing, schema='working')
-
-        # Assert correct columns
-        # cast to string to avoid issue with odbcs' return types
-        assert str(columns) == str([('test_int', 'integer'), ('test_str', 'character varying')])
-        db.drop_table('working', table_for_testing)
-
-    def test_get_columns_ms(self):
-        sql.drop_table(schema=sql.default_schema, table=table_for_testing)
-        sql.query("create table {}.{} (test_int int, test_str varchar(10))".format(sql.default_schema, table_for_testing))
-        columns = sql.get_table_columns(table_for_testing)
-
-        # Assert correct columns
-        # cast to string to avoid issue with odbcs' return types
-        assert str(columns) == str([('test_int', 'int'), ('test_str', 'varchar')])
-        sql.drop_table(schema=sql.default_schema, table=table_for_testing)
 
     def test_my_tables_pg_basic(self):
         db.drop_table(schema='working', table=table_for_testing)
@@ -194,7 +172,9 @@ class TestMisc:
 
         sql.drop_table(table=table_for_testing, schema='dbo')
 
-        sql.query('select top 10 test_col1, test_col2 into dbo.{} from dbo.{}'.format(table_for_testing, sql_table_name))
+        sql.query('select top 10 test_col1, test_col2 into dbo.{} from {}.{}'.format(table_for_testing,
+                                                                                     sql.default_schema,
+                                                                                     sql_table_name))
 
         og_columns = list(sql.dfquery('select test_col1, test_col2 from dbo.{}'.format(table_for_testing)))
         original_column = og_columns[0]
@@ -425,6 +405,8 @@ class TestLogging:
         db.drop_table(table=table_for_testing_logging, schema='working')
 
     def test_excel_to_table_logging(self):
+        helpers.set_up_xls()
+
         fp = os.path.dirname(os.path.abspath(__file__)) + '/test_data/test_xls.xls'
 
         before_log_df = db.dfquery("""

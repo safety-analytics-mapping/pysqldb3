@@ -1,12 +1,15 @@
 import random
 import os
 import pandas as pd
-# import shapefile
+from .. import shapefile
+import subprocess
 import requests
 import zipfile
+from xlrd import open_workbook
+from xlutils.copy import copy
 
-# from arcpy import Delete_management, CreateFileGDB_management, CreateFeatureclass_management, \
-#     env, AddField_management, da, FeatureClassToShapefile_conversion
+
+DIR = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
 
 
 def set_up_test_csv():
@@ -26,7 +29,6 @@ def set_up_test_csv():
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
-    # df.to_csv('tests/test_data/test.csv')
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
@@ -83,19 +85,9 @@ def set_up_test_table_pg(db, schema='working'):
         """.format(schema, table_name, i, c1, c2, lat, lon))
 
 
-def set_up_test_shp(db, schema='working'):
-    """
-    very much a cheat, should be replaced with something that generates the shp from coords
-    """
-    set_up_test_table_pg(db, schema)
-    db.table_to_shp('pg_test_table_{}'.format(db.user), schema=schema,
-                    path=os.path.dirname(os.path.abspath(__file__)) + "\\test_data",
-                    shp_name='test.shp', srid=2263)
-
-
-def clean_up_test_table_pg(db, schema='working'):
+def clean_up_test_table_pg(db):
     table_name = 'pg_test_table_{}'.format(db.user)
-    db.drop_table(table=table_name, schema=schema)
+    db.drop_table(table=table_name, schema='working')
 
 
 def set_up_two_test_tables_pg(db):
@@ -234,35 +226,83 @@ def set_up_shapefile():
 
 def clean_up_shapefile():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-    for ext in ('shp', 'dbf', 'shx', 'prj'):
-        try:
-            os.remove(f'{fldr}\\test_data\\test.{ext}')
-        except:
-            pass
+    shp = "test.shp"
+    for ext in ('shp', 'dbf', 'shx'):
+        os.remove(f'{fldr}\\test_data\\test.{ext}')
+
     print ('Deleting any existing shp')
+    # Delete_management(os.path.join(fldr, shp))
 
 
-def set_up_schema(db):
+def set_up_schema(db, ms_schema='dbo', pg_schema='working'):
     if db.type == 'MS':
-        db.query("""
+        db.query(f"""
             IF NOT EXISTS (
                 SELECT  schema_name
                 FROM    information_schema.schemata
-                WHERE   schema_name = 'pytest' 
+                WHERE   schema_name = '{ms_schema}' 
             ) 
              
             BEGIN
-            EXEC sp_executesql N'CREATE SCHEMA pytest'
+            EXEC sp_executesql N'CREATE SCHEMA {ms_schema}'
             END
         """)
     if db.type == 'PG':
-        db.query("""
-            create schema if not exists pytest;
+        db.query(f"""
+            create schema if not exists {pg_schema};
         """)
 
-def clean_up_schema(db):
+
+def clean_up_schema(db, schema):
     if db.type == 'PG':
         c = ' cascade'
     else:
         c = ''
-    db.query("DROP SCHEMA IF EXISTS pytest{};".format(c))
+    db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
+
+def clean_up_shp(file_path):
+    for ext in ('.shp', '.dbf', '.shx', '.prj'):
+        clean_up_file(file_path.replace('.shp', ext))
+
+
+def clean_up_file(file_path):
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+        print ('%s file removed\n' % os.path.basename(file_path))
+
+
+def set_up_xls():
+    xls_file1 = os.path.join(DIR, 'test_xls.xls')
+    if os.path.isfile(xls_file1):
+        clean_up_file(xls_file1)
+
+    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'))
+    print ('%s created\n' % os.path.basename(xls_file1))
+
+    xls_file2 = os.path.join(DIR, 'test_xls_with_sheet.xls')
+    if os.path.isfile(xls_file2):
+        clean_up_file(xls_file2)
+
+    test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+
+    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet')
+    w = copy(open_workbook(xls_file2))
+    Sheet2 = w.add_sheet('Sheet2')
+    col, row = 0, 0
+    Sheet2.write(row, col, '')
+    row += 1
+    for i in range(len(test_df2)):
+        Sheet2.write(row, col, i)
+        row += 1
+    col, row = 1, 0
+    for c in test_df2.columns:
+        Sheet2.write(row, col, c)
+        row += 1
+        for r in test_df2[c]:
+            Sheet2.write(row, col, r)
+            row += 1
+        col += 1
+        row = 0
+    w.save(xls_file2)
+    print ('%s created\n' % os.path.basename(xls_file2))

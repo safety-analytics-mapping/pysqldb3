@@ -1,21 +1,20 @@
 import getpass
-import pyodbc
 
+import pyodbc
 from tqdm import tqdm
 from typing import Optional, Union
 import openpyxl
 import json
 import plotly.express as px
-import os
-from .Config import write_config
-write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 from .query import *
 from .shapefile import *
 from .data_io import *
 from .__init__ import __version__
 
+from .Config import write_config
 
+write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
@@ -125,10 +124,7 @@ class DbConnect:
         """
         if db_type == MS:
             default_schema = self.dfquery('select schema_name()', internal=True)
-            if default_schema.empty or default_schema.iloc[0][0] is None:
-                default_schema = 'dbo'
-            else:
-                default_schema = default_schema.iloc[0][0]
+            default_schema = default_schema.iloc[0][0]#.encode('utf-8')
             return default_schema
         elif db_type == PG:
             return 'public'
@@ -147,7 +143,6 @@ class DbConnect:
             self.type = config.get('DEFAULT DATABASE', 'type')
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
-            self.__set_type()
 
         # Only prompts user if missing necessary information
         if ((self.LDAP and not all((self.database, self.server))) or
@@ -189,9 +184,11 @@ class DbConnect:
         :return: None
         """
         if self.use_native_driver:
-            driver = config.get('ODBC Drivers', 'NATIVE_DRIVER')
+            # driver = 'SQL Server Native Client 10.0'
+            driver = '{SQL Server Native Client 11.0}'
+            # driver = '{ODBC Driver 17 for SQL Server}'
         else:
-            driver = config.get('ODBC Drivers', 'ODBC_DRIVER')
+            driver = 'SQL Server'
 
             if self.connection_count == 0:
                 print('Warning:\n\tWithout SQL Server Native Client 10.0 \
@@ -905,7 +902,7 @@ class DbConnect:
 
         def contains_long_columns(df2):
             for c in list(df2.columns):
-                if df2[c].dtype in ('object', 'str'):
+                if df2[c].dtype in ('O','object', 'str'):
                     if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
                         print('Varchar column with length greater than 500 found; allowing max varchar length.')
                         return True
@@ -1104,7 +1101,17 @@ class DbConnect:
                 cols = str(cols).replace("'", "")[1:-1]
             else:
                 # If not input_schema, use what GDAL created
-                cols = '*'
+                # cols = '*'
+                _ = self.get_table_columns(f'stg_{table}', schema=schema)
+                cols = []
+                for c in _:
+                    if len(set(c[0]) - {' ', ':', '.'}) != len(set(c[0])):
+                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_'))
+                    else:
+                        cols.append(c[0])
+                cols = str(cols).replace("'", "")[1:-1]
+
+
 
             if self.table_exists(schema=schema, table=table):
                 # Move into final table from stg

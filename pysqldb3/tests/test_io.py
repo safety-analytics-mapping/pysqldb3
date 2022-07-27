@@ -27,6 +27,7 @@ test_pg_to_sql_table ='tst_pg_to_sql_tbl_{}'.format(db.user)
 test_sql_to_pg_qry_table = 'tst_sql_to_pg_qry_table_{}'.format(db.user)
 test_sql_to_pg_table = 'tst_sql_to_pg_table_{}'.format(db.user)
 test_pg_to_pg_tbl = 'tst_pg_to_pg_tbl_{}'.format(db.user)
+test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 
 
 # class TestPgToSql:
@@ -602,3 +603,115 @@ class TestPgToPg:
         helpers.clean_up_test_table_pg(db)
         db.clean_up_new_tables()
         sql.clean_up_new_tables()
+
+
+class TestPgToPgQry:
+    def test_pg_to_pg_qry_basic_table(self):
+        org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+                                server=config.get('SECOND_PG_DB', 'SERVER'),
+                                database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                                user=config.get('SECOND_PG_DB', 'DB_USER'),
+                                password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
+
+        # Assert pg table doesn't exist
+        db.drop_table(schema=db.default_schema, table=test_pg_to_pg_qry_table)
+        assert not db.table_exists(table=test_pg_to_pg_qry_table)
+
+        # Add test_table
+        org_pg.drop_table(schema='public', table=test_pg_to_pg_qry_table)
+        org_pg.query("""
+        create table public.{0} (test_col1 int, test_col2 int);
+        insert into public.{0} VALUES(1, 2);
+        insert into public.{0} VALUES(3, 4);
+        """.format(test_pg_to_pg_qry_table))
+
+        # sql_to_pg_qry
+        data_io.pg_to_pg_qry(org_pg, db, query="select * from public.{}".format(test_pg_to_pg_qry_table),
+                              dest_table=test_pg_to_pg_qry_table, print_cmd=True, spatial=False)
+
+        # Assert sql to pg query was successful (table exists)
+        assert db.table_exists(table=test_pg_to_pg_qry_table)
+
+        # Assert df equality
+        org_pg_df = org_pg.dfquery("""
+        select * from public.{}
+        order by test_col1
+        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+
+        pg_df = db.dfquery("""
+        select * from {}
+        order by test_col1
+        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+
+        org_pg_df.columns = [c.lower() for c in list(org_pg_df.columns)]
+
+        # Assert
+        pd.testing.assert_frame_equal(org_pg_df, pg_df.drop(['ogc_fid'], axis=1), check_dtype=False,
+                                      check_column_type=False)
+
+        # Cleanup
+        db.drop_table(schema=db.default_schema, table=test_pg_to_pg_qry_table)
+        org_pg.drop_table(schema='public', table=test_pg_to_pg_qry_table)
+
+    def test_pg_to_pg_qry_dest_schema(self):
+        org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+                                   server=config.get('SECOND_PG_DB', 'SERVER'),
+                                   database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                                   user=config.get('SECOND_PG_DB', 'DB_USER'),
+                                   password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
+
+        # Assert doesn't exist already
+        db.drop_table(schema='working', table=test_pg_to_pg_qry_table)
+        assert not db.table_exists(schema='working', table=test_pg_to_pg_qry_table)
+
+        # Add test_table
+        org_pg.drop_table(schema='working', table=test_pg_to_pg_qry_table)
+        org_pg.query("""
+        create table working.{0} (test_col1 int, test_col2 int);
+        insert into working.{0} VALUES(1, 2);
+        insert into working.{0} VALUES(3, 4);
+        """.format(test_pg_to_pg_qry_table))
+
+        # sql_to_pg_qry
+        data_io.pg_to_pg_qry(org_pg, db, query="select * from working.{}".format(test_pg_to_pg_qry_table),
+                              dest_table=test_pg_to_pg_qry_table, dest_schema='working', print_cmd=True)
+
+        # Assert sql_to_pg_qry successful and correct length
+        assert db.table_exists(schema='working', table=test_pg_to_pg_qry_table)
+        assert len(db.dfquery('select * from working.{}'.format(test_pg_to_pg_qry_table))) == 2
+
+        # Assert df equality
+        org_pg_df = org_pg.dfquery("""
+        select * from working.{}
+        order by test_col1
+        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+
+        pg_df = db.dfquery("""
+        select * from working.{}
+        order by test_col1
+        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+
+        org_pg_df.columns = [c.lower() for c in list(org_pg_df.columns)]
+
+        # Assert
+        pd.testing.assert_frame_equal(org_pg_df, pg_df.drop(['ogc_fid'], axis=1), check_column_type=False,
+                                      check_dtype=False)
+
+        # Cleanup
+        db.drop_table(schema='working', table=test_pg_to_pg_qry_table)
+        sql.drop_table(schema='dbo', table=test_pg_to_pg_qry_table)
+
+    def test_sql_to_pg_qry_no_dest_table_input(self):
+        return
+
+    def test_sql_to_pg_qry_empty_query_error(self):
+        return
+
+    def test_sql_to_pg_qry_empty_wrong_layer_error(self):
+        return
+
+    def test_sql_to_pg_qry_empty_overwrite_error(self):
+        return
+
+    # Note: temporary functionality will be tested separately!
+    # Still to test: LDAP, print_cmd
