@@ -172,7 +172,9 @@ class TestMisc:
 
         sql.drop_table(table=table_for_testing, schema='dbo')
 
-        sql.query('select top 10 test_col1, test_col2 into dbo.{} from dbo.{}'.format(table_for_testing, sql_table_name))
+        sql.query('select top 10 test_col1, test_col2 into dbo.{} from {}.{}'.format(table_for_testing,
+                                                                                     sql.default_schema,
+                                                                                     sql_table_name))
 
         og_columns = list(sql.dfquery('select test_col1, test_col2 from dbo.{}'.format(table_for_testing)))
         original_column = og_columns[0]
