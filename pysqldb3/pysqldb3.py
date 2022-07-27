@@ -6,17 +6,19 @@ from typing import Optional, Union
 import openpyxl
 import json
 import plotly.express as px
+import configparser
+import os
+from .Config import write_config
+
+write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
+config = configparser.ConfigParser()
+config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 from .query import *
 from .shapefile import *
 from .data_io import *
 from .__init__ import __version__
 
-from .Config import write_config
-
-write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
-config = configparser.ConfigParser()
-config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 
 # noinspection PyArgumentList
@@ -141,6 +143,7 @@ class DbConnect:
         """
         if self.default_connect:
             self.type = config.get('DEFAULT DATABASE', 'type')
+            self.__set_type()
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
 

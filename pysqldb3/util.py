@@ -15,7 +15,7 @@ POSTGRES_TYPES = ['PG', 'POSTGRESQL', 'POSTGRES']
 SQL_SERVER_TYPES = ['MS', 'SQL', 'MSSQL', 'SQLSERVER']
 TEMP_LOG_TABLE = '__temp_log_table_{}__'
 
-GDAL_DATA_LOC = r"C:\Program Files\GDAL\gdal-data" # r"C:\Program Files (x86)\GDAL\gdal-data"
+GDAL_DATA_LOC = config.get('GDAL DATA', 'GDAL_DATA')
 
 os.environ['GDAL_DATA'] = GDAL_DATA_LOC
 
