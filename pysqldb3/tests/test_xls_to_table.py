@@ -38,10 +38,11 @@ class TestXlsToTablePG:
 
         # Check to see if table is in database
         assert db.table_exists(table=xls_table_name, schema='working')
+        db.query("alter table working.{} drop column if exists ogc_fid".format(xls_table_name))
         db_df = db.dfquery("select * from working.{}".format(xls_table_name))
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
-        xls_df = pd.read_excel(fp)# .rename(columns={"Unnamed: 0": "unnamed: 0"})
+        xls_df = pd.read_excel(fp).rename(columns={"Unnamed: 0": "unnamed__0"})
         xls_df.columns = [c.lower().strip().replace(' ', '_').replace('.', '_').replace(':', '_') for c in xls_df.columns]
 
         # Assert df equality, including dtypes and columns
@@ -68,7 +69,7 @@ class TestXlsToTablePG:
         # Assert df column types match without override
         pd.testing.assert_frame_equal(
             pd.DataFrame(
-                [{"column_name": 'a', "data_type": 'bigint'}, {"column_name": 'b', "data_type": 'bigint'}]),
+                [{"column_name": 'a', "data_type": 'integer'}, {"column_name": 'b', "data_type": 'integer'}]),
 
             db.dfquery("""
 
@@ -128,10 +129,12 @@ class TestXlsToTablePG:
 
         # Check to see if table is in database
         assert db.table_exists(table=xls_table_name, schema='working')
+        db.query("alter table working.{} drop column if exists ogc_fid".format(xls_table_name))
         db_df = db.dfquery("select * from working.{}".format(xls_table_name))
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
-        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
+                                                                              "Unnamed: 0.1": "unnamed__0_1"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
@@ -154,10 +157,13 @@ class TestXlsToTablePG:
 
         # Check to see if table is in database
         assert db.table_exists(table=xls_table_name, schema='working')
+        db.query("alter table working.{} drop column if exists ogc_fid".format(xls_table_name))
         db_df = db.dfquery("select * from working.{}".format(xls_table_name))
 
+
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
-        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
+                                                                              "Unnamed: 0.1": "unnamed__0_1"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
@@ -263,6 +269,7 @@ class TestBulkXLSToTablePG:
         assert init_count + 1 == post_count
 
         # Df Equality
+        db.query("alter table {} drop column if exists ogc_fid".format(xls_table_name))
         df1 = db.dfquery("select * from {}".format(xls_table_name))
         df2 = pd.DataFrame([3, 4], columns=["sheet2"])
         pd.testing.assert_frame_equal(df1, df2)
@@ -301,6 +308,8 @@ class TestXlsToTableMS:
         # Check to see if table is in database
         assert sql.table_exists(table=xls_table_name, schema='dbo')
         sql_df = sql.dfquery("select * from dbo.{}".format(xls_table_name))
+        if 'ogr_fid' in sql_df.columns:
+            sql_df = sql_df.drop(columns=['ogr_fid'])
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
         xls_df = pd.read_excel(fp).rename(columns={"Unnamed: 0": "unnamed__0"})
@@ -328,7 +337,7 @@ class TestXlsToTableMS:
 
         # Assert df column types match without override
         pd.testing.assert_frame_equal(pd.DataFrame(
-            [{"column_name": 'a', "data_type": 'bigint'}, {"column_name": 'b', "data_type": 'bigint'}]),
+            [{"column_name": 'a', "data_type": 'int'}, {"column_name": 'b', "data_type": 'int'}]),
 
             sql.dfquery("""
 
@@ -385,9 +394,12 @@ class TestXlsToTableMS:
         # Check to see if table is in database
         assert sql.table_exists(table=xls_table_name, schema='dbo')
         db_df = sql.dfquery("select * from dbo.{}".format(xls_table_name))
+        if 'ogr_fid' in db_df.columns:
+            db_df = db_df.drop(columns=['ogr_fid'])
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
-        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
+                                                                              "Unnamed: 0.1": "unnamed__0_1"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
@@ -410,9 +422,12 @@ class TestXlsToTableMS:
         # Check to see if table is in database
         assert sql.table_exists(table=xls_table_name, schema='dbo')
         db_df = sql.dfquery("select * from dbo.{}".format(xls_table_name))
+        if 'ogr_fid' in db_df.columns:
+            db_df = db_df.drop(columns=['ogr_fid'])
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
-        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
+                                                                              "Unnamed: 0.1": "unnamed__0_1"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
@@ -581,7 +596,7 @@ class TestBulkXLSToTableMS:
         # Df Equality
         df1 = sql.dfquery("select * from {}".format(xls_table_name))
         df2 = pd.DataFrame([3, 4], columns=["sheet2"])
-        pd.testing.assert_frame_equal(df1, df2)
+        pd.testing.assert_frame_equal(df1[['sheet2']], df2)
 
         # Cleanup
         sql.drop_table(schema=sql.default_schema, table=xls_table_name)

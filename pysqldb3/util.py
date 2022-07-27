@@ -2,10 +2,14 @@ import datetime
 import decimal
 import re
 import os
+import configparser
 
 import numpy as np
 import pandas as pd
 from shapely import wkb
+
+config = configparser.ConfigParser()
+config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 POSTGRES_TYPES = ['PG', 'POSTGRESQL', 'POSTGRES']
 SQL_SERVER_TYPES = ['MS', 'SQL', 'MSSQL', 'SQLSERVER']

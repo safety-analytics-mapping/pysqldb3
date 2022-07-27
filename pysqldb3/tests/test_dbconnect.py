@@ -7,17 +7,17 @@ import pandas as pd
 from . import helpers
 from .. import pysqldb3 as pysqldb
 
-config = configparser.ConfigParser()
-config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
+test_config = configparser.ConfigParser()
+test_config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(default=True, password=config.get('PG_DB', 'DB_PASSWORD'),
-                       user=config.get('PG_DB', 'DB_USER'))
+db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSWORD'),
+                       user=test_config.get('PG_DB', 'DB_USER'))
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'))
+sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
+                        server=test_config.get('SQL_DB', 'SERVER'),
+                        database=test_config.get('SQL_DB', 'DB_NAME'),
+                        user=test_config.get('SQL_DB', 'DB_USER'),
+                        password=test_config.get('SQL_DB', 'DB_PASSWORD'))
 
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 sql_table_name = 'sql_test_table_{}'.format(sql.user)
@@ -403,6 +403,8 @@ class TestLogging:
         db.drop_table(table=table_for_testing_logging, schema='working')
 
     def test_excel_to_table_logging(self):
+        helpers.set_up_xls()
+
         fp = os.path.dirname(os.path.abspath(__file__)) + '/test_data/test_xls.xls'
 
         before_log_df = db.dfquery("""

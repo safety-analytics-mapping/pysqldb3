@@ -3,8 +3,8 @@ import sys
 
 import psycopg2
 
-from shapefile import *
-from util import parse_table_string
+from .shapefile import *
+from .util import parse_table_string
 
 
 class Query:
@@ -161,7 +161,11 @@ class Query:
                     print("- Query failed: use a Unicode string (u'string') to perform queries with special characters."
                           "\n\t {}  \n\t".format(e))
                 else:
-                    print("- Query failed: " + str(e).split("[SQL Server]")[1][:-2] + "\n\t")
+                    err = str(e).split("[SQL Server]")
+                    if len(err)>1:
+                        print("- Query failed: " + err[1][:-2] + "\n\t")
+                    else:
+                        print("- Query failed: " + err[0] + "\n\t")
 
             if self.dbo.type == PG:
                 print("- Query failed: " + str(e) + '\n\t')

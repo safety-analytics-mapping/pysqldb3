@@ -7,10 +7,16 @@ import openpyxl
 import json
 import plotly.express as px
 
-from query import *
-from shapefile import *
-from data_io import *
-from __init__ import __version__
+from .query import *
+from .shapefile import *
+from .data_io import *
+from .__init__ import __version__
+
+from .Config import write_config
+
+write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
+config = configparser.ConfigParser()
+config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 
 # noinspection PyArgumentList
@@ -134,9 +140,9 @@ class DbConnect:
         :return: None
         """
         if self.default_connect:
-            self.type = PG
-            self.server = 'localhost'  # todo set up a config with this
-            self.database = 'test'
+            self.type = config.get('DEFAULT DATABASE', 'type')
+            self.server = config.get('DEFAULT DATABASE', 'server')
+            self.database = config.get('DEFAULT DATABASE', 'database')
 
         # Only prompts user if missing necessary information
         if ((self.LDAP and not all((self.database, self.server))) or
@@ -611,6 +617,34 @@ class DbConnect:
 
         return [schema_row[0] for schema_row in self.__get_most_recent_query_data(internal=True)]
 
+    def get_table_columns(self, table, schema=None, full=False):
+        if not schema:
+            schema = self.default_schema
+        if full:
+            columns = '*'
+        else:
+            columns = "column_name, data_type"
+
+        if self.type == PG:
+            self.query("""
+            SELECT {cols}
+            FROM information_schema.columns
+            WHERE table_schema = '{s}' 
+                AND table_name = '{t}'
+            ORDER BY ordinal_position;
+            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+
+        if self.type == MS:
+            self.query("""
+            SELECT {cols}
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE table_schema = '{s}' 
+                AND table_name = '{t}'
+            ORDER BY ORDINAL_POSITION;
+            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+
+        return self.__get_most_recent_query_data(internal=True)
+
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
               lock_table=None, return_df=False, days=7, internal=False):
         # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[None, pd.DataFrame]
@@ -868,7 +902,7 @@ class DbConnect:
 
         def contains_long_columns(df2):
             for c in list(df2.columns):
-                if df2[c].dtype in ('object', 'string', 'str'):
+                if df2[c].dtype in ('O','object', 'str'):
                     if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
                         print('Varchar column with length greater than 500 found; allowing max varchar length.')
                         return True
@@ -1067,7 +1101,17 @@ class DbConnect:
                 cols = str(cols).replace("'", "")[1:-1]
             else:
                 # If not input_schema, use what GDAL created
-                cols = '*'
+                # cols = '*'
+                _ = self.get_table_columns(f'stg_{table}', schema=schema)
+                cols = []
+                for c in _:
+                    if len(set(c[0]) - {' ', ':', '.'}) != len(set(c[0])):
+                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_'))
+                    else:
+                        cols.append(c[0])
+                cols = str(cols).replace("'", "")[1:-1]
+
+
 
             if self.table_exists(schema=schema, table=table):
                 # Move into final table from stg
