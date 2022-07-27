@@ -185,7 +185,8 @@ class DbConnect:
         """
         if self.use_native_driver:
             # driver = 'SQL Server Native Client 10.0'
-            driver = '{ODBC Driver 17 for SQL Server}'
+            driver = '{SQL Server Native Client 11.0}'
+            # driver = '{ODBC Driver 17 for SQL Server}'
         else:
             driver = 'SQL Server'
 
@@ -311,7 +312,7 @@ class DbConnect:
             cleaned += 1
 
         if cleaned > 0:
-            print('\n\nRemoved {} expired temp tables: {}'.format(cleaned, [i[0] + '.' + i[1] for i in to_clean]))
+            print('Attempted to remove {} expired temp tables: {}'.format(cleaned, to_clean))
 
     def __remove_nonexistent_tables_from_logs(self):
         # type: (DbConnect) -> None
@@ -1695,8 +1696,6 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd)
 
-        self.tables_created.append(schema + "." + table)
-
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
 
@@ -1736,8 +1735,6 @@ class DbConnect:
                         shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
-
-        self.tables_created.append(schema + "." + table)
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
