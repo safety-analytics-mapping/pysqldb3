@@ -605,7 +605,7 @@ class TestWriteShpMS:
                 print(e)
 
     def test_write_shp_table_pth(self):
-        sql.drop_table(schema=ms_schema, table='test_write_shp_table')
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
 
         # Add test_table
         sql.query(f"""
