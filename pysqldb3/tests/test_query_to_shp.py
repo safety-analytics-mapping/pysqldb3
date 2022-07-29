@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import configparser
+import subprocess
+import shlex
 
 from .. import pysqldb3 as pysqldb
 from . import helpers
@@ -56,7 +58,9 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # Manually check SRID of projection file and verify it contains 2263
-        assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
+        cmd = r'gdalsrsinfo {}\{}'.format(fldr, shp).replace('\\', '/')
+        ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
+        assert b'"EPSG",2263' in ogr_response
 
         # clean up
         db.drop_table(pg_schmma, test_table)
@@ -110,7 +114,9 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # Manually check SRID of projection file and verify it contains 2263
-        assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
+        cmd = r'gdalsrsinfo {}\{}'.format(fldr, shp).replace('\\', '/')
+        ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
+        assert b'"EPSG",2263' in ogr_response
 
         # clean up
         db.drop_table(pg_schmma, test_table)
@@ -453,7 +459,9 @@ class TestQueryToShpMs:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # Manually check SRID of projection file and verify it contains 2263
-        assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
+        cmd = r'gdalsrsinfo {}\{}'.format(fldr, shp).replace('\\', '/')
+        ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
+        assert b'"EPSG",2263' in ogr_response
 
         # clean up
         sql.drop_table(ms_schema, test_table)
@@ -517,7 +525,9 @@ class TestQueryToShpMs:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # Manually check SRID of projection file and verify it contains 2263
-        # assert "NAD83_New_York_Long_Island_ftUS" in "".join([l for l in open(os.path.join(fldr, shp.replace('shp', 'prj')))])
+        cmd = r'gdalsrsinfo {}\{}'.format(fldr, shp).replace('\\', '/')
+        ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
+        assert b'"EPSG",2263' in ogr_response
 
         # clean up
         sql.drop_table(ms_schema, test_table)
