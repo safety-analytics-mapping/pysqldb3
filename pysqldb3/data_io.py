@@ -140,7 +140,8 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
             sql_select=query,
             spatial=spatial,
             table_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            gdal_data=GDAL_DATA_LOC
         )
     else:
         cmd = SQL_TO_PG_QRY_CMD.format(
@@ -158,7 +159,8 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
             sql_select=query,
             spatial=spatial,
             table_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            gdal_data=GDAL_DATA_LOC
         )
 
     if print_cmd:
@@ -325,7 +327,8 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
         to_pg_schema=dest_schema,
         from_pg_table=org_table,
         to_pg_name=dest_table,
-        nlt_spatial=nlt_spatial
+        nlt_spatial=nlt_spatial,
+        gdal_data=GDAL_DATA_LOC
     )
 
     if print_cmd:
@@ -389,7 +392,8 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
         sql_select=query,
         to_pg_schema=dest_schema,
         to_pg_name=dest_table,
-        nlt_spatial=nlt_spatial
+        nlt_spatial=nlt_spatial,
+        gdal_data=GDAL_DATA_LOC
     )
 
     if print_cmd:
