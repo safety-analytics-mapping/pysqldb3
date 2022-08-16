@@ -47,9 +47,9 @@ class Shapefile:
         :return:
         """
         if self.table:
-            qry = "SELECT * FROM {s}.{t}".format(s=self.schema, t=self.table)
+            qry = f"SELECT * FROM {self.schema}.{self.table}"
         else:
-            qry = u"SELECT * FROM ({q}) x".format(q=self.query)
+            qry = u"SELECT * FROM ({self.query}) x"
 
         self.path, shp = parse_shp_path(self.path, self.shp_name)
 
@@ -116,14 +116,9 @@ class Shapefile:
             raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], self.cmd), returncode=1)
 
         if self.table:
-            print('{t} shapefile \nwritten to: {p}\ngenerated from: {q}'.format(t=self.name_extension(self.shp_name),
-                                                                                p=self.path,
-                                                                                q=self.table))
+            print(f'{self.name_extension(self.shp_name)} shapefile \nwritten to: {self.path}\ngenerated from: {self.table}')
         else:
-            print(u'{t} shapefile \nwritten to: {p}\ngenerated from: {q}'.format(
-                t=self.name_extension(self.shp_name),
-                p=self.path,
-                q=self.query))
+            print(f'{self.name_extension(self.shp_name)} shapefile \nwritten to: {self.path}\ngenerated from: {self.query}')
 
     def table_exists(self):
         """
@@ -146,8 +141,7 @@ class Shapefile:
             for _ in list(indexes_to_delete):
                 table_name, schema_name, index_name, column_name = _
                 if 'pkey' not in index_name and 'PK' not in index_name:
-                    self.dbo.query('DROP INDEX {s}.{i}'.format(s=self.schema, i=index_name),
-                                   strict=False, internal=True)
+                    self.dbo.query(f'DROP INDEX {self.schema}.{index_name}', strict=False, internal=True)
         else:
             self.dbo.query(SHP_DEL_INDICES_QUERY_MS.format(s=self.schema, t=self.table), internal=True)
             indexes_to_delete = self.dbo.internal_data
@@ -155,7 +149,7 @@ class Shapefile:
             for _ in list(indexes_to_delete):
                 table_name, index_name, column_name, idx_typ = _
                 if 'pkey' not in index_name and 'PK' not in index_name:
-                    self.dbo.query('DROP INDEX {t}.{i}'.format(t=self.table, i=index_name), strict=False, internal=True)
+                    self.dbo.query(f'DROP INDEX {self.schema}.{index_name}', strict=False, internal=True)
 
     def read_shp(self, precision=False, private=False, shp_encoding=None, print_cmd=False):
         """
@@ -187,7 +181,7 @@ class Shapefile:
             # Clean up spatial index
             self.del_indexes()
 
-            print('Deleting existing table {s}.{t}'.format(s=self.schema, t=self.table))
+            print(f'Deleting existing table {self.schema}.{self.table}')
             self.dbo.drop_table(schema=self.schema, table=self.table)
 
         if self.dbo.type == 'PG':
@@ -264,9 +258,7 @@ class Shapefile:
             ), timeme=False, internal=True)
 
         if not private:
-            self.dbo.query('grant select on {s}."{t}" to public;'.format(
-                s=self.schema,
-                t=self.table), timeme=False, internal=True)
+            self.dbo.query(f'GRANT SELECT ON {self.schema}."{self.table}" TO public;', timeme=False, internal=True)
 
         self.rename_geom()
 
@@ -287,7 +279,7 @@ class Shapefile:
         if self.table_exists():
             # clean up spatial index
             self.del_indexes()
-            print('Deleting existing table {s}.{t}'.format(s=self.schema, t=self.table))
+            print(f'Deleting existing table {self.schema}.{self.table}')
             if self.dbo.type == 'MS':
                 self.dbo.drop_table(self.schema, self.table)
             else:
@@ -349,9 +341,7 @@ class Shapefile:
             ), timeme=False, internal=True)
 
         if not private:
-            self.dbo.query('grant select on {s}."{t}" to public;'.format(
-                s=self.schema,
-                t=self.table), timeme=False, internal=True)
+            self.dbo.query(f'GRANT SELECT ON {self.schema}."{self.table}" TO public;', timeme=False, internal=True)
 
         self.rename_geom()
 
@@ -361,12 +351,9 @@ class Shapefile:
 
         :return:
         """
-        self.dbo.query("""
-                        SELECT column_name
-                        FROM information_schema.columns
-                        WHERE table_schema = '{s}'
-                        AND table_name   = '{t}';
-                    """.format(s=self.schema, t=self.table), timeme=False, internal=True)
+        self.dbo.query(f"SELECT column_name FROM information_schema.columns" \
+                        "WHERE table_schema = '{self.schema}' AND table_name = '{self.table}';",
+                        timeme=False, internal=True)
         f = None
 
         if self.dbo.type == 'PG':
@@ -382,11 +369,7 @@ class Shapefile:
                 self.dbo.rename_column(schema=self.schema, table=self.table, old_column=f, new_column='geom')
 
                 # Rename index
-                self.dbo.query("""
-                    ALTER INDEX IF EXISTS
-                    {s}.{t}_{f}_geom_idx
-                    RENAME to {t}_geom_idx
-                """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
+                self.dbo.query(f"ALTER INDEX IF EXISTS {self.schema}.{self.table}_{f}_geom_idx RENAME to {self.table}_geom_idx", timeme=False, internal=True)
 
         elif self.dbo.type == 'MS':
             # Get the column in question
@@ -401,9 +384,8 @@ class Shapefile:
 
                 # Rename index if exists
                 try:
-                    self.dbo.query("""
-                        EXEC sp_rename N'{s}.{t}.ogr_{s}_{t}_{f}_sidx', N'{t}_geom_idx', N'INDEX';
-                    """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
+                    self.dbo.query(f"EXEC sp_rename N'{self.schema}.{self.table}.ogr_{self.schema}_{self.table}_{f}_sidx'," \
+                    "N'{self.table}_geom_idx', N'INDEX';", timeme=False, internal=True)
                 except SystemExit as e:
                     print(e)
                     print('Warning - could not update index name after renaming geometry. It may not exist.')

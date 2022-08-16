@@ -1,15 +1,15 @@
 MS_SCHEMA_FOR_LOG_CLEANUP_QUERY = r"""
-select s.name as schema_name, 
+SELECT s.name AS schema_name, 
     s.schema_id,
-    u.name as schema_owner
-from sys.schemas s
-    inner join sys.sysusers u
-        on u.uid = s.principal_id
-where u.name not like 'db[_]%' 
-    and u.name != 'INFORMATION_SCHEMA' 
-    and u.name != 'sys'
-    and u.name != 'guest'
-order by s.schema_id
+    u.name AS schema_owner
+FROM sys.schemas s
+    INNER JOIN sys.sysusers u
+        ON u.uid = s.principal_id
+WHERE u.name NOT LIKE 'db[_]%' 
+    AND u.name != 'INFORMATION_SCHEMA' 
+    AND u.name != 'sys'
+    AND u.name != 'guest'
+ORDER BY s.schema_id
 """
 
 MS_CREATE_LOG_TABLE_QUERY = r"""
@@ -33,7 +33,7 @@ USING (
         '{dt}' as created_on , 
         '{ex}' as expires
 ) AS [Source] ON [Target].table_schema = [Source].table_schema 
-    and [Target].table_name = [Source].table_name 
+    AND [Target].table_name = [Source].table_name 
 WHEN MATCHED THEN UPDATE 
     SET [Target].created_on = [Source].created_on,
     [Target].expires = [Source].expires
@@ -145,10 +145,10 @@ WHERE LOWER(s.name) = '{s}' AND LOWER(t.name) = '{t}'
 """
 
 MS_GET_SCHEMAS_QUERY = r"""
-select s.name 
-from sys.schemas s
-join sys.sysusers u
-on u.uid = s.principal_id
+SELECT s.name 
+FROM sys.schemas s
+JOIN sys.sysusers u
+ON u.uid = s.principal_id
 """
 
 PG_GET_SCHEMAS_QUERY = r"""
@@ -160,21 +160,21 @@ Shapefile
 """
 
 SHP_DEL_INDICES_QUERY_PG = r"""
-select t.relname as table_name, n.nspname as schema_name, i.relname as index_name, a.attname as column_name
-from pg_class t
-join pg_index ix
-on t.oid = ix.indrelid
-join pg_class i
-on i.oid = ix.indexrelid
-join pg_attribute a
-on a.attrelid = t.oid and a.attnum = ANY(ix.indkey) 
-join pg_catalog.pg_namespace n 
-on  t.relnamespace = n.oid 
-where
+SELECT t.relname AS table_name, n.nspname AS schema_name, i.relname AS index_name, a.attname AS column_name
+FROM pg_class t
+JOIN pg_index ix 
+ON t.oid = ix.indrelid
+JOIN pg_class i 
+ON i.oid = ix.indexrelid
+JOIN pg_attribute a 
+ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey) 
+JOIN pg_catalog.pg_namespace n 
+ON t.relnamespace = n.oid 
+WHERE
     t.relkind = 'r'
-    and n.nspname != 'pg_catalog'
-    and t.relname = '{t}'
-    and n.nspname = '{s}'
+    AND n.nspname != 'pg_catalog'
+    AND t.relname = '{t}'
+    AND n.nspname = '{s}'
 """
 
 SHP_DEL_INDICES_QUERY_MS = r"""

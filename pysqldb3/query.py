@@ -25,10 +25,7 @@ class Query:
         if self.data:
             records = len(self.data)
 
-        return '- Query run {dt}\n Query time: {qt} \n * Returned {r} rows *'.format(
-            dt=datetime.datetime.now(),
-            r=records,
-            qt=qt)
+        return f'- Query run {datetime.datetime.now()}\n Query time: {qt} \n * Returned {records} rows *'
 
     def __init__(self, dbo, query_string, strict=True, permission=True, temp=True, comment='', no_comment=False,
                  timeme=True, iterate=False, lock_table=None, internal=False):
@@ -81,11 +78,11 @@ class Query:
         """
         if self.query_time.seconds < 60:
             if self.query_time.seconds < 1:
-                return 'Query run in {} microseconds'.format(self.query_time.microseconds)
+                return f'Query run in {self.query_time.microseconds} microseconds'
             else:
-                return 'Query run in {} seconds'.format(self.query_time.seconds)
+                return f'Query run in {self.query_time.seconds} seconds'
         else:
-            return 'Query run in {} seconds'.format(self.query_time)
+            return f'Query run in {self.query_time} seconds'
 
     def __safe_commit(self):
         # type: (Query) -> None
@@ -103,10 +100,10 @@ class Query:
     def __perform_lock_routine(self, cur):
         if self.lock_table:
             try:
-                print("- Trying to obtain exclusive lock on table {}.".format(self.lock_table))
-                cur.execute("LOCK TABLE {} IN ACCESS EXCLUSIVE MODE NOWAIT".format(self.lock_table))
+                print(f"- Trying to obtain exclusive lock on table {self.lock_table}.")
+                cur.execute(f"LOCK TABLE {self.lock_table} IN ACCESS EXCLUSIVE MODE NOWAIT")
             except psycopg2.errors.LockNotAvailable as a:
-                print("- Failed to obtain exclusive lock on table {}. Try again.".format(self.lock_table))
+                print(f"- Failed to obtain exclusive lock on table {self.lock_table}. Try again.")
                 raise a
 
     def __query_data(self, cur):
@@ -124,8 +121,7 @@ class Query:
         _serv, _dab, schema, new_table = parse_table_string(new_schema_table, self.dbo.default_schema, self.dbo.type)
 
         if self.dbo.table_exists(self.dbo.log_table, schema=schema, internal=True):
-            self.dbo.query("update {s}.{l} set table_name = '{nt}' where table_name = '{ot}'".format(
-                s=schema, l=self.dbo.log_table, nt=new_table, ot=old_table), internal=True, strict=False)
+            self.dbo.query(f"UPDATE {schema}.{self.dbo.log_table} SET table_name = '{new_table}' WHERE table_name = '{old_table}'", internal=True, strict=False)
             self.dbo.check_conn()
 
     def __run_query(self, internal):
@@ -159,16 +155,14 @@ class Query:
             if self.dbo.type == MS:
                 if 'encode' in str(e).lower() or 'ascii' in str(e).lower():
                     print("- Query failed: use a Unicode string (u'string') to perform queries with special characters."
-                          "\n\t {}  \n\t".format(e))
+                          f"\n\t {e}  \n\t")
                 else:
                     print("- Query failed: " + str(e).split("[SQL Server]")[1][:-2] + "\n\t")
 
             if self.dbo.type == PG:
                 print("- Query failed: " + str(e) + '\n\t')
 
-            print('- Query run {dt}\n\t{q}'.format(
-                dt=datetime.datetime.now(),
-                q=self.query_string))
+            print(f'- Query run {datetime.datetime.now()}\n\t{self.query_string}')
 
             del cur
 
@@ -208,8 +202,7 @@ class Query:
 
                 if self.permission:
                     for t in self.new_tables:
-                        self.dbo.query('grant select on {t} to public;'.format(t=t),
-                                       strict=False, timeme=False, internal=True)
+                        self.dbo.query(f'GRANT SELECT ON {t} TO public;', strict=False, timeme=False, internal=True)
 
                 if self.renamed_tables:
                     for i in self.renamed_tables.keys():
@@ -350,8 +343,8 @@ class Query:
         query_string = ' '.join(_)
         new_tables = dict()
 
-        rename_tables = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(alter table\s+(if exists\s+)?)(\"?[*\w\s]*\"?\.)?' \
-                        r'(\"?[\w\s]*\"?)\s+(rename to )(\"?[\w\s]*\"?)\;?'
+        rename_tables = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(ALTER TABLE\s+(IF EXISTS\s+)?)(\"?[*\w\s]*\"?\.)?' \
+                        r'(\"?[\w\s]*\"?)\s+(RENAME TO )(\"?[\w\s]*\"?)\;?'
         matches = re.findall(rename_tables, query_string.lower())
         for row in matches:
             old_schema = row[2]
@@ -410,28 +403,20 @@ class Query:
         if self.dbo.type == 'PG':
             old_table = old_table.replace('"', '').replace('\n', '').strip()
             new_table = new_table.replace('"', '').replace('\n', '').strip()
-            query = """
-                SELECT indexname
-                FROM pg_indexes
-                WHERE tablename = '{t}'
-                AND schemaname='{s}';
-            """.format(t=tbl, s=sch)
+            query = f"SELECT indexname FROM pg_indexes WHERE tablename = '{tbl}' AND schemaname='{sch}';"
         elif self.dbo.type == 'MS':
-            query = """      
+            query = f"""      
                 SELECT a.name AS indexname
-                FROM {d}.sys.indexes AS a
-                INNER JOIN {d}.sys.index_columns AS b
+                FROM {database}.sys.indexes AS a
+                INNER JOIN {database}.sys.index_columns AS b
                     ON a.object_id = b.object_id AND a.index_id = b.index_id
                 WHERE
                     a.is_hypothetical = 0 
-                    AND a.object_id = OBJECT_ID('{s}.{t}')
-            """.format(t=tbl, s=sch, d=database)
+                    AND a.object_id = OBJECT_ID('{sch}.{tbl}')"""
         # make sure looking in the right server, dont need to worry about db, since this is a sys table
 
         if not get_unique_table_schema_string(server, self.dbo.type) == self.dbo.server:
-            print('Warning: any associated indexes will not be renamed on {ser}.{db}.{sch}.{tbl}'.format(
-                ser=server, db=database, sch=sch, tbl=tbl
-            ))
+            print(f'Warning: any associated indexes will not be renamed on {server}.{database}.{sch}.{tbl}')
             indices = []
         else:
             self.dbo.query(query, strict=True, timeme=False, internal=True)
@@ -442,10 +427,9 @@ class Query:
                 new_idx = idx[0].replace(old_table, tbl)
 
                 if self.dbo.type == 'PG':
-                    new_idx_qry = 'ALTER INDEX IF EXISTS {s}."{i}" RENAME to "{i2}"'.format(s=sch, i=idx[0], i2=new_idx)
+                    new_idx_qry = f'ALTER INDEX IF EXISTS {sch}."{idx[0]}" RENAME to "{new_idx}"'
                 elif self.dbo.type == 'MS':
-                    new_idx_qry = "EXEC sp_rename '{t}.{i}', '{i2}', N'INDEX';".format(i=idx[0], i2=new_idx,
-                                                                                       t=new_table)
+                    new_idx_qry = f"EXEC sp_rename '{new_table}.{idx[0]}', '{new_idx}', N'INDEX';"
 
                 self.dbo.query(query=new_idx_qry, strict=False, timeme=False, internal=True)
 
@@ -457,12 +441,7 @@ class Query:
         if self.dbo.type == PG and not self.no_comment:
             for t in self.new_tables:
                 # tables in new_tables list will contain schema if provided, otherwise will default to public
-                q = """COMMENT ON TABLE {t} IS 'Created by {u} on {d}\n{cmnt}'""".format(
-                    t=t,
-                    u=self.dbo.user,
-                    d=self.query_start.strftime('%Y-%m-%d %H:%M'),
-                    cmnt=self.comment
-                )
+                q = f"COMMENT ON TABLE {t} IS 'Created by {self.dbo.user} on {self.query_start.strftime('%Y-%m-%d %H:%M')}\n{self.comment}'"
                 self.dbo.query(q, strict=False, timeme=False, internal=True)
 
     def iterable_query_to_csv(self, output, open_file, quote_strings, sep):
@@ -618,7 +597,7 @@ class Query:
         :return:
         """
         if not output:
-            output = os.path.join(os.getcwd(), 'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
+            output = os.path.join(os.getcwd(), f"data_{datetime.datetime.now().strftime('%Y%m%d%H%M')}.csv")
 
         if len(self.data) > 100000:
             self.__chunked_write_csv(output=output, open_file=open_file, quote_strings=quote_strings, sep=sep)
