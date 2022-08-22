@@ -601,8 +601,8 @@ class TestPgToPg:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
-        db.clean_up_new_tables()
-        sql.clean_up_new_tables()
+        db.cleanup_new_tables()
+        sql.cleanup_new_tables()
 
 
 class TestPgToPgQry:

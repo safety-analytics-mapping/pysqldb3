@@ -286,7 +286,7 @@ class TestBulkXLSToTablePG:
 
     @classmethod
     def teardown_class(cls):
-        sql.clean_up_new_tables()
+        sql.cleanup_new_tables()
 
 
 class TestXlsToTableMS:
@@ -606,4 +606,4 @@ class TestBulkXLSToTableMS:
 
     @classmethod
     def teardown_class(cls):
-        sql.clean_up_new_tables()
+        sql.cleanup_new_tables()

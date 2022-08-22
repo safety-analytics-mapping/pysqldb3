@@ -193,7 +193,7 @@ class TestFeatureClassToTablePg:
     @classmethod
     def teardown_class(cls):
         # helpers.clean_up_feature_class()
-        db.clean_up_new_tables()
+        db.cleanup_new_tables()
 
 
 class TestFeatureClassToTableMs:
@@ -354,4 +354,4 @@ class TestFeatureClassToTableMs:
     @classmethod
     def teardown_class(cls):
         # helpers.clean_up_feature_class()
-        sql.clean_up_new_tables()
+        sql.cleanup_new_tables()

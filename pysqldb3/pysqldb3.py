@@ -490,7 +490,7 @@ class DbConnect:
         self.check_conn()
         return self.data
 
-    def clean_up_new_tables(self):
+    def cleanup_new_tables(self):
         # type: (DbConnect) -> None
         """
         Drops all newly created tables from this DbConnect object

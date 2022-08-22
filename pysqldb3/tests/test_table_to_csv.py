@@ -398,7 +398,7 @@ class Test_Table_to_CSV_PG:
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
         # helpers.clean_up_schema(db)
-        db.clean_up_new_tables()
+        db.cleanup_new_tables()
 
 
 ############################################
@@ -815,5 +815,5 @@ class Test_Table_to_CSV_MS:
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
         sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
-        sql.clean_up_new_tables()
+        sql.cleanup_new_tables()
         # helpers.clean_up_schema(sql, ms_schema)

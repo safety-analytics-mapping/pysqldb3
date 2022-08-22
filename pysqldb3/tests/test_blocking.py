@@ -225,6 +225,6 @@ class TestBlocking:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_two_test_tables_pg(db)
-        db.clean_up_new_tables()
-        db2.clean_up_new_tables()
-        db3.clean_up_new_tables()
+        db.cleanup_new_tables()
+        db2.cleanup_new_tables()
+        db3.cleanup_new_tables()
