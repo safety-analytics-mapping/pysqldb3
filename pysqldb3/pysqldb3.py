@@ -9,6 +9,7 @@ import plotly.express as px
 import configparser
 import os
 from .Config import write_config
+from . import data_io
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -787,6 +788,50 @@ class DbConnect:
     """
     IO Functions
     """
+
+    def import_data(self, file_type=None, file_path=None, **kwargs):
+        """
+        Router for generalizing imports
+        """
+        if file_type:
+            file_type=file_type.lower()
+        if file_path:
+            _, ext = os.path.splitext(file_path)
+            ext = ext.replace('.', '')
+        if 'shp' in (file_type, ext):
+            self.shp_to_table(path=file_path, **kwargs)
+        if 'csv' in (file_type, ext):
+            self.csv_to_table(input_file=file_path, **kwargs)
+        elif 'xls' in (file_type, ext):
+            self.xls_to_table(input_file=file_path, **kwargs)
+        elif 'xlsx' in (file_type, ext):
+            self.xls_to_table(input_file=file_path, **kwargs)
+
+        else:
+            qry = kwargs.get('qry', None)
+            if file_type in ('df', 'dataframe'):
+                self.dataframe_to_table(kwargs.get('df'), kwargs.get('table'))
+            # todo: handle pg/ms to pg query path...
+            elif file_type == 'pg':
+                if self.type == PG:
+                    if qry:
+                        data_io.pg_to_pg_qry(kwargs.get('db'), self, query=qry, **kwargs)
+                    else:
+                        data_io.pg_to_pg(kwargs.get('db'), self, **kwargs)
+                elif self.type == MS:
+                    if qry:
+                        #todo data_io.pg_to_sql_qry
+                        pass
+                    data_io.pg_to_sql(kwargs.get('db'), self, **kwargs)
+            elif file_type == 'ms':
+                if self.type == MS:
+                    # todo: data_io.sql_to_sql(kwargs.get('db'), self, **kwargs)
+                    pass
+                elif self.type == PG:
+                    if qry:
+                        data_io.sql_to_pg_qry(kwargs.get('db'), self, query=qry, **kwargs)
+                    else:
+                        data_io.sql_to_pg(kwargs.get('db'), self, **kwargs)
 
     def dataframe_to_table_schema(self, df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
                                   column_type_overrides=None, days=7):
