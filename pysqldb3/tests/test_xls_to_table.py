@@ -69,7 +69,7 @@ class TestXlsToTablePG:
         # Assert df column types match without override
         pd.testing.assert_frame_equal(
             pd.DataFrame(
-                [{"column_name": 'a', "data_type": 'integer'}, {"column_name": 'b', "data_type": 'integer'}]),
+                [{"column_name": 'a', "data_type": 'bigint'}, {"column_name": 'b', "data_type": 'bigint'}]),
 
             db.dfquery("""
 
@@ -337,7 +337,7 @@ class TestXlsToTableMS:
 
         # Assert df column types match without override
         pd.testing.assert_frame_equal(pd.DataFrame(
-            [{"column_name": 'a', "data_type": 'int'}, {"column_name": 'b', "data_type": 'int'}]),
+            [{"column_name": 'a', "data_type": 'bigint'}, {"column_name": 'b', "data_type": 'bigint'}]),
 
             sql.dfquery("""
 
