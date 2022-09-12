@@ -1,13 +1,15 @@
 import random
 import os
 import pandas as pd
-import shapefile
+from .. import shapefile
 import subprocess
 import requests
 import zipfile
+from xlrd import open_workbook
+from xlutils.copy import copy
 
-# from arcpy import Delete_management, CreateFileGDB_management, CreateFeatureclass_management, \
-#     env, AddField_management, da, FeatureClassToShapefile_conversion
+
+DIR = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
 
 
 def set_up_test_csv():
@@ -27,7 +29,6 @@ def set_up_test_csv():
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
-    # df.to_csv('tests/test_data/test.csv')
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
@@ -36,22 +37,54 @@ def set_up_test_table_sql(sql, schema='dbo'):
 
     Uses random to make randomly generated inputs.
     """
-    table_name = 'sql_test_table_{}'.format(sql.user)
+    table_name = f'sql_test_table_{sql.user}'
 
     if sql.table_exists(table=table_name, schema=schema):
         return
 
-    sql.query("""
-    create table {s}.{t} (test_col1 int, test_col2 int, geom geometry);
-    insert into {s}.{t} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-    insert into {s}.{t} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
-    """.format(s=schema, t=table_name))
+    sql.query(f"""
+    CREATE TABLE {schema}.{table_name} (test_col1 int, test_col2 int, geom geometry);
+    INSERT INTO {schema}.{table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+    INSERT INTO {schema}.{table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+    """)
 
+def set_up_simple_test_table_sql(sql, table_name, schema='dbo'):
+    
+    # Append db username to test table name
+    table_name = f'{table_name}_{sql.user}'
+
+    # Query to create table. No fancy randomness here - just two int columns with placeholder values
+    sql.query(f"""
+         CREATE TABLE {schema}.{table_name} (test_col1 int, test_col2 int);
+         INSERT INTO {schema}.{table_name} VALUES(1, 2);
+         INSERT INTO {schema}.{table_name} VALUES(3, 4);
+         """)
 
 def clean_up_test_table_sql(sql, schema='dbo'):
     table_name = 'sql_test_table_{}'.format(sql.user)
     sql.drop_table(table=table_name, schema=schema)
 
+def clean_up_simple_test_table_sql(sql, table_name, schema='dbo'):
+    # Append db username to test table name
+    table_name = f'{table_name}_{sql.user}'
+
+    # drop table
+    sql.drop_table(table=table_name, schema=schema)
+
+def set_up_simple_test_table_pg(db, table_name, schema='working'):
+    # Append db username to test table name
+    table_name = f'{table_name}_{db.user}'
+
+    # Query to create table. No fancy randomness here - just two int columns with placeholder values
+    db.query(f"""
+         CREATE TABLE {schema}.{table_name} (test_col1 int, test_col2 int);
+         INSERT INTO {schema}.{table_name} VALUES(1, 2);
+         INSERT INTO {schema}.{table_name} VALUES(3, 4);
+         """)
+
+def clean_up_simple_test_table_pg(db, table_name, schema='working'):
+    # Drop table
+    db.drop_table(table=f'{table_name}_{db.user}', schema=schema)
 
 def set_up_test_table_pg(db, schema='working'):
     """
@@ -59,15 +92,18 @@ def set_up_test_table_pg(db, schema='working'):
 
     Uses random to make randomly generated inputs.
     """
-    table_name = 'pg_test_table_{}'.format(db.user)
+    table_name = f'pg_test_table_{db.user}'
 
     if db.table_exists(table=table_name, schema=schema):
         return
 
-    db.query("""
-    create table {}.{}(id int, test_col1 int, test_col2 int, geom geometry);
-    """.format(schema, table_name))
-
+    db.query(f"""
+    CREATE TABLE {schema}.{table_name}(
+        id int, 
+        test_col1 int, 
+        test_col2 int, 
+        geom geometry);
+    """)
     for i in range(0, 1000):
         c1 = random.randint(0, 10000)
         c2 = random.randint(0, 10000)
@@ -78,15 +114,15 @@ def set_up_test_table_pg(db, schema='working'):
         lat = 40.7 + dec_lat
         lon = -74 + dec_lon
 
-        db.query("""
-        INSERT INTO {}.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
-        """.format(schema, table_name, i, c1, c2, lat, lon))
+        db.query(f"""
+        INSERT INTO {schema}.{table_name} VALUES
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat}, {lon}), 4326))
+        """)
 
 
 def clean_up_test_table_pg(db):
-    table_name = 'pg_test_table_{}'.format(db.user)
-    db.drop_table(table=table_name, schema='working')
+    # Drop test table
+    db.drop_table(table=f'pg_test_table_{db.user}', schema='working')
 
 
 def set_up_two_test_tables_pg(db):
@@ -95,9 +131,8 @@ def set_up_two_test_tables_pg(db):
 
     Uses random to make randomly generated inputs.
     """
-    table_name = 'pg_test_table_{}'.format(db.user)
-    table_name2 = 'pg_test_table_{}_2'.format(db.user)
-
+    table_name = f'pg_test_table_{db.user}'
+    table_name2 = f'pg_test_table_{db.user}_2'
     if db.table_exists(table=table_name, schema='working') and \
             db.table_exists(table=table_name2, schema='working'):
         return
@@ -105,13 +140,13 @@ def set_up_two_test_tables_pg(db):
         db.drop_table(table=table_name, schema='working')
         db.drop_table(table=table_name2, schema='working')
 
-    db.query("""
-    create table working.{}(id int, test_col1 int, test_col2 int, geom geometry);
-    """.format(table_name))
+    db.query(f"""
+    CREATE TABLE working.{table_name} (id int, test_col1 int, test_col2 int, geom geometry);
+    """)
 
-    db.query("""
-    create table working.{}(id int, test_col1 int, test_col2 int, geom geometry);
-    """.format(table_name2))
+    db.query(f"""
+    CREATE TABLE working.{table_name2} (id int, test_col1 int, test_col2 int, geom geometry);
+    """)
 
     for i in range(0, 10000):
         c1 = random.randint(0, 10000)
@@ -129,21 +164,20 @@ def set_up_two_test_tables_pg(db):
         lat2 = 40.7 + dec_lat2
         lon2 = -74 + dec_lon2
 
-        db.query("""
-        INSERT INTO working.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
-        """.format(table_name, i, c1, c2, lat, lon))
+        db.query(f"""
+        INSERT INTO working.{table_name} VALUES
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat}, {lon}), 4326))
+        """)
 
-        db.query("""
-        INSERT INTO working.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
-        """.format(table_name2, i, c1, c2, lat2, lon2))
+        db.query(f"""
+        INSERT INTO working.{table_name2} VALUES
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat2}, {lon2}), 4326))
+        """)
 
 
 def clean_up_two_test_tables_pg(db):
-    table_name = 'pg_test_table_{}'.format(db.user)
-    table_name2 = 'pg_test_table_{}_2'.format(db.user)
-
+    table_name = f'pg_test_table_{db.user}'
+    table_name2 = f'pg_test_table_{db.user}_2'
     db.drop_table(table=table_name, schema='working')
     db.drop_table(table=table_name2, schema='working')
 
@@ -156,16 +190,14 @@ def set_up_feature_class():
     zip_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/nyclion_21d.zip')
     if not os.path.isfile(zip_path):
 
-        download_url = r'https://www1.nyc.gov/assets/planning/download/zip/data-maps/open-data/nyclion_21d.zip'
+        download_url = r'https://www1.nyc.gov/assets/planning/download/zip/data-maps/open-data/nyclion_22b.zip' # Updated LION link for 22b
         r = requests.get(download_url)
 
         with open(zip_path, 'wb') as f:
             f.write(r.content)
     gdb = os.path.join(os.path.dirname(zip_path), 'lion/lion.gdb')
     if not os.path.isfile(gdb):
-        print ('extracting\n\n')
-        print(os.path.dirname(zip_path))
-        print('\n\n')
+        print(f"Extracting sample data {os.path.dirname(zip_path)}...")
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(os.path.dirname(zip_path))
 
@@ -215,7 +247,7 @@ def set_up_shapefile():
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv", index=False)
     fle = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv"
 
-    pth = r'C:\Users\heyse\Desktop\Folder\code\pysqldb3\tests\test_data\\'
+    pth = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\"
 
     cmd = f'''ogr2ogr -f "ESRI Shapefile" {pth}test.shp -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326), some_value FROM sample" {fle}'''
@@ -233,27 +265,75 @@ def clean_up_shapefile():
     # Delete_management(os.path.join(fldr, shp))
 
 
-def set_up_schema(db):
+def set_up_schema(db, ms_schema='dbo', pg_schema='working'):
     if db.type == 'MS':
-        db.query("""
+        db.query(f"""
             IF NOT EXISTS (
                 SELECT  schema_name
                 FROM    information_schema.schemata
-                WHERE   schema_name = 'pytest' 
+                WHERE   schema_name = '{ms_schema}' 
             ) 
              
             BEGIN
-            EXEC sp_executesql N'CREATE SCHEMA pytest'
+            EXEC sp_executesql N'CREATE SCHEMA {ms_schema}'
             END
         """)
     if db.type == 'PG':
-        db.query("""
-            create schema if not exists pytest;
+        db.query(f"""
+            CREATE SCHEMA IF NOT EXISTS {pg_schema};
         """)
 
-def clean_up_schema(db):
+
+def clean_up_schema(db, schema):
     if db.type == 'PG':
-        c = ' cascade'
+        c = ' CASCADE'
     else:
         c = ''
-    db.query("DROP SCHEMA IF EXISTS pytest{};".format(c))
+    db.query(f"DROP SCHEMA IF EXISTS {schema}{c};")
+
+def clean_up_shp(file_path):
+    for ext in ('.shp', '.dbf', '.shx', '.prj'):
+        clean_up_file(file_path.replace('.shp', ext))
+
+
+def clean_up_file(file_path):
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+        print(f"File removed: {os.path.basename(file_path)}")
+
+
+def set_up_xls():
+    xls_file1 = os.path.join(DIR, 'test_xls.xls')
+    if os.path.isfile(xls_file1):
+        clean_up_file(xls_file1)
+
+    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'))
+    print(f'File created: {os.path.basename(xls_file1)}')
+
+    xls_file2 = os.path.join(DIR, 'test_xls_with_sheet.xls')
+    if os.path.isfile(xls_file2):
+        clean_up_file(xls_file2)
+
+    test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+
+    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet')
+    w = copy(open_workbook(xls_file2))
+    Sheet2 = w.add_sheet('Sheet2')
+    col, row = 0, 0
+    Sheet2.write(row, col, '')
+    row += 1
+    for i in range(len(test_df2)):
+        Sheet2.write(row, col, i)
+        row += 1
+    col, row = 1, 0
+    for c in test_df2.columns:
+        Sheet2.write(row, col, c)
+        row += 1
+        for r in test_df2[c]:
+            Sheet2.write(row, col, r)
+            row += 1
+        col += 1
+        row = 0
+    w.save(xls_file2)
+    print(f'File created: {xls_file2}')
