@@ -802,10 +802,11 @@ class DbConnect:
             self.shp_to_table(path=file_path, **kwargs)
         if 'csv' in (file_type, ext):
             self.csv_to_table(input_file=file_path, **kwargs)
-        elif 'xls' in (file_type, ext):
-            self.xls_to_table(input_file=file_path, **kwargs)
         elif 'xlsx' in (file_type, ext):
             self.xls_to_table(input_file=file_path, **kwargs)
+        elif 'xls' in (file_type, ext):
+            self.xls_to_table(input_file=file_path, **kwargs)
+
 
         else:
             qry = kwargs.get('qry', None)
@@ -1297,8 +1298,14 @@ class DbConnect:
                     df = pd.read_excel(input_file, sheet_name=sheet_name)
 
                 # Replace with .xlsx of just the desired sheet
-                input_file = "C:\\Users\\{}\\Documents".format(getpass.getuser()) + "\\" + \
+                if not os.path.isdir("C:\\Users\\{}\\Documents".format(getpass.getuser())):
+                    input_file = os.getcwd() + "\\" + \
                              os.path.basename(input_file).split('.')[0] + "_{}.xlsx".format(sheet_name)
+                else:
+                    input_file = "C:\\Users\\{}\\Documents".format(getpass.getuser()) + "\\" + \
+                             os.path.basename(input_file).split('.')[0] + "_{}.xlsx".format(sheet_name)
+
+
                 df.to_excel(input_file, index=False, header=True)
 
                 remove_file = True
