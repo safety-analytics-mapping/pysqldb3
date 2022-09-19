@@ -1032,7 +1032,7 @@ class TestReadShpMS:
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=sql_schema, table='test')
-        table_df = sql.dfquery(f'select * from {sql_schema}.test')
+        table_df = sql.dfquery(f'select ogr_fid, gid, some_value, geom.STAsText() geom from {sql_schema}.test')
         assert set(table_df.columns) == {'ogr_fid', 'gid', 'some_value', 'geom'}
         assert len(table_df) == 2
 
@@ -1041,12 +1041,14 @@ class TestReadShpMS:
         diff_df = sql.dfquery(f"""
         select distinct raw_inputs.geom.STDistance(end_table.geom) as distance
         from (
-            (select 1 as id, geometry::Point(1015329.1, 213793.1, 2263) as geom)
+            --(select 1 as id, geometry::Point(1015329.1, 213793.1, 2263) as geom)
+            (select 1 as id, geometry::Point(-73.887824777216764, 40.753434539618361, 2263) as geom)
             union all
-            (select 2 as id, geometry::Point(1015428.1, 213086.1, 2263) as geom)
+            --(select 2 as id, geometry::Point(-73.887470730467783, 40.75149365677327, 2263) as geom)
+            (select 2 as id, geometry::Point(-73.887470730467783, 40.75149365677327, 2263) as geom)
         ) raw_inputs
         join {sql_schema}.test end_table
-        on raw_inputs.id=end_table.gid::int
+        on raw_inputs.id=end_table.gid
         """)
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
