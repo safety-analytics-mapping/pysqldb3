@@ -69,7 +69,7 @@ class TestCleanUpNewTablesPg:
 
     def test_clean_up_new_tables_rename(self):
         # csv_to_table
-        table_name = 'test_new_table_92820_testing'
+        table_name = 'test_new_table_92820_testing_{}'.format(db.user)
         db.drop_table(table=table_name, schema=pg_schema)
         db.drop_table(table=table_name + "_rename", schema=pg_schema)
 
