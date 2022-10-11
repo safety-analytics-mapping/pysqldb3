@@ -277,7 +277,6 @@ class TestSqlToPgQry:
         assert not db.table_exists(table=table_name)
         assert not db.table_exists(table=spatial_table_name)
 
-        # Run some incorrect queries?
         data_io.sql_to_pg_qry(sql, db, query="SELECT TOP 10 CAST(geometry::Point([X_COORD], [Y_COORD], 2236) AS varchar) AS geom FROM WC_ACCIDENT_F_v2",
                             table_name=spatial_table_name)
     
@@ -295,7 +294,7 @@ class TestSqlToPgQry:
         spatial_df = db.dfquery(f"""
         SELECT * FROM {spatial_table_name}
             --SELECT column_name, data_type FROM information_schema.columns WHERE
-            --table_name = ''
+                --table_name = ''
         """)
     
         print(spatial_df)
@@ -303,7 +302,7 @@ class TestSqlToPgQry:
         not_spatial_df = db.dfquery(f"""
                 SELECT * FROM {table_name}
                     --SELECT column_name, data_type FROM information_schema.columns WHERE
-                    --table_name = ''
+                        --table_name = ''
         """)
      
         print(not_spatial_df)
@@ -343,14 +342,12 @@ class TestSqlToPgQry:
          sql_df = sql.dfquery(f"""
          SELECT * from dbo.{table_name}
          ORDER BY test_col1
-         """.format(test_sql_to_pg_qry_table)
-         ).infer_objects().replace('\s+', '', regex=True)
+         """).infer_objects().replace('\s+', '', regex=True)
 
          pg_df = db.dfquery(f"""
          SELECT * FROM {schema}.{table_name}
          ORDER BY test_col1
-         """.format(test_sql_to_pg_qry_table)
-         ).infer_objects().replace('\s+', '', regex=True)
+         """).infer_objects().replace('\s+', '', regex=True)
 
          sql_df.columns = [c.lower() for c in list(sql_df.columns)]
 
@@ -722,11 +719,12 @@ class TestPgToPgQry:
         assert not sql.table_exists(test_sql_to_pg_table)
 
         # Attempt query with no destination table specified
-        qry = f"CREATE TABLE {sql_schema}.{test_sql_to_pg_qry_table}; \
-            INSERT INTO {sql_schema}.{test_sql_to_pg_qry_table} VALUES (1,2,3,4);"
-        data_io.sql_to_pg_qry(sql, pg, query=qry, spatial=False, dest_table=None)
+        qry = f"""CREATE TABLE {sql_schema}.{test_sql_to_pg_qry_table}
+            INSERT INTO {sql_schema}.{test_sql_to_pg_qry_table} VALUES (1,2,3,4);"""
 
-        # Assert error
+        # not sure what this is supposed to raise - ValueError?
+        with pytest.raises(ValueError):
+            data_io.sql_to_pg_qry(sql, pg, query=qry, spatial=False, dest_table='')
 
     def test_sql_to_pg_qry_empty_query_error(self):
         pg = pysqldb.DbConnect(type=config.get('PG_DB','TYPE'),
@@ -745,10 +743,8 @@ class TestPgToPgQry:
         sql.drop_table(schema='dbo', table=test_sql_to_pg_qry_table)
         assert not sql.table_exists(test_sql_to_pg_qry_table)
 
-        # Attempt to throw empty query error
-        # Assert error is raised
-        # TODO: narrow down error type
-        with pytest.raises(Exception):
+        # not sure what this is supposed to raise - AttributeError?
+        with pytest.raises(AttributeError):
             data_io.sql_to_pg_qry(sql, pg, query='', spatial=False, dest_table=f'test_sql_to_pg_qry_empty_query_err_{db.user}')
 
     def test_sql_to_pg_qry_empty_wrong_layer_error(self):

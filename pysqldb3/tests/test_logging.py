@@ -28,7 +28,7 @@ sql_dest_src_user = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 
 
 test_table = 'cross_db_test'
-src_table = 'sql_test_table_{}'.format(sql_src.user)
+src_table = f'sql_test_table_{sql_src.user}'
 
 class TestQueryCreatesTableLoggingSql:
     @classmethod
@@ -39,42 +39,42 @@ class TestQueryCreatesTableLoggingSql:
         # make sure table doesnt exist
         sql_src.drop_table(sql_src.default_schema, test_table)
         # make table
-        sql_src.query("""
+        sql_src.query(f"""
             select top 1 *
-            into {s}.{t}
-            from dbo.{src_tbl}
-        """.format(s=sql_src.default_schema, t=test_table, src_tbl=src_table))
+                into {sql_src.default_schema}.{test_table}
+                from dbo.{src_table}
+        """)
         # make sure the table was added to the log
-        sql_src.query("""
-            select * from {s}.__temp_log_table_{u}__ where table_name = '{t}'
-        """.format(s=sql_src.default_schema, u=sql_src.user, t=test_table))
+        sql_src.query(f"""
+            select * from {sql_src.default_schema}.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+        """)
         assert sql_src.data
         # clean up
         sql_src.drop_table(sql_src.default_schema, test_table)
-        sql_src.query("""
-                    select * from {s}.__temp_log_table_{u}__ where table_name = '{t}'
-                """.format(s=sql_src.default_schema, u=sql_src.user, t=test_table))
+        sql_src.query(f"""
+                    select * from {sql_src.default_schema}.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+                """)
         assert not sql_src.data
 
     def test_create_table_basic_w_db(self):
         # make sure table doesnt exist
         sql_src.drop_table(sql_src.default_schema, test_table)
         # make table
-        sql_src.query("""
+        sql_src.query(f"""
             select top 1 *
-            into {d}.{s}.{t}
-            from dbo.{src_tbl}
-        """.format(s=sql_src.default_schema, t=test_table, d=sql_src.database, src_tbl=src_table))
+                into {sql_src.database}.{sql_src.default_schema}.{test_table}
+                from dbo.{src_table}
+        """)
         # make sure the table was added to the log
-        sql_src.query("""
-            select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-        """.format(s=sql_src.default_schema, u=sql_src.user, t=test_table, d=sql_src.database))
+        sql_src.query(f"""
+            select * from {sql_src.database}.{sql_src.default_schema}.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+        """)
         assert sql_src.data
         # clean up
         sql_src.drop_table(sql_src.default_schema, test_table)
-        sql_src.query("""
-                    select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-                """.format(s=sql_src.default_schema, u=sql_src.user, t=test_table, d=sql_src.database))
+        sql_src.query(f"""
+                    select * from {sql_src.database}.{sql_src.default_schema}.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+                """)
         assert not sql_src.data
 
     def test_create_table_cross_db(self):
@@ -83,28 +83,27 @@ class TestQueryCreatesTableLoggingSql:
         # make sure table doesnt exist
         sql_dest.drop_table(sql_dest.default_schema, test_table)
         # make table
-        sql_src.query("""
+        sql_src.query(f"""
             select top 1 *
-            into {d}.{s}.{t}
-            from {sd}.dbo.{src_tbl}
-        """.format(s=sql_dest.default_schema, t=test_table, d=sql_dest.database,
-                   sd=sql_src.database, src_tbl=src_table))
+                into {sql_dest.database}.{sql_dest.default_schema}.{test_table}
+                from {sql_src.database}.dbo.{src_table}
+        """)
         # make sure the table was added to the correct log
-        if sql_src.table_exists("__temp_log_table_%s__ " % sql_src.user, schema='dbo'):
-            sql_src.query("""
-                        select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-                    """.format(s='dbo', u=sql_src.user, t=test_table, d=sql_src.database))
+        if sql_src.table_exists(f"__temp_log_table_{sql_src.user}__ ", schema='dbo'):
+            sql_src.query(f"""
+                select * from {sql_src.database}.dbo.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+            """)
             assert not sql_src.data
 
-        sql_dest.query("""
-            select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-        """.format(s=sql_dest.default_schema, u=sql_src.user, t=test_table, d=sql_dest.database))
+        sql_dest.query(f"""
+            select * from {sql_dest.database}.{sql_dest.default_schema}.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+        """)
         assert sql_dest.data
         # clean up
         sql_dest.drop_table(sql_dest.default_schema, test_table)
-        sql_dest.query("""
-                    select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-                """.format(s=sql_dest.default_schema, u=sql_dest.user, t=test_table, d=sql_dest.database))
+        sql_dest.query(f"""
+            select * from {sql_dest.database}.{sql_dest.default_schema}.__temp_log_table_{sql_dest.user}__ where table_name = '{test_table}'
+        """)
         assert not sql_dest.data
 #
     def test_rename_table_cross_db(self):
@@ -113,45 +112,52 @@ class TestQueryCreatesTableLoggingSql:
         # make sure table doesnt exist
         sql_dest.drop_table(sql_dest.default_schema, test_table)
         # make table
-        sql_src.query("""
+        sql_src.query(f"""
                     select top 1 *
-                    into {d}.{s}.{t}
-                    from {sd}.dbo.{tt}
-                """.format(s=sql_dest.default_schema, t=test_table, d=sql_dest.database,
-                           sd=sql_src.database, tt=src_table))
+                        into {sql_dest.database}.{sql_dest.default_schema}.{test_table}
+                        from {sql_src.database}.dbo.{src_table}
+                    """)
         # make sure the table was added to the correct log
 
         # check not added to src log
-        if sql_src.table_exists("__temp_log_table_%s__ " % sql_src.user, schema='dbo'):
-            sql_src.query("""
-                select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-            """.format(s='dbo', u=sql_src.user, t=test_table, d=sql_src.database))
+        if sql_src.table_exists(f"__temp_log_table_{sql_src.user}__ ", schema='dbo'):
+            sql_src.query(f"""
+                select * from {sql_src.database}.dbo.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+            """)
             assert not sql_src.data
+
         # check its in the dest log
-        sql_dest.query("""
-            select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-        """.format(s=sql_dest.default_schema, u=sql_src.user, t=test_table, d=sql_dest.database))
+        sql_dest.query(f"""
+            select * from {sql_dest.database}.{sql_dest.default_schema}.__temp_log_table_{sql_src.user}__ where table_name = '{test_table}'
+        """)
         assert sql_dest.data
-        sql_dest.drop_table(sql_dest.default_schema, test_table+'_rename')
+        sql_dest.drop_table(sql_dest.default_schema, f'{test_table}_rename')
+
         # rename table
-        sql_dest_src_user.query("""
-            EXEC sp_rename '{db}.{sch}.{t}', '{t}_rename'
-        """.format(db=sql_dest.database, sch=sql_dest.default_schema, t=test_table))
+        sql_dest_src_user.query(f"""
+            EXEC sp_rename '{sql_dest.database}.{sql_dest.default_schema}.{test_table}', '{test_table}_rename'
+        """)
+
         # check dest log was updated
-        sql_dest_src_user.query("""
-            select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}_rename'
-        """.format(s=sql_dest.default_schema, u=sql_dest_src_user.user, t=test_table, d=sql_dest_src_user.database))
+        sql_dest_src_user.query(f"""
+            select * from {sql_dest_src_user.database}.{sql_dest.default_schema}.__temp_log_table_{sql_dest_src_user.user}__ 
+                where table_name = '{test_table}_rename'
+        """)
         assert sql_dest_src_user.data
+
         # check old name was removed from the log
-        sql_dest_src_user.query("""
-            select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}'
-        """.format(s=sql_dest_src_user.default_schema, u=sql_dest_src_user.user, t=test_table, d=sql_dest_src_user.database))
+        sql_dest_src_user.query(f"""
+            select * from {sql_dest_src_user.database}.{sql_dest_src_user.default_schema}.__temp_log_table_{sql_dest_src_user.user}__ 
+                where table_name = '{test_table}'
+            """)
         assert not sql_dest_src_user.data
+
         # clean up
-        sql_dest_src_user.drop_table(sql_dest_src_user.default_schema, test_table+'_rename')
-        sql_dest_src_user.query("""
-            select * from {d}.{s}.__temp_log_table_{u}__ where table_name = '{t}_rename'
-        """.format(s=sql_dest_src_user.default_schema, u=sql_dest_src_user.user, t=test_table, d=sql_dest_src_user.database))
+        sql_dest_src_user.drop_table(sql_dest_src_user.default_schema, f'{test_table}_rename')
+        sql_dest_src_user.query(f"""
+            select * from {sql_dest_src_user.database}.{sql_dest_src_user.default_schema}.__temp_log_table_{sql_dest_src_user.user}__ 
+                where table_name = '{test_table}_rename'
+            """)
         assert not sql_dest_src_user.data
 
         @classmethod
