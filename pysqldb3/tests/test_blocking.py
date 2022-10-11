@@ -37,22 +37,22 @@ def blockfunc1():
     This function intentionally uses a cartesian join to take a long time.
     """
     try:
-        db.query("""
+        db.query(f"""
         --IntentionalBlockingQuery    
-        insert into working.{}  
+        insert into working.{create_table_name}  
         select distinct n.id
         from (
         select * 
-        from working.{}
+        from working.{pg_table_name}
         limit 10000
         ) l 
         join (
         select * 
-        from working.{}
+        from working.{pg_table_name2}
         limit 10000
         ) n
         on st_intersects(l.geom, n.geom);
-       """.format(create_table_name, pg_table_name, pg_table_name2))
+       """)
     except Exception as e:
         print(e)
 
@@ -62,12 +62,12 @@ def blockfunc2():
     This function intentionally uses a lock to try to cause a block.
     """
     time.sleep(1)
-    db2.query("""
-    LOCK TABLE working.{} IN ACCESS EXCLUSIVE MODE;
+    db2.query(f"""
+    LOCK TABLE working.{create_table_name} IN ACCESS EXCLUSIVE MODE;
 
     select * 
-    from working.{}
-    """.format(create_table_name, create_table_name))
+    from working.{create_table_name}
+    """)
 
 
 def blockfunc3(q):
@@ -110,21 +110,21 @@ class TestBlocking:
         q = Queue()
         db.drop_table(schema='working', table=create_table_name)
 
-        db.query("""
-        create table working.{} as 
+        db.query(f"""
+        create table working.{create_table_name} as 
         select distinct n.id
         from (
         select * 
-        from working.{}
+        from working.{pg_table_name}
         limit 1
         ) l 
         join (
         select * 
-        from working.{}
+        from working.{pg_table_name2}
         limit 1
         ) n
         on st_intersects(l.geom, n.geom);
-        """.format(create_table_name, pg_table_name, pg_table_name2))
+        """)
 
         """
         Run queries in parallel
@@ -170,21 +170,21 @@ class TestBlocking:
         q = Queue()
         db.drop_table(schema='working', table=create_table_name)
 
-        db.query("""
-        create table working.{} as 
+        db.query(f"""
+        create table working.{create_table_name} as 
         select distinct n.id
         from (
         select * 
-        from working.{}
+        from working.{pg_table_name}
         limit 1
         ) l 
         join (
         select * 
-        from working.{}
+        from working.{pg_table_name2}
         limit 1
         ) n
         on st_intersects(l.geom, n.geom);
-        """.format(create_table_name, pg_table_name, pg_table_name2))
+        """)
 
         """
         Run queries in parallel
@@ -214,7 +214,7 @@ class TestBlocking:
         """
         Confirms no records were added to created table, meaning the insert query was killed successfully.
         """
-        end_result_df = db.dfquery("""select * from working.{}""".format(create_table_name))
+        end_result_df = db.dfquery(f"""select * from working.{create_table_name}""")
         assert len(end_result_df) <= 1
 
         """
