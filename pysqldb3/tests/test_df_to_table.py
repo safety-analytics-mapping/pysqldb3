@@ -39,7 +39,7 @@ class TestDfToTableSchemaPG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert 0 length
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -66,7 +66,7 @@ class TestDfToTableSchemaPG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert 0 length
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -75,11 +75,11 @@ class TestDfToTableSchemaPG:
 
         assert len(test_df.columns) == len(table_df.columns)
 
-        assert list(db.dfquery("""
+        assert list(db.dfquery(f"""
         select distinct data_type
         from information_schema.columns
-        where table_name = '{}';
-        """.format(table_name))['data_type'])[0] == 'bigint'
+        where table_name = '{table_name}';
+        """)['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
         i_s = db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working', overwrite=True,
@@ -89,7 +89,7 @@ class TestDfToTableSchemaPG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert 0 length
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -99,13 +99,14 @@ class TestDfToTableSchemaPG:
         assert len(test_df.columns) == len(table_df.columns)
 
         # Assert new types, including column a as varchar
-        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'character varying'}, {"column_name": 'b', "data_type": 'bigint'},{"column_name": 'c', "data_type": 'bigint'}]),
-                                      db.dfquery("""
-                                          select distinct column_name, data_type
-                                          from information_schema.columns
-                                          where table_name = '{}';
-                                      """.format(table_name))
-                                      )
+        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'character varying'},
+        {"column_name": 'b', "data_type": 'bigint'}, {"column_name": 'c', "data_type": 'bigint'}]),
+        db.dfquery(f"""
+            select distinct column_name, data_type
+            from information_schema.columns
+            where table_name = '{table_name}';
+        """)
+        )
 
         # Cleanup
         db.drop_table(table=table_name, schema='working')
@@ -125,7 +126,7 @@ class TestDfToTableSchemaPG:
         assert db.table_exists(table=table_name, schema=db.default_schema)
 
         # Assert 0 length
-        table_df = db.dfquery('select * from {}'.format(table_name))
+        table_df = db.dfquery(f'select * from {table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -152,7 +153,7 @@ class TestDfToTableSchemaPG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert 0 length
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -171,7 +172,7 @@ class TestDfToTableSchemaPG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert 0 length
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -202,7 +203,7 @@ class TestDfToTableSchemaMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert 0 length
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -229,7 +230,7 @@ class TestDfToTableSchemaMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert 0 length
-        table_df = sql.dfquery('select * from dbo.{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from dbo.{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -238,11 +239,10 @@ class TestDfToTableSchemaMS:
 
         assert len(test_df.columns) == len(table_df.columns)
 
-        assert list(sql.dfquery("""
+        assert list(sql.dfquery(f"""
         select distinct data_type
         from information_schema.columns
-        where table_name = '{}';
-        """.format(table_name))['data_type'])[0] == 'bigint'
+        where table_name = '{table_name}';""")['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
         i_s = sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo', overwrite=True,
@@ -252,7 +252,7 @@ class TestDfToTableSchemaMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert 0 length
-        table_df = sql.dfquery('select * from dbo.{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from dbo.{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -262,13 +262,14 @@ class TestDfToTableSchemaMS:
         assert len(test_df.columns) == len(table_df.columns)
 
         # Assert new types, including column a as varchar
-        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'varchar'}, {"column_name": 'b', "data_type": 'bigint'},{"column_name": 'c', "data_type": 'bigint'}]),
-                                      sql.dfquery("""
-                                          select distinct column_name, data_type
-                                          from information_schema.columns
-                                          where table_name = '{}';
-                                      """.format(table_name))
-                                      )
+        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'varchar'},
+        {"column_name": 'b', "data_type": 'bigint'},{"column_name": 'c', "data_type": 'bigint'}]),
+        sql.dfquery(f"""
+            select distinct column_name, data_type
+            from information_schema.columns
+            where table_name = '{table_name}';
+        """)
+        )
 
         # Cleanup
         sql.drop_table(table=table_name, schema='dbo')
@@ -288,7 +289,7 @@ class TestDfToTableSchemaMS:
         assert sql.table_exists(table=table_name, schema=sql.default_schema)
 
         # Assert 0 length
-        table_df = sql.dfquery('select * from {}'.format(table_name))
+        table_df = sql.dfquery(f'select * from {table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -315,7 +316,7 @@ class TestDfToTableSchemaMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert 0 length
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -334,7 +335,7 @@ class TestDfToTableSchemaMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert 0 length
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
         assert len(table_df) == 0
 
         # Assert column correctness
@@ -364,7 +365,7 @@ class TestDfToTablePG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert table correctness
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
@@ -384,14 +385,14 @@ class TestDfToTablePG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert table correctness
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
-        assert list(db.dfquery("""
+        assert list(db.dfquery(f"""
          select distinct data_type
          from information_schema.columns
-         where table_name = '{}';
-         """.format(table_name))['data_type'])[0] == 'bigint'
+         where table_name = '{table_name}';
+         """)['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
         db.dataframe_to_table(df=test_df, table=table_name, schema='working', overwrite=True,
@@ -402,7 +403,7 @@ class TestDfToTablePG:
 
         # Assert column type changed (column a is text)
         test_df = pd.DataFrame([{"a": '1', "b": 2, "c": 3}, {"a": '4', "b": 5, "c": 6}])
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
 
         pd.testing.assert_frame_equal(test_df, table_df)
 
@@ -423,7 +424,7 @@ class TestDfToTablePG:
         assert db.table_exists(table=table_name, schema=db.default_schema)
 
         # Assert table correctness
-        table_df = db.dfquery('select * from {}'.format(table_name))
+        table_df = db.dfquery(f'select * from {table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
@@ -443,7 +444,7 @@ class TestDfToTablePG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert table correctness
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Make a new table
@@ -456,7 +457,7 @@ class TestDfToTablePG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert table correctness
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         pd.testing.assert_frame_equal(test_df2, table_df)
 
         # Cleanup
@@ -476,7 +477,7 @@ class TestDfToTablePG:
         assert db.table_exists(table=table_name, schema='working')
 
         # Assert table correctness
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Add more with input schema for existing table
@@ -485,7 +486,7 @@ class TestDfToTablePG:
                               table_schema=[['a', 'integer'], ['b', 'integer'], ['c', 'integer']])
 
         # Assert table correctness with addition
-        table_df = db.dfquery('select * from working.{}'.format(table_name))
+        table_df = db.dfquery(f'select * from working.{table_name}')
 
         pd.testing.assert_frame_equal(pd.concat([test_df, additional_df], axis=0).reset_index(drop=True), table_df)
 
@@ -511,7 +512,7 @@ class TestDfToTableMS:
         assert sql.table_exists(table=table_name)
 
         # Assert table correctness
-        table_df = sql.dfquery('select * from {}'.format(table_name))
+        table_df = sql.dfquery(f'select * from {table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
@@ -531,14 +532,14 @@ class TestDfToTableMS:
         assert sql.table_exists(table=table_name, schema=sql.default_schema)
 
         # Assert table correctness
-        table_df = sql.dfquery('select * from {}'.format(table_name))
+        table_df = sql.dfquery(f'select * from {table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
-        assert list(sql.dfquery("""
+        assert list(sql.dfquery(f"""
           select distinct data_type
           from information_schema.columns
-          where table_name = '{}';
-          """.format(table_name))['data_type'])[0] == 'bigint'
+          where table_name = '{table_name}';
+          """)['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
         sql.dataframe_to_table(df=test_df, table=table_name, schema=sql.default_schema, overwrite=True,
@@ -549,7 +550,7 @@ class TestDfToTableMS:
 
         # Assert column type changed (column a is text)
         test_df = pd.DataFrame([{"a": '1', "b": 2, "c": 3}, {"a": '4', "b": 5, "c": 6}])
-        table_df = sql.dfquery('select * from {}'.format(table_name))
+        table_df = sql.dfquery(f'select * from {table_name}')
 
         pd.testing.assert_frame_equal(test_df, table_df)
 
@@ -570,7 +571,7 @@ class TestDfToTableMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert table correctness
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
@@ -590,7 +591,7 @@ class TestDfToTableMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert table correctness
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Make a new table
@@ -603,7 +604,7 @@ class TestDfToTableMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert table correctness
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
         pd.testing.assert_frame_equal(test_df2, table_df)
 
         # Cleanup
@@ -624,7 +625,7 @@ class TestDfToTableMS:
         assert sql.table_exists(table=table_name, schema='dbo')
 
         # Assert table correctness
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Add more with input schema for existing table
@@ -633,7 +634,7 @@ class TestDfToTableMS:
                                table_schema=[['a', 'integer'], ['b', 'integer'], ['c', 'integer']])
 
         # Assert table correctness with addition
-        table_df = sql.dfquery('select * from [dbo].{}'.format(table_name))
+        table_df = sql.dfquery(f'select * from [dbo].{table_name}')
 
         pd.testing.assert_frame_equal(pd.concat([test_df, additional_df], axis=0).reset_index(drop=True), table_df)
 
