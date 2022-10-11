@@ -20,7 +20,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-table_name = 'test_df_to_table_{}'.format(db.user)
+table_name = f'test_df_to_table_{db.user}'
 
 
 class TestDfToTableSchemaPG:

@@ -27,9 +27,9 @@ db3 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                         user=config.get('PG_DB', 'DB_USER'),
                         password=config.get('PG_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{}'.format(db.user)
-pg_table_name2 = 'pg_test_table_{}_2'.format(db.user)
-create_table_name = 'long_time_table_{}'.format(db.user)
+pg_table_name = f'pg_test_table_{db.user}'
+pg_table_name2 = f'pg_test_table_{db.user}_2'
+create_table_name = f'long_time_table_{db.user}'
 
 
 def blockfunc1():

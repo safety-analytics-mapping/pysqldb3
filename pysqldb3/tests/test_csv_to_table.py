@@ -21,9 +21,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{}'.format(db.user)
-create_table_name = 'sample_acs_test_csv_to_table_{}'.format(db.user)
-
+pg_table_name = f'pg_test_table_{db.user}'
+create_table_name = f'sample_acs_test_csv_to_table_{db.user}'
 
 class TestCsvToTablePG:
     @classmethod

@@ -19,11 +19,10 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{}'.format(db.user)
-sql_table_name = 'sql_test_table_{}'.format(sql.user)
-table_for_testing = 'table_for_testing_{}'.format(db.user)
-table_for_testing_logging = 'testing_logging_table_{}'.format(db.user)
-
+pg_table_name = f'pg_test_table_{db.user}'
+sql_table_name = f'sql_test_table_{sql.user}'
+table_for_testing = f'table_for_testing_{db.user}'
+table_for_testing_logging = f'testing_logging_table_{db.user}'
 
 class TestMisc:
     @classmethod

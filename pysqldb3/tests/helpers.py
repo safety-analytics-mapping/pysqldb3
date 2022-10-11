@@ -61,7 +61,7 @@ def set_up_simple_test_table_sql(sql, table_name, schema='dbo'):
          """)
 
 def clean_up_test_table_sql(sql, schema='dbo'):
-    table_name = 'sql_test_table_{}'.format(sql.user)
+    table_name = f'sql_test_table_{sql.user}'
     sql.drop_table(table=table_name, schema=schema)
 
 def clean_up_simple_test_table_sql(sql, table_name, schema='dbo'):

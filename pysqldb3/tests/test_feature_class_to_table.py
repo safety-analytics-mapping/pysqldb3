@@ -25,7 +25,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node'
-table = 'test_feature_class_{}'.format(db.user)
+table = f'test_feature_class_{db.user}'
 
 
 class TestFeatureClassToTablePg:
@@ -63,8 +63,7 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema)
         assert db.table_exists(table, schema=schema)
 
-        db.query("select * from {s}.__temp_log_table_{u}__ where table_name = '{t}'".format(
-            s=schema, t=table, u=db.user))
+        db.query(f"select * from {schema}.__temp_log_table_{db.user}__ where table_name = '{table}'")
         assert len(db.data) == 1
 
         db.drop_table(schema, table)
@@ -79,7 +78,7 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, srid=4326)
         assert db.table_exists(table, schema=schema)
 
-        db.query("select distinct st_srid(geom) from {}.{}".format(schema, table))
+        db.query(f"select distinct st_srid(geom) from {schema}.{table}")
         assert db.data[0][0] == 4326
 
         db.drop_table(schema, table)
@@ -92,12 +91,12 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
         assert db.table_exists(table, schema=db.default_schema)
 
-        db.query("""
+        db.query(f"""
             SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name = '{t}'
-            AND table_schema = '{s}'
-        """.format(s=db.default_schema, t=table))
+                FROM information_schema.columns
+                WHERE table_name = '{table}'
+                AND table_schema = '{db.default_schema}'
+        """)
 
         columns = {i[0] for i in db.data}
         types = {i[1] for i in db.data}
@@ -106,10 +105,12 @@ class TestFeatureClassToTablePg:
         assert types == {'integer', 'integer', 'integer', 'character varying', 'USER-DEFINED'}
 
         # check non geom data
-        db.query("""
-                    select objectid, nodeid, vintersect from {}.{} where nodeid in (88, 98, 100)
-                """.format(
-            db.default_schema, table))
+        db.query(f"""
+            select objectid, nodeid, vintersect 
+                from {db.default_schema}.{table} 
+                where nodeid in (88, 98, 100)
+        """
+        )
 
         row_values = [(87, 88, 'VirtualIntersection'),
                       (97, 98, ''),
@@ -121,20 +122,20 @@ class TestFeatureClassToTablePg:
                 assert row_values[c][r] == db.data[c][r]
 
         # check geom matches (less than 1 ft off
-        db.query("""
+        db.query(f"""
             select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(914145.1,126536.1, 2263),2263))
-            from {s}.{t}
+            from {db.default_schema}.{table}
             where nodeid=88
-        """.format(s=db.default_schema, t=table))
+        """)
         assert db.data[0][0] < 1
 
-        db.query("""
+        db.query(f"""
             select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(920184.0, 138084.1, 2263),2263))
-            from {s}.{t}
+            from {db.default_schema}.{table}
             where nodeid=888
-        """.format(s=db.default_schema, t=table))
+        """)
 
         assert db.data[0][0] < 1
 
@@ -156,7 +157,7 @@ class TestFeatureClassToTablePg:
 
     @pytest.mark.order7
     def test_import_fc_new_name_schema_private(self):
-        private_table = table + '_priv'
+        private_table = f'{table}_priv'
         schema = 'working'
 
         db.drop_table(table=private_table, schema=schema)
@@ -165,10 +166,10 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(fgdb, private_table, shp_name=fc, schema=schema, private=True)
         assert db.table_exists(private_table, schema=schema)
 
-        db.query("""
+        db.query(f"""
             select distinct grantee from information_schema.table_privileges
-            where table_name = '{t}'
-            and table_schema='{s}'
+                where table_name = '{private_table}'
+                and table_schema='{schema}'
         """.format(s=schema, t=private_table), strict=False)
         assert len(db.data) == 1
 
@@ -176,7 +177,7 @@ class TestFeatureClassToTablePg:
 
     @pytest.mark.order8
     def test_import_fc_new_name_schema_tmp(self):
-        not_temp_table = table + '_tmp'
+        not_temp_table = f'{table}_tmp'
         schema = 'working'
         db.drop_table(table=not_temp_table, schema=schema)
         assert not db.table_exists(not_temp_table, schema=schema)
@@ -184,8 +185,7 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(fgdb, not_temp_table, shp_name=fc, schema=schema, temp=False)
         assert db.table_exists(not_temp_table, schema=schema)
 
-        db.query("select * from {s}.__temp_log_table_{u}__ where table_name = '{t}'".format(
-            s=schema, t=not_temp_table, u=db.user))
+        db.query(f"select * from {schema}.__temp_log_table_{db.user}__ where table_name = '{not_temp_table}'")
         assert len(db.data) == 0
 
         db.drop_table(schema, not_temp_table)
@@ -243,7 +243,7 @@ class TestFeatureClassToTableMs:
         sql.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, srid=4326, skip_failures='-skip_failures')
         assert sql.table_exists(table, schema=schema)
 
-        sql.query("select distinct geom.STSrid from {}.{}".format(schema, table))
+        sql.query(f"select distinct geom.STSrid from {schema}.{table}")
         assert sql.data[0][0] == 4326
 
         sql.drop_table(schema, table)
@@ -256,12 +256,12 @@ class TestFeatureClassToTableMs:
         sql.feature_class_to_table(fgdb, table, schema=None, shp_name=fc, skip_failures='-skip_failures')
 
         assert sql.table_exists(table, schema=sql.default_schema)
-        sql.query("""
-                select column_name, data_type
+        sql.query(f"""
+            select column_name, data_type
                 from INFORMATION_SCHEMA.COLUMNS
-                where table_name = '{t}'
-                and table_schema='{s}'
-        """.format(s=sql.default_schema, t=table))
+                where table_name = '{table}'
+                and table_schema='{sql.default_schema}'
+        """)
 
         columns = {i[0] for i in sql.data}
         types = {i[1] for i in sql.data}
@@ -270,10 +270,9 @@ class TestFeatureClassToTableMs:
         assert types == {'int', 'geometry', 'int', 'nvarchar'}
 
         # check non geom data
-        sql.query("""
-                            select objectid, nodeid, vintersect from {}.{} where nodeid in (88, 98, 100)
-                        """.format(
-                             sql.default_schema, table))
+        sql.query(f"""select objectid, nodeid, vintersect 
+                        from {sql.default_schema}.{table} 
+                        where nodeid in (88, 98, 100)""")
 
         row_values = [(87, 88, 'VirtualIntersection'),
                    (97, 98, ''),
@@ -284,18 +283,18 @@ class TestFeatureClassToTableMs:
                 assert row_values[c][r] == sql.data[c][r]
 
         # check geom matches (less than 1 ft off)
-        sql.query("""
+        sql.query(f"""
             select geom.STGeometryN(1).STDistance(geometry::Point(914145.1,126536.1, 2263))
-            from {s}.{t}
-            where nodeid=88
-        """.format(s=sql.default_schema, t=table))
+                from {sql.default_schema}.{table}
+                where nodeid=88
+        """)
         assert sql.data[0][0] < 1
 
-        sql.query("""
+        sql.query(f"""
             select geom.STGeometryN(1).STDistance(geometry::Point(920184.0, 138084.1, 2263))
-            from {s}.{t}
-            where nodeid=888
-        """.format(s=sql.default_schema, t=table))
+                from {sql.default_schema}.{table}
+                where nodeid=888
+        """)
         assert sql.data[0][0] < 1
 
         sql.drop_table(sql.default_schema, table)
@@ -322,12 +321,10 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=table, schema=schema)
         assert not sql.table_exists(table, schema=schema)
 
-        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, temp=False,
-        skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, temp=False, skip_failures='-skip_failures')
         assert sql.table_exists(table, schema=schema)
 
-        sql.query("select * from {s}.__temp_log_table_{u}__ where table_name = '{t}'".format(
-            s=schema, t=table, u=sql.user))
+        sql.query(f"select * from {schema}.__temp_log_table_{sql.user}__ where table_name = '{table}'")
         assert len(sql.data) == 0
 
         sql.drop_table(schema, table)
@@ -339,13 +336,10 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=table, schema=schema)
         assert not sql.table_exists(table, schema=schema)
 
-        sql.feature_class_to_table(fgdb, table=table, shp_name=fc, schema=schema, private=True,
-        skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table=table, shp_name=fc, schema=schema, private=True, skip_failures='-skip_failures')
         assert sql.table_exists(table=table, schema=schema)
 
-        sql.query("""
-            EXEC sp_table_privileges @table_name = '{t}';
-            """.format(t=table))
+        sql.query(f"""EXEC sp_table_privileges @table_name = '{table}';""")
         sql.drop_table(schema, table)
 
         # FAILING

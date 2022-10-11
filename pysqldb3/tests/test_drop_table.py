@@ -19,12 +19,13 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-test_for_drop_table = 'test_for_drop_table_func_{}'.format(db.user)
+test_for_drop_table = f'test_for_drop_table_func_{db.user}'
 
 
 class TestDropTablePG:
     def test_drop_table_basic(self):
-        schema = 'working'
+        s
+        chema = 'working'
         query_string = f"""
         DROP TABLE IF EXISTS working.{test_for_drop_table};
         CREATE TABLE working.{test_for_drop_table} AS 

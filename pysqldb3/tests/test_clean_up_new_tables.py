@@ -21,12 +21,12 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-test_pg_to_pg_cleanup_table = 'test_pg_to_pg_cleanup_{}'.format(db.user)
-test_pg_to_sql_cleanup_table = 'test_pg_to_pg_cleanup_{}'.format(db.user)
-test_sql_to_pg_cleanup_table = 'test_sql_to_pg_cleanup_{}'.format(db.user)
-test_clean_up_new_table = 'test_new_table_testing_{}'.format(db.user)
-test_clean_up_new_table2 = 'test_new_table_testing_{}_2'.format(db.user)
-test_sql_to_pg_qry_cleanup_table = 'test_sql_to_pg_qry_cleanup_{}'.format(db.user)
+test_pg_to_pg_cleanup_table = f'test_pg_to_pg_cleanup_{db.user}'
+test_pg_to_sql_cleanup_table = f'test_pg_to_pg_cleanup_{db.user}'
+test_sql_to_pg_cleanup_table = f'test_sql_to_pg_cleanup_{db.user}'
+test_clean_up_new_table = f'test_new_table_testing_{db.user}'
+test_clean_up_new_table2 = f'test_new_table_testing_{db.user}_2'
+test_sql_to_pg_qry_cleanup_table = f'test_sql_to_pg_qry_cleanup_{db.user}'
 
 
 class TestCleanUpNewTablesPg:
