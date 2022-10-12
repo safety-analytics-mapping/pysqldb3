@@ -19,8 +19,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-test_table = '___test_rename_index_org_tbl_{}__'.format(db.user)
-new_test_table = '___test_rename_index_new_tbl_{}__'.format(db.user)
+test_table = f'___test_rename_index_org_tbl_{db.user}__'
+new_test_table = f'___test_rename_index_new_tbl_{db.user}__'
 
 """
 Rename_index is in Query.
@@ -31,12 +31,12 @@ prevents standard index name conflicts if a table is renamed
 
 class TestRenameIndexPG:
     def get_indexes(self, table, schema):
-        db.query("""
-          SELECT indexname
-          FROM pg_indexes
-          WHERE tablename = '{t}'
-           AND schemaname='{s}';
-        """.format(t=table.replace('"', ''), s=schema), timeme=False)
+        db.query(f"""
+        SELECT indexname
+            FROM pg_indexes
+            WHERE tablename = '{table.replace('"','')}'
+            AND schemaname='{schema}';
+        """, timeme=False)
         return db.data
 
     def test_rename_index_basic(self):
@@ -46,19 +46,17 @@ class TestRenameIndexPG:
         assert not db.table_exists(test_table, schema=schema)
 
         # create a basic table - no indexes
-        db.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=test_table))
+        db.query(f"create table {schema}.{test_table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 0
 
         # add index with org table name in idx name
-        db.query("CREATE UNIQUE INDEX idx_id_{t} ON {s}.{t} (id);".format(t=test_table, s=schema))
+        db.query(f"CREATE UNIQUE INDEX idx_id_{test_table} ON {schema}.{test_table} (id);")
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # rename table
-        db.query("alter table {s}.{t} rename to {nt}".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        db.query(f"alter table {schema}.{test_table} rename to {new_test_table}")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -73,8 +71,8 @@ class TestRenameIndexPG:
 
     def test_rename_index_basic_quotes(self):
         schema = 'working'
-        table = '"' + test_table + '"'
-        new_table = '"' + new_test_table + '"'
+        table = f"'{test_table}'"
+        new_table = f"'{new_test_table}'"
 
         db.drop_table(table=table, schema=schema)
         db.drop_table(table=new_table, schema=schema)
@@ -83,20 +81,18 @@ class TestRenameIndexPG:
         assert not db.table_exists(new_table, schema=schema)
 
         # create a basic table - no indexes
-        db.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=table))
+        db.query(f"create table {schema}.{table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(table, schema)) == 0
 
         # add index with org table name in idx name
-        db.query(
-            'CREATE UNIQUE INDEX "idx_id_{t1}" ON {s}.{t} (id);'.format(t1=table.replace('"', ''), t=table, s=schema))
+        tbn = table.replace('"','')
+        db.query(f"CREATE UNIQUE INDEX idx_id_{tbn} ON {schema}.{table} (id);")
 
         # check index on org table
         assert len(self.get_indexes(table, schema)) == 1
 
         # rename table
-        db.query('alter table {s}.{t} rename to {nt}'.format(
-            s=schema, t=table, nt=new_table
-        ))
+        db.query(f'alter table {schema}.{table} rename to {new_table}')
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(table, schema)) == 0
@@ -115,13 +111,11 @@ class TestRenameIndexPG:
         assert not db.table_exists(test_table, schema=schema)
 
         # create a basic table - no indexes
-        db.query("create table {s}.{t} (id serial PRIMARY KEY, txt text, geo geometry)".format(s=schema, t=test_table))
+        db.query(f"create table {schema}.{test_table} (id serial PRIMARY KEY, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # rename table
-        db.query("alter table {s}.{t} rename to {nt}".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        db.query(f"alter table {schema}.{test_table} rename to {new_test_table}")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -143,20 +137,18 @@ class TestRenameIndexPG:
         assert not db.table_exists(new_test_table, schema=schema)
 
         # create a basic table - no indexes
-        db.query("create table {s}.{t} (id int, txt text, geom geometry)".format(s=schema, t=test_table))
+        db.query(f"create table {schema}.{test_table} (id int, txt text, geom geometry)")
         assert len(self.get_indexes(test_table, schema)) == 0
 
         # add index with org table name in idx name
-        db.query("CREATE UNIQUE INDEX idx_id_{t} ON {s}.{t} (id);".format(t=test_table, s=schema))
-        db.query("CREATE INDEX {t}__geom_idx ON {s}.{t} USING gist (geom)".format(t=test_table, s=schema))
+        db.query(f"CREATE UNIQUE INDEX idx_id_{test_table} ON {schema}.{test_table} (id);")
+        db.query(f"CREATE INDEX {test_table}__geom_idx ON {schema}.{test_table} USING gist (geom)")
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 2
 
         # rename table
-        db.query("alter table {s}.{t} rename to {nt}".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        db.query(f"alter table {schema}.{test_table} rename to {new_test_table}")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -180,20 +172,16 @@ class TestRenameIndexPG:
         assert not db.table_exists(new_test_table, schema=schema)
 
         # create a shapefile to import
-        q = """
-            select 1 id, 'test text' txt, st_setsrid(st_makepoint(1015329.1, 213793.1),2263) geom
-        """
+        q = "select 1 id, 'test text' txt, st_setsrid(st_makepoint(1015329.1, 213793.1),2263) geom"
         db.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        db.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=test_table + '.shp')
+        db.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=f'{test_table}.shp')
 
         # check index on org table
         print(self.get_indexes(test_table, schema))
         assert len(self.get_indexes(test_table, schema)) == 2
 
         # rename table
-        db.query("alter table {s}.{t} rename to {nt}".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        db.query(f"alter table {schema}.{test_table} rename to {new_test_table}")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -221,19 +209,17 @@ class TestRenameIndexPG:
         assert not db.table_exists(new_test_table, schema=schema)
 
         # create a basic table - no indexes
-        db.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=test_table))
+        db.query(f"create table {schema}.{test_table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 0
 
         # add index with org table name in idx name
-        db.query("CREATE UNIQUE INDEX idx_id_test ON {s}.{t} (id);".format(t=test_table, s=schema))
+        db.query(f"CREATE UNIQUE INDEX idx_id_test ON {schema}.{test_table} (id);")
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # rename table
-        db.query("alter table {s}.{t} rename to {nt}".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        db.query(f"alter table {schema}.{test_table} rename to {new_test_table}")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -255,13 +241,11 @@ class TestRenameIndexPG:
         assert not db.table_exists(new_test_table, schema=schema)
 
         # create a basic table - no indexes
-        db.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=test_table))
+        db.query(f"create table {schema}.{test_table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 0
 
         # rename table
-        db.query("alter table {s}.{t} rename to {nt}".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        db.query(f"alter table {schema}.{test_table} rename to {new_test_table}")
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
         assert len(self.get_indexes(new_test_table, schema)) == 0
@@ -276,7 +260,7 @@ class TestRenameIndexPG:
 
 class TestRenameIndexMS:
     def get_indexes(self, table, schema):
-        sql.query("""
+        sql.query(f"""
             SELECT
                 a.name AS Index_Name,
                 type_desc
@@ -287,8 +271,8 @@ class TestRenameIndexMS:
                 ON a.object_id = b.object_id AND a.index_id = b.index_id
             WHERE
                 a.is_hypothetical = 0
-                AND a.object_id = OBJECT_ID('{s}.{t}')
-        """.format(t=table, s=schema), timeme=False)
+                AND a.object_id = OBJECT_ID('{schema}.{test_table}')
+        """, timeme=False)
         return sql.data
 
     def test_rename_index_basic(self):
@@ -299,19 +283,17 @@ class TestRenameIndexMS:
         assert sql.table_exists(new_test_table, schema=schema) is False
 
         # create a basic table - no indexes
-        sql.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=test_table))
+        sql.query(f"create table {schema}.{test_table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 0
 
         # add index with org table name in idx name
-        sql.query("CREATE UNIQUE INDEX idx_id_{t} ON {s}.{t} (id);".format(t=test_table, s=schema))
+        sql.query(f"CREATE UNIQUE INDEX idx_id_{test_table} ON {schema}.{test_table} (id);")
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # rename table
-        sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        sql.query(f"EXEC sp_rename '{schema}.{test_table}', '{new_test_table}'")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -326,34 +308,33 @@ class TestRenameIndexMS:
 
     def test_rename_index_basic_brackets(self):
         schema = 'dbo'
-        table = '[' + test_table + ']'
-        new_table = '[' + new_test_table + ']'
+        table = f'[{test_table}]'
+        new_table = f'[{new_test_table}]'
         sql.drop_table(table=table, schema=schema)
         assert not sql.table_exists(table, schema=schema)
 
         # create a basic table - no indexes
-        sql.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=table))
+        sql.query(f"create table {schema}.{table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(table, schema)) == 0
 
         # add index with org table name in idx name
-        sql.query(
-            "CREATE UNIQUE INDEX [idx_id_{t1}] ON {s}.{t} (id);".format(t1=table.replace("[", '').replace("]", ''),
-                                                                        t=table, s=schema))
+        t1 = table.replace('[','').replace(']','')
+        sql.query(f"CREATE UNIQUE INDEX [idx_id_{t1}] ON {schema}.{table} (id);")
         # check index on org table
         assert len(self.get_indexes(table, schema)) == 1
 
         # rename table
-        sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
-            s=schema, t=table.replace("[", '').replace("]", ''), nt=new_table.replace("[", '').replace("]", '')
-        ))
+        t = table.replace('[','').replace(']','')
+        nt = new_table.replace('[','').replace(']','')
+        sql.query(f"EXEC sp_rename '{schema}.{t}', '{nt}'")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(table, schema)) == 0
         assert len(self.get_indexes(new_table, schema)) == 1
 
         # check old table name not referenced in index after rename
-        assert table.replace("[", '').replace("]", '') not in self.get_indexes(new_table, schema)[0][0]
-        assert new_table.replace("[", '').replace("]", '') in self.get_indexes(new_table, schema)[0][0]
+        assert t not in self.get_indexes(new_table, schema)[0][0]
+        assert nt in self.get_indexes(new_table, schema)[0][0]
 
         sql.drop_table(schema, table)
         sql.drop_table(schema, new_table)
@@ -366,14 +347,11 @@ class TestRenameIndexMS:
         assert sql.table_exists(new_test_table, schema=schema) is False
 
         # create a basic table - with default index
-        sql.query(
-            "create table {s}.{t} (id int IDENTITY(1,1) PRIMARY KEY, txt text, geo geometry)".format(s=schema, t=test_table))
+        sql.query(f"create table {schema}.{test_table} (id int IDENTITY(1,1) PRIMARY KEY, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # rename table
-        sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        sql.query(f"EXEC sp_rename '{schema}.{test_table}', '{new_test_table}'")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -392,22 +370,18 @@ class TestRenameIndexMS:
         assert sql.table_exists(test_table, schema=schema) is False
 
         # create a basic table - no indexes
-        sql.query("create table {s}.{t} (id int IDENTITY(1,1) PRIMARY KEY, txt text, geom geometry)".format(
-            s=schema, t=test_table))
+        sql.query(f"create table {schema}.{test_table} (id int IDENTITY(1,1) PRIMARY KEY, txt text, geom geometry)")
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # add index with org table name in idx name
-        sql.query("CREATE UNIQUE INDEX idx_id_{t} ON {s}.{t} (id);".format(t=test_table, s=schema))
-        sql.query("CREATE SPATIAL INDEX {t}__geom_idx ON \
-        {s}.{t}(geom) WITH ( BOUNDING_BOX = ( 0, 0, 500, 200 ) ); ".format(t=test_table, s=schema))
+        sql.query(f"CREATE UNIQUE INDEX idx_id_{test_table} ON {schema}.{test_table} (id);")
+        sql.query(f"CREATE SPATIAL INDEX {test_table}__geom_idx ON {schema}.{test_table}(geom) WITH ( BOUNDING_BOX = ( 0, 0, 500, 200 ) ); ")
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 3
 
         # rename table
-        sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        sql.query(f"EXEC sp_rename '{schema}.{test_table}', '{new_test_table}'")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -427,19 +401,16 @@ class TestRenameIndexMS:
         assert not sql.table_exists(test_table, schema=schema)
 
         # create a shapefile to import
-        q = """
-            select 1 id, 'test text' txt, geometry::STGeomFromText('POINT(1015329.34900 213793.65100)', 2263) geom
-        """
-        sql.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        sql.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=test_table + '.shp', private=True)
+        q = "select 1 id, 'test text' txt, geometry::STGeomFromText('POINT(1015329.34900 213793.65100)', 2263) geom"
+        shpname = f'{test_table}.shp'
+        sql.query_to_shp(q, path=fldr, shp_name=shpname)
+        sql.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=shpname, private=True)
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # rename table
-        sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        sql.query(f"EXEC sp_rename '{schema}.{test_table}', '{new_test_table}'")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -463,18 +434,17 @@ class TestRenameIndexMS:
         assert sql.table_exists(test_table, schema=schema) is False
 
         # create a basic table - no indexes
-        sql.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=test_table))
+        sql.query(f"create table {schema}.{test_table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 0
 
         # add index with org table name in idx name
-        sql.query("CREATE UNIQUE INDEX idx_id_test ON {s}.{t} (id);".format(t=test_table, s=schema))
+        sql.query(f"CREATE UNIQUE INDEX idx_id_test ON {schema}.{test_table} (id);")
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 1
 
         # rename table
-        sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
-            s=schema, t=test_table, nt=new_test_table))
+        sql.query(f"EXEC sp_rename '{schema}.{test_table}', '{new_test_table}'")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
@@ -493,13 +463,11 @@ class TestRenameIndexMS:
         assert sql.table_exists(test_table, schema=schema) is False
 
         # create a basic table - no indexes
-        sql.query("create table {s}.{t} (id int, txt text, geo geometry)".format(s=schema, t=test_table))
+        sql.query(f"create table {schema}.{test_table} (id int, txt text, geo geometry)")
         assert len(self.get_indexes(test_table, schema)) == 0
 
         # rename table
-        sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
-            s=schema, t=test_table, nt=new_test_table
-        ))
+        sql.query(f"EXEC sp_rename '{schema}.{test_table}', '{new_test_table}'")
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(new_test_table, schema)) == 0
