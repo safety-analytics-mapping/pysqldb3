@@ -71,7 +71,7 @@ class TestQueryToShpPg:
             CREATE TABLE {schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
             INSERT INTO {schema}.{test_table}
                 VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """ 
+        """)
         assert db.table_exists(test_table, schema=schema)
 
         # table to shp
@@ -529,7 +529,7 @@ class TestQueryToShpMs:
             CREATE TABLE {schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
             INSERT INTO {schema}.{test_table} (id, txt, dte, geom)
                 VALUES (1, 'test text', CURRENT_TIMESTAMP, geometry::Point(1015329.1, 213793.1, 2263 ))
-        """`)
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
@@ -737,10 +737,10 @@ class TestQueryToShpMs:
             fld6 geometry);
 
             INSERT INTO {schema}.{test_table}
-             VALUES (1,
-             'test text',
-             '{lt}',
-             CURRENT_TIMESTAMP, 123.456, geometry::Point(1015329.1, 213793.1, 2263 ))
+                VALUES (1,
+                'test text',
+                '{lt}',
+                CURRENT_TIMESTAMP, 123.456, geometry::Point(1015329.1, 213793.1, 2263 ))
         """)  # The shapefile maximum field width is 254 lt set to 255
         assert sql.table_exists(test_table, schema=schema)
 
@@ -762,7 +762,7 @@ class TestQueryToShpMs:
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.geom) < 1  then 1 else 0 end-- default name from pysqldb
         from {schema}.{test_table} t1
-        join {schema}.{test_table}QA t2
+        join {schema}.{test_table}qa t2
             on t1.fld1=t2.fld1
         """)
         assert set(sql.data[0]) == {1}

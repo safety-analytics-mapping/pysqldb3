@@ -24,7 +24,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-test_query_table = 'test_query_table_{}'.format(db.user)
+test_query_table = f'test_query_table_{db.user}'
 
 
 class TestQuery:
@@ -32,20 +32,19 @@ class TestQuery:
         db.drop_table(table=test_query_table, schema='working')
         assert not db.table_exists(table=test_query_table, schema='working')
 
-        db.query("""
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
-            
-            insert into working.{} values ('a', 'b', 'c');
-        """.format(test_query_table, test_query_table))
+        db.query(f"""
+            create table working.{test_query_table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into working.{test_query_table} values ('a', 'b', 'c');
+        """)
 
         # Assert query successfully executed create table
         assert db.table_exists(table=test_query_table, schema='working')
 
         # Assert correctly executed insert
-        db.query("""
+        db.query(f"""
             select * 
-            from working.{}
-        """.format(test_query_table))
+            from working.{test_query_table}
+        """)
 
         last_query = db.queries[-1]
 
@@ -63,20 +62,16 @@ class TestQuery:
         sql.drop_table(table=test_query_table, schema='dbo')
         assert not sql.table_exists(table=test_query_table, schema='dbo')
 
-        sql.query("""
-            create table dbo.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into dbo.{} values ('a', 'b', 'c');
-        """.format(test_query_table, test_query_table))
+        sql.query(f"""
+            create table dbo.{test_query_table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into dbo.{test_query_table} values ('a', 'b', 'c');
+        """)
 
         # Assert query successfully executed create table
         assert sql.table_exists(table=test_query_table, schema='dbo')
 
         # Assert correctly executed insert
-        sql.query("""
-            select * 
-            from dbo.{}
-        """.format(test_query_table))
+        sql.query(f"select * from dbo.{test_query_table}")
 
         last_query = sql.queries[-1]
 
@@ -105,15 +100,13 @@ class TestQuery:
         db.drop_table(table=test_query_table, schema='working')
         assert not db.table_exists(table=test_query_table, schema='working')
 
-        create_insert_table_string = """
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into working.{} values ('a', 'b', 'c');
-            
+        create_insert_table_string = f"""
+            create table working.{test_query_table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into working.{test_query_table} values ('a', 'b', 'c');
             select query 
-            from pg_stat_activity
-            where usename = '{}' and query is not null and query != ''
-            order by query_start desc;""".format(test_query_table, test_query_table, db.user)
+                from pg_stat_activity
+                where usename = '{db.user}' and query is not null and query != ''
+            order by query_start desc;"""
         db.query(create_insert_table_string)
 
         # Assert query successfully executed above--thereby also returning its own query string
@@ -140,16 +133,15 @@ class TestQuery:
         db.tables_created = []
 
         # Create
-        create_table_string = """
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into working.{} values ('a', 'b', 'c');
-        """.format(test_query_table, test_query_table, db.user)
-        db.query(create_table_string)
+        db.query(f"""
+            create table working.{test_query_table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into working.{test_query_table} values ('a', 'b', 'c');
+        """)
+        
 
         # Assert state is in proper shape
         assert db.table_exists(table=test_query_table, schema='working')
-        assert db.tables_created[0] == 'working.' + test_query_table
+        assert db.tables_created[0] == f'working.{test_query_table}'
         assert len(db.tables_created) == 1
 
         # Cleanup
@@ -163,16 +155,14 @@ class TestQuery:
         sql.tables_created = []
 
         # Create
-        create_table_string = """
-            create table dbo.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into dbo.{} values ('a', 'b', 'c');
-        """.format(test_query_table, test_query_table, sql.user)
-        sql.query(create_table_string)
+        sql.query(f"""
+            create table dbo.{test_query_table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into dbo.{test_query_table} values ('a', 'b', 'c');
+        """)
 
         # Confirm state has been updated
         assert sql.table_exists(table=test_query_table, schema='dbo')
-        assert sql.tables_created[0] == '[dbo].[' + test_query_table + ']'
+        assert sql.tables_created[0] == f'[dbo].[{test_query_table}]'
         assert len(sql.tables_created) == 1
 
         # Cleanup
@@ -183,42 +173,32 @@ class TestQuery:
 
         db.tables_dropped = []
 
-        create_table_string = """
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into working.{} values ('a', 'b', 'c');
-        """.format(test_query_table, test_query_table, db.user)
-        db.query(create_table_string)
+        db.query(f"""
+            create table working.{test_query_table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into working.{test_query_table} values ('a', 'b', 'c');
+        """)
 
         assert db.table_exists(table=test_query_table, schema='working')
 
-        drop_table_string = """
-            drop table if exists working.{};
-        """.format(test_query_table)
-        db.query(drop_table_string)
+        db.query(f"drop table if exists working.{test_query_table};")
 
-        assert db.tables_dropped[0] == 'working.' + test_query_table
+        assert db.tables_dropped[0] == f'working.{test_query_table}'
         assert len(db.tables_dropped) == 1
 
     def test_dbconnect_state_remove_ms(self):
         sql.drop_table(table=test_query_table, schema='dbo')
 
         sql.tables_dropped = []
-        create_table_string = """
-                    create table dbo.{} (col1 varchar, col2 varchar, col3 varchar);
-
-                    insert into dbo.{} values ('a', 'b', 'c');
-                """.format(test_query_table, test_query_table, sql.user)
-
-        sql.query(create_table_string)
+        sql.query(f"""
+                    create table dbo.{test_query_table} (col1 varchar, col2 varchar, col3 varchar);
+                    insert into dbo.{test_query_table} values ('a', 'b', 'c');
+                """)
         assert sql.table_exists(table=test_query_table, schema='dbo')
 
-        drop_table_string = """
-                    drop table dbo.{};
-                """.format(test_query_table)
+        drop_table_string = f"drop table dbo.{test_query_table};"
         sql.query(drop_table_string)
 
-        assert sql.tables_dropped[0] == 'dbo.' + test_query_table
+        assert sql.tables_dropped[0] == f'dbo.{test_query_table}'
         assert len(sql.tables_dropped) == 1
 
     def test_dbconnect_state_pg(self):
@@ -277,15 +257,13 @@ class TestQuery:
         db.drop_table(table=test_query_table, schema='working')
 
         # Add custom comment
-        db.query(query='create table working.{} (a varchar, b varchar, c varchar)'.format(test_query_table),
-                 comment='test comment')
+        db.query(query=f'create table working.{test_query_table} (a varchar, b varchar, c varchar)', comment='test comment')
 
-        comment_df = db.dfquery("""
+        comment_df = db.dfquery(f"""
         SELECT obj_description(oid) as comment
-        FROM pg_class
-        WHERE relkind = 'r' and relname='{}'
-        ;
-        """.format(test_query_table))
+            FROM pg_class
+            WHERE relkind = 'r' and relname='{test_query_table}'
+        ;""")
 
         # Assert comment is on table
         assert 'test comment' in comment_df['comment'].iloc[0]
@@ -297,8 +275,7 @@ class TestQuery:
         sql.drop_table(table=test_query_table, schema='dbo')
 
         # Add custom comment
-        sql.query(query='create table dbo.{} (a varchar, b varchar, c varchar)'.format(test_query_table),
-                  comment='test comment')
+        sql.query(query=f'create table dbo.{test_query_table} (a varchar, b varchar, c varchar)', comment='test comment')
 
         # Cleanup
         sql.drop_table(table=test_query_table, schema='dbo')
@@ -324,11 +301,11 @@ class TestDfQuery:
         db.drop_table(table=test_query_table, schema='working')
 
         # Create table
-        db.query(query='create table working.{} (a varchar, b varchar, c varchar)'.format(test_query_table))
-        db.query(query="insert into working.{} values('1', '2', '3')".format(test_query_table))
+        db.query(query=f'create table working.{test_query_table} (a varchar, b varchar, c varchar)')
+        db.query(query=f"insert into working.{test_query_table} values('1', '2', '3')")
 
         # Select from new table
-        test_df = db.dfquery("""select * from working.{}""".format(test_query_table))
+        test_df = db.dfquery(f"""select * from working.{test_query_table}""")
         df_from_data = pd.DataFrame(db.queries[-1].data, columns=db.queries[-1].data_columns)
 
         # Assert equality
@@ -341,11 +318,11 @@ class TestDfQuery:
         sql.drop_table(table=test_query_table, schema='dbo')
 
         # Create table
-        sql.query(query='create table dbo.{} (a varchar, b varchar, c varchar)'.format(test_query_table))
-        sql.query(query="insert into dbo.{} values('1', '2', '3')".format(test_query_table))
+        sql.query(query=f'create table dbo.{test_query_table} (a varchar, b varchar, c varchar)')
+        sql.query(query=f"insert into dbo.{test_query_table} values('1', '2', '3')")
 
         # Select from new table
-        test_df = sql.dfquery("""select * from dbo.{}""".format(test_query_table))
+        test_df = sql.dfquery(f"""select * from dbo.{test_query_table}""")
         df_from_data = pd.DataFrame(sql.queries[-1].data, columns=sql.queries[-1].data_columns)
 
         # Assert equality
@@ -358,11 +335,11 @@ class TestDfQuery:
         db.drop_table(table=test_query_table, schema='working')
 
         # Create table
-        db.query(query='create table working.{} (a int, b int, c int)'.format(test_query_table))
-        db.query(query="insert into working.{} values(1, 2, 3)".format(test_query_table))
+        db.query(query=f'create table working.{test_query_table} (a int, b int, c int)')
+        db.query(query=f"insert into working.{test_query_table} values (1, 2, 3)")
 
         # Select from new table
-        test_df = db.dfquery("""select * from working.{}""".format(test_query_table))
+        test_df = db.dfquery(f"""select * from working.{test_query_table}""")
         df_from_data = pd.DataFrame(db.queries[-1].data, columns=db.queries[-1].data_columns)
 
         # Assert equality
@@ -374,11 +351,11 @@ class TestDfQuery:
         ###################
 
         # Create table (float)
-        db.query(query='create table working.{} (a float, b float, c float)'.format(test_query_table))
-        db.query(query="insert into working.{} values(1.0, 2.0, 3.0)".format(test_query_table))
+        db.query(query=f'create table working.{test_query_table} (a float, b float, c float)')
+        db.query(query=f"insert into working.{test_query_table} values (1.0, 2.0, 3.0)")
 
         # Select from new table
-        test_df = db.dfquery("""select * from working.{}""".format(test_query_table))
+        test_df = db.dfquery(f"""select * from working.{test_query_table}""")
         df_from_data = pd.DataFrame(db.queries[-1].data, columns=db.queries[-1].data_columns)
 
         # Assert equality
@@ -391,11 +368,11 @@ class TestDfQuery:
         sql.drop_table(table=test_query_table, schema='dbo')
 
         # Create table (integer)
-        sql.query(query='create table dbo.{} (a int, b int, c int)'.format(test_query_table))
-        sql.query(query="insert into dbo.{} values(1, 2, 3)".format(test_query_table))
+        sql.query(query=f'create table dbo.{test_query_table} (a int, b int, c int)')
+        sql.query(query=f"insert into dbo.{test_query_table} values (1, 2, 3)")
 
         # Select from new table
-        test_df = sql.dfquery("""select * from dbo.{}""".format(test_query_table))
+        test_df = sql.dfquery(f"""select * from dbo.{test_query_table}""")
         df_from_data = pd.DataFrame(sql.queries[-1].data, columns=sql.queries[-1].data_columns)
 
         # Assert equality
@@ -407,11 +384,11 @@ class TestDfQuery:
         ###################
 
         # Create table (float)
-        sql.query(query='create table dbo.{} (a float, b float, c float)'.format(test_query_table))
-        sql.query(query="insert into dbo.{} values(1.0, 2.0, 3.0)".format(test_query_table))
+        sql.query(query=f'create table dbo.{test_query_table} (a float, b float, c float)')
+        sql.query(query=f"insert into dbo.{test_query_table} values (1.0, 2.0, 3.0)")
 
         # Select from new table
-        test_df = sql.dfquery("""select * from dbo.{}""".format(test_query_table))
+        test_df = sql.dfquery(f"select * from dbo.{test_query_table}")
         df_from_data = pd.DataFrame(sql.queries[-1].data, columns=sql.queries[-1].data_columns)
 
         # Assert equality
