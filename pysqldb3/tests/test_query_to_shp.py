@@ -525,18 +525,15 @@ class TestQueryToShpMs:
         sql.drop_table(schema=schema, table=test_table)
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
-
-            INSERT INTO {s}.{t}
-            (id, txt, dte, geom)
-             VALUES (1, 'test text', CURRENT_TIMESTAMP,
-             geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table} (id, txt, dte, geom)
+                VALUES (1, 'test text', CURRENT_TIMESTAMP, geometry::Point(1015329.1, 213793.1, 2263 ))
+        """`)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), path=fldr + '\\' + shp, print_cmd=True)
+        sql.query_to_shp(f"select * from {schema}.{test_table}", path=fldr + '\\' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -556,19 +553,16 @@ class TestQueryToShpMs:
         sql.drop_table(schema=schema, table=test_table)
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
-
-            INSERT INTO {s}.{t}
-            (id, txt, dte, geom)
-             VALUES (1, 'test text', CURRENT_TIMESTAMP,
-             geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table} (id, txt, dte, geom)
+                VALUES (1, 'test text', CURRENT_TIMESTAMP,
+                geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp,
-                        path=fldr + '\\' + 'test_' + shp, print_cmd=True)
+        sql.query_to_shp(f"select * from {schema}.{test_table}", shp_name=shp, path=f'{fldr}\\test_{shp}', print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -608,18 +602,17 @@ class TestQueryToShpMs:
         sql.drop_table(schema=schema, table=test_table)
 
         # create table
-        sql.query("""
-                    CREATE TABLE {s}.{t} (id int, [txt] text, dte datetime, geom geometry);
-
-                    INSERT INTO {s}.{t}
-                    (id, txt, dte, geom)
-                     VALUES (1, 'test text', CURRENT_TIMESTAMP,
-                     geometry::Point(1015329.1, 213793.1, 2263))
-                """.format(s=schema, t=test_table))
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, [txt] text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table}
+            (id, txt, dte, geom)
+                VALUES (1, 'test text', CURRENT_TIMESTAMP,
+                geometry::Point(1015329.1, 213793.1, 2263))
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp(f"select * from {schema}.{test_table}", shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -638,18 +631,16 @@ class TestQueryToShpMs:
         shp = 'test.shp'
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id int, [t.txt] text, [1t txt] text, [t_txt] text, dte datetime, geom geometry);
-
-            INSERT INTO {s}.{t}
-            (id, [t.txt], [1t txt], [t_txt], dte, geom)
-            VALUES (1, 'test text','test text','test text', CURRENT_TIMESTAMP,
-            geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, [t.txt] text, [1t txt] text, [t_txt] text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table} (id, [t.txt], [1t txt], [t_txt], dte, geom)
+                VALUES (1, 'test text','test text','test text', CURRENT_TIMESTAMP,
+                geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp(f"select * from {schema}.{test_table}", shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -669,22 +660,22 @@ class TestQueryToShpMs:
         sql.drop_table(schema=schema, table=test_table)
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id_name_one int,
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id_name_one int,
             [123text name one] text,
             [text@name-two~three four five six seven] text,
             current_date_time datetime,
             [x-coord] float,
             geom geometry);
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{test_table}
             VALUES (1, 'test text', 'test text', CURRENT_TIMESTAMP,
             123.456, geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select * from {schema}.{test_table}", shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -705,17 +696,16 @@ class TestQueryToShpMs:
         assert not sql.table_exists(table=test_table, schema=schema)
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
-
-            INSERT INTO {s}.{t}
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table}
                  VALUES (1, 'test text', cast(CURRENT_TIMESTAMP as datetime), geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        """)
 
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select top 0 * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp(f"select top 0 * from {schema}.{test_table}", shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -734,35 +724,36 @@ class TestQueryToShpMs:
         shp = 'test.shp'
 
         sql.drop_table(schema, test_table)
-        sql.drop_table(schema, test_table + 'qa')
+        sql.drop_table(schema, f'{test_table}qa')
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (fld1 int,
+        lt = 'test ' * 51
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (fld1 int,
             fld2 varchar(MAX),
             fld3 varchar(MAX),
             fld4 datetime,
             fld5 float,
             fld6 geometry);
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{test_table}
              VALUES (1,
              'test text',
              '{lt}',
              CURRENT_TIMESTAMP, 123.456, geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table, lt='test ' * 51))  # The shapefile maximum field width is 254 lt set to 255
+        """)  # The shapefile maximum field width is 254 lt set to 255
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp(f"select * from {schema}.{test_table}", shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, table=test_table + 'QA', schema=schema, shp_name=shp, print_cmd=True)
+        sql.shp_to_table(path=fldr, table=f'{test_table}QA', schema=schema, shp_name=shp, print_cmd=True)
 
-        sql.query("""
+        sql.query(f"""
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = t2.fld3 then 1 else 0 end,
@@ -770,10 +761,10 @@ class TestQueryToShpMs:
             case when cast(t1.fld4 as time)=t2.fld4_tm then 1 else 0 end, -- shapefiles cannot store datetimes
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.geom) < 1  then 1 else 0 end-- default name from pysqldb
-        from {s}.{t} t1
-        join {s}.{t}QA t2
-        on t1.fld1=t2.fld1
-        """.format(s=schema, t=test_table))
+        from {schema}.{test_table} t1
+        join {schema}.{test_table}QA t2
+            on t1.fld1=t2.fld1
+        """)
         assert set(sql.data[0]) == {1}
 
         # clean up
@@ -792,35 +783,36 @@ class TestQueryToShpMs:
         shp = 'test.shp'
 
         sql.drop_table(schema, test_table)
-        sql.drop_table(schema, test_table + 'qa')
+        sql.drop_table(schema, f'{test_table}qa')
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (fld1 int,
-            fld2 varchar(MAX),
-            fld3 varchar(MAX),
-            longfld4 datetime,
-            fld5 float,
-            fld6 geometry);
+        lt = 'test ' * 51
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (fld1 int,
+                fld2 varchar(MAX),
+                fld3 varchar(MAX),
+                longfld4 datetime,
+                fld5 float,
+                fld6 geometry);
 
-            INSERT INTO {s}.{t}
-             VALUES (1,
-             'test text',
-             '{lt}',
-             CURRENT_TIMESTAMP, 123.456, geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table, lt='test ' * 51))  # The shapefile maximum field width is 254 lt set to 255
+            INSERT INTO {schema}.{test_table}
+            VALUES (1,
+                'test text',
+                '{lt}',
+                CURRENT_TIMESTAMP, 123.456, geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)  # The shapefile maximum field width is 254 lt set to 255
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp(f"select * from {schema}.{test_table}", shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, table=test_table + 'QA', schema=schema, shp_name=shp, print_cmd=True)
+        sql.shp_to_table(path=fldr, table=f'{test_table}qa', schema=schema, shp_name=shp, print_cmd=True)
 
-        sql.query("""
+        sql.query(f"""
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = t2.fld3 then 1 else 0 end,
@@ -828,15 +820,15 @@ class TestQueryToShpMs:
             case when cast(t1.longfld4 as time)=t2.longfld_tm then 1 else 0 end, -- shapefiles cannot store datetimes
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.geom) < 1  then 1 else 0 end-- default name from pysqldb
-        from {s}.{t} t1
-        join {s}.{t}QA t2
-        on t1.fld1=t2.fld1
-        """.format(s=schema, t=test_table))
+        from {schema}.{test_table} t1
+            join {schema}.{test_table}qa t2
+            on t1.fld1=t2.fld1
+        """)
         assert set(sql.data[0]) == {1}
 
         # clean up
         sql.drop_table(schema, test_table)
-        sql.drop_table(schema, test_table + 'qa')
+        sql.drop_table(schema, f'{test_table}qa')
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
@@ -853,18 +845,18 @@ class TestQueryToShpMs:
         sql.query_to_shp(query=u"select '©' as sc",  shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
+        assert os.path.isfile(os.path.join(fldr, f'{shp}.dbf'))
 
         # Upload shp (with special character)
-        sql.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema=schema, table=test_table)
+        sql.shp_to_table(path=fldr, shp_name=f'{shp}.dbf', schema=schema, table=test_table)
 
         # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
         # ogr and SQL Server use/default to LATIN1; thus, encoding our string in LATIN1 will result in the correct character
-        assert (list(sql.dfquery("""select sc from {}.{}""".format(schema, test_table))['sc'])[0]).encode('latin1') == '©'.encode('latin1')
+        assert (list(sql.dfquery(f"select sc from {schema}.{test_table}")['sc'])[0]).encode('latin1') == '©'.encode('latin1')
 
         # clean up
         sql.drop_table(schema, test_table)
-        os.remove(os.path.join(fldr, shp + '.dbf'))
+        os.remove(os.path.join(fldr, f'{shp}.dbf'))
 
     def test_query_to_shp_bad_query(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
@@ -877,12 +869,12 @@ class TestQueryToShpMs:
             Failed = True
         # check table in not folder
         assert Failed
-        assert not os.path.isfile(os.path.join(fldr, shp + '.dbf'))
+        assert not os.path.isfile(os.path.join(fldr, f'{shp}.dbf'))
 
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql, schema='pytest')
-        sql.query("drop table {}.{}".format('pytest', sql.log_table))
+        sql.query(f"drop table pytest.{sql.log_table}")
         sql.clean_up_new_tables()
         helpers.clean_up_schema(sql)
 
