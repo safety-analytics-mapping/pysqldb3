@@ -25,7 +25,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-table = 'test_feature_class_{}'.format(db.user)
+table = f'test_feature_class_{db.user}'
 
 
 class TestRenamesGeomPg:
@@ -42,30 +42,20 @@ class TestRenamesGeomPg:
         # import data without pysqldb
         assert db.table_exists(table, schema=db.default_schema) is False
 
-        cmd = """
-        ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
-        "EPSG:{srid}" -f "PostgreSQL" PG:"host={host} user={user} dbname={dbname} 
-        password={password}" "{gdb}" "{feature}" -nln {sch}.{tbl_name} -progress 
-        """.format(gdal_data=util.GDAL_DATA_LOC,
-                   srid=2263,
-                   host=db.server,
-                   dbname=db.database,
-                   user=db.user,
-                   password=db.password,
-                   gdb=fgdb,
-                   feature=fc,
-                   sch=db.default_schema,
-                   tbl_name=table
-                   ).replace('\n', ' ')
+        cmd = f"""
+        ogr2ogr --config GDAL_DATA "{util.GDAL_DATA_LOC}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
+        "EPSG:2263" -f "PostgreSQL" PG:"host={db.server} user={db.user} dbname={db.database} 
+        password={db.password}" "{fgdb}" "{fc}" -nln {db.default_schema}.{table} -progress 
+        """.replace('\n', ' ')
 
         subprocess.call(cmd, shell=True)
 
-        db.query("""
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_name  = '{t}'
-                    and column_name='geom'
-                """.format(t=table))
+        db.query(f"""
+            SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name  = '{table}'
+                and column_name='geom'
+        """)
 
         assert db.data == []
         db.drop_table(db.default_schema, table)
@@ -75,12 +65,12 @@ class TestRenamesGeomPg:
         assert db.table_exists(table, schema=db.default_schema) is False
         db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
 
-        db.query("""
+        db.query(f"""
             SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name  = '{t}'
-            and column_name='geom'
-        """.format(t=table))
+                FROM information_schema.columns
+                WHERE table_name  = '{table}'
+                and column_name='geom'
+        """)
 
         assert db.data[0] == ('geom', 'USER-DEFINED')
 
@@ -95,30 +85,20 @@ class TestRenamesGeomPg:
         db.drop_table(table=table, schema=db.default_schema)
         assert not db.table_exists(table, schema=db.default_schema)
 
-        cmd = """
-        ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
-        "EPSG:{srid}" -progress -f "PostgreSQL" PG:"host={host} port={port} dbname={dbname} 
-        user={user} password={password}" "{shp}" -nln {schema}.{tbl_name} 
-        """.format(gdal_data=util.GDAL_DATA_LOC,
-                   srid=2263,
-                   host=db.server,
-                   dbname=db.database,
-                   user=db.user,
-                   password=db.password,
-                   shp=os.path.join(fldr, shp),
-                   schema=db.default_schema,
-                   tbl_name=table,
-                   port=5432
-                   ).replace('\n', ' ')
+        cmd = f"""
+        ogr2ogr --config GDAL_DATA "{util.GDAL_DATA_LOC}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
+        "EPSG:2263" -progress -f "PostgreSQL" PG:"host={db.user} port=5432 dbname={db.database} 
+        user={db.user} password={db.password}" "{os.path.join(fldr,shp)}" -nln {db.default_schema}.{table} 
+        """.replace('\n', ' ')
 
         subprocess.call(cmd, shell=True)
 
-        db.query("""
-                            SELECT column_name, data_type
-                            FROM information_schema.columns
-                            WHERE table_name  = '{t}'
-                            and column_name='geom'
-                        """.format(t=table))
+        db.query(f"""
+            SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name  = '{table}'
+                and column_name='geom'
+        """)
         assert db.data == []
         db.drop_table(db.default_schema, table)
         # clean up gdal import
@@ -128,12 +108,12 @@ class TestRenamesGeomPg:
 
         db.shp_to_table(path=fldr, table=table, shp_name=shp)
 
-        db.query("""
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_name  = '{t}'
-                    and column_name='geom'
-                """.format(t=table))
+        db.query(f"""
+            SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name  = '{table}'
+                and column_name='geom'
+        """)
 
         assert db.data[0] == ('geom', 'USER-DEFINED')
 
@@ -160,31 +140,21 @@ class TestRenamesGeomMs:
         sql.drop_table(table=table, schema=sql.default_schema)
         assert sql.table_exists(table, schema=sql.default_schema) is False
 
-        cmd = """
-        ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
-        "EPSG:{srid}" -f MSSQLSpatial "MSSQL:server={host};database={dbname};UID={user};PWD={password}"
-         "{gdb}" "{feature}" -nln {sch}.{tbl_name} -progress --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
-        """.format(gdal_data=util.GDAL_DATA_LOC,
-                   srid=2263,
-                   host=sql.server,
-                   dbname=sql.database,
-                   user=sql.user,
-                   password=sql.password,
-                   gdb=fgdb,
-                   feature=fc,
-                   sch=sql.default_schema,
-                   tbl_name=table
-                   ).replace('\n', ' ')
+        cmd = f"""
+        ogr2ogr --config GDAL_DATA "{util.GDAL_DATA_LOC}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
+        "EPSG:2263" -f MSSQLSpatial "MSSQL:server={sql.server};database={sql.database};UID={sql.user};PWD={sql.password}"
+         "{fgdb}" "{fc}" -nln {sql.default_schema}.{table} -progress --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
+        """.replace('\n', ' ')
 
         subprocess.call(cmd, shell=True)
 
-        sql.query("""
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_name  = '{t}'
-                    AND TABLE_SCHEMA='{s}'
-                    and column_name='geom'
-                """.format(t=table, s=sql.default_schema))
+        sql.query(f"""
+            SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name  = '{table}'
+                AND TABLE_SCHEMA='{sql.default_schema}'
+                AND column_name='geom'
+                """)
 
         assert sql.data == []
         sql.drop_table(sql.default_schema, table)
@@ -195,12 +165,12 @@ class TestRenamesGeomMs:
 
         sql.feature_class_to_table(fgdb, table, schema=None, shp_name=fc, skip_failures='-skip_failures')
 
-        sql.query("""
+        sql.query(f"""
             SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name  = '{t}'
-            and column_name='geom'
-        """.format(t=table))
+                FROM information_schema.columns
+                WHERE table_name  = '{table}'
+                and column_name='geom'
+        """)
 
         assert sql.data[0][0] == u'geom'
         assert sql.data[0][1] == u'geometry'
@@ -216,30 +186,19 @@ class TestRenamesGeomMs:
         sql.drop_table(table=table, schema=sql.default_schema)
         assert sql.table_exists(table, schema=sql.default_schema) is False
 
-        cmd = """ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs
-        "EPSG:{srid}" -progress -f MSSQLSpatial "MSSQL:server={host};database={dbname};UID={user};PWD={password}"
-         "{shp}" -nln {schema}.{tbl_name} {perc} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
-        """.format(gdal_data=util.GDAL_DATA_LOC,
-                   srid=2263,
-                   host=sql.server,
-                   dbname=sql.database,
-                   user=sql.user,
-                   password=sql.password,
-                   shp=os.path.join(fldr, shp),
-                   schema=sql.default_schema,
-                   tbl_name=table,
-                   perc='',
-                   port=5432
-                   ).replace('\n', ' ')
+        cmd = f"""ogr2ogr --config GDAL_DATA "{util.GDAL_DATA_LOC}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs
+        "EPSG:2263" -progress -f MSSQLSpatial "MSSQL:server={sql.server};database={sql.database};UID={sql.user};PWD={sql.password}"
+         "{os.path.join(fldr,shp)}" -nln {sql.default_schema}.{table} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
+        """.replace('\n', ' ')
 
         subprocess.call(cmd, shell=True)
 
-        sql.query("""
-                            SELECT column_name, data_type
-                            FROM information_schema.columns
-                            WHERE table_name  = '{t}'
-                            and column_name='geom'
-                        """.format(t=table))
+        sql.query(f"""
+        SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name  = '{table}'
+            and column_name='geom'
+        """)
         assert sql.data == []
         sql.drop_table(sql.default_schema, table)
         # clean up gdal import
@@ -249,12 +208,12 @@ class TestRenamesGeomMs:
 
         sql.shp_to_table(path=fldr, table=table, shp_name=shp)
 
-        sql.query("""
-                    SELECT column_name, data_type
-                    FROM information_schema.columns
-                    WHERE table_name  = '{t}'
-                    and column_name='geom'
-                """.format(t=table))
+        sql.query(f"""
+        SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name  = '{table}'
+            AND column_name='geom'
+        """)
 
         assert sql.data[0][0] == u'geom'
         assert sql.data[0][1] == u'geometry'
