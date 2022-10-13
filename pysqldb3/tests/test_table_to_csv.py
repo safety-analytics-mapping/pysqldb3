@@ -281,7 +281,7 @@ class Test_Table_to_CSV_PG:
         with raises(IOError) as exc_info:
             db.table_to_csv(create_table_name,
                             schema=schema,
-                            output_file=os.path.join(fldr, create_table_name + '.csv')
+                            output_file=os.path.join(fldr, f'{create_table_name}.csv')
                             )
         assert exc_info.type is FileNotFoundError
 
@@ -300,7 +300,7 @@ class Test_Table_to_CSV_PG:
         with raises(SystemExit) as exc_info:
             db.table_to_csv(create_table_name,
                             schema=schema,
-                            output_file=os.path.join(fldr, create_table_name + '.csv')
+                            output_file=os.path.join(fldr, f'{create_table_name}.csv')
                             )
         assert True
 
