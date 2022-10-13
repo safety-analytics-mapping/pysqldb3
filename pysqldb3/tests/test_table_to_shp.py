@@ -32,7 +32,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 #                              server='DOTGISSQL01',
 #                              ldap=True)
 
-test_table = '__testing_query_to_shp_{}__'.format(db.user)
+test_table = f'__testing_query_to_shp_{db.user}__'
 
 
 class TestTableToShpPg:
@@ -42,13 +42,12 @@ class TestTableToShpPg:
         shp = 'test.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, txt text, dte timestamp, geom geometry(Point));
-
-            INSERT INTO {s}.{t}
-             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
+        db.query(f"""
+            DROP TABLE IF EXISTS {schema}.{test_table};
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+            INSERT INTO {schema}.{test_table}
+                VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+        """)
         assert db.table_exists(test_table, schema=schema)
 
         # table to shp
@@ -68,17 +67,16 @@ class TestTableToShpPg:
         shp = 'test.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, txt text, dte timestamp, geom geometry(Point));
-
-            INSERT INTO {s}.{t}
-             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
+        db.query(f"""
+            DROP TABLE IF EXISTS {schema}.{test_table};
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+            INSERT INTO {schema}.{test_table}
+                VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+        """)
         assert db.table_exists(test_table, schema=schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=schema, path=fldr + '\\' + shp, print_cmd=True)
+        db.table_to_shp(test_table, schema=schema, path=f'{fldr}\\{shp}', print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -94,17 +92,16 @@ class TestTableToShpPg:
         shp = 'test.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, txt text, dte timestamp, geom geometry(Point));
-
-            INSERT INTO {s}.{t}
-             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
+        db.query(f"""
+            DROP TABLE IF EXISTS {schema}.{test_table};
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+            INSERT INTO {schema}.{test_table}
+                VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+        """)
         assert db.table_exists(test_table, schema=schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=schema, shp_name=shp,  path=fldr + '\\' + 'err_'+shp, print_cmd=True)
+        db.table_to_shp(test_table, schema=schema, shp_name=shp,  path=f'{fldr}\\err_{shp}', print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -117,16 +114,15 @@ class TestTableToShpPg:
     def test_table_to_shp_basic_quotes(self):
         schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-        shp = test_table+'.shp'
+        shp = f'{test_table}.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, "txt" text, dte timestamp, geom geometry(Point));
-
-            INSERT INTO {s}.{t}
-             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=schema, t=test_table))
+        db.query(f"""
+            DROP TABLE IF EXISTS {schema}.{test_table};
+            CREATE TABLE {schema}.{test_table} (id int, "txt" text, dte timestamp, geom geometry(Point));
+            INSERT INTO {schema}.{test_table}
+                VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+        """)
         assert db.table_exists(test_table, schema=schema)
 
         # table to shp
@@ -154,14 +150,11 @@ class TestTableToShpMs:
         sql.drop_table(schema=schema, table=test_table)
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
-
-            INSERT INTO {s}.{t}
-            (id, txt, dte, geom)
-             VALUES (1, 'test text', CURRENT_TIMESTAMP,
-             geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table} (id, txt, dte, geom)
+                VALUES (1, 'test text', CURRENT_TIMESTAMP, geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
@@ -185,18 +178,15 @@ class TestTableToShpMs:
         sql.drop_table(schema=schema, table=test_table)
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
-
-            INSERT INTO {s}.{t}
-            (id, txt, dte, geom)
-             VALUES (1, 'test text', CURRENT_TIMESTAMP,
-             geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table} (id, txt, dte, geom)
+                VALUES (1, 'test text', CURRENT_TIMESTAMP, geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=schema, path=fldr + '\\' + shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema=schema, path=f'{fldr}\\{shp}', print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -216,18 +206,15 @@ class TestTableToShpMs:
 
         sql.drop_table(schema=schema, table=test_table)
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
-
-            INSERT INTO {s}.{t}
-            (id, txt, dte, geom)
-             VALUES (1, 'test text', CURRENT_TIMESTAMP,
-             geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=schema, t=test_table))
+        sql.query(f"""
+            CREATE TABLE {schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+            INSERT INTO {schema}.{test_table} (id, txt, dte, geom)
+                VALUES (1, 'test text', CURRENT_TIMESTAMP, geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=schema, shp_name=shp ,path=fldr + '\\' + 'err_'+shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema=schema, shp_name=shp ,path=f'{fldr}\\err_{shp}', print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -243,18 +230,15 @@ class TestTableToShpMs:
     def test_table_to_shp_basic_brackets(self):
         schema = 'dbo'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-        shp = test_table+'.shp'
+        shp = f'{test_table}.shp'
         sql.drop_table(table=test_table, schema=schema)
 
         # create table
-        sql.query("""
-                    CREATE TABLE {s}.{t} (id int, [txt] text, dte datetime, geom geometry);
-
-                    INSERT INTO {s}.{t}
-                    (id, txt, dte, geom)
-                     VALUES (1, 'test text', CURRENT_TIMESTAMP,
-                     geometry::Point(1015329.1, 213793.1, 2263))
-                """.format(s=schema, t=test_table))
+        sql.query(f"""
+                    CREATE TABLE {schema}.{test_table} (id int, [txt] text, dte datetime, geom geometry);
+                    INSERT INTO {schema}.{test_table} (id, txt, dte, geom)
+                        VALUES (1, 'test text', CURRENT_TIMESTAMP, geometry::Point(1015329.1, 213793.1, 2263))
+                """)
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
@@ -274,6 +258,6 @@ class TestTableToShpMs:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql, schema='pytest')
-        sql.query("drop table {}.{}".format('pytest', sql.log_table))
+        sql.query(f"drop table pytest.{sql.log_table}")
         sql.clean_up_new_tables()
         helpers.clean_up_schema(sql)
