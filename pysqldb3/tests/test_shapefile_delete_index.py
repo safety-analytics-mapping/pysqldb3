@@ -21,7 +21,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-test_read_shp_table_name = 'test_read_shp_table_{}'.format(db.user)
+test_read_shp_table_name = f'test_read_shp_table_{db.user}'
 
 
 class TestSHPDeleteIndexPG:
@@ -122,9 +122,9 @@ class TestSHPDeleteIndexMS:
         s.read_shp()
 
         # Add one more
-        sql.query("""
-        CREATE INDEX IX_{} ON dbo.{} (ogr_fid)
-        """.format(test_read_shp_table_name, test_read_shp_table_name))
+        sql.query(f"""
+        CREATE INDEX IX_{test_read_shp_table_name} ON dbo.{test_read_shp_table_name} (ogr_fid)
+        """)
 
         # Assert one index was made; one for PK
         indexes_df = sql.dfquery(SHP_DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
