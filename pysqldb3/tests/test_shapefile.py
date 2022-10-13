@@ -282,7 +282,7 @@ class TestReadShpMS:
 
         # Assert distance between geometries is 0 when recreating from raw input
         # This method was used because the geometries themselves may be recorded differently but mean the same (after mapping on QGIS)
-        diff_df = sql.dfquery("""
+        diff_df = sql.dfquery(f"""
         select distinct raw_inputs.geom.STDistance(end_table.geom) as distance
         from (
             (select 1 as id, geometry::Point(1015329.1, 213793.1, 2263) as geom)
