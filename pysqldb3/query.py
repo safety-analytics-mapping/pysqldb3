@@ -3,8 +3,8 @@ import sys
 
 import psycopg2
 
-from shapefile import *
-from util import parse_table_string
+from .shapefile import *
+from .util import parse_table_string
 
 
 class Query:

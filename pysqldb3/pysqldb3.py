@@ -1,5 +1,4 @@
 import getpass
-
 import pyodbc
 from tqdm import tqdm
 from typing import Optional, Union
@@ -8,16 +7,15 @@ import json
 import plotly.express as px
 import configparser
 import os
-from Config import write_config
+from .Config import write_config
+from .query import *
+from .shapefile import *
+from .data_io import *
+from .__init__ import __version__
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
-
-from query import *
-from shapefile import *
-from data_io import *
-from __init__ import __version__
 
 
 
