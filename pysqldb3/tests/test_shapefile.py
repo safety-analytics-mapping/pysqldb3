@@ -55,7 +55,7 @@ class TestReadShpPG:
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema='working', table=test_read_shp_table_name)
-        table_df = db.dfquery('select * from working.{}'.format(test_read_shp_table_name))
+        table_df = db.dfquery(f'select * from working.{test_read_shp_table_name}')
 
         assert set(table_df.columns) == {'gid', 'some_value', 'geom', 'ogc_fid'}
         assert len(table_df) == 2

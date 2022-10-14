@@ -279,7 +279,8 @@ class DbConnect:
         :param schema: database schema name
         :return:
         """
-        self.query(f"SELECT table_schema, table_name FROM {schema}.{self.log_table} WHERE expires < '{datetime.datetime.now().strftime('%Y-%m-%d')})", timeme=False, internal=True)
+        now = datetime.datetime.now().strftime('%Y-%m-%d')
+        self.query(f"SELECT table_schema, table_name FROM {schema}.{self.log_table} WHERE expires < '{now}'", timeme=False, internal=True)
 
         to_clean = self.__get_most_recent_query_data(internal=True)
         cleaned = 0

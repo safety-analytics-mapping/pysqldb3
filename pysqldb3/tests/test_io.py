@@ -2,9 +2,7 @@ from multiprocessing.sharedctypes import Value
 import os
 import random
 import pytest
-
 import configparser
-from sys import orig_argv
 import pandas as pd
 
 from .. import pysqldb3 as pysqldb, data_io
