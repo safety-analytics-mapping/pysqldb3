@@ -291,6 +291,7 @@ def clean_up_schema(db, schema):
         c = ''
     db.query(f"DROP SCHEMA IF EXISTS {schema}{c};")
 
+
 def clean_up_shp(file_path):
     for ext in ('.shp', '.dbf', '.shx', '.prj'):
         clean_up_file(file_path.replace('.shp', ext))
@@ -299,8 +300,7 @@ def clean_up_shp(file_path):
 def clean_up_file(file_path):
     if os.path.isfile(file_path):
         os.remove(file_path)
-        print(f"File removed: {os.path.basename(file_path)}")
-
+        print(f"File removed: {os.path.basename(file_path)}\n")
 
 def set_up_xls():
     xls_file1 = os.path.join(DIR, 'test_xls.xls')
@@ -336,4 +336,4 @@ def set_up_xls():
         col += 1
         row = 0
     w.save(xls_file2)
-    print(f'File created: {xls_file2}')
+    print(f'File created: {os.path.basename(xls_file2)}\n')

@@ -599,12 +599,11 @@ class TestPgToPg:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
-        db.clean_up_new_tables()
-        sql.clean_up_new_tables()
-
+        db.cleanup_new_tables()
+        sql.cleanup_new_tables()
 
 class TestPgToPgQry:
-    def test_pg_to_pg_qry_basic_table(self, schema='public'):
+    def test_pg_to_pg_qry_basic_table(self):
         org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
                                 server=config.get('SECOND_PG_DB', 'SERVER'),
                                 database=config.get('SECOND_PG_DB', 'DB_NAME'),
@@ -616,15 +615,15 @@ class TestPgToPgQry:
         assert not db.table_exists(table=test_pg_to_pg_qry_table)
 
         # Add test_table
-        org_pg.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.drop_table(schema='public', table=test_pg_to_pg_qry_table)
         org_pg.query(f"""
-        CREATE TABLE {schema}.{test_pg_to_pg_qry_table} (test_col1 int, test_col2 int);
-        INSERT INTO {schema}.{test_pg_to_pg_qry_table} VALUES(1, 2);
-        INSERT INTO {schema}.{test_pg_to_pg_qry_table} VALUES(3, 4);
+        create table public.{test_pg_to_pg_qry_table} (test_col1 int, test_col2 int);
+        insert into public.{test_pg_to_pg_qry_table} VALUES(1, 2);
+        insert into public.{test_pg_to_pg_qry_table} VALUES(3, 4);
         """)
 
         # sql_to_pg_qry
-        data_io.pg_to_pg_qry(org_pg, db, query=f"SELECT * FROM {schema}.{test_pg_to_pg_qry_table}",
+        data_io.pg_to_pg_qry(org_pg, db, query=f"select * from public.{test_pg_to_pg_qry_table}",
                               dest_table=test_pg_to_pg_qry_table, print_cmd=True, spatial=False)
 
         # Assert sql to pg query was successful (table exists)
@@ -632,13 +631,13 @@ class TestPgToPgQry:
 
         # Assert df equality
         org_pg_df = org_pg.dfquery(f"""
-        SELECT * FROM {schema}.{test_pg_to_pg_qry_table}
-        ORDER BY test_col1
+        select * from public.{test_pg_to_pg_qry_table}
+        order by test_col1
         """).infer_objects().replace('\s+', '', regex=True)
 
         pg_df = db.dfquery(f"""
-        SELECT * FROM {schema}
-        ORDER BY test_col1
+        select * from {test_pg_to_pg_qry_table}
+        order by test_col1
         """).infer_objects().replace('\s+', '', regex=True)
 
         org_pg_df.columns = [c.lower() for c in list(org_pg_df.columns)]
@@ -649,9 +648,9 @@ class TestPgToPgQry:
 
         # Cleanup
         db.drop_table(schema=db.default_schema, table=test_pg_to_pg_qry_table)
-        org_pg.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.drop_table(schema='public', table=test_pg_to_pg_qry_table)
 
-    def test_pg_to_pg_qry_dest_schema(self, schema=''):
+    def test_pg_to_pg_qry_dest_schema(self):
         org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
                                    server=config.get('SECOND_PG_DB', 'SERVER'),
                                    database=config.get('SECOND_PG_DB', 'DB_NAME'),
@@ -664,6 +663,7 @@ class TestPgToPgQry:
 
         # Add test_table
         org_pg.drop_table(schema='working', table=test_pg_to_pg_qry_table)
+
         org_pg.query(f"""
         CREATE TABLE working.{test_pg_to_pg_qry_table} (test_col1 int, test_col2 int);
         INSERT INTO working.{test_pg_to_pg_qry_table} VALUES (1, 2);
@@ -676,17 +676,17 @@ class TestPgToPgQry:
 
         # Assert sql_to_pg_qry successful and correct length
         assert db.table_exists(schema='working', table=test_pg_to_pg_qry_table)
-        assert len(db.dfquery(f'SELECT * FROM working.{test_pg_to_pg_qry_table}')) == 2
+        assert len(db.dfquery(f'select * from working.{test_pg_to_pg_qry_table}')) == 2
 
         # Assert df equality
         org_pg_df = org_pg.dfquery(f"""
-        SELECT * FROM working.{test_pg_to_pg_qry_table}
-        ORDER BY test_col1
+        select * from working.{test_pg_to_pg_qry_table}
+        order by test_col1
         """).infer_objects().replace('\s+', '', regex=True)
 
         pg_df = db.dfquery(f"""
-        SELECT * FROM working.{test_pg_to_pg_qry_table}
-        ORDER BY test_col1
+        select * from working.{test_pg_to_pg_qry_table}
+        order by test_col1
         """).infer_objects().replace('\s+', '', regex=True)
 
         org_pg_df.columns = [c.lower() for c in list(org_pg_df.columns)]
@@ -744,6 +744,12 @@ class TestPgToPgQry:
         # not sure what this is supposed to raise - AttributeError?
         with pytest.raises(AttributeError):
             data_io.sql_to_pg_qry(sql, pg, query='', spatial=False, dest_table=f'test_sql_to_pg_qry_empty_query_err_{db.user}')
+
+    def test_sql_to_pg_qry_no_dest_table_input(self):
+        return
+
+    def test_sql_to_pg_qry_empty_query_error(self):
+        return
 
     def test_sql_to_pg_qry_empty_wrong_layer_error(self):
         return

@@ -95,7 +95,7 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
 
 
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
-                  dest_table=None):
+                  dest_table=None, pg_encoding='UTF8'):
     """
     Migrates the result of a query from SQL Server database to PostgreSQL database, and generates spatial tables in
     PG if spatial in MS.
@@ -109,6 +109,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :param temp: flag, defaults to true, for temporary tables
     :param dest_table: destination table name
+    :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
     :return:
     """
     if not dest_schema:
@@ -166,8 +167,12 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     if print_cmd:
         print(print_cmd_string([ms.password, pg.password], cmd))
 
+    cmd_env = os.environ.copy()
+    cmd_env['PGCLIENTENCODING'] = pg_encoding
+
     try:
-        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
+                                               env=cmd_env)
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -370,7 +375,9 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
         dest_schema = to_pg.default_schema
 
     if not dest_table:
-        dest_table = f"_{to_pg.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}"
+        usr = to_pg.user
+        now = datetime.datetime.now().strftime('%Y%m%d%H%M')
+        dest_table = f'_{usr}_{now}'
 
     if spatial:
         nlt_spatial = ' '

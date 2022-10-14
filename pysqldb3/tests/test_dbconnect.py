@@ -7,17 +7,17 @@ import pandas as pd
 from . import helpers
 from .. import pysqldb3 as pysqldb
 
-config = configparser.ConfigParser()
-config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
+test_config = configparser.ConfigParser()
+test_config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(default=True, password=config.get('PG_DB', 'DB_PASSWORD'),
-                       user=config.get('PG_DB', 'DB_USER'))
+db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSWORD'),
+                       user=test_config.get('PG_DB', 'DB_USER'))
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'))
+sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
+                        server=test_config.get('SQL_DB', 'SERVER'),
+                        database=test_config.get('SQL_DB', 'DB_NAME'),
+                        user=test_config.get('SQL_DB', 'DB_USER'),
+                        password=test_config.get('SQL_DB', 'DB_PASSWORD'))
 
 pg_table_name = f'pg_test_table_{db.user}'
 sql_table_name = f'sql_test_table_{sql.user}'
@@ -28,7 +28,7 @@ class TestMisc:
     @classmethod
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
-        helpers.set_up_test_table_sql(sql)
+        helpers.set_up_test_table_sql(sql, sql.default_schema)
 
     def test_get_schemas_pg(self):
         schemas = db.get_schemas()
@@ -190,8 +190,7 @@ class TestMisc:
         # TODO: this is failing with geom column - seems to be an issue with ODBC driver and geom...???
 
         sql.drop_table(table=table_for_testing, schema='dbo')
-
-        sql.query(f'select top 10 test_col1, test_col2 into dbo.{table_for_testing} from dbo.{sql_table_name}')
+        sql.query(f'select top 10 test_col1, test_col2 into dbo.{table_for_testing} from {sql.default_schema}.{sql_table_name}')
 
         og_columns = list(sql.dfquery(f'select test_col1, test_col2 from dbo.{table_for_testing}'))
         original_column = og_columns[0]
@@ -423,6 +422,8 @@ class TestLogging:
         db.drop_table(table=table_for_testing_logging, schema='working')
 
     def test_excel_to_table_logging(self):
+        helpers.set_up_xls()
+
         fp = os.path.dirname(os.path.abspath(__file__)) + '/test_data/test_xls.xls'
 
         before_log_df = db.dfquery(f"""

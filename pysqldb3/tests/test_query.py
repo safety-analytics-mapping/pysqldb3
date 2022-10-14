@@ -2,7 +2,7 @@
 Joint testing script for DbConnect and Query classes
 """
 import os
-from collections import Iterable
+from collections.abc import Iterable
 
 import configparser
 import pandas as pd

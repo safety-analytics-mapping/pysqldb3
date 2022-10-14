@@ -185,7 +185,7 @@ class TestCsvToTablePG:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
-        db.clean_up_new_tables()
+        db.cleanup_new_tables()
 
 
 class TestBulkCSVToTablePG:
@@ -268,7 +268,7 @@ class TestBulkCSVToTablePG:
 
     @classmethod
     def teardown_class(cls):
-        db.clean_up_new_tables()
+        db.cleanup_new_tables()
 
 
 class TestCsvToTableMS:
@@ -439,7 +439,7 @@ class TestCsvToTableMS:
 
     @classmethod
     def teardown_class(cls):
-        sql.clean_up_new_tables()
+        sql.cleanup_new_tables()
 
 
 class TestBulkCSVToTableMS:
@@ -525,4 +525,4 @@ class TestBulkCSVToTableMS:
 
     @classmethod
     def teardown_class(cls):
-        sql.clean_up_new_tables()
+        sql.cleanup_new_tables()

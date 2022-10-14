@@ -13,9 +13,12 @@ setup(name='pysqldb3',
           'pandas',
           'requests',
           'xlrd',
+          'xlwt',
           'openpyxl',
           'fuzzywuzzy',
-          'tqdm'
+          'tqdm',
+          'configparser',
+          'shapely'
       ]
       )
 

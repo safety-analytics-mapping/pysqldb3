@@ -17,8 +17,6 @@ write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.c
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
-
-
 # noinspection PyArgumentList
 class DbConnect:
     """
@@ -463,7 +461,7 @@ class DbConnect:
         self.check_conn()
         return self.data
 
-    def clean_up_new_tables(self):
+    def cleanup_new_tables(self):
         # type: (DbConnect) -> None
         """
         Drops all newly created tables from this DbConnect object

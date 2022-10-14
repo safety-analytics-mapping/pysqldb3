@@ -105,7 +105,7 @@ celerybeat.pid
 .env
 .venv
 env/
-pysqldb3/venv/
+venv/
 ENV/
 env.bak/
 venv.bak/
@@ -134,13 +134,4 @@ dmypy.json
 # misc
 notes.txt
 tests/test_data/*
-*.xlsx
 
-# gis files
-*.gdb
-*.zip
-*.lyr
-*.dbf
-*.prj
-*.shp
-*.shx
