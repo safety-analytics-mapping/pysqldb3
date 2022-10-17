@@ -159,9 +159,9 @@ class Query:
                 else:
                     err = str(e).split("[SQL Server]")
                     if len(err)>1:
-                        print("- Query failed: " + err[1][:-2] + "\n\t")
+                        print(f"- Query failed: {err[1][:-2]}\n\t")
                     else:
-                        print("- Query failed: " + err[0] + "\n\t")
+                        print(f"- Query failed: {err[0]}\n\t")
 
             if self.dbo.type == PG:
                 print(f"- Query failed: {str(e)}\n\t")
