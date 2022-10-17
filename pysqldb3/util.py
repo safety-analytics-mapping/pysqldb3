@@ -54,22 +54,19 @@ def clean_geom_column(db, table, schema):
     """
     # Check if there is a geom column
     # Rename column to geom (only if wkb_geom or shape); otherwise could cause issues if more than 1 geom
-    db.query("""SELECT COLUMN_NAME 
+    db.query(f"""SELECT COLUMN_NAME 
                 FROM information_schema.COLUMNS 
                 WHERE data_type='USER-DEFINED' 
-                and TABLE_NAME='{t}'
-                and table_schema = '{s}'
-            """.format(t=table, s=schema), timeme=False, internal=True)
+                and TABLE_NAME='{table}'
+                and table_schema = '{schema}'
+            """, timeme=False, internal=True)
 
     if db.internal_data:
         if db.internal_data[-1][0] == 'wkb_geometry':
-            c = 'wkb_geometry'
-            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
-                     timeme=False, internal=True)
+            db.query(f"ALTER TABLE {schema}.{table} RENAME COLUMN wkb_geometry to geom")
         elif db.internal_data[-1][0] == 'shape':
             c = 'shape'
-            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
-                     timeme=False, internal=True)
+            db.query(f"ALTER TABLE {schema}.{table} RENAME COLUMN shape to geom")
 
 
 def get_unique_table_schema_string(tbl_str, db_type):
@@ -128,10 +125,10 @@ def get_query_table_schema_name(tbl_str, db_type):
         if tbl_str.islower() and " " not in tbl_str:
             return tbl_str
         else:
-            return '"' + tbl_str + '"'
+            return f'"\'{tbl_str}\'"'
 
     if db_type == MS:
-        return '[' + tbl_str + ']'
+        return f'[{tbl_str}]'
 
 
 def parse_table_string(tbl_str, default_schema, db_type):
@@ -206,7 +203,7 @@ def type_decoder(typ, varchar_length=500):
     elif typ == np.dtype('float64'):
         return 'float'
     else:
-        return 'varchar ({})'.format(varchar_length)
+        return f'varchar ({varchar_length})'
 
 
 def clean_cell(x):
@@ -247,10 +244,10 @@ def clean_cell(x):
         x = x.strftime('%Y-%m-%d %H:%M')
 
     try:
-        return "'" + str(x) + "'"
+        return f"'\"{str(x)}\"'"
     except Exception as e:
         print(e)
-        return "'" + x + "'"
+        return f"'\"{x}\"'"
 
 
 def clean_column(x):
