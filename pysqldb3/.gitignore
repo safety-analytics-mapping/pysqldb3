@@ -135,3 +135,6 @@ dmypy.json
 notes.txt
 tests/test_data/*
 
+# pysqldb3 config files
+config.cfg
+tests/db_config.cfg
