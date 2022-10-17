@@ -164,7 +164,7 @@ class Query:
                         print("- Query failed: " + err[0] + "\n\t")
 
             if self.dbo.type == PG:
-                print("- Query failed: " + str(e) + '\n\t')
+                print(f"- Query failed: {str(e)}\n\t")
 
             print(f'- Query run {datetime.datetime.now()}\n\t{self.query_string}')
 
@@ -217,23 +217,24 @@ class Query:
 
                         # Add standardized previous table name to dropped tables to remove from log
                         server, database, sch, tbl = parse_table_string(i, self.dbo.default_schema, self.dbo.type)
-                        org_table = get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
-                            self.renamed_tables[i], self.dbo.type)
+                        orig_schema_name = get_query_table_schema_name(sch, self.dbo.type)
+                        orig_table_name = get_query_table_schema_name(self.renamed_tables[i], self.dbo.type)
+                        org_table = f"{orig_schema_name}.{orig_table_name}"
                         self.dropped_tables.append(org_table)
 
                         # If the standardized previous table name is in this query's new tables, replace with new name
                         if org_table in self.new_tables:
-                            self.new_tables[self.new_tables.index(org_table)] = \
-                                get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
-                                tbl, self.dbo.type)
+                            orig_table_schema_name = get_query_table_schema_name(tbl, self.dbo.type)
+                            idx = self.new_tables.index(org_table)
+                            self.new_tables[idx] = get_query_table_schema_name(f'{orig_schema_name}.{orig_table_schema_name}')
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
                         if org_table in self.dbo.tables_created:
                             # self.dbo.tables_created.remove(org_table)
-                            self.dbo.tables_created[self.dbo.tables_created.index(org_table)] = \
-                                get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
-                                tbl, self.dbo.type)
+                            orig_table_schema_name = get_query_table_schema_name(tbl, self.dbo.type)
+                            idx = self.dbo.tables_created.index(org_table)
+                            self.dbo.tables_created[idx] = f'{orig_schema_name}.{orig_table_schema_name}'
 
                 if self.timeme:
                     print(self)
@@ -366,7 +367,7 @@ class Query:
                 row = [r for r in row if r and r.strip() != "'"]
 
                 if len(row) == 3:
-                    old_schema = default_schema + "."
+                    old_schema = f"{default_schema}."
                     old_table = row[1]
 
                 if len(row) == 4:
@@ -564,7 +565,7 @@ class Query:
             for i in range(0, n):
                 yield self.data[i::n], i
 
-        print('Large file...Writing %i rows of data...' % len(self.data))
+        print(f'Large file...Writing {len(self.data)} rows of data...')
 
         # write to csv
         _ = chunks()

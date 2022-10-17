@@ -84,7 +84,7 @@ class Shapefile:
                                                    gdal_data=self.gdal_data_loc)
             elif self.dbo.type == 'MS':
                 if self.dbo.LDAP:
-                    self.cmd = WRITE_SHP_CMD_MS.replace(";UID={username};PWD={password}", "").format(
+                    self.cmd = WRITE_SHP_CMD_MS.replace(f";UID={self.dbo.user};PWD={self.dbo.password}", "").format(
                         export_path=self.path,
                         shpname=self.name_extension(self.shp_name),
                         host=self.dbo.server,
@@ -211,7 +211,7 @@ class Shapefile:
                     perc=precision,
                     port=port
                 )
-                cmd.replace(";UID={user};PWD={password}", "")
+                cmd.replace(f";UID={self.dbo.user};PWD={self.dbo.password}", "")
 
             else:
                 cmd = READ_SHP_CMD_MS.format(
@@ -351,8 +351,8 @@ class Shapefile:
 
         :return:
         """
-        self.dbo.query(f"SELECT column_name FROM information_schema.columns" \
-                        "WHERE table_schema = '{self.schema}' AND table_name = '{self.table}';",
+        self.dbo.query(f"""SELECT column_name FROM information_schema.columns
+                        WHERE table_schema = '{self.schema}' AND table_name = '{self.table}';""",
                         timeme=False, internal=True)
         f = None
 
@@ -384,8 +384,8 @@ class Shapefile:
 
                 # Rename index if exists
                 try:
-                    self.dbo.query(f"EXEC sp_rename N'{self.schema}.{self.table}.ogr_{self.schema}_{self.table}_{f}_sidx'," \
-                    "N'{self.table}_geom_idx', N'INDEX';", timeme=False, internal=True)
+                    self.dbo.query(f"""EXEC sp_rename N'{self.schema}.{self.table}.ogr_{self.schema}_{self.table}_{f}_sidx',
+                    "N'{self.table}_geom_idx', N'INDEX';""", timeme=False, internal=True)
                 except SystemExit as e:
                     print(e)
                     print('Warning - could not update index name after renaming geometry. It may not exist.')
