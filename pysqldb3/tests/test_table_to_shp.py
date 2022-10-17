@@ -14,7 +14,7 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True
@@ -22,7 +22,7 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -53,7 +53,7 @@ class TestTableToShpPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=pg_schema, shp_name=shp, path=fldr, print_cmd=True)
+        db.table_to_shp(test_table, schema_name=pg_schema, shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -78,7 +78,7 @@ class TestTableToShpPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=pg_schema, path=fldr + '\\' + shp, print_cmd=True)
+        db.table_to_shp(test_table, schema_name=pg_schema, path=fldr + '\\' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -103,7 +103,7 @@ class TestTableToShpPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema=pg_schema, shp_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
+        db.table_to_shp(test_table, schema_name=pg_schema, shp_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -134,7 +134,7 @@ class TestTableToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=pg_schema, table=test_table)
+        db.drop_table(schema_name=pg_schema, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('.shp', '.'+ext)))
 
@@ -148,7 +148,7 @@ class TestTableToShpMs:
     def test_table_to_shp_basic(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -162,7 +162,7 @@ class TestTableToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=ms_schema, shp_name=shp, path=fldr, print_cmd=True)
+        sql.table_to_shp(test_table, schema_name=ms_schema, shp_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -179,7 +179,7 @@ class TestTableToShpMs:
 
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -193,7 +193,7 @@ class TestTableToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=ms_schema, path=fldr + '\\' + shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema_name=ms_schema, path=fldr + '\\' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -210,7 +210,7 @@ class TestTableToShpMs:
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
         # create table
         sql.query("""
             CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
@@ -223,7 +223,7 @@ class TestTableToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=ms_schema, shp_name=shp ,path=fldr + '\\' + 'err_'+shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema_name=ms_schema, shp_name=shp ,path=fldr + '\\' + 'err_'+shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -239,7 +239,7 @@ class TestTableToShpMs:
     def test_table_to_shp_basic_brackets(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = test_table+'.shp'
-        sql.drop_table(table=test_table, schema=ms_schema)
+        sql.drop_table(table_name=test_table, schema_name=ms_schema)
 
         # create table
         sql.query("""
@@ -253,7 +253,7 @@ class TestTableToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema=ms_schema, path=fldr, shp_name=shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema_name=ms_schema, path=fldr, shp_name=shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))

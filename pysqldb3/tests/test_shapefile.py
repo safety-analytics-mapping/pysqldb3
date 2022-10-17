@@ -16,13 +16,13 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True,
@@ -49,10 +49,10 @@ class TestReadShpPG:
 
         # Assert successful
         assert shp_name in os.listdir(fp)
-        db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table=test_read_shp_table_name, schema=pg_schema)
+        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table_name=test_read_shp_table_name, schema_name=pg_schema)
         s.read_shp(print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
@@ -81,7 +81,7 @@ class TestReadShpPG:
         assert int(diff_df.iloc[0]['distance']) == 0
 
         # Cleanup
-        db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_read_shp_table_name)
 
     """
     NEED TO CHANGE TEST FILE TO CHANGE TABLE NAME
@@ -92,10 +92,10 @@ class TestReadShpPG:
 
         # Assert successful
         assert shp_name in os.listdir(fp)
-        db.drop_table(schema=pg_schema, table="test")
+        db.drop_table(schema_name=pg_schema, table_name="test")
 
         # Read shp to new, test table
-        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, schema=pg_schema)
+        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, schema_name=pg_schema)
         s.read_shp(print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
@@ -121,7 +121,7 @@ class TestReadShpPG:
         assert int(diff_df.iloc[0]['distance']) == 0
 
         # Cleanup
-        db.drop_table(schema=pg_schema, table='test')
+        db.drop_table(schema_name=pg_schema, table_name='test')
 
     def test_read_shp_no_schema(self):
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
@@ -129,10 +129,10 @@ class TestReadShpPG:
 
         # Assert successful
         assert shp_name in os.listdir(fp)
-        db.drop_table(schema=db.default_schema, table=test_read_shp_table_name)
+        db.drop_table(schema_name=db.default_schema, table_name=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table=test_read_shp_table_name)
+        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table_name=test_read_shp_table_name)
         s.read_shp(print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
@@ -160,7 +160,7 @@ class TestReadShpPG:
         assert int(diff_df.iloc[0]['distance']) == 0
 
         # Cleanup
-        db.drop_table(schema=db.default_schema, table=test_read_shp_table_name)
+        db.drop_table(schema_name=db.default_schema, table_name=test_read_shp_table_name)
 
     def test_read_shp_precision(self):
         return
@@ -194,10 +194,10 @@ class TestReadShpMS:
 
         # Assert successful
         assert shp_name in os.listdir(fp)
-        sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table=test_read_shp_table_name, schema=ms_schema)
+        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table_name=test_read_shp_table_name, schema_name=ms_schema)
         s.read_shp(print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
@@ -227,7 +227,7 @@ class TestReadShpMS:
 
         # Cleanup
 
-    sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
+    sql.drop_table(schema_name=ms_schema, table_name=test_read_shp_table_name)
 
     """
     NEED TO CHANGE TEST FILE TO CHANGE TABLE NAME
@@ -238,10 +238,10 @@ class TestReadShpMS:
 
         # Assert successful
         assert shp_name in os.listdir(fp)
-        sql.drop_table(schema=ms_schema, table='test')
+        sql.drop_table(schema_name=ms_schema, table_name='test')
 
         # Read shp to new, test table
-        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, schema=ms_schema)
+        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, schema_name=ms_schema)
         s.read_shp(print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
@@ -266,7 +266,7 @@ class TestReadShpMS:
         assert int(diff_df.iloc[0]['distance']) == 0
 
         # Cleanup
-        sql.drop_table(schema=ms_schema, table='test')
+        sql.drop_table(schema_name=ms_schema, table_name='test')
 
     def test_read_shp_no_schema(self):
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
@@ -274,10 +274,10 @@ class TestReadShpMS:
 
         # Assert successful
         assert shp_name in os.listdir(fp)
-        sql.drop_table(schema=sql.default_schema, table=test_read_shp_table_name)
+        sql.drop_table(schema_name=sql.default_schema, table_name=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table=test_read_shp_table_name)
+        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table_name=test_read_shp_table_name)
         s.read_shp(print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
@@ -303,7 +303,7 @@ class TestReadShpMS:
         assert int(diff_df.iloc[0]['distance']) == 0
 
         # Cleanup
-        sql.drop_table(schema=sql.default_schema, table=test_read_shp_table_name)
+        sql.drop_table(schema_name=sql.default_schema, table_name=test_read_shp_table_name)
 
     def test_read_shp_precision(self):
         return
@@ -345,14 +345,14 @@ class TestWriteShpPG:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table=test_write_shp_table_name, schema=pg_schema)
+        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table_name=test_write_shp_table_name, schema_name=pg_schema)
         s.write_shp(print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp, shp_name=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.shp_to_table(path=fp, shp_name=shp_name, schema_name=pg_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery("select * from {}.{} order by id limit 100".format(pg_schema, pg_table_name))
@@ -377,11 +377,11 @@ class TestWriteShpPG:
         assert len(dist_df) == 1
         assert dist_df.iloc[0]['distance'] == 0
 
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
-        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_write_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_reuploaded_table_name)
 
         # clean up
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_write_shp_table_name)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
 
@@ -399,14 +399,14 @@ class TestWriteShpPG:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table=test_write_shp_table_name, schema=pg_schema)
+        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table_name=test_write_shp_table_name, schema_name=pg_schema)
         s.write_shp(print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp+'\\'+shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.shp_to_table(path=fp+'\\'+shp_name, schema_name=pg_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery("select * from {}.{} order by id limit 100".format(pg_schema, pg_table_name))
@@ -431,11 +431,11 @@ class TestWriteShpPG:
         assert len(dist_df) == 1
         assert dist_df.iloc[0]['distance'] == 0
 
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
-        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_write_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_reuploaded_table_name)
 
         # clean up
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_write_shp_table_name)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
 
@@ -454,15 +454,15 @@ class TestWriteShpPG:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table=test_write_shp_table_name, schema=pg_schema)
+        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table_name=test_write_shp_table_name, schema_name=pg_schema)
         s.write_shp(print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp+'\\'+'err_'+shp_name, shp_name=shp_name ,schema=pg_schema,
-                        table=test_reuploaded_table_name, print_cmd=True)
+        db.shp_to_table(path=fp+'\\'+'err_'+shp_name, shp_name=shp_name ,schema_name=pg_schema,
+                        table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery("select * from {}.{} order by id limit 100".format(pg_schema, pg_table_name))
@@ -487,11 +487,11 @@ class TestWriteShpPG:
         assert len(dist_df) == 1
         assert dist_df.iloc[0]['distance'] == 0
 
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
-        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_write_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_reuploaded_table_name)
 
         # clean up
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_write_shp_table_name)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
 
@@ -508,7 +508,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp, shp_name=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.shp_to_table(path=fp, shp_name=shp_name, schema_name=pg_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery("select * from {}.{} order by id limit 100".format(pg_schema, pg_table_name))
@@ -533,8 +533,8 @@ class TestWriteShpPG:
         assert len(dist_df) == 1
         assert dist_df.iloc[0]['distance'] == 0
 
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
-        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_write_shp_table_name)
+        db.drop_table(schema_name=pg_schema, table_name=test_reuploaded_table_name)
 
         # clean up
         for ext in ('dbf', 'prj', 'shx', 'shp'):
@@ -547,7 +547,7 @@ class TestWriteShpPG:
 
 class TestWriteShpMS:
     def test_write_shp_table(self):
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_write_shp_table_name)
 
         # Add test_table
         sql.query("""
@@ -560,14 +560,14 @@ class TestWriteShpMS:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table=test_write_shp_table_name, schema=ms_schema)
+        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table_name=test_write_shp_table_name, schema_name=ms_schema)
         s.write_shp(print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.shp_to_table(path=fp, shp_name=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.shp_to_table(path=fp, shp_name=shp_name, schema_name=ms_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery("select top 10 * from {}.{} order by test_col1".format(ms_schema,
@@ -595,8 +595,8 @@ class TestWriteShpMS:
         assert dist_df.iloc[0]['distance'] == 0
 
         # Clean up
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
-        sql.drop_table(schema=ms_schema, table=test_reuploaded_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_write_shp_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_reuploaded_table_name)
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
@@ -605,7 +605,7 @@ class TestWriteShpMS:
                 print(e)
 
     def test_write_shp_table_pth(self):
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_write_shp_table_name)
 
         # Add test_table
         sql.query(f"""
@@ -618,15 +618,15 @@ class TestWriteShpMS:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table=test_write_shp_table_name,
-                      schema=ms_schema)
+        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table_name=test_write_shp_table_name,
+                      schema_name=ms_schema)
         s.write_shp(print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.shp_to_table(path=fp+'\\'+shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.shp_to_table(path=fp+'\\'+shp_name, schema_name=ms_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery("select top 10 * from {}.{} order by test_col1".format(ms_schema,
@@ -654,8 +654,8 @@ class TestWriteShpMS:
         assert dist_df.iloc[0]['distance'] == 0
 
         # Clean up
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
-        sql.drop_table(schema=ms_schema, table=test_reuploaded_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_write_shp_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_reuploaded_table_name)
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
@@ -666,7 +666,7 @@ class TestWriteShpMS:
     def test_write_shp_query(self):
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
         shp_name = 'test_write.shp'
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_write_shp_table_name)
 
         # Add test_table
         sql.query(f"""
@@ -684,7 +684,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.shp_to_table(path=fp, shp_name=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.shp_to_table(path=fp, shp_name=shp_name, schema_name=ms_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -710,8 +710,8 @@ class TestWriteShpMS:
         assert dist_df.iloc[0]['distance'] == 0
 
         # Clean up
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
-        sql.drop_table(schema=ms_schema, table=test_reuploaded_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_write_shp_table_name)
+        sql.drop_table(schema_name=ms_schema, table_name=test_reuploaded_table_name)
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:

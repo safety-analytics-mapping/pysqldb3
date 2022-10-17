@@ -9,13 +9,13 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -41,8 +41,8 @@ class TestRenameIndexPG:
 
     def test_rename_index_basic(self):
         schema = 'working'
-        db.drop_table(table=test_table, schema=schema)
-        db.drop_table(table=new_test_table, schema=schema)
+        db.drop_table(table_name=test_table, schema_name=schema)
+        db.drop_table(table_name=new_test_table, schema_name=schema)
         assert not db.table_exists(test_table, schema=schema)
 
         # create a basic table - no indexes
@@ -76,8 +76,8 @@ class TestRenameIndexPG:
         table = '"' + test_table + '"'
         new_table = '"' + new_test_table + '"'
 
-        db.drop_table(table=table, schema=schema)
-        db.drop_table(table=new_table, schema=schema)
+        db.drop_table(table_name=table, schema_name=schema)
+        db.drop_table(table_name=new_table, schema_name=schema)
 
         assert not db.table_exists(table, schema=schema)
         assert not db.table_exists(new_table, schema=schema)
@@ -111,7 +111,7 @@ class TestRenameIndexPG:
 
     def test_rename_index_basic_auto_idx(self):
         schema = 'working'
-        db.drop_table(table=test_table, schema=schema)
+        db.drop_table(table_name=test_table, schema_name=schema)
         assert not db.table_exists(test_table, schema=schema)
 
         # create a basic table - no indexes
@@ -136,8 +136,8 @@ class TestRenameIndexPG:
 
     def test_rename_index_multiple_indexes(self):
         schema = 'working'
-        db.drop_table(table=test_table, schema=schema)
-        db.drop_table(table=new_test_table, schema=schema)
+        db.drop_table(table_name=test_table, schema_name=schema)
+        db.drop_table(table_name=new_test_table, schema_name=schema)
 
         assert not db.table_exists(test_table, schema=schema)
         assert not db.table_exists(new_test_table, schema=schema)
@@ -173,8 +173,8 @@ class TestRenameIndexPG:
         schema = 'working'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
-        db.drop_table(table=test_table, schema=schema)
-        db.drop_table(table=new_test_table, schema=schema)
+        db.drop_table(table_name=test_table, schema_name=schema)
+        db.drop_table(table_name=new_test_table, schema_name=schema)
 
         assert not db.table_exists(test_table, schema=schema)
         assert not db.table_exists(new_test_table, schema=schema)
@@ -184,7 +184,7 @@ class TestRenameIndexPG:
             select 1 id, 'test text' txt, st_setsrid(st_makepoint(1015329.1, 213793.1),2263) geom
         """
         db.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        db.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=test_table + '.shp')
+        db.shp_to_table(path=fldr, table_name=test_table, schema_name=schema, shp_name=test_table + '.shp')
 
         # check index on org table
         print(self.get_indexes(test_table, schema))
@@ -214,8 +214,8 @@ class TestRenameIndexPG:
 
     def test_rename_index_tbl_name_not_in_index(self):
         schema = 'working'
-        db.drop_table(table=test_table, schema=schema)
-        db.drop_table(table=new_test_table, schema=schema)
+        db.drop_table(table_name=test_table, schema_name=schema)
+        db.drop_table(table_name=new_test_table, schema_name=schema)
 
         assert not db.table_exists(test_table, schema=schema)
         assert not db.table_exists(new_test_table, schema=schema)
@@ -248,8 +248,8 @@ class TestRenameIndexPG:
 
     def test_rename_index_no_indexes(self):
         schema = 'working'
-        db.drop_table(table=test_table, schema=schema)
-        db.drop_table(table=new_test_table, schema=schema)
+        db.drop_table(table_name=test_table, schema_name=schema)
+        db.drop_table(table_name=new_test_table, schema_name=schema)
 
         assert not db.table_exists(test_table, schema=schema)
         assert not db.table_exists(new_test_table, schema=schema)
@@ -293,8 +293,8 @@ class TestRenameIndexMS:
 
     def test_rename_index_basic(self):
         schema = 'dbo'
-        sql.drop_table(table=test_table, schema=schema)
-        sql.drop_table(table=new_test_table, schema=schema)
+        sql.drop_table(table_name=test_table, schema_name=schema)
+        sql.drop_table(table_name=new_test_table, schema_name=schema)
         assert sql.table_exists(test_table, schema=schema) is False
         assert sql.table_exists(new_test_table, schema=schema) is False
 
@@ -328,7 +328,7 @@ class TestRenameIndexMS:
         schema = 'dbo'
         table = '[' + test_table + ']'
         new_table = '[' + new_test_table + ']'
-        sql.drop_table(table=table, schema=schema)
+        sql.drop_table(table_name=table, schema_name=schema)
         assert not sql.table_exists(table, schema=schema)
 
         # create a basic table - no indexes
@@ -360,8 +360,8 @@ class TestRenameIndexMS:
 
     def test_rename_index_basic_auto_idx(self):
         schema = 'dbo'
-        sql.drop_table(table=test_table, schema=schema)
-        sql.drop_table(table=new_test_table, schema=schema)
+        sql.drop_table(table_name=test_table, schema_name=schema)
+        sql.drop_table(table_name=new_test_table, schema_name=schema)
         assert sql.table_exists(test_table, schema=schema) is False
         assert sql.table_exists(new_test_table, schema=schema) is False
 
@@ -388,7 +388,7 @@ class TestRenameIndexMS:
 
     def test_rename_index_multiple_indexes(self):
         schema = 'dbo'
-        sql.drop_table(table=test_table, schema=schema)
+        sql.drop_table(table_name=test_table, schema_name=schema)
         assert sql.table_exists(test_table, schema=schema) is False
 
         # create a basic table - no indexes
@@ -423,7 +423,7 @@ class TestRenameIndexMS:
     def test_rename_index_imported_shp(self):
         schema = 'dbo'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-        sql.drop_table(table=test_table, schema=schema)
+        sql.drop_table(table_name=test_table, schema_name=schema)
         assert not sql.table_exists(test_table, schema=schema)
 
         # create a shapefile to import
@@ -431,7 +431,7 @@ class TestRenameIndexMS:
             select 1 id, 'test text' txt, geometry::STGeomFromText('POINT(1015329.34900 213793.65100)', 2263) geom
         """
         sql.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        sql.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=test_table + '.shp', private=True)
+        sql.shp_to_table(path=fldr, table_name=test_table, schema_name=schema, shp_name=test_table + '.shp', private=True)
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 1
@@ -459,7 +459,7 @@ class TestRenameIndexMS:
 
     def test_rename_index_tbl_name_not_in_index(self):
         schema = 'dbo'
-        sql.drop_table(table=test_table, schema=schema)
+        sql.drop_table(table_name=test_table, schema_name=schema)
         assert sql.table_exists(test_table, schema=schema) is False
 
         # create a basic table - no indexes
@@ -489,7 +489,7 @@ class TestRenameIndexMS:
 
     def test_rename_index_no_indexes(self):
         schema = 'dbo'
-        sql.drop_table(table=test_table, schema=schema)
+        sql.drop_table(table_name=test_table, schema_name=schema)
         assert sql.table_exists(test_table, schema=schema) is False
 
         # create a basic table - no indexes

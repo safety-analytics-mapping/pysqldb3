@@ -12,7 +12,7 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True
@@ -20,7 +20,7 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -73,7 +73,7 @@ class TestRenamesGeomPg:
         # import with pysqldb
 
         assert db.table_exists(table, schema=db.default_schema) is False
-        db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
+        db.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc)
 
         db.query("""
             SELECT column_name, data_type
@@ -92,7 +92,7 @@ class TestRenamesGeomPg:
         shp = 'test.shp'
 
         # import data without pysqldb
-        db.drop_table(table=table, schema=db.default_schema)
+        db.drop_table(table_name=table, schema_name=db.default_schema)
         assert not db.table_exists(table, schema=db.default_schema)
 
         cmd = """
@@ -126,7 +126,7 @@ class TestRenamesGeomPg:
         # import with pysqldb
         assert not db.table_exists(table, schema=db.default_schema)
 
-        db.shp_to_table(path=fldr, table=table, shp_name=shp)
+        db.shp_to_table(path=fldr, table_name=table, shp_name=shp)
 
         db.query("""
                     SELECT column_name, data_type
@@ -157,7 +157,7 @@ class TestRenamesGeomMs:
         fc = 'node'
 
         # import data without pysqldb
-        sql.drop_table(table=table, schema=sql.default_schema)
+        sql.drop_table(table_name=table, schema_name=sql.default_schema)
         assert sql.table_exists(table, schema=sql.default_schema) is False
 
         cmd = """
@@ -193,7 +193,7 @@ class TestRenamesGeomMs:
         # import with pysqldb
         assert not sql.table_exists(table, schema=sql.default_schema)
 
-        sql.feature_class_to_table(fgdb, table, schema=None, shp_name=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc, skip_failures='-skip_failures')
 
         sql.query("""
             SELECT column_name, data_type
@@ -205,7 +205,7 @@ class TestRenamesGeomMs:
         assert sql.data[0][0] == u'geom'
         assert sql.data[0][1] == u'geometry'
 
-        sql.drop_table(table=table, schema=sql.default_schema)
+        sql.drop_table(table_name=table, schema_name=sql.default_schema)
 
     @pytest.mark.order4
     def test_rename_geom_shp(self):
@@ -213,7 +213,7 @@ class TestRenamesGeomMs:
         shp = 'test.shp'
 
         # import data without pysqldb
-        sql.drop_table(table=table, schema=sql.default_schema)
+        sql.drop_table(table_name=table, schema_name=sql.default_schema)
         assert sql.table_exists(table, schema=sql.default_schema) is False
 
         cmd = """ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs
@@ -247,7 +247,7 @@ class TestRenamesGeomMs:
         # import with pysqldb
         assert sql.table_exists(table, schema=sql.default_schema) is False
 
-        sql.shp_to_table(path=fldr, table=table, shp_name=shp)
+        sql.shp_to_table(path=fldr, table_name=table, shp_name=shp)
 
         sql.query("""
                     SELECT column_name, data_type

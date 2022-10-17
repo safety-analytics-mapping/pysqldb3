@@ -15,7 +15,7 @@ db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSW
 
 sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
                         server=test_config.get('SQL_DB', 'SERVER'),
-                        database=test_config.get('SQL_DB', 'DB_NAME'),
+                        db_name=test_config.get('SQL_DB', 'DB_NAME'),
                         user=test_config.get('SQL_DB', 'DB_USER'),
                         password=test_config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -65,7 +65,7 @@ class TestMisc:
         assert set(schemas) == set(query_schema_df['schema_name'])
 
     def test_my_tables_pg_basic(self):
-        db.drop_table(schema='working', table=table_for_testing)
+        db.drop_table(schema_name='working', table_name=table_for_testing)
         my_tables_df = db.my_tables(schema='working')
         number_of_my_tables = len(my_tables_df)
 
@@ -77,7 +77,7 @@ class TestMisc:
         # Assert new table is in my tables
         assert number_of_my_tables == new_number_of_my_tables - 1
 
-        db.drop_table(table=table_for_testing, schema='working')
+        db.drop_table(table_name=table_for_testing, schema_name='working')
 
     def test_my_tables_pg_multiple(self):
         my_tables_df = db.my_tables(schema='working')
@@ -93,8 +93,8 @@ class TestMisc:
         # Assert new table is in my tables
         assert number_of_my_tables == new_number_of_my_tables - 2
 
-        db.drop_table(table=table_for_testing, schema='working')
-        db.drop_table(table=another_table_for_testing, schema='working')
+        db.drop_table(table_name=table_for_testing, schema_name='working')
+        db.drop_table(table_name=another_table_for_testing, schema_name='working')
 
     def test_my_tables_pg_drop(self):
         my_tables_df = db.my_tables(schema='working')
@@ -108,7 +108,7 @@ class TestMisc:
         # Assert new table is in my tables
         assert number_of_my_tables == new_number_of_my_tables - 1
 
-        db.drop_table(table=table_for_testing, schema='working')
+        db.drop_table(table_name=table_for_testing, schema_name='working')
         drop_my_tables_df = db.my_tables(schema='working')
 
         drop_number_of_my_tables = len(drop_my_tables_df)
@@ -144,7 +144,7 @@ class TestMisc:
         # Assert new table is in my tables
         assert number_of_my_tables == new_number_of_my_tables - 1
 
-        db.drop_table(table=table_for_testing, schema='working')
+        db.drop_table(table_name=table_for_testing, schema_name='working')
 
     def test_my_tables_ms(self):
         # My_tables does not do anything for Sql Server - should return nothing and print an error statement
@@ -158,19 +158,19 @@ class TestMisc:
         original_column = og_columns[0]
 
         # Rename columns
-        db.rename_column(schema='working', table=table_for_testing, old_column=original_column, new_column='new_col_name')
+        db.rename_column(schema_name='working', table_name=table_for_testing, old_column=original_column, new_column='new_col_name')
 
         # Assert columns have changed accordingly
         assert 'new_col_name' in set(db.dfquery('select * from working.{}'.format(table_for_testing)))
         assert original_column not in set(db.dfquery('select * from working.{}'.format(table_for_testing)))
 
-        db.drop_table(table=table_for_testing, schema='working')
+        db.drop_table(table_name=table_for_testing, schema_name='working')
 
     def test_rename_column_ms(self):
 
         # TODO: this is failing with geom column - seems to be an issue with ODBC driver and geom...???
 
-        sql.drop_table(table=table_for_testing, schema='dbo')
+        sql.drop_table(table_name=table_for_testing, schema_name='dbo')
 
         sql.query('select top 10 test_col1, test_col2 into dbo.{} from {}.{}'.format(table_for_testing,
                                                                                      sql.default_schema,
@@ -180,13 +180,13 @@ class TestMisc:
         original_column = og_columns[0]
 
         # Rename columns
-        sql.rename_column(schema='dbo', table=table_for_testing, old_column=original_column, new_column='new_col_name')
+        sql.rename_column(schema_name='dbo', table_name=table_for_testing, old_column=original_column, new_column='new_col_name')
 
         # Assert columns hasve changed accordingly
         assert 'new_col_name' in set(sql.dfquery('select * from dbo.{}'.format(table_for_testing)))
         assert original_column not in set(sql.dfquery('select * from dbo.{}'.format(table_for_testing)))
 
-        sql.drop_table(table=table_for_testing, schema='dbo')
+        sql.drop_table(table_name=table_for_testing, schema_name='dbo')
 
     @classmethod
     def teardown_class(cls):
@@ -284,7 +284,7 @@ class TestLogging:
 
         assert before_drop_working_log_length == 1
 
-        db.drop_table(table=table_for_testing_logging, schema='working')
+        db.drop_table(table_name=table_for_testing_logging, schema_name='working')
 
         after_log_df = db.dfquery("""
                     SELECT *
@@ -328,7 +328,7 @@ class TestLogging:
 
         reconnect_db = pysqldb.DbConnect(type=db.type,
                                          server=db.server,
-                                         database=db.database,
+                                         db_name=db.database,
                                          user=db.user,
                                          password=db.password)
 
@@ -356,7 +356,7 @@ class TestLogging:
         """.format(db.user, table_for_testing_logging))['expires'])[0]
 
         assert initial_exp_date == (datetime.datetime.now().date() + datetime.timedelta(10))
-        db.drop_table(schema='working', table=table_for_testing_logging)
+        db.drop_table(schema_name='working', table_name=table_for_testing_logging)
 
     def test_custom_logging_expiration_date_2(self):
         db.query("""
@@ -374,7 +374,7 @@ class TestLogging:
         """.format(db.user, table_for_testing_logging))['expires'])[0]
 
         assert initial_exp_date == (datetime.datetime.now().date() + datetime.timedelta(1))
-        db.drop_table(schema='working', table=table_for_testing_logging)
+        db.drop_table(schema_name='working', table_name=table_for_testing_logging)
 
     def test_csv_to_table_logging(self):
         fp = os.path.dirname(os.path.abspath(__file__)) + '/test_data/test_csv.csv'
@@ -391,7 +391,7 @@ class TestLogging:
 
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df.to_csv(fp)
-        db.csv_to_table(input_file=fp, schema='working', table=table_for_testing_logging)
+        db.csv_to_table(input_file=fp, schema_name='working', table=table_for_testing_logging)
 
         after_log_df = db.dfquery("""
                     SELECT *
@@ -402,7 +402,7 @@ class TestLogging:
         after_drop_working_log_length = len(after_log_df)
         assert after_drop_working_log_length == 1
 
-        db.drop_table(table=table_for_testing_logging, schema='working')
+        db.drop_table(table_name=table_for_testing_logging, schema_name='working')
 
     def test_excel_to_table_logging(self):
         helpers.set_up_xls()
@@ -420,7 +420,7 @@ class TestLogging:
 
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df.to_excel(fp)
-        db.xls_to_table(input_file=fp, schema='working', table=table_for_testing_logging)
+        db.xls_to_table(input_file=fp, schema_name='working', table_name=table_for_testing_logging)
 
         after_log_df = db.dfquery("""
                     SELECT *
@@ -431,7 +431,7 @@ class TestLogging:
         after_drop_working_log_length = len(after_log_df)
         assert after_drop_working_log_length == 1
 
-        db.drop_table(table=table_for_testing_logging, schema='working')
+        db.drop_table(table_name=table_for_testing_logging, schema_name='working')
 
     def test_dataframe_to_table_logging(self):
         before_log_df = db.dfquery("""
@@ -455,7 +455,7 @@ class TestLogging:
         after_drop_working_log_length = len(after_log_df)
         assert after_drop_working_log_length == 1
 
-        db.drop_table(table=table_for_testing_logging, schema='working')
+        db.drop_table(table_name=table_for_testing_logging, schema_name='working')
 
     def test_shp_to_table_logging(self):
         helpers.set_up_shapefile()
@@ -471,8 +471,8 @@ class TestLogging:
 
         db.shp_to_table(path=os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data',
                         shp_name='test.shp',
-                        schema='working',
-                        table=table_for_testing_logging)
+                        schema_name='working',
+                        table_name=table_for_testing_logging)
 
         after_log_df = db.dfquery("""
                     SELECT *
@@ -484,7 +484,7 @@ class TestLogging:
         assert after_log_length == 1
 
         # Cleanup
-        db.drop_table(table=table_for_testing_logging, schema='working')
+        db.drop_table(table_name=table_for_testing_logging, schema_name='working')
         helpers.clean_up_shapefile()
 
     def test_bulk_csv_to_table_logging(self):
@@ -502,10 +502,10 @@ class TestLogging:
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df.to_csv(fp)
 
-        input_schema = db.dataframe_to_table_schema(df, table=table_for_testing_logging,
-                                                    schema='working', temp=True, overwrite=True)
+        input_schema = db.dataframe_to_table_schema(df, table_name=table_for_testing_logging,
+                                                    schema_name='working', temp=True, overwrite=True)
 
-        db._bulk_csv_to_table(input_file=fp, schema='working', table=table_for_testing_logging,
+        db._bulk_csv_to_table(input_file=fp, schema_name='working', table_name=table_for_testing_logging,
                               table_schema=input_schema)
 
         after_log_df = db.dfquery("""
@@ -517,7 +517,7 @@ class TestLogging:
         after_drop_working_log_length = len(after_log_df)
         assert after_drop_working_log_length == 1
 
-        db.drop_table(table=table_for_testing_logging, schema='working')
+        db.drop_table(table_name=table_for_testing_logging, schema_name='working')
 
     def test_table_to_csv_check_file_quote_name(self):
         schema = 'working'
@@ -538,7 +538,7 @@ class TestLogging:
 
         # table to csv
         db.table_to_csv(table_for_testing_logging,
-                        schema=schema,
+                        schema_name=schema,
                         output_file=os.path.join(fldr, table_for_testing_logging + '.csv'))
 
         # check table in folder
@@ -585,7 +585,7 @@ class TestLogging:
         """.format(db.user, table_for_testing_logging))) == 1
 
         # Cleanup
-        db.drop_table(schema='working', table=table_for_testing_logging)
+        db.drop_table(schema_name='working', table_name=table_for_testing_logging)
 
     def test_pg_quotes_no_capitals(self):
         # Assert no table test_table
@@ -664,7 +664,7 @@ class TestLogging:
         db.dfquery('DROP TABLE IF EXISTS working."{}"'.format(table_for_testing_logging.capitalize()))
 
     def test_ms_capitals(self):
-        sql.drop_table(schema='dbo', table=table_for_testing_logging)
+        sql.drop_table(schema_name='dbo', table_name=table_for_testing_logging)
 
         # Assert no test table
         assert len(sql.dfquery("""
@@ -826,7 +826,7 @@ class TestLogging:
         sql.query('DROP TABLE dbo.[{}]'.format(table_for_testing_logging.capitalize()))
 
     def test_ms_quotes_brackets(self):
-        sql.drop_table(schema='dbo', table='["{}"]'.format(table_for_testing_logging))
+        sql.drop_table(schema_name='dbo', table_name='["{}"]'.format(table_for_testing_logging))
 
         # Assert no test table in quotes
         assert len(sql.dfquery("""
@@ -867,7 +867,7 @@ class TestLogging:
         sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging))
 
     def test_ms_quotes_brackets_caps(self):
-        sql.drop_table(schema='dbo', table='["{}"]'.format(table_for_testing_logging))
+        sql.drop_table(schema_name='dbo', table_name='["{}"]'.format(table_for_testing_logging))
 
         # Assert no test table
         assert len(sql.dfquery("""

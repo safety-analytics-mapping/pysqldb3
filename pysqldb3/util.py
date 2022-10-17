@@ -44,11 +44,11 @@ def clean_query_special_characters(query_string):
     return query_string
 
 
-def clean_geom_column(db, table, schema):
+def clean_geom_column(db, table_name, schema_name):
     """
     Checks for column named wkb_geometry and renames to geom
     :param db: pysql.DbConect object
-    :param table: table name
+    :param table_name: table name
     :param schema: database schema name
     :return:
     """
@@ -59,20 +59,20 @@ def clean_geom_column(db, table, schema):
                 WHERE data_type='USER-DEFINED' 
                 and TABLE_NAME='{t}'
                 and table_schema = '{s}'
-            """.format(t=table, s=schema), timeme=False, internal=True)
+            """.format(t=table_name, s=schema_name), timeme=False, internal=True)
 
     if db.internal_data:
         if db.internal_data[-1][0] == 'wkb_geometry':
             c = 'wkb_geometry'
-            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
+            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table_name, s=schema_name),
                      timeme=False, internal=True)
         elif db.internal_data[-1][0] == 'shape':
             c = 'shape'
-            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
+            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table_name, s=schema_name),
                      timeme=False, internal=True)
 
 
-def get_unique_table_schema_string(tbl_str, db_type):
+def get_unique_table_schema_string(table_name, db_type):
     """
     This takes a raw input for a PG/MS table and distills the name in the way the database stores it.
 
@@ -82,35 +82,35 @@ def get_unique_table_schema_string(tbl_str, db_type):
     Ex. in PG: working.tbl, working.Tbl, working."tbl" --> all saved the same way by PG
     Ex. in MS: [dbo].[tbl], [dbo]."tbl", [dbo].tbl --> all saved the same way by MS
 
-    :param tbl_str: Table or schema string
+    :param table_name: Table or schema name
     :param db_type: Type of DB
     :return:
     """
-    if not tbl_str:
+    if not table_name:
         return None
     if db_type.upper() == PG:
-        if '"' not in tbl_str:
+        if '"' not in table_name:
             # If no "", lower case
-            return tbl_str.lower()
+            return table_name.lower()
         else:
             # If "", remove "" but keep case
-            return tbl_str.replace('"', '')
+            return table_name.replace('"', '')
 
     if db_type.upper() == MS:
-        tbl_str = tbl_str.lower()
-        if '"' in tbl_str and '[' in tbl_str and ']' in tbl_str:
+        table_name = table_name.lower()
+        if '"' in table_name and '[' in table_name and ']' in table_name:
             # If "" and [], just remove []
-            return tbl_str.replace('[', '').replace(']', '')
+            return table_name.replace('[', '').replace(']', '')
 
-        if '"' in tbl_str and not ('[' in tbl_str and ']' in tbl_str):
+        if '"' in table_name and not ('[' in table_name and ']' in table_name):
             # If "" and not [], remove ""
-            return tbl_str.replace('"', '')
+            return table_name.replace('"', '')
 
         # If no "", still remove []
-        return tbl_str.replace('[', '').replace(']', '')
+        return table_name.replace('[', '').replace(']', '')
 
 
-def get_query_table_schema_name(tbl_str, db_type):
+def get_query_table_schema_name(table_name, db_type):
     """
     The inverse of get_unique_table_schema_string. This takes a cleaned input from the log table and makes small
     changes to ensure MS/PG interpret it correctly.
@@ -118,28 +118,28 @@ def get_query_table_schema_name(tbl_str, db_type):
     Ex. in PG: if stored in log as Table, then must be queried as "Table" to ensure capital letter.
     Ex. in MS: if stored in log as "table", then must be queried as ["table"] to ensure quotes.
 
-    :param tbl_str: Table or schema string
+    :param table_name: Table or schema string
     :param db_type: Type of DB
     :return:
     """
-    if not tbl_str:
-        return tbl_str
+    if not table_name:
+        return table_name
     if db_type == PG:
-        if tbl_str.islower() and " " not in tbl_str:
-            return tbl_str
+        if table_name.islower() and " " not in table_name:
+            return table_name
         else:
-            return '"' + tbl_str + '"'
+            return '"' + table_name + '"'
 
     if db_type == MS:
-        return '[' + tbl_str + ']'
+        return '[' + table_name + ']'
 
 
-def parse_table_string(tbl_str, default_schema, db_type):
+def parse_table_string(table_name, default_schema_name, db_type):
     """
     Pareses extracts schema and table name from table references in query strings
     (ex. server.schema.table, schema.table, table)
-    :param tbl_str: String of table reference
-    :param default_schema: default schema
+    :param table_name: String of table reference
+    :param default_schema_name: default schema
     :param db_type: db type (PG, MS, etc.)
     :return: schema name, table name
      
@@ -156,10 +156,10 @@ def parse_table_string(tbl_str, default_schema, db_type):
         assert False, "Invalid Type"
 
     # Slices by the appropriate . found in the regex into schema, table, server...
-    for r in re.finditer(regex, tbl_str):
-        names_arr.append(tbl_str[start:r.start()])
+    for r in re.finditer(regex, table_name):
+        names_arr.append(table_name[start:r.start()])
         start = r.start() + 1
-    names_arr.append(tbl_str[start:])
+    names_arr.append(table_name[start:])
 
     server = None
     database = None
@@ -172,7 +172,7 @@ def parse_table_string(tbl_str, default_schema, db_type):
     elif len(names_arr) == 2:
         schema, table = names_arr
     elif len(names_arr) == 1:
-        schema = default_schema
+        schema = default_schema_name
         table = names_arr[0]
     else:
         schema, table = None, None

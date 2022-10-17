@@ -14,21 +14,21 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True)
 
 ris_db = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
                            server=config.get('SECOND_PG_DB', 'SERVER'),
-                           database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                           db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                            user=config.get('SECOND_PG_DB', 'DB_USER'),
                            password=config.get('SECOND_PG_DB', 'DB_PASSWORD'),
                            allow_temp_tables=True)
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -39,7 +39,7 @@ test_csv_name = 'test_csv_name_table_{}'.format(db.user)
 class TestQueryToCSVPG:
     def test_query_to_csv_basic(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
         db.query("""
@@ -62,12 +62,12 @@ class TestQueryToCSVPG:
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_special_char(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
         db.query("""
@@ -87,12 +87,12 @@ class TestQueryToCSVPG:
         """
         db2 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                                 server=config.get('PG_DB', 'SERVER'),
-                                database=config.get('PG_DB', 'DB_NAME'),
+                                db_name=config.get('PG_DB', 'DB_NAME'),
                                 user=config.get('PG_DB', 'DB_USER'),
                                 password=config.get('PG_DB', 'DB_PASSWORD'))
 
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db2.drop_table(schema='working', table=test_csv_name)
+        db2.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
         db2.query("""
@@ -118,12 +118,12 @@ class TestQueryToCSVPG:
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        db2.drop_table(schema='working', table=test_csv_name)
+        db2.drop_table(schema_name='working', table_name=test_csv_name)
 
         os.remove(output)
 
     def test_query_to_csv_no_output(self):
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
         db.query("""
@@ -146,7 +146,7 @@ class TestQueryToCSVPG:
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_strict(self):
@@ -162,7 +162,7 @@ class TestQueryToCSVPG:
 
     def test_query_to_csv_sep(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
         db.query("""
@@ -186,12 +186,12 @@ class TestQueryToCSVPG:
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_quote_strings(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
         db.query("""
@@ -221,14 +221,14 @@ class TestQueryToCSVPG:
         assert '"' not in raw_csv_with_quotes.iloc[0]["col3"]
 
         # Cleanup
-        db.drop_table(schema='working', table=test_csv_name)
+        db.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
 
 class TestQueryToCSVMS:
     def test_query_to_csv_basic(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
         sql.query("""
@@ -251,11 +251,11 @@ class TestQueryToCSVMS:
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_no_output(self):
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
         sql.query("""
@@ -278,7 +278,7 @@ class TestQueryToCSVMS:
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_strict(self):
@@ -294,7 +294,7 @@ class TestQueryToCSVMS:
 
     def test_query_to_csv_sep(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
         sql.query("""
@@ -318,12 +318,12 @@ class TestQueryToCSVMS:
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_quote_strings(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
         sql.query("""
@@ -353,5 +353,5 @@ class TestQueryToCSVMS:
         assert '"' not in raw_csv_with_quotes.iloc[0]["col3"]
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=test_csv_name)
+        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)

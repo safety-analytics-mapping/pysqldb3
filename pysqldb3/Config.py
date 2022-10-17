@@ -2,7 +2,6 @@ import os
 import pyodbc
 import re
 from collections import defaultdict
-from dataclasses import dataclass
 
 
 class SqlDriver:
@@ -60,11 +59,11 @@ def get_gdal_data_path():
     return os.environ["GDAL_DATA"]
 
 
-def read_config(confi_path='.\config.cfg'):
+def read_config(config_path='.\config.cfg'):
     sections = defaultdict(dict)
 
-    if os.path.isfile(confi_path):
-        with open(confi_path, 'r') as f:
+    if os.path.isfile(config_path):
+        with open(config_path, 'r') as f:
             section_header=None
 
             for line in f.readlines():
@@ -78,14 +77,14 @@ def read_config(confi_path='.\config.cfg'):
     return sections
 
 
-def write_config(confi_path='.\config.cfg'):
+def write_config(config_path='.\config.cfg'):
     open_config = False
     required_sections = {
         'ODBC Drivers': {'ODBC_DRIVER': '', 'NATIVE_DRIVER': ''},
         'GDAL DATA': {'GDAL_DATA_LOC': ''},
         'DEFAULT DATABASE': {'type': '', 'server': '', 'database': ''}
     }
-    existing_sections = read_config(confi_path)
+    existing_sections = read_config(config_path)
 
     for rec_section in required_sections.keys():
         if rec_section not in existing_sections.keys():
@@ -96,20 +95,20 @@ def write_config(confi_path='.\config.cfg'):
             elif rec_section == 'GDAL DATA':
                 existing_sections[rec_section]['GDAL_DATA']=get_gdal_data_path()
             else:
-                print(f'\nMissing section {rec_section} from config file. Plesae edit {confi_path} to add')
+                print(f'\nMissing section {rec_section} from config file. Plesae edit {config_path} to add')
                 open_config = True
                 existing_sections[rec_section]=required_sections[rec_section]
 
-    with open(confi_path, 'w') as f:
+    with open(config_path, 'w') as f:
         for section in existing_sections.keys():
             f.write(f'\n[{section}]\n')
             for k in existing_sections[section].keys():
                 f.write(f'{k}={existing_sections[section][k]}\n')
     if open_config:
-        os.startfile(confi_path)
+        os.startfile(config_path)
     return existing_sections
 
 
 
 if __name__ == '__main__':
-    sections= write_config(confi_path='.\config.cfg')
+    sections= write_config(config_path='.\config.cfg')

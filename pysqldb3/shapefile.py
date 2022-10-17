@@ -10,12 +10,12 @@ class Shapefile:
     def __str__(self):
         pass
 
-    def __init__(self, dbo=None, path=None, table=None, schema=None, query=None, shp_name=None, cmd=None,
+    def __init__(self, dbo=None, path=None, table_name=None, schema_name=None, query=None, shp_name=None, cmd=None,
                  srid='2263', port=5432, gdal_data_loc=GDAL_DATA_LOC, skip_failures=''):
         self.dbo = dbo
         self.path = path
-        self.table = table
-        self.schema = schema
+        self.table = table_name
+        self.schema = schema_name
         self.query = query
         self.shp_name = shp_name
         self.cmd = cmd

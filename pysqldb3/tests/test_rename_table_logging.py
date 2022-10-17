@@ -9,13 +9,13 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 ms = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB', 'TYPE'),
                        server=config.get('SECOND_SQL_DB', 'SERVER'),
-                       database=config.get('SECOND_SQL_DB', 'DB_NAME'),
+                       db_name=config.get('SECOND_SQL_DB', 'DB_NAME'),
                        user=config.get('SECOND_SQL_DB', 'DB_USER'),
                        password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
 
 pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
                        server=config.get('SECOND_PG_DB', 'SERVER'),
-                       database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                       db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                        user=config.get('SECOND_PG_DB', 'DB_USER'),
                        password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 

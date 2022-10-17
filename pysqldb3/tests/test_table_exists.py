@@ -9,21 +9,21 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True)
 
 ris_db = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
                            server=config.get('SECOND_PG_DB', 'SERVER'),
-                           database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                           db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                            user=config.get('SECOND_PG_DB', 'DB_USER'),
                            password=config.get('SECOND_PG_DB', 'DB_PASSWORD'),
                            allow_temp_tables=True)
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -67,7 +67,7 @@ class TestTableExistsPG():
 
         assert ris_db.table_exists(schema='working', table=test_table)
 
-        ris_db.drop_table(schema='working', table=test_table)
+        ris_db.drop_table(schema_name='working', table_name=test_table)
 
     def test_table_exists_pg_rename(self):
         renamed_test_table = test_table + "_renamed"
@@ -87,7 +87,7 @@ class TestTableExistsPG():
         assert not ris_db.table_exists(schema='working', table=test_table)
         assert ris_db.table_exists(schema='working', table=renamed_test_table)
 
-        ris_db.drop_table(schema='working', table=renamed_test_table)
+        ris_db.drop_table(schema_name='working', table_name=renamed_test_table)
 
     def test_table_exists_pg_working_drop(self):
         renamed_test_table = test_table + "_renamed"
@@ -123,7 +123,7 @@ class TestTableExistsPG():
 class TestTableExistsMS():
 
     def test_table_exists_ms_create(self):
-        sql.drop_table(schema=sql.default_schema, table=test_table)
+        sql.drop_table(schema_name=sql.default_schema, table_name=test_table)
 
         sql.query("""
             create table {} (id integer) 
@@ -131,13 +131,13 @@ class TestTableExistsMS():
 
         assert sql.table_exists(test_table)
 
-        sql.drop_table(schema=sql.default_schema, table=test_table)
+        sql.drop_table(schema_name=sql.default_schema, table_name=test_table)
 
     def test_table_exists_ms_rename(self):
         renamed_test_table = test_table + "_renamed"
 
-        sql.drop_table(schema=sql.default_schema, table=renamed_test_table)
-        sql.drop_table(schema=sql.default_schema, table=test_table)
+        sql.drop_table(schema_name=sql.default_schema, table_name=renamed_test_table)
+        sql.drop_table(schema_name=sql.default_schema, table_name=test_table)
 
         sql.query("""
             create table {} (id integer) 
@@ -153,13 +153,13 @@ class TestTableExistsMS():
         assert sql.table_exists(renamed_test_table)
 
         # Cleanup
-        sql.drop_table(schema=sql.default_schema, table=renamed_test_table)
+        sql.drop_table(schema_name=sql.default_schema, table_name=renamed_test_table)
 
     def test_table_exists_ms_drop(self):
         renamed_test_table = test_table + "_renamed"
 
-        sql.drop_table(schema=sql.default_schema, table=test_table)
-        sql.drop_table(schema=sql.default_schema, table=renamed_test_table)
+        sql.drop_table(schema_name=sql.default_schema, table_name=test_table)
+        sql.drop_table(schema_name=sql.default_schema, table_name=renamed_test_table)
 
         sql.query("""
             create table {} (id integer) 

@@ -11,14 +11,14 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True)
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -35,20 +35,20 @@ class TestFeatureClassToTablePg:
 
     @pytest.mark.order1
     def test_import_fc_basic(self):
-        db.drop_table(table=table, schema=db.default_schema)
+        db.drop_table(table_name=table, schema_name=db.default_schema)
         assert not db.table_exists(table, schema=db.default_schema)
 
-        db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
+        db.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc)
         assert db.table_exists(table, schema=db.default_schema)
 
         db.drop_table(db.default_schema, table)
 
     @pytest.mark.order2
     def test_import_fc_new_name(self):
-        db.drop_table(table=table, schema=db.default_schema)
+        db.drop_table(table_name=table, schema_name=db.default_schema)
         assert not db.table_exists(table, schema=db.default_schema)
 
-        db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
+        db.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc)
         assert db.table_exists(table, schema=db.default_schema)
 
         db.drop_table(db.default_schema, table)
@@ -57,10 +57,10 @@ class TestFeatureClassToTablePg:
     def test_import_fc_new_name_schema(self):
         schema = 'working'
 
-        db.drop_table(table=table, schema=schema)
+        db.drop_table(table_name=table, schema_name=schema)
         assert not db.table_exists(table, schema=schema)
 
-        db.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema)
+        db.feature_class_to_table(fgdb, table, shp_name=fc, schema_name=schema)
         assert db.table_exists(table, schema=schema)
 
         db.query("select * from {s}.__temp_log_table_{u}__ where table_name = '{t}'".format(
@@ -73,10 +73,10 @@ class TestFeatureClassToTablePg:
     def test_import_fc_new_name_schema_srid(self):
         schema = 'working'
 
-        db.drop_table(table=table, schema=schema)
+        db.drop_table(table_name=table, schema_name=schema)
         assert not db.table_exists(table, schema=schema)
 
-        db.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, srid=4326)
+        db.feature_class_to_table(fgdb, table, shp_name=fc, schema_name=schema, srid=4326)
         assert db.table_exists(table, schema=schema)
 
         db.query("select distinct st_srid(geom) from {}.{}".format(schema, table))
@@ -86,10 +86,10 @@ class TestFeatureClassToTablePg:
 
     @pytest.mark.order5
     def test_import_fc_new_name_data_check(self):
-        db.drop_table(table=table, schema=db.default_schema)
+        db.drop_table(table_name=table, schema_name=db.default_schema)
         assert not db.table_exists(table, schema=db.default_schema)
 
-        db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
+        db.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc)
         assert db.table_exists(table, schema=db.default_schema)
 
         db.query("""
@@ -144,11 +144,11 @@ class TestFeatureClassToTablePg:
     def test_import_fc_new_name_schema_no_fc(self):
         schema = 'working'
 
-        db.drop_table(table=table, schema=db.default_schema)
+        db.drop_table(table_name=table, schema_name=db.default_schema)
         assert not db.table_exists(table, schema=db.default_schema)
 
         try:
-            db.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema)
+            db.feature_class_to_table(fgdb, table, shp_name=fc, schema_name=schema)
         except:
             assert not db.table_exists(table, schema=schema)
 
@@ -159,10 +159,10 @@ class TestFeatureClassToTablePg:
         private_table = table + '_priv'
         schema = 'working'
 
-        db.drop_table(table=private_table, schema=schema)
+        db.drop_table(table_name=private_table, schema_name=schema)
         assert not db.table_exists(private_table, schema=schema)
 
-        db.feature_class_to_table(fgdb, private_table, shp_name=fc, schema=schema, private=True)
+        db.feature_class_to_table(fgdb, private_table, shp_name=fc, schema_name=schema, private=True)
         assert db.table_exists(private_table, schema=schema)
 
         db.query("""
@@ -178,10 +178,10 @@ class TestFeatureClassToTablePg:
     def test_import_fc_new_name_schema_tmp(self):
         not_temp_table = table + '_tmp'
         schema = 'working'
-        db.drop_table(table=not_temp_table, schema=schema)
+        db.drop_table(table_name=not_temp_table, schema_name=schema)
         assert not db.table_exists(not_temp_table, schema=schema)
 
-        db.feature_class_to_table(fgdb, not_temp_table, shp_name=fc, schema=schema, temp=False)
+        db.feature_class_to_table(fgdb, not_temp_table, shp_name=fc, schema_name=schema, temp=False)
         assert db.table_exists(not_temp_table, schema=schema)
 
         db.query("select * from {s}.__temp_log_table_{u}__ where table_name = '{t}'".format(
@@ -203,20 +203,20 @@ class TestFeatureClassToTableMs:
 
     @pytest.mark.order9
     def test_import_fc_basic(self):
-        sql.drop_table(table=table, schema=sql.default_schema)
+        sql.drop_table(table_name=table, schema_name=sql.default_schema)
         assert not sql.table_exists(table, schema=sql.default_schema)
 
-        sql.feature_class_to_table(fgdb, table, schema=None, shp_name=fc, print_cmd=True,skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc, print_cmd=True,skip_failures='-skip_failures')
         assert sql.table_exists(table, schema=sql.default_schema)
 
         sql.drop_table(sql.default_schema, table)
 
     @pytest.mark.order10
     def test_import_fc_new_name(self):
-        sql.drop_table(table=table, schema=sql.default_schema)
+        sql.drop_table(table_name=table, schema_name=sql.default_schema)
         assert not sql.table_exists(table, schema=sql.default_schema)
 
-        sql.feature_class_to_table(fgdb, table, schema=None, shp_name=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc, skip_failures='-skip_failures')
         assert sql.table_exists(table, schema=sql.default_schema)
 
         sql.drop_table(sql.default_schema, table)
@@ -225,10 +225,10 @@ class TestFeatureClassToTableMs:
     def test_import_fc_new_name_schema(self):
         schema = 'dbo'
 
-        sql.drop_table(table=table, schema=schema)
+        sql.drop_table(table_name=table, schema_name=schema)
         assert not sql.table_exists(table, schema=schema)
 
-        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema_name=schema, skip_failures='-skip_failures')
         assert sql.table_exists(table, schema=schema)
 
         sql.drop_table(schema, table)
@@ -237,10 +237,10 @@ class TestFeatureClassToTableMs:
     def test_import_fc_new_name_schema_srid(self):
         schema = 'dbo'
 
-        sql.drop_table(table=table, schema=schema)
+        sql.drop_table(table_name=table, schema_name=schema)
         assert not sql.table_exists(table, schema=schema)
 
-        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, srid=4326, skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema_name=schema, srid=4326, skip_failures='-skip_failures')
         assert sql.table_exists(table, schema=schema)
 
         sql.query("select distinct geom.STSrid from {}.{}".format(schema, table))
@@ -250,10 +250,10 @@ class TestFeatureClassToTableMs:
 
     @pytest.mark.order13
     def test_import_fc_new_name_data_check(self):
-        sql.drop_table(table=table, schema=sql.default_schema)
+        sql.drop_table(table_name=table, schema_name=sql.default_schema)
 
         assert not sql.table_exists(table, schema=sql.default_schema)
-        sql.feature_class_to_table(fgdb, table, schema=None, shp_name=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc, skip_failures='-skip_failures')
 
         assert sql.table_exists(table, schema=sql.default_schema)
         sql.query("""
@@ -305,11 +305,11 @@ class TestFeatureClassToTableMs:
         fc = 'test_feature_class_no_table'
         schema = 'working'
 
-        sql.drop_table(table=table, schema=schema)
+        sql.drop_table(table_name=table, schema_name=schema)
         assert not sql.table_exists(table, schema=schema)
 
         try:
-            sql.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, skip_failures='-skip_failures')
+            sql.feature_class_to_table(fgdb, table, shp_name=fc, schema_name=schema, skip_failures='-skip_failures')
         except:
             assert not sql.table_exists(table, schema=schema)
 
@@ -319,10 +319,10 @@ class TestFeatureClassToTableMs:
     def test_import_fc_new_name_schema_temp(self):
         schema = 'dbo'
 
-        sql.drop_table(table=table, schema=schema)
+        sql.drop_table(table_name=table, schema_name=schema)
         assert not sql.table_exists(table, schema=schema)
 
-        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema=schema, temp=False,
+        sql.feature_class_to_table(fgdb, table, shp_name=fc, schema_name=schema, temp=False,
         skip_failures='-skip_failures')
         assert sql.table_exists(table, schema=schema)
 
@@ -336,10 +336,10 @@ class TestFeatureClassToTableMs:
     def test_import_fc_new_name_schema_private(self):
         schema = 'dbo'
 
-        sql.drop_table(table=table, schema=schema)
+        sql.drop_table(table_name=table, schema_name=schema)
         assert not sql.table_exists(table, schema=schema)
 
-        sql.feature_class_to_table(fgdb, table=table, shp_name=fc, schema=schema, private=True,
+        sql.feature_class_to_table(fgdb, table_name=table, shp_name=fc, schema_name=schema, private=True,
         skip_failures='-skip_failures')
         assert sql.table_exists(table=table, schema=schema)
 

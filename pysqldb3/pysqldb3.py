@@ -10,7 +10,7 @@ import configparser
 import os
 from .Config import write_config
 
-write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
+write_config(config_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
@@ -27,7 +27,7 @@ class DbConnect:
     Database Connection class
     """
 
-    def __init__(self, user=None, password=None, ldap=False, type=None, server=None, database=None, port=5432,
+    def __init__(self, user=None, password=None, ldap=False, type=None, server=None, db_name=None, port=5432,
                  allow_temp_tables=False, use_native_driver=True, default=False, quiet=False):
         # type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool) -> None
         """
@@ -37,7 +37,7 @@ class DbConnect:
         ldap (bool): default None
         type (string): default None
         server (string): default None
-        database (string): default None
+        db_name (string): default None
         port (int): default 5432
         use_native_driver (bool): defaults to False
         default (bool): defaults to False; connects to ris db automatically
@@ -51,7 +51,7 @@ class DbConnect:
             self.user = getpass.getuser()
         self.type = type
         self.server = get_unique_table_schema_string(server, self.type)
-        self.database = database
+        self.database = db_name
         self.port = port
         self.allow_temp_tables = allow_temp_tables
         self.use_native_driver = use_native_driver
@@ -289,7 +289,7 @@ class DbConnect:
     Private helper functions for log cleanup 
     """
 
-    def __drop_expired_tables(self, schema):
+    def __drop_expired_tables(self, schema_name):
         # type: (DbConnect, str) -> None
         """
         Deletes tables that have expired, as listed in the temp log
@@ -300,7 +300,7 @@ class DbConnect:
             SELECT table_schema, table_name FROM {s}.{l}
             WHERE expires < '{dt}'
             """.format(
-            s=schema,
+            s=schema_name,
             l=self.log_table,
             dt=datetime.datetime.now().strftime('%Y-%m-%d')
         ), timeme=False, internal=True)
@@ -403,7 +403,7 @@ class DbConnect:
                 self.log_temp_table(sch, tbl, self.user, database=database, server=server,
                                     expiration=datetime.datetime.now() + datetime.timedelta(days=days))
 
-    def log_temp_table(self, schema, table, owner, server=None, database=None,
+    def log_temp_table(self, schema_name, table_name, owner, server=None, database=None,
                        expiration=datetime.datetime.now() + datetime.timedelta(days=7)):
         # type: (DbConnect, str, str, str, str, str, datetime) -> None
         """
@@ -417,7 +417,7 @@ class DbConnect:
         :return:
         """
 
-        if table == self.log_table:
+        if table_name == self.log_table:
             return
 
         if server:
@@ -430,32 +430,32 @@ class DbConnect:
             db = ''
 
         # Check if log exists; if not make one
-        if not self.table_exists(self.log_table, schema=schema, server=server, database=database):
+        if not self.table_exists(self.log_table, schema=schema_name, server=server, database=database):
             if self.type == MS:
-                self.query(MS_CREATE_LOG_TABLE_QUERY.format(s=schema, log=self.log_table, serv=ser, db=db),
+                self.query(MS_CREATE_LOG_TABLE_QUERY.format(s=schema_name, log=self.log_table, serv=ser, db=db),
                            timeme=False, temp=False, internal=True)
 
             elif self.type == PG:
-                self.query(PG_CREATE_LOG_TABLE_QUERY.format(s=schema, log=self.log_table),
+                self.query(PG_CREATE_LOG_TABLE_QUERY.format(s=schema_name, log=self.log_table),
                            timeme=False, temp=False, internal=True)
 
         # Add new table to log
         if self.type == PG:
             self.query(PG_ADD_TABLE_TO_LOG_QUERY.format(
-                s=schema,
+                s=schema_name,
                 log=self.log_table,
                 u=owner,
-                t=table,
+                t=table_name,
                 dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
                 ex=expiration
             ), strict=False, timeme=False, internal=True)
 
         elif self.type == MS:
             self.query(MS_ADD_TABLE_TO_LOG_QUERY.format(
-                s=schema,
+                s=schema_name,
                 log=self.log_table,
                 u=owner,
-                t=table,
+                t=table_name,
                 dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
                 ex=expiration,
                 ser=ser,
@@ -597,7 +597,7 @@ class DbConnect:
             else:
                 # need to connect to other db to check for log
                 # todo: there must be a better way to do this, but havent found it yet
-                other_dbc = DbConnect(type=self.type, server=cleaned_server, database=cleaned_database,
+                other_dbc = DbConnect(type=self.type, server=cleaned_server, db_name=cleaned_database,
                                       port=self.port,
                                       user=self.user, password=self.password, ldap=self.LDAP,
                                       default=self.default_connect, use_native_driver=self.use_native_driver)
@@ -620,9 +620,9 @@ class DbConnect:
 
         return [schema_row[0] for schema_row in self.__get_most_recent_query_data(internal=True)]
 
-    def get_table_columns(self, table, schema=None, full=False):
-        if not schema:
-            schema = self.default_schema
+    def get_table_columns(self, table_name, schema_name=None, full=False):
+        if not schema_name:
+            schema_name = self.default_schema
         if full:
             columns = '*'
         else:
@@ -635,7 +635,7 @@ class DbConnect:
             WHERE table_schema = '{s}' 
                 AND table_name = '{t}'
             ORDER BY ordinal_position;
-            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+            """.format(cols=columns, s=schema_name, t=table_name), timeme=False, internal=True)
 
         if self.type == MS:
             self.query("""
@@ -644,7 +644,7 @@ class DbConnect:
             WHERE table_schema = '{s}' 
                 AND table_name = '{t}'
             ORDER BY ORDINAL_POSITION;
-            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+            """.format(cols=columns, s=schema_name, t=table_name), timeme=False, internal=True)
 
         return self.__get_most_recent_query_data(internal=True)
 
@@ -700,7 +700,7 @@ class DbConnect:
         if return_df:
             return qry.dfquery()
 
-    def drop_table(self, schema, table, cascade=False, strict=True, server=None, database=None, internal=False):
+    def drop_table(self, schema_name, table_name, cascade=False, strict=True, server=None, database=None, internal=False):
         # type: (DbConnect, str, str, bool, bool, str, str, bool) -> None
         """
         Drops table from database and removes from the temp log table
@@ -727,17 +727,17 @@ class DbConnect:
         else:
             db = ''
         if self.type == PG:
-            self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema, table, c),
+            self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema_name, table_name, c),
                        timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
-            if self.table_exists(schema=schema, table=table):
-                self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
+            if self.table_exists(schema=schema_name, table=table_name):
+                self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema_name, table_name, c),
                            timeme=False, strict=strict, internal=internal)
             else:
-                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table))
+                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema_name, table_name))
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
 
-    def rename_column(self, schema, table, old_column, new_column):
+    def rename_column(self, schema_name, table_name, old_column, new_column):
         # type: (DbConnect, str, str, str, str) -> None
         """
         Renames the column (old column) to the new column name on the specified table.
@@ -747,14 +747,14 @@ class DbConnect:
         :param new_column: new column name
         :return:
         """
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
         if self.type == PG:
-            self.query("alter table {s}.{t} rename column {o} to {n}".format(s=schema, t=table, o=old_column,
+            self.query("alter table {s}.{t} rename column {o} to {n}".format(s=schema_name, t=table_name, o=old_column,
                                                                              n=new_column))
         elif self.type == MS:
-            self.query("EXEC sp_RENAME '{s}.{t}.{o}', '{n}', 'COLUMN'".format(s=schema, t=table, o=old_column,
+            self.query("EXEC sp_RENAME '{s}.{t}.{o}', '{n}', 'COLUMN'".format(s=schema_name, t=table_name, o=old_column,
                                                                               n=new_column))
 
     def dfquery(self, query, strict=False, permission=True, temp=True, timeme=False, no_comment=False, comment='',
@@ -788,14 +788,14 @@ class DbConnect:
     IO Functions
     """
 
-    def dataframe_to_table_schema(self, df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
+    def dataframe_to_table_schema(self, df, table_name, schema_name=None, overwrite=False, temp=True, allow_max_varchar=False,
                                   column_type_overrides=None, days=7):
 
         """
         Translates Pandas DataFrame into empty database table.
         :param df: Pandas DataFrame to be added to database
-        :param table: Table name to be used in database
-        :param schema: Database schema to use for destination in database (defaults database object's default schema)
+        :param table_name: Table name to be used in database
+        :param schema_name: Database schema to use for destination in database (defaults database object's default schema)
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table as not-temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
@@ -805,8 +805,8 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return: Table schema that was created from DataFrame
         """
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
         input_schema = list()
 
@@ -825,14 +825,14 @@ class DbConnect:
                 input_schema.append([clean_column(col_name), col_type])
 
         if overwrite:
-            self.drop_table(schema=schema, table=table, cascade=False)
+            self.drop_table(schema_name=schema_name, table_name=table_name, cascade=False)
 
         # Create table in database
         qry = """
                 CREATE TABLE {s}.{t} (
                 {cols}
                 )
-        """.format(s=schema, t=table,
+        """.format(s=schema_name, t=table_name,
                    cols=str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", ""))
 
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
@@ -861,7 +861,7 @@ class DbConnect:
             schema = self.default_schema
 
         if not table_schema:
-            table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
+            table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema_name=schema, temp=temp,
                                                           allow_max_varchar=allow_max_varchar,
                                                           column_type_overrides=column_type_overrides,
                                                           days=days)
@@ -885,13 +885,13 @@ class DbConnect:
         df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False)
         print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema, t=table))
 
-    def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
+    def csv_to_table(self, input_file=None, overwrite=False, schema_name=None, table=None, temp=True, sep=',',
                      long_varchar_check=False, column_type_overrides=None, days=7):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
         :param overwrite: If table exists in database, will overwrite; defaults to False
-        :param schema: Schema of table; if None, defaults to db's default schema
+        :param schema_name: Schema of table; if None, defaults to db's default schema
         :param table: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
         :param sep: Separator for csv file, defaults to comma (,)
@@ -912,8 +912,8 @@ class DbConnect:
 
             return False
 
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
         if not input_file:
             input_file = file_loc('file')
@@ -921,7 +921,7 @@ class DbConnect:
         if not table:
             table = os.path.basename(input_file).split('.')[0]
 
-        if not overwrite and self.table_exists(schema=schema, table=table):
+        if not overwrite and self.table_exists(schema=schema_name, table=table):
             print('Must set overwrite=True; table already exists.')
             return
 
@@ -947,7 +947,7 @@ class DbConnect:
             df = df.drop('ogc_fid', 1)
 
         # Calls dataframe_to_table_schema fn
-        table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
+        table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema_name=schema_name, temp=temp,
                                                       allow_max_varchar=allow_max,
                                                       column_type_overrides=column_type_overrides,
                                                       days=days)
@@ -955,47 +955,47 @@ class DbConnect:
         # For larger files use GDAL to import
         if df.shape[0] > 999:
             try:
-                success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
+                success = self._bulk_csv_to_table(input_file=input_file, schema_name=schema_name, table_name=table,
                                                   table_schema=table_schema, days=days)
 
                 if not success:
-                    raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
+                    raise AssertionError('Bulk CSV loading failed.'.format(schema_name, table))
 
             except SystemExit:
                 raise AssertionError(
-                    'Bulk CSV loading failed.'.format(schema, table)
+                    'Bulk CSV loading failed.'.format(schema_name, table)
                 )
             except Exception as e:
                 print(e)
                 raise AssertionError(
-                    'Bulk CSV loading failed.'.format(schema, table)
+                    'Bulk CSV loading failed.'.format(schema_name, table)
                 )
 
         else:
             # Calls dataframe_to_table fn
-            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
+            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema_name,
                                     temp=temp, days=days)
 
-    def _bulk_csv_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
+    def _bulk_csv_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False, days=7):
         """
         Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.
         :param input_file: Source CSV filepath
-        :param schema: Schema to write to; defaults to db's default schema
+        :param schema_name: Schema to write to; defaults to db's default schema
         :param table: Destination table name to write data to; defaults to user/date defined
         :param table_schema:
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
-        return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
+        return self._bulk_file_to_table(input_file=input_file, schema_name=schema_name, table_name=table_name,
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
 
-    def _bulk_xlsx_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False,
+    def _bulk_xlsx_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False,
                             header=True, days=7):
         """
         Shell for bulk_file_to_table. Routed to by xls_to_table when record count is >= 1,000.
         :param input_file: Source XLSX filepath
-        :param schema: Schema to write to; defaults to db's default schema
+        :param schema_name: Schema to write to; defaults to db's default schema
         :param table: Destination table name to write data to; defaults to user/date defined
         :param table_schema:
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
@@ -1003,17 +1003,17 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
-        return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
+        return self._bulk_file_to_table(input_file=input_file, schema_name=schema_name, table_name=table_name,
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=header, days=days)
 
-    def _bulk_file_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False,
+    def _bulk_file_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False,
                             excel_header=True, days=7):
         """
         Uses GDAL to import CSV/XLSX files.
         Writes data to a staging table without inferred data types then transforms to final output table using
         data types from Pandas.
         :param input_file: Source CSV/XLS filepath
-        :param schema: Schema to write to; defaults to db's default schema
+        :param schema_name: Schema to write to; defaults to db's default schema
         :param table: Destination table name to write data to; defaults to user/date defined
         :param table_schema: schema of dataframe (returned from dataframe_to_table_schema)
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
@@ -1024,11 +1024,11 @@ class DbConnect:
 
         print('Bulk loading data...')
 
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
-        if not table:
-            table = os.path.basename(input_file).split('.')[0]
+        if not table_name:
+            table_name = os.path.basename(input_file).split('.')[0]
 
         types = {PG: 'PostgreSQL', MS: 'MSSQLSpatial'}
 
@@ -1042,8 +1042,8 @@ class DbConnect:
                                                    password=self.password,
                                                    db=self.database,
                                                    f=input_file,
-                                                   schema=schema,
-                                                   tbl=table
+                                                   schema=schema_name,
+                                                   tbl=table_name
                                                    )
         else:
             cmd = MS_BULK_FILE_TO_TABLE_CMD.format(t=types[self.type],
@@ -1052,8 +1052,8 @@ class DbConnect:
                                                    password=self.password,
                                                    db=self.database,
                                                    f=input_file,
-                                                   schema=schema,
-                                                   tbl=table
+                                                   schema=schema_name,
+                                                   tbl=table_name
                                                    )
 
         cmd_env = os.environ.copy()
@@ -1081,7 +1081,7 @@ class DbConnect:
                     sq, p = '', 'LIMIT 1'
 
                 # Query one row to get columns
-                self.query("select {sq} * from {s}.stg_{t} {p}".format(s=schema, t=table, sq=sq, p=p), strict=False,
+                self.query("select {sq} * from {s}.stg_{t} {p}".format(s=schema_name, t=table_name, sq=sq, p=p), strict=False,
                            timeme=False)
 
                 column_names = self.queries[-1].data_columns
@@ -1105,7 +1105,7 @@ class DbConnect:
             else:
                 # If not input_schema, use what GDAL created
                 # cols = '*'
-                _ = self.get_table_columns(f'stg_{table}', schema=schema)
+                _ = self.get_table_columns(f'stg_{table_name}', schema_name=schema_name)
                 cols = []
                 for c in _:
                     if len(set(c[0]) - {' ', ':', '.'}) != len(set(c[0])):
@@ -1116,7 +1116,7 @@ class DbConnect:
 
 
 
-            if self.table_exists(schema=schema, table=table):
+            if self.table_exists(schema=schema_name, table=table_name):
                 # Move into final table from stg
                 qry = """
                 INSERT INTO {s}.{t}
@@ -1124,8 +1124,8 @@ class DbConnect:
                 {cols}
                 FROM {s}.stg_{t}
                 """.format(
-                    s=schema,
-                    t=table,
+                    s=schema_name,
+                    t=table_name,
                     cols=cols
                 )
 
@@ -1137,45 +1137,45 @@ class DbConnect:
                 INTO {s}.{t}
                 FROM {s}.stg_{t}
                 """.format(
-                    s=schema,
-                    t=table,
+                    s=schema_name,
+                    t=table_name,
                     cols=cols
                 )
 
                 self.query(qry, timeme=False, days=days)
 
             # Drop stg table
-            self.drop_table(schema=schema, table='stg_{}'.format(table))
+            self.drop_table(schema_name=schema_name, table_name='stg_{}'.format(table_name))
 
             # Log rows added to table
-            df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False)
+            df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema_name, t=table_name), timeme=False)
 
             print("""
             {c} rows added to {s}.{t}. 
             The table name may include stg_. This will not change the end result. 
-            """.format(c=df.cnt.values[0], s=schema, t=table))
+            """.format(c=df.cnt.values[0], s=schema_name, t=table_name))
 
         except SystemExit:
             # Drop stg table
-            self.drop_table(schema=schema, table='stg_{}'.format(table))
+            self.drop_table(schema_name=schema_name, table_name='stg_{}'.format(table_name))
             return False
 
         except Exception as e:
             print(e)
             # Drop stg table
-            self.drop_table(schema=schema, table='stg_{}'.format(table))
+            self.drop_table(schema_name=schema_name, table_name='stg_{}'.format(table_name))
             return False
 
         return True
 
-    def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
+    def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema_name=None, table_name=None, temp=True,
                      column_type_overrides=None, days=7):
         """
         Imports xls/x file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
         :param sheet_name : str, int or None, defaults to the first sheet
         :param overwrite: If table exists in database, will overwrite; defaults to False
-        :param schema: Schema of table; if None, defaults to db's default schema
+        :param schema_name: Schema of table; if None, defaults to db's default schema
         :param table: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
         :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
@@ -1185,10 +1185,10 @@ class DbConnect:
         :return:
         """
         # Add default schema
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
-        if not overwrite and self.table_exists(schema=schema, table=table):
+        if not overwrite and self.table_exists(schema=schema_name, table=table_name):
             print('Must set overwrite=True; table already exists.')
             return
 
@@ -1197,14 +1197,14 @@ class DbConnect:
             input_file = file_loc('file')
 
         # Get the table name if not provided
-        if not table and sheet_name:
-            table = os.path.basename(input_file).split('.')[0] + "_" + sheet_name
-        elif not table and not sheet_name:
-            table = os.path.basename(input_file).split('.')[0]
+        if not table_name and sheet_name:
+            table_name = os.path.basename(input_file).split('.')[0] + "_" + sheet_name
+        elif not table_name and not sheet_name:
+            table_name = os.path.basename(input_file).split('.')[0]
 
         # Ogr doesn't check overwriting; will append unless stopped.
-        if self.table_exists(table=table, schema=schema) and not overwrite:
-            print('{}.{} already exists. Use overwrite=True to replace.'.format(schema, table))
+        if self.table_exists(table=table_name, schema=schema_name) and not overwrite:
+            print('{}.{} already exists. Use overwrite=True to replace.'.format(schema_name, table_name))
             return
 
         extension = os.path.basename(input_file).split('.')[-1]
@@ -1278,11 +1278,11 @@ class DbConnect:
         # Try bulk input
         if not multi_sheet and extension == 'xlsx' and not column_type_overrides:
             # Bulk input
-            success = self._bulk_xlsx_to_table(input_file=input_file, schema=schema, table="stg_{}".format(table))
+            success = self._bulk_xlsx_to_table(input_file=input_file, schema_name=schema_name, table_name="stg_{}".format(table_name))
 
             # Overwrite if applicable and successful
             if success and overwrite:
-                self.drop_table(schema=schema, table=table)
+                self.drop_table(schema_name=schema_name, table_name=table_name)
 
             # Move from stg to live
             if success:
@@ -1290,10 +1290,10 @@ class DbConnect:
                 select * 
                 into {schema}.{table}
                 from {schema}.{stg_table}
-                """.format(schema=schema, table=table, stg_table="stg_{}".format(table)), days=days)
+                """.format(schema=schema_name, table=table_name, stg_table="stg_{}".format(table_name)), days=days)
 
                 # Drop stg table
-                self.drop_table(schema=schema, table="stg_{}".format(table))
+                self.drop_table(schema_name=schema_name, table_name="stg_{}".format(table_name))
 
         # Warn why will not work for xls if bulk wasn't called
         if multi_sheet or extension != 'xlsx':
@@ -1328,7 +1328,7 @@ class DbConnect:
                 df = pd.read_excel(input_file, sheet_name=sheet_name)
 
             # Call dataframe_to_table fn
-            self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
+            self.dataframe_to_table(df, table_name, overwrite=overwrite, schema=schema_name, temp=temp,
                                     column_type_overrides=column_type_overrides, days=days)
 
         # Try to remove new file if applicable.
@@ -1591,12 +1591,12 @@ class DbConnect:
         self.last_query = new_query
         self.allow_temp_tables = original_temp_flag
 
-    def table_to_shp(self, table, schema=None, strict=True, path=None, shp_name=None, cmd=None,
+    def table_to_shp(self, table_name, schema_name=None, strict=True, path=None, shp_name=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports table to a shp file. Generates query to query_to_shp.
         :param table: Database table name as string type
-        :param schema: Database table's schema (defults to db default schema)
+        :param schema_name: Database table's schema (defults to db default schema)
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
         :param path: folder path for output shp
         :param shp_name: filename for shape (should end in .shp)
@@ -1606,21 +1606,21 @@ class DbConnect:
         :param srid: SRID to manually set output to; defaults to 2263
         :return:
         """
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
         path, shp_name = parse_shp_path(path, shp_name)
 
-        return self.query_to_shp("select * from {}.{}".format(schema, table),
+        return self.query_to_shp("select * from {}.{}".format(schema_name, table_name),
                                  path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                                  print_cmd=print_cmd, srid=srid)
 
-    def table_to_csv(self, table, schema=None, strict=True, output_file=None, open_file=False, sep=',',
+    def table_to_csv(self, table_name, schema_name=None, strict=True, output_file=None, open_file=False, sep=',',
                      quote_strings=True):
         """
         Writes table to csv
         :param table: table name
-        :param schema: schema for table (defaults to default schema)
+        :param schema_name: schema for table (defaults to default schema)
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
         :param output_file: String for csv output file location (defaults to current directory)
         :param open_file: Boolean flag to auto open output file; defaults to False
@@ -1630,12 +1630,12 @@ class DbConnect:
         """
         # If no output_file, outputs to current directory with table as filename
         if not output_file:
-            output_file = os.path.join(os.getcwd(), table + '.csv')
+            output_file = os.path.join(os.getcwd(), table_name + '.csv')
 
-        if schema:
-            schema_table = '{}.{}'.format(schema, table)
+        if schema_name:
+            schema_table = '{}.{}'.format(schema_name, table_name)
         else:
-            schema_table = '{}'.format(table)
+            schema_table = '{}'.format(table_name)
 
         query = """
         select *
@@ -1652,14 +1652,14 @@ class DbConnect:
         if not self.allow_temp_tables:
             self.disconnect(True)
 
-    def shp_to_table(self, path=None, table=None, schema=None, shp_name=None, cmd=None,
+    def shp_to_table(self, path=None, table_name=None, schema_name=None, shp_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      shp_encoding=None, print_cmd=False, days=7):
         """
         Imports shape file to database. This uses GDAL to generate the table.
         :param path: File path of the shapefile
         :param table: Table name to use in the database
-        :param schema: Schema to use in the database (defaults to db's default schema)
+        :param schema_name: Schema to use in the database (defaults to db's default schema)
         :param shp_name: Shapefile name (ends in .shp)
         :param cmd: Optional ogr2ogr command to overwrite default
         :param srid:  SRID to use (defaults to 2263)
@@ -1674,8 +1674,8 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
         if not port:
             port = self.port
@@ -1689,27 +1689,27 @@ class DbConnect:
             shp_name = os.path.basename(filename)
             path = os.path.dirname(filename)
 
-        if not table:
-            table = shp_name.replace('.shp', '').lower()
+        if not table_name:
+            table_name = shp_name.replace('.shp', '').lower()
 
-        table = table.lower()
+        table_name = table_name.lower()
 
-        shp = Shapefile(dbo=self, path=path, table=table, schema=schema, shp_name=shp_name,
+        shp = Shapefile(dbo=self, path=path, table_name=table_name, schema_name=schema_name, shp_name=shp_name,
                         cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
 
         shp.read_shp(precision, private, shp_encoding, print_cmd)
 
         if temp:
-            self.__run_table_logging([schema + "." + table], days=days)
+            self.__run_table_logging([schema_name + "." + table_name], days=days)
 
-    def feature_class_to_table(self, path, table, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
+    def feature_class_to_table(self, path, table_name, schema_name=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
                                srid=2263, private=False, temp=True, fc_encoding=None, print_cmd=False,
                                days=7, skip_failures=''):
         """
         Imports shape file feature class to database. This uses GDAL to generate the table.
         :param path: Filepath to the geodatabase
         :param table: Table name to use in the database
-        :param schema: Schema to use in the database
+        :param schema_name: Schema to use in the database
         :param shp_name:  FeatureClass name
         :param gdal_data_loc: Filepath/location of GDAL on computer
         :param srid: SRID to use (defaults to 2263)
@@ -1721,23 +1721,23 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
         if not all([path, shp_name]):
             filename = file_loc('file', 'Missing file info - Opening search dialog...')
             shp_name = os.path.basename(filename)
             path = os.path.dirname(filename)
 
-        if not table:
-            table = shp_name.replace('.shp', '').lower()
+        if not table_name:
+            table_name = shp_name.replace('.shp', '').lower()
 
-        table = table.lower()
+        table_name = table_name.lower()
 
-        shp = Shapefile(dbo=self, path=path, table=table, schema=schema, query=None,
+        shp = Shapefile(dbo=self, path=path, table_name=table_name, schema_name=schema_name, query=None,
                         shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
 
         if temp:
-            self.__run_table_logging([schema + "." + table], days=days)
+            self.__run_table_logging([schema_name + "." + table_name], days=days)

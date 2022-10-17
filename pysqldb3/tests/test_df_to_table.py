@@ -10,13 +10,13 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -27,13 +27,13 @@ class TestDfToTableSchemaPG:
     def test_df_to_table_schema_pg_basic(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
         # Assert does not already exist
         assert not db.table_exists(table=table_name, schema='working')
 
         # dataframe_to_table_schema
-        i_s = db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working')
+        i_s = db.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -49,18 +49,18 @@ class TestDfToTableSchemaPG:
         assert len(test_df.columns) == len(table_df.columns)
 
         # Cleanup
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
     def test_df_to_table_schema_pg_override(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
         # Assert does not already exist
         assert not db.table_exists(table=table_name, schema='working')
 
         # dataframe_to_table_schema
-        i_s = db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working')
+        i_s = db.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -82,7 +82,7 @@ class TestDfToTableSchemaPG:
         """.format(table_name))['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
-        i_s = db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working', overwrite=True,
+        i_s = db.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='working', overwrite=True,
                                            column_type_overrides={'a': 'varchar'})
 
         # Assert table exists
@@ -108,18 +108,18 @@ class TestDfToTableSchemaPG:
                                       )
 
         # Cleanup
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
     def test_df_to_table_schema_pg_default_schema(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        db.drop_table(table=table_name, schema=db.default_schema)
+        db.drop_table(table_name=table_name, schema_name=db.default_schema)
 
         # Assert does not already exist
         assert not db.table_exists(table=table_name, schema=db.default_schema)
 
         # dataframe_to_table_schema
-        db.dataframe_to_table_schema(df=test_df, table=table_name)
+        db.dataframe_to_table_schema(df=test_df, table_name=table_name)
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema=db.default_schema)
@@ -135,18 +135,18 @@ class TestDfToTableSchemaPG:
         assert len(test_df.columns) == len(table_df.columns)
 
         # Cleanup
-        db.drop_table(table=table_name, schema=db.default_schema)
+        db.drop_table(table_name=table_name, schema_name=db.default_schema)
 
     def test_df_to_table_schema_pg_overwrite(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
         # Assert does not already exist
         assert not db.table_exists(table=table_name, schema='working')
 
         # Dataframe_to_table_schema
-        db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working')
+        db.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -165,7 +165,7 @@ class TestDfToTableSchemaPG:
         test_df2 = pd.DataFrame([{"x": 1, "y": 2, "z": 3, "1": 4}, {"x": 5, "y": 6, "z": 7, "1": 8}])
 
         # Dataframe_to_table overwrite
-        db.dataframe_to_table_schema(df=test_df2, table=table_name, schema='working', overwrite=True)
+        db.dataframe_to_table_schema(df=test_df2, table_name=table_name, schema_name='working', overwrite=True)
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -181,7 +181,7 @@ class TestDfToTableSchemaPG:
         assert len(test_df2.columns) == len(table_df.columns)
 
         # Cleanup
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
     # Log tests are in test_dbconnect
 
@@ -190,13 +190,13 @@ class TestDfToTableSchemaMS:
     def test_df_to_table_schema_ms_basic(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
         # Assert does not already exist
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # dataframe_to_table_schema
-        sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo')
+        sql.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -212,18 +212,18 @@ class TestDfToTableSchemaMS:
         assert len(test_df.columns) == len(table_df.columns)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
     def test_df_to_table_schema_ms_override(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
         # Assert does not already exist
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # dataframe_to_table_schema
-        i_s = sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo')
+        i_s = sql.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -245,7 +245,7 @@ class TestDfToTableSchemaMS:
         """.format(table_name))['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
-        i_s = sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo', overwrite=True,
+        i_s = sql.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='dbo', overwrite=True,
                                             column_type_overrides={'a': 'varchar'})
 
         # Assert table exists
@@ -271,18 +271,18 @@ class TestDfToTableSchemaMS:
                                       )
 
         # Cleanup
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
     def test_df_to_table_schema_ms_default_schema(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        sql.drop_table(table=table_name, schema=sql.default_schema)
+        sql.drop_table(table_name=table_name, schema_name=sql.default_schema)
 
         # Assert does not already exist
         assert not sql.table_exists(table=table_name, schema=sql.default_schema)
 
         # dataframe_to_table_schema
-        sql.dataframe_to_table_schema(df=test_df, table=table_name)
+        sql.dataframe_to_table_schema(df=test_df, table_name=table_name)
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema=sql.default_schema)
@@ -298,18 +298,18 @@ class TestDfToTableSchemaMS:
         assert len(test_df.columns) == len(table_df.columns)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema=sql.default_schema)
+        sql.drop_table(table_name=table_name, schema_name=sql.default_schema)
 
     def test_df_to_table_schema_ms_overwrite(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
         # Assert does not already exist
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # Dataframe_to_table_schema
-        sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo')
+        sql.dataframe_to_table_schema(df=test_df, table_name=table_name, schema_name='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -328,7 +328,7 @@ class TestDfToTableSchemaMS:
         test_df2 = pd.DataFrame([{"x": 1, "y": 2, "z": 3, "1": 4}, {"x": 5, "y": 6, "z": 7, "1": 8}])
 
         # Dataframe_to_table overwrite
-        sql.dataframe_to_table_schema(df=test_df2, table=table_name, schema='dbo', overwrite=True)
+        sql.dataframe_to_table_schema(df=test_df2, table_name=table_name, schema_name='dbo', overwrite=True)
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -344,7 +344,7 @@ class TestDfToTableSchemaMS:
         assert len(test_df2.columns) == len(table_df.columns)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
     # Log tests are in test_dbconnect
 
@@ -368,7 +368,7 @@ class TestDfToTablePG:
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
     def test_df_to_table_pg_override(self):
         # Setup test df
@@ -407,7 +407,7 @@ class TestDfToTablePG:
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
     def test_df_to_table_pg_default_schema(self):
         # Setup test df
@@ -427,7 +427,7 @@ class TestDfToTablePG:
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
-        db.drop_table(table=table_name, schema=db.default_schema)
+        db.drop_table(table_name=table_name, schema_name=db.default_schema)
 
     def test_df_to_table_pg_overwrite(self):
         # Setup test df
@@ -460,7 +460,7 @@ class TestDfToTablePG:
         pd.testing.assert_frame_equal(test_df2, table_df)
 
         # Cleanup
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
     def test_df_to_table_pg_input_schema(self):
         # Setup test df
@@ -490,7 +490,7 @@ class TestDfToTablePG:
         pd.testing.assert_frame_equal(pd.concat([test_df, additional_df], axis=0).reset_index(drop=True), table_df)
 
         # Cleanup
-        db.drop_table(table=table_name, schema='working')
+        db.drop_table(table_name=table_name, schema_name='working')
 
     # Log tests are in test_dbconnect
 
@@ -499,7 +499,7 @@ class TestDfToTableMS:
     def test_df_to_table_ms_basic(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        sql.drop_table(table=table_name, schema=sql.default_schema)
+        sql.drop_table(table_name=table_name, schema_name=sql.default_schema)
 
         # Assert does not already exist
         assert not sql.table_exists(table=table_name)
@@ -515,7 +515,7 @@ class TestDfToTableMS:
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema=sql.default_schema)
+        sql.drop_table(table_name=table_name, schema_name=sql.default_schema)
 
     def test_df_to_table_ms_override(self):
         # Setup test df
@@ -554,7 +554,7 @@ class TestDfToTableMS:
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema=sql.default_schema)
+        sql.drop_table(table_name=table_name, schema_name=sql.default_schema)
 
     def test_df_to_table_ms_schema(self):
         # Setup test df
@@ -574,7 +574,7 @@ class TestDfToTableMS:
         pd.testing.assert_frame_equal(test_df, table_df)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
     def test_df_to_table_ms_overwrite(self):
         # Setup test df
@@ -607,12 +607,12 @@ class TestDfToTableMS:
         pd.testing.assert_frame_equal(test_df2, table_df)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
     def test_df_to_table_ms_input_schema(self):
         # Setup test df
         test_df = pd.DataFrame([{"a": 1, "b": 2, "c": 3}, {"a": 4, "b": 5, "c": 6}])
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
         # Assert does not already exist
         assert not sql.table_exists(table=table_name, schema='dbo')
@@ -638,6 +638,6 @@ class TestDfToTableMS:
         pd.testing.assert_frame_equal(pd.concat([test_df, additional_df], axis=0).reset_index(drop=True), table_df)
 
         # Cleanup
-        sql.drop_table(table=table_name, schema='dbo')
+        sql.drop_table(table_name=table_name, schema_name='dbo')
 
     # Log tests are in test_dbconnect

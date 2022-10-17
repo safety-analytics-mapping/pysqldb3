@@ -9,13 +9,13 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -73,7 +73,7 @@ class TestDropTablePG:
             """.format(test_for_drop_table, test_for_drop_table)
 
         db.query(query_string)
-        db.drop_table(schema='working', table=test_for_drop_table)
+        db.drop_table(schema_name='working', table_name=test_for_drop_table)
 
         log_check_query_string = """
         
@@ -93,7 +93,7 @@ class TestDropTablePG:
         """.format(db.user, db.user, test_for_drop_table)
 
         db.query(query_string)
-        db.drop_table('working', table=test_for_drop_table)
+        db.drop_table('working', table_name=test_for_drop_table)
 
         log_check_query_string = """
             SELECT tbl_id, table_owner, table_schema, table_name, created_on, expires
@@ -124,7 +124,7 @@ class TestDropTableMS:
         """.format(test_for_drop_table)
 
         sql.query(query_string)
-        sql.drop_table(schema, table=test_for_drop_table)
+        sql.drop_table(schema, table_name=test_for_drop_table)
 
         assert not sql.table_exists(test_for_drop_table, schema=schema)
 
@@ -144,7 +144,7 @@ class TestDropTableMS:
         """.format(dt=test_for_drop_table, u=sql.user)
 
         sql.query(query_string)
-        sql.drop_table('dbo', table=test_for_drop_table)
+        sql.drop_table('dbo', table_name=test_for_drop_table)
 
         log_check_query_string = """
             SELECT tbl_id, table_owner, table_schema, table_name, created_on, expires
@@ -168,7 +168,7 @@ class TestDropTableMS:
         """.format(t=test_for_drop_table)
 
         sql.query(query_string)
-        sql.drop_table('dbo', table=test_for_drop_table)
+        sql.drop_table('dbo', table_name=test_for_drop_table)
 
         log_check_query_string = """
             SELECT tbl_id, table_owner, table_schema, table_name, created_on, expires
@@ -187,7 +187,7 @@ class TestDropTableMS:
         """.format(sql.user, sql.user, test_for_drop_table)
 
         sql.query(query_string)
-        sql.drop_table('dbo', table=test_for_drop_table)
+        sql.drop_table('dbo', table_name=test_for_drop_table)
 
         log_check_query_string = """
             SELECT tbl_id, table_owner, table_schema, table_name, created_on, expires
@@ -198,4 +198,4 @@ class TestDropTableMS:
         assert len(sql.dfquery(log_check_query_string)) == 0
 
     def test_table_does_not_exist(self):
-        assert sql.drop_table('dbo', table=test_for_drop_table) is None
+        assert sql.drop_table('dbo', table_name=test_for_drop_table) is None

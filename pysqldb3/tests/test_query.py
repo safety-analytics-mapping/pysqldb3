@@ -14,13 +14,13 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -29,7 +29,7 @@ test_query_table = 'test_query_table_{}'.format(db.user)
 
 class TestQuery:
     def test_query_returns_correct_pg(self):
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
         assert not db.table_exists(table=test_query_table, schema='working')
 
         db.query("""
@@ -57,10 +57,10 @@ class TestQuery:
         assert len(last_query.data_columns) == 3
 
         # Cleanup
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
     def test_query_returns_correct_ms(self):
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
         assert not sql.table_exists(table=test_query_table, schema='dbo')
 
         sql.query("""
@@ -91,7 +91,7 @@ class TestQuery:
         assert len(last_query.data_columns) == 3
 
         # Cleanup
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
     def test_successful_query_pg(self):
         """
@@ -102,7 +102,7 @@ class TestQuery:
         Here, we take a different approach, confirming that PostgreSql has received the query as intended
         through the built in pg_stat_activity.
         """
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
         assert not db.table_exists(table=test_query_table, schema='working')
 
         create_insert_table_string = """
@@ -126,14 +126,14 @@ class TestQuery:
         assert create_insert_table_string in possibly_relevant_queries
         assert db.table_exists(table=test_query_table, schema='working')
 
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
     def test_successful_query_ms(self):
         # Unclear of logic right now
         return
 
     def test_dbconnect_state_create_pg(self):
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
         assert not db.table_exists(table=test_query_table, schema='working')
 
         # Reset
@@ -153,10 +153,10 @@ class TestQuery:
         assert len(db.tables_created) == 1
 
         # Cleanup
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
     def test_dbconnect_state_create_ms(self):
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
         assert not sql.table_exists(table=test_query_table, schema='dbo')
 
         # Reset
@@ -176,7 +176,7 @@ class TestQuery:
         assert len(sql.tables_created) == 1
 
         # Cleanup
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
     def test_dbconnect_state_remove_pg(self):
         assert not db.table_exists(table=test_query_table, schema='working')
@@ -201,7 +201,7 @@ class TestQuery:
         assert len(db.tables_dropped) == 1
 
     def test_dbconnect_state_remove_ms(self):
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
         sql.tables_dropped = []
         create_table_string = """
@@ -274,7 +274,7 @@ class TestQuery:
         return
 
     def test_query_comment_pg(self):
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
         # Add custom comment
         db.query(query='create table working.{} (a varchar, b varchar, c varchar)'.format(test_query_table),
@@ -291,17 +291,17 @@ class TestQuery:
         assert 'test comment' in comment_df['comment'].iloc[0]
 
         # Cleanup
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
     def test_query_comment_ms(self):
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
         # Add custom comment
         sql.query(query='create table dbo.{} (a varchar, b varchar, c varchar)'.format(test_query_table),
                   comment='test comment')
 
         # Cleanup
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
     def test_query_lock_table_pg(self):
         # TODO: block testing
@@ -321,7 +321,7 @@ class TestQuery:
 
 class TestDfQuery:
     def test_output_df_query_pg(self):
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
         # Create table
         db.query(query='create table working.{} (a varchar, b varchar, c varchar)'.format(test_query_table))
@@ -335,10 +335,10 @@ class TestDfQuery:
         pd.testing.assert_frame_equal(test_df, df_from_data)
 
         # Cleanup
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
     def test_output_df_query_ms(self):
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
         # Create table
         sql.query(query='create table dbo.{} (a varchar, b varchar, c varchar)'.format(test_query_table))
@@ -352,10 +352,10 @@ class TestDfQuery:
         pd.testing.assert_frame_equal(test_df, df_from_data)
 
         # Cleanup
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
     def test_output_df_query_types_pg(self):
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
         # Create table
         db.query(query='create table working.{} (a int, b int, c int)'.format(test_query_table))
@@ -369,7 +369,7 @@ class TestDfQuery:
         pd.testing.assert_frame_equal(test_df, df_from_data)
 
         # Cleanup
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
         ###################
 
@@ -385,10 +385,10 @@ class TestDfQuery:
         pd.testing.assert_frame_equal(test_df, df_from_data)
 
         # Cleanup
-        db.drop_table(table=test_query_table, schema='working')
+        db.drop_table(table_name=test_query_table, schema_name='working')
 
     def test_output_df_query_types_ms(self):
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
         # Create table (integer)
         sql.query(query='create table dbo.{} (a int, b int, c int)'.format(test_query_table))
@@ -402,7 +402,7 @@ class TestDfQuery:
         pd.testing.assert_frame_equal(test_df, df_from_data)
 
         # Cleanup
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
         ###################
 
@@ -418,7 +418,7 @@ class TestDfQuery:
         pd.testing.assert_frame_equal(test_df, df_from_data)
 
         # Cleanup
-        sql.drop_table(table=test_query_table, schema='dbo')
+        sql.drop_table(table_name=test_query_table, schema_name='dbo')
 
     def test_output_df_special_char_pg(self):
         # TODO: fill out with special char fix

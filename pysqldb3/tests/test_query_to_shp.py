@@ -12,7 +12,7 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True
@@ -20,7 +20,7 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -196,7 +196,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=pg_schmma, table=test_table)
+        db.drop_table(schema_name=pg_schmma, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
@@ -221,7 +221,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=pg_schmma, table=test_table)
+        db.drop_table(schema_name=pg_schmma, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
@@ -250,7 +250,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=pg_schmma, table=test_table)
+        db.drop_table(schema_name=pg_schmma, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
@@ -277,7 +277,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(schema=pg_schmma, table=test_table)
+        db.drop_table(schema_name=pg_schmma, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
                 os.remove(os.path.join(fldr, shp.replace('shp', ext)))
@@ -313,7 +313,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        db.shp_to_table(path=fldr, table=test_table + 'QA', schema=pg_schmma,
+        db.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=pg_schmma,
                         shp_name=shp, print_cmd=True)
 
         db.query(f"""
@@ -331,8 +331,8 @@ class TestQueryToShpPg:
         assert set(db.data[0]) == {True}
 
         # clean up
-        db.drop_table(schema=pg_schmma, table=test_table)
-        db.drop_table(schema=pg_schmma, table=test_table + 'qa')
+        db.drop_table(schema_name=pg_schmma, table_name=test_table)
+        db.drop_table(schema_name=pg_schmma, table_name=test_table + 'qa')
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
@@ -369,7 +369,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        db.shp_to_table(path=fldr, table=test_table + 'QA', schema=pg_schmma,
+        db.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=pg_schmma,
                         shp_name=shp, print_cmd=True)
 
         db.query(f"""
@@ -387,8 +387,8 @@ class TestQueryToShpPg:
         assert set(db.data[0]) == {True}
 
         # clean up
-        db.drop_table(schema=pg_schmma, table=test_table)
-        db.drop_table(schema=pg_schmma, table=test_table + 'qa')
+        db.drop_table(schema_name=pg_schmma, table_name=test_table)
+        db.drop_table(schema_name=pg_schmma, table_name=test_table + 'qa')
 
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
@@ -407,7 +407,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
 
         # Upload shp (with special character)
-        db.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema=pg_schmma, table=test_table)
+        db.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema_name=pg_schmma, table_name=test_table)
 
         # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
         # Though ogr uses LATIN1, our PG server stores things using UTF8; this is decoded and then encoded as LATIN1 to get the initial character.
@@ -439,7 +439,7 @@ class TestQueryToShpMs:
     def test_query_to_shp_basic(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -474,7 +474,7 @@ class TestQueryToShpMs:
     def test_query_to_shp_basic_pth(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -504,7 +504,7 @@ class TestQueryToShpMs:
     def test_query_to_shp_basic_pth_and_name(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -540,7 +540,7 @@ class TestQueryToShpMs:
     def test_query_to_shp_basic_pth(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -570,7 +570,7 @@ class TestQueryToShpMs:
     def test_query_to_shp_basic_pth_and_name(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -622,7 +622,7 @@ class TestQueryToShpMs:
         schema = 'dbo'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema_name=schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -682,7 +682,7 @@ class TestQueryToShpMs:
         schema = 'dbo'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema_name=schema, table_name=test_table)
 
         # create table
         sql.query("""
@@ -717,7 +717,7 @@ class TestQueryToShpMs:
         schema = 'dbo'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
-        sql.drop_table(schema=schema, table=test_table)
+        sql.drop_table(schema_name=schema, table_name=test_table)
         assert not sql.table_exists(table=test_table, schema=schema)
 
         # create table
@@ -776,7 +776,7 @@ class TestQueryToShpMs:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, table=test_table + 'QA', schema=schema, shp_name=shp, print_cmd=True)
+        sql.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=schema, shp_name=shp, print_cmd=True)
 
         sql.query("""
         select
@@ -834,7 +834,7 @@ class TestQueryToShpMs:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, table=test_table + 'QA', schema=schema, shp_name=shp, print_cmd=True)
+        sql.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=schema, shp_name=shp, print_cmd=True)
 
         sql.query("""
         select
@@ -872,7 +872,7 @@ class TestQueryToShpMs:
         assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
 
         # Upload shp (with special character)
-        sql.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema=schema, table=test_table)
+        sql.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema_name=schema, table_name=test_table)
 
         # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
         # ogr and SQL Server use/default to LATIN1; thus, encoding our string in LATIN1 will result in the correct character

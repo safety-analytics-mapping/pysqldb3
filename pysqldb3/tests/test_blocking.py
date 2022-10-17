@@ -11,19 +11,19 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'), allow_temp_tables=True)
 
 db2 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                         server=config.get('PG_DB', 'SERVER'),
-                        database=config.get('PG_DB', 'DB_NAME'),
+                        db_name=config.get('PG_DB', 'DB_NAME'),
                         user=config.get('PG_DB', 'DB_USER'),
                         password=config.get('PG_DB', 'DB_PASSWORD'))
 
 db3 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                         server=config.get('PG_DB', 'SERVER'),
-                        database=config.get('PG_DB', 'DB_NAME'),
+                        db_name=config.get('PG_DB', 'DB_NAME'),
                         user=config.get('PG_DB', 'DB_USER'),
                         password=config.get('PG_DB', 'DB_PASSWORD'))
 
@@ -108,7 +108,7 @@ class TestBlocking:
         Create new shell of table
         """
         q = Queue()
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema_name='working', table_name=create_table_name)
 
         db.query("""
         create table working.{} as 
@@ -154,7 +154,7 @@ class TestBlocking:
         """
         Cleanup
         """
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema_name='working', table_name=create_table_name)
 
     def test_kill_blocks(self):
         """
@@ -168,7 +168,7 @@ class TestBlocking:
         Create new shell of table
         """
         q = Queue()
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema_name='working', table_name=create_table_name)
 
         db.query("""
         create table working.{} as 
@@ -220,7 +220,7 @@ class TestBlocking:
         """
         Cleanup
         """
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema_name='working', table_name=create_table_name)
 
     @classmethod
     def teardown_class(cls):

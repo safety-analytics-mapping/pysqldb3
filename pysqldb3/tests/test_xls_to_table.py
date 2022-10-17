@@ -11,13 +11,13 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -32,8 +32,8 @@ class TestXlsToTablePG:
 
         db.xls_to_table(
             input_file=fp,
-            table=xls_table_name,
-            schema='working'
+            table_name=xls_table_name,
+            schema_name='working'
         )
 
         # Check to see if table is in database
@@ -49,7 +49,7 @@ class TestXlsToTablePG:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema_name='working', table_name=xls_table_name)
 
     def test_xls_to_table_override(self):
         # xls_to_table
@@ -59,8 +59,8 @@ class TestXlsToTablePG:
         # Try first without column override; confirm will cast as bigint
         db.xls_to_table(
             input_file=fp,
-            table=xls_table_name,
-            schema='working'
+            table_name=xls_table_name,
+            schema_name='working'
         )
 
         # Check to see if table is in database
@@ -86,8 +86,8 @@ class TestXlsToTablePG:
         # Now test with override
         db.xls_to_table(
             input_file=fp,
-            table=xls_table_name,
-            schema='working',
+            table_name=xls_table_name,
+            schema_name='working',
             column_type_overrides={'b': 'varchar'},
             overwrite=True
         )
@@ -112,7 +112,7 @@ class TestXlsToTablePG:
         )
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema_name='working', table_name=xls_table_name)
 
     def test_xls_to_table_sheet(self):
         # xls_to_table
@@ -122,8 +122,8 @@ class TestXlsToTablePG:
 
         db.xls_to_table(
             input_file=fp,
-            table=xls_table_name,
-            schema='working',
+            table_name=xls_table_name,
+            schema_name='working',
             sheet_name='AnotherSheet'
         )
 
@@ -140,7 +140,7 @@ class TestXlsToTablePG:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema_name='working', table_name=xls_table_name)
 
     def test_xls_to_table_sheet_int(self):
         # xls_to_table
@@ -150,8 +150,8 @@ class TestXlsToTablePG:
 
         db.xls_to_table(
             input_file=fp,
-            table=xls_table_name,
-            schema='working',
+            table_name=xls_table_name,
+            schema_name='working',
             sheet_name=1
         )
 
@@ -169,7 +169,7 @@ class TestXlsToTablePG:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema_name='working', table_name=xls_table_name)
 
     def test_xls_to_table_schema(self):
         return
@@ -200,7 +200,7 @@ class TestBulkXLSToTablePG:
         pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
 
         # Try via bulk loader
-        db._bulk_xlsx_to_table(input_file=fp, table=xls_table_name, schema='working')
+        db._bulk_xlsx_to_table(input_file=fp, table_name=xls_table_name, schema_name='working')
 
         # Check to see if table is in database
         # This example is linked to the mssql default server bug
@@ -214,7 +214,7 @@ class TestBulkXLSToTablePG:
         pd.testing.assert_frame_equal(sql_df.drop(['ogc_fid'], axis=1), raw_df, check_column_type=False)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema_name='working', table_name=xls_table_name)
         os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
@@ -232,7 +232,7 @@ class TestBulkXLSToTablePG:
         pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
 
         # Try via bulk loader
-        db._bulk_xlsx_to_table(input_file=fp, table=xls_table_name)
+        db._bulk_xlsx_to_table(input_file=fp, table_name=xls_table_name)
 
         # Check to see if table is in database
         assert db.table_exists(table=xls_table_name)
@@ -245,7 +245,7 @@ class TestBulkXLSToTablePG:
         pd.testing.assert_frame_equal(sql_df.drop(['ogc_fid'], axis=1), raw_df, check_column_type=False)
 
         # Cleanup
-        db.drop_table(schema=db.default_schema, table=xls_table_name)
+        db.drop_table(schema_name=db.default_schema, table_name=xls_table_name)
         os.remove(fp)
 
     def test_bulk_xls_to_table_multisheet(self):
@@ -261,7 +261,7 @@ class TestBulkXLSToTablePG:
 
         # Try via bulk loader
         init_count = len(db.my_tables())
-        db.xls_to_table(input_file=fp_xlsx, table=xls_table_name, sheet_name="Sheet2")
+        db.xls_to_table(input_file=fp_xlsx, table_name=xls_table_name, sheet_name="Sheet2")
         post_count = len(db.my_tables())
 
         # Check to see if table is in database (and only one table added)
@@ -275,7 +275,7 @@ class TestBulkXLSToTablePG:
         pd.testing.assert_frame_equal(df1, df2)
 
         # Cleanup
-        db.drop_table(schema=db.default_schema, table=xls_table_name)
+        db.drop_table(schema_name=db.default_schema, table_name=xls_table_name)
         # os.remove(fp_xlsx)  # TODO: this is failing and i have no idea why...
 
     def test_bulk_xls_to_table_input_schema(self):
@@ -302,7 +302,7 @@ class TestXlsToTableMS:
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls.xls"
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name, schema='dbo'
+            table_name=xls_table_name, schema_name='dbo'
         )
 
         # Check to see if table is in database
@@ -318,18 +318,18 @@ class TestXlsToTableMS:
         pd.testing.assert_frame_equal(sql_df, xls_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
 
     def test_xls_to_table_override(self):
         # xls_to_table
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls.xls"
 
         # Try first without column override; confirm will cast as bigint
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name,
-            schema='dbo'
+            table_name=xls_table_name,
+            schema_name='dbo'
         )
 
         # Check to see if table is in database
@@ -353,8 +353,8 @@ class TestXlsToTableMS:
         # Now test with override
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name,
-            schema='dbo',
+            table_name=xls_table_name,
+            schema_name='dbo',
             column_type_overrides={'b': 'varchar'},
             overwrite=True
         )
@@ -377,17 +377,17 @@ class TestXlsToTableMS:
         )
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
 
     def test_xls_to_table_zsheet(self):
         # xls_to_table
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls_with_sheet.xls"
 
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name, schema='dbo',
+            table_name=xls_table_name, schema_name='dbo',
             sheet_name='AnotherSheet'
         )
 
@@ -405,17 +405,17 @@ class TestXlsToTableMS:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
 
     def test_xls_to_table_sheet_int(self):
         # xls_to_table
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls_with_sheet.xls"
 
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name, schema='dbo',
+            table_name=xls_table_name, schema_name='dbo',
             sheet_name=1
         )
 
@@ -433,7 +433,7 @@ class TestXlsToTableMS:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
 
     def test_xls_to_table_schema(self):
         return
@@ -463,7 +463,7 @@ class TestBulkXLSToTableMS:
         pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
 
         # Try via bulk loader
-        sql._bulk_xlsx_to_table(input_file=fp, table=xls_table_name, schema='dbo')
+        sql._bulk_xlsx_to_table(input_file=fp, table_name=xls_table_name, schema_name='dbo')
 
         # Check to see if table is in database
         # This example is linked to the mssql default server bug
@@ -477,7 +477,7 @@ class TestBulkXLSToTableMS:
         pd.testing.assert_frame_equal(sql_df.drop(['ogr_fid'], axis=1), raw_df, check_column_type=False)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema_name='dbo', table_name=xls_table_name)
         os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
@@ -495,7 +495,7 @@ class TestBulkXLSToTableMS:
         pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
 
         # Try via bulk loader
-        sql._bulk_xlsx_to_table(input_file=fp, table=xls_table_name)
+        sql._bulk_xlsx_to_table(input_file=fp, table_name=xls_table_name)
 
         # Check to see if table is in database
         # This example is linked to the mssql default server bug
@@ -509,13 +509,13 @@ class TestBulkXLSToTableMS:
         pd.testing.assert_frame_equal(sql_df.drop(['ogr_fid'], axis=1), raw_df, check_column_type=False)
 
         # Cleanup
-        sql.drop_table(schema=sql.default_schema, table=xls_table_name)
+        sql.drop_table(schema_name=sql.default_schema, table_name=xls_table_name)
         os.remove(fp)
 
     def test_bulk_xls_to_table_correct_functionality(self):
         sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                                 server=config.get('SQL_DB', 'SERVER'),
-                                database=config.get('SQL_DB', 'DB_NAME'),
+                                db_name=config.get('SQL_DB', 'DB_NAME'),
                                 user=config.get('SQL_DB', 'DB_USER'),
                                 password=config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -541,10 +541,10 @@ class TestBulkXLSToTableMS:
 
         # Try via bulk loader
         start_time = time.time()
-        sql.xls_to_table(input_file=fp_xlsx, table=xls_table_name)
+        sql.xls_to_table(input_file=fp_xlsx, table_name=xls_table_name)
         end_xlsx_time = time.time()
 
-        sql.xls_to_table(input_file=fp_xls, table=xls_table_name + "_2")
+        sql.xls_to_table(input_file=fp_xls, table_name=xls_table_name + "_2")
         end_xls_time = time.time()
 
         xlsx_time = (end_xlsx_time - start_time)/60.0
@@ -564,15 +564,15 @@ class TestBulkXLSToTableMS:
         pd.testing.assert_frame_equal(df1[commons_cols], df2[commons_cols])
 
         # Cleanup
-        sql.drop_table(schema=sql.default_schema, table=xls_table_name)
-        sql.drop_table(schema=sql.default_schema, table=xls_table_name + "_2")
+        sql.drop_table(schema_name=sql.default_schema, table_name=xls_table_name)
+        sql.drop_table(schema_name=sql.default_schema, table_name=xls_table_name + "_2")
         os.remove(fp_xlsx)
         os.remove(fp_xls)
 
     def test_bulk_xls_to_table_multisheet(self):
         sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                                 server=config.get('SQL_DB', 'SERVER'),
-                                database=config.get('SQL_DB', 'DB_NAME'),
+                                db_name=config.get('SQL_DB', 'DB_NAME'),
                                 user=config.get('SQL_DB', 'DB_USER'),
                                 password=config.get('SQL_DB', 'DB_PASSWORD'))
 
@@ -588,7 +588,7 @@ class TestBulkXLSToTableMS:
         writer.save()
 
         # Try via bulk loader
-        sql.xls_to_table(input_file=fp_xlsx, table=xls_table_name, sheet_name="Sheet2")
+        sql.xls_to_table(input_file=fp_xlsx, table_name=xls_table_name, sheet_name="Sheet2")
 
         # Check to see if table is in database (and only one table added)
         assert sql.table_exists(table=xls_table_name)
@@ -599,7 +599,7 @@ class TestBulkXLSToTableMS:
         pd.testing.assert_frame_equal(df1[['sheet2']], df2)
 
         # Cleanup
-        sql.drop_table(schema=sql.default_schema, table=xls_table_name)
+        sql.drop_table(schema_name=sql.default_schema, table_name=xls_table_name)
         # os.remove(fp_xlsx)  # TODO: this fails for some reason
 
     # Temp test is in logging tests

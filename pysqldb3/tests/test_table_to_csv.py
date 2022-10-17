@@ -13,7 +13,7 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True
@@ -21,7 +21,7 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -58,7 +58,7 @@ class Test_Table_to_CSV_PG:
 
         # table to csv
         db.table_to_csv(create_table_name,
-                        schema=schema,
+                        schema_name=schema,
                         output_file=os.path.join(fldr, create_table_name + '.csv')
                         )
 
@@ -98,7 +98,7 @@ class Test_Table_to_CSV_PG:
 
         # table to csv
         db.table_to_csv(create_table_name,
-                        schema=schema,
+                        schema_name=schema,
                         output_file=os.path.join(fldr, create_table_name + '.csv')
                         )
 
@@ -135,8 +135,8 @@ class Test_Table_to_CSV_PG:
         dbdf = db.dfquery("select * from {s}.{t}".format(s=schema, t=create_table_name))
 
         # table to csv
-        db.table_to_csv(table=create_table_name,
-                        schema=schema,
+        db.table_to_csv(table_name=create_table_name,
+                        schema_name=schema,
                         output_file=os.path.join(fldr, create_table_name + '.csv')
                         )
 
@@ -180,7 +180,7 @@ class Test_Table_to_CSV_PG:
 
         # table to csv
         db.table_to_csv(create_table_name,
-                        schema=schema,
+                        schema_name=schema,
                         output_file=os.path.join(fldr, create_table_name + '.csv'),
                         sep=sep
                         )
@@ -219,7 +219,7 @@ class Test_Table_to_CSV_PG:
 
         # table to csv
         db.table_to_csv(create_table_name,
-                        schema=schema,
+                        schema_name=schema,
                         output_file=os.path.join(fldr, create_table_name + '.csv'),
                         sep=sep
                         )
@@ -283,7 +283,7 @@ class Test_Table_to_CSV_PG:
         # table to csv
         with raises(OSError) as exc_info:
             db.table_to_csv(create_table_name,
-                            schema=schema,
+                            schema_name=schema,
                             output_file=os.path.join(fldr, create_table_name + '.csv')
                             )
         assert exc_info.type is OSError
@@ -297,12 +297,12 @@ class Test_Table_to_CSV_PG:
         schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
 
-        db.drop_table(table=create_table_name, schema=schema)
+        db.drop_table(table_name=create_table_name, schema_name=schema)
         assert not db.table_exists(create_table_name, schema=schema)
 
         with raises(SystemExit) as exc_info:
             db.table_to_csv(create_table_name,
-                            schema=schema,
+                            schema_name=schema,
                             output_file=os.path.join(fldr, create_table_name + '.csv')
                             )
         assert True
@@ -325,7 +325,7 @@ class Test_Table_to_CSV_PG:
 
         # table to csv
         db.table_to_csv(create_table_name,
-                        schema=schema)
+                        schema_name=schema)
 
         # check table in folder (since no name specified, output goes to current dir + table name + .csv
         files = os.listdir(os.getcwd())
@@ -383,7 +383,7 @@ class Test_Table_to_CSV_PG:
 
         # table to csv
         db.table_to_csv(table,
-                        schema=schema,
+                        schema_name=schema,
                         output_file=os.path.join(fldr, create_table_name + ".csv")
                         )
 
@@ -415,7 +415,7 @@ class Test_Table_to_CSV_MS:
     def test_table_to_csv_check_file_bad_path(self):
         schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
-        sql.drop_table(schema=schema, table=create_table_name)
+        sql.drop_table(schema_name=schema, table_name=create_table_name)
 
         # create table
         sql.query("""
@@ -436,7 +436,7 @@ class Test_Table_to_CSV_MS:
         # table to csv
         with raises(OSError) as exc_info:
             sql.table_to_csv(create_table_name,
-                             schema=schema,
+                             schema_name=schema,
                              output_file=os.path.join(fldr, create_table_name + '.csv')
                              )
         assert exc_info.type is OSError
@@ -452,7 +452,7 @@ class Test_Table_to_CSV_MS:
 
         # create table
         if sql.table_exists(schema=schema, table=create_table_name):
-            sql.drop_table(schema=schema, table=create_table_name)
+            sql.drop_table(schema_name=schema, table_name=create_table_name)
 
         sql.query("""
             CREATE TABLE {s}.{t} (
@@ -476,7 +476,7 @@ class Test_Table_to_CSV_MS:
 
         # table to csv
         sql.table_to_csv(create_table_name,
-                         schema=schema,
+                         schema_name=schema,
                          output_file=os.path.join(fldr, create_table_name + '.csv')
                          )
 
@@ -493,7 +493,7 @@ class Test_Table_to_CSV_MS:
 
         # create table
         if sql.table_exists(schema=schema, table=create_table_name):
-            sql.drop_table(schema=schema, table=create_table_name)
+            sql.drop_table(schema_name=schema, table_name=create_table_name)
 
         sql.query("""
             CREATE TABLE {s}.{t} (
@@ -520,7 +520,7 @@ class Test_Table_to_CSV_MS:
 
         # table to csv
         sql.table_to_csv(create_table_name,
-                         schema=schema,
+                         schema_name=schema,
                          output_file=os.path.join(fldr, create_table_name + '.csv')
                          )
 
@@ -560,7 +560,7 @@ class Test_Table_to_CSV_MS:
 
         # table to csv
         sql.table_to_csv(create_table_name,
-                         schema=schema,
+                         schema_name=schema,
                          output_file=os.path.join(fldr, create_table_name + '.csv')
                          )
 
@@ -605,7 +605,7 @@ class Test_Table_to_CSV_MS:
 
         # table to csv
         sql.table_to_csv(create_table_name,
-                         schema=schema,
+                         schema_name=schema,
                          output_file=os.path.join(fldr, create_table_name + '.csv'),
                          sep=sep
                          )
@@ -648,7 +648,7 @@ class Test_Table_to_CSV_MS:
 
         # table to csv
         sql.table_to_csv(create_table_name,
-                         schema=schema,
+                         schema_name=schema,
                          output_file=os.path.join(fldr, create_table_name + '.csv'),
                          sep=sep
                          )
@@ -705,12 +705,12 @@ class Test_Table_to_CSV_MS:
         schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
 
-        sql.drop_table(table=create_table_name, schema=schema)
+        sql.drop_table(table_name=create_table_name, schema_name=schema)
         assert not sql.table_exists(create_table_name, schema=schema)
 
         with raises(SystemExit) as exc_info:
             sql.table_to_csv(create_table_name,
-                             schema=schema,
+                             schema_name=schema,
                              output_file=os.path.join(fldr, create_table_name + '.csv')
                              )
 
@@ -735,7 +735,7 @@ class Test_Table_to_CSV_MS:
 
         # table to csv
         sql.table_to_csv(create_table_name,
-                         schema=schema
+                         schema_name=schema
                          )
 
         # check table in folder (since no name specified, output goes to current dir + table name + .csv
@@ -771,7 +771,7 @@ class Test_Table_to_CSV_MS:
 
         # table to csv
         sql.table_to_csv(table,
-                         schema=schema,
+                         schema_name=schema,
                          output_file=os.path.join(fldr, create_table_name + ".csv")
                          )
 

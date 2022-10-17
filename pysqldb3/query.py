@@ -30,11 +30,11 @@ class Query:
             r=records,
             qt=qt)
 
-    def __init__(self, dbo, query_string, strict=True, permission=True, temp=True, comment='', no_comment=False,
+    def __init__(self, dbo, query, strict=True, permission=True, temp=True, comment='', no_comment=False,
                  timeme=True, iterate=False, lock_table=None, internal=False):
         """
         :param dbo: DbConnect object
-        :param query_string: String/unicode sql query to be run
+        :param query: String/unicode sql query to be run
         :param strict: If true will run sys.exit on failed query attempts
         :param permission:
         :param temp: if True any new tables will be logged for deletion at a future date
@@ -46,7 +46,7 @@ class Query:
         """
         # Explicitly in __init__
         self.dbo = dbo
-        self.query_string = query_string
+        self.query = query
         self.strict = strict
         self.permission = permission
         self.temp = temp
@@ -120,12 +120,12 @@ class Query:
         self.data_columns = [desc[0] for desc in self.data_description]
         self.data = cur.fetchall()
 
-    def __update_log_for_renamed_table(self, new_schema_table, old_table):
-        _serv, _dab, schema, new_table = parse_table_string(new_schema_table, self.dbo.default_schema, self.dbo.type)
+    def __update_log_for_renamed_table(self, new_table_name, old_table_name):
+        _serv, _dab, schema, new_table = parse_table_string(new_table_name, self.dbo.default_schema, self.dbo.type)
 
         if self.dbo.table_exists(self.dbo.log_table, schema=schema, internal=True):
             self.dbo.query("update {s}.{l} set table_name = '{nt}' where table_name = '{ot}'".format(
-                s=schema, l=self.dbo.log_table, nt=new_table, ot=old_table), internal=True, strict=False)
+                s=schema, l=self.dbo.log_table, nt=new_table_name, ot=old_table_name), internal=True, strict=False)
             self.dbo.check_conn()
 
     def __run_query(self, internal):
@@ -144,7 +144,7 @@ class Query:
             cur = self.dbo.conn.cursor()
 
         # 2. Query string replacement for special characters
-        self.query_string = clean_query_special_characters(self.query_string)
+        self.query = clean_query_special_characters(self.query)
 
         # 3. Lock table, if required
         self.__perform_lock_routine(cur)
@@ -152,7 +152,7 @@ class Query:
         # 4. Query Execution
         try:
             # 4.1 Attempt to execute query string
-            cur.execute(self.query_string)
+            cur.execute(self.query)
 
         except Exception as e:
             # 4.2.1 If failure, return failure reason and time
@@ -172,7 +172,7 @@ class Query:
 
             print('- Query run {dt}\n\t{q}'.format(
                 dt=datetime.datetime.now(),
-                q=self.query_string))
+                q=self.query))
 
             del cur
 
@@ -203,12 +203,12 @@ class Query:
             # 6.3 Commit and run new/dropped/renamed tables routine
             self.__safe_commit()
             if not internal:
-                self.renamed_tables = self.query_renames_table(self.query_string, self.dbo.default_schema)
-                self.new_tables = self.query_creates_table(self.query_string, self.dbo.default_schema, self.dbo.type)
+                self.renamed_tables = self.query_renames_table(self.query, self.dbo.default_schema)
+                self.new_tables = self.query_creates_table(self.query, self.dbo.default_schema, self.dbo.type)
 
                 # Add renamed tables to query's new table list
                 # self.new_tables += [t for t in self.renamed_tables.keys()]
-                self.dropped_tables = self.query_drops_table(self.query_string)
+                self.dropped_tables = self.query_drops_table(self.query)
 
                 if self.permission:
                     for t in self.new_tables:
@@ -259,20 +259,20 @@ class Query:
         return df
 
     @staticmethod
-    def query_creates_table(query_string, default_schema, db_type):
+    def query_creates_table(query, default_schema, db_type):
         """
         Checks if query generates new tables
         :return: list of sets of {schema.table}
         """
         # remove mulitple spaces
-        _ = query_string.split()
-        query_string = ' '.join(_)
+        _ = query.split()
+        query = ' '.join(_)
         new_tables = list()
         create_table = r'((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)\s*create\s+table\s+(if\s+not\s+exists\s+)?)' \
                        r'((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"]' \
                        r'[\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.]' \
                        r'(([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?)'
-        matches = re.findall(create_table, query_string, re.IGNORECASE)
+        matches = re.findall(create_table, query, re.IGNORECASE)
 
         # Get all schema and table pairs remove create table match
         new_tables += [set(match[2:3]) for match in matches]
@@ -282,7 +282,7 @@ class Query:
                       r'(?<!--\s)\s*(select[^\.]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
                       r'[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*' \
                       r'[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?)'
-        matches = re.findall(select_into, query_string, re.IGNORECASE)
+        matches = re.findall(select_into, query, re.IGNORECASE)
 
         # [[select ... into], [table], [misc]]
         # new_tables += [set(match[1:2]) for match in matches]
@@ -317,21 +317,21 @@ class Query:
             return []
 
     @staticmethod
-    def query_drops_table(query_string):
+    def query_drops_table(query):
         """
         Checks if query drops any tables.
         Tables that were dropped should be removed from the to drop queue. This should help
         avoid dropping tables with coincident names.
         :return: list of tables dropped (including any db/schema info)
         """
-        _ = query_string.split()
-        query_string = ' '.join(_)
+        _ = query.split()
+        query = ' '.join(_)
         dropped_tables = list()
         drop_table = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(drop\s+table\s+(if\s+exists\s+)?)((([\[][\w\s\.\"]*[\]])|' \
                      r'([\"][\w\s\.]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.]' \
                      r'(([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
                      r'[\"])|([\w]+)))?)([\s\n\r\t]*(\;?)[\s\n\r\t]*)'
-        matches = re.findall(drop_table, query_string, re.IGNORECASE)
+        matches = re.findall(drop_table, query, re.IGNORECASE)
 
         if matches:
             for match in matches:
@@ -345,66 +345,66 @@ class Query:
             return []
 
     @staticmethod
-    def query_renames_table(query_string, default_schema):
+    def query_renames_table(query, default_schema):
         """
         Checks if a rename query is run
         :return: Dict {schema.new table name: original table name}
         """
-        _ = query_string.split()
-        query_string = ' '.join(_)
+        _ = query.split()
+        query = ' '.join(_)
         new_tables = dict()
 
         rename_tables = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(alter table\s+(if exists\s+)?)(\"?[*\w\s]*\"?\.)?' \
                         r'(\"?[\w\s]*\"?)\s+(rename to )(\"?[\w\s]*\"?)\;?'
-        matches = re.findall(rename_tables, query_string.lower())
+        matches = re.findall(rename_tables, query.lower())
         for row in matches:
             old_schema = row[2]
-            old_table = row[3]
+            old_table_name = row[3]
             new_table = row[-1]
-            new_tables[old_schema + new_table] = old_table
+            new_tables[old_schema + new_table] = old_table_name
 
         if not matches:
             rename_tables_sql = r"(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(exec\s+sp_rename)(\s*')(\[?[\w\s+]*\]?\.)?" \
                                 r"(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?)',\s*'(\[?[\w\s+]*\]?)'" \
                                 r"(?!,?\s*n?'(column|index)'?\s*)"
-            matches = re.findall(rename_tables_sql, query_string.lower())
+            matches = re.findall(rename_tables_sql, query.lower())
 
             for row in matches:
                 row = [r for r in row if r and r.strip() != "'"]
 
                 if len(row) == 3:
                     old_schema = default_schema + "."
-                    old_table = row[1]
+                    old_table_name = row[1]
 
                 if len(row) == 4:
                     old_schema = row[1]
-                    old_table = row[2]
+                    old_table_name = row[2]
 
                 if len(row) == 5:
                     # old_database = row[1]
                     old_schema = row[2]
-                    old_table = row[3]
+                    old_table_name = row[3]
 
                 if len(row) == 6:
                     # old_server = row[1]
                     # old_database = row[2]
                     old_schema = row[3]
-                    old_table = row[4]
+                    old_table_name = row[4]
 
                 new_table = row[-1]
-                new_tables[old_schema + new_table] = old_table
+                new_tables[old_schema + new_table] = old_table_name
 
         return new_tables
 
-    def rename_index(self, new_table, old_table):
+    def rename_index(self, new_table_name, old_table_name):
         """
         Renames any indexes associated with a table. Used when a table is renamed to keep the indexes up to date
-        :param new_table: new table name
-        :param old_table: original table name
+        :param new_table_name: new table name
+        :param old_table_name: original table name
         :return:
         """
         # Get indices for new table
-        server, database, sch, tbl = parse_table_string(new_table, self.dbo.default_schema, self.dbo.type)
+        server, database, sch, tbl = parse_table_string(new_table_name, self.dbo.default_schema, self.dbo.type)
         if not database:
             database = self.dbo.database
 
@@ -412,8 +412,8 @@ class Query:
             server = self.dbo.server
 
         if self.dbo.type == 'PG':
-            old_table = old_table.replace('"', '').replace('\n', '').strip()
-            new_table = new_table.replace('"', '').replace('\n', '').strip()
+            old_table_name = old_table_name.replace('"', '').replace('\n', '').strip()
+            new_table_name = new_table_name.replace('"', '').replace('\n', '').strip()
             query = """
                 SELECT indexname
                 FROM pg_indexes
@@ -442,14 +442,14 @@ class Query:
             indices = self.dbo.internal_data or []
 
         for idx in indices:
-            if old_table in idx[0]:
-                new_idx = idx[0].replace(old_table, tbl)
+            if old_table_name in idx[0]:
+                new_idx = idx[0].replace(old_table_name, tbl)
 
                 if self.dbo.type == 'PG':
                     new_idx_qry = 'ALTER INDEX IF EXISTS {s}."{i}" RENAME to "{i2}"'.format(s=sch, i=idx[0], i2=new_idx)
                 elif self.dbo.type == 'MS':
                     new_idx_qry = "EXEC sp_rename '{t}.{i}', '{i2}', N'INDEX';".format(i=idx[0], i2=new_idx,
-                                                                                       t=new_table)
+                                                                                       t=new_table_name)
 
                 self.dbo.query(query=new_idx_qry, strict=False, timeme=False, internal=True)
 
@@ -665,11 +665,11 @@ class Query:
         shp.write_shp(print_cmd)
 
     @staticmethod
-    def print_query(query_string):
+    def print_query(query):
         """
         Prints query string with basic formatting
-        :param query_string: String on input query to be formatted 
+        :param query: String on input query to be formatted 
         :return: None
         """
-        for _ in query_string.split('\n'):
+        for _ in query.split('\n'):
             print(_)

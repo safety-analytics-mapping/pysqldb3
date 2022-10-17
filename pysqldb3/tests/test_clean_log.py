@@ -8,14 +8,14 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
+                       db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True)
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
+                        db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
@@ -28,7 +28,7 @@ class TestCleanUpNewTablesPg:
     def test_clean_up_new_tables_basic(self):
         schema = 'public'
         # make sure table doesnt exists
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        db.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         db.query("""
             CREATE TABLE {} (
@@ -45,7 +45,7 @@ class TestCleanUpNewTablesPg:
         ))
         assert db.data
         # drop table
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        db.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # check table is no longer in the log
         db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
             schema=schema, uname=db.user, t=test_clean_up_new_table
@@ -55,7 +55,7 @@ class TestCleanUpNewTablesPg:
     def test_clean_up_new_tables_schema(self):
         schema = 'public'
         # make sure table doesnt exists
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        db.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         db.query("""
             CREATE TABLE {}.{} (
@@ -72,7 +72,7 @@ class TestCleanUpNewTablesPg:
         ))
         assert db.data
         # drop table
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        db.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # check table is no longer in the log
         db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
             schema=schema, uname=db.user, t=test_clean_up_new_table
@@ -102,7 +102,7 @@ class TestCleanUpNewTablesPg:
     def test_clean_up_new_tables_rename(self):
         schema = 'public'
         # make sure table doesnt exists
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        db.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         db.query("""
             CREATE TABLE {} (
@@ -138,7 +138,7 @@ class TestCleanUpNewTablesPg:
         assert db.data
 
         # drop table
-        db.drop_table(table=test_clean_up_new_table2, schema=schema)
+        db.drop_table(table_name=test_clean_up_new_table2, schema_name=schema)
         # check table is no longer in the log
         db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
             schema=schema, uname=db.user, t=test_clean_up_new_table2
@@ -208,7 +208,7 @@ class TestCleanUpNewTablesMs:
     def test_clean_up_new_tables_basic(self):
         schema = sql.default_schema
         # make sure table doesnt exists
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        sql.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         sql.query("""
             CREATE TABLE {} (
@@ -225,7 +225,7 @@ class TestCleanUpNewTablesMs:
         ))
         assert sql.data
         # drop table
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        sql.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # check table is no longer in the log
         sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
             schema=schema, uname=sql.user, t=test_clean_up_new_table
@@ -235,7 +235,7 @@ class TestCleanUpNewTablesMs:
     def test_clean_up_new_tables_schema(self):
         schema = sql.default_schema
         # make sure table doesnt exists
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        sql.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         sql.query("""
             CREATE TABLE {}.{} (
@@ -252,7 +252,7 @@ class TestCleanUpNewTablesMs:
         ))
         assert sql.data
         # drop table
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        sql.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # check table is no longer in the log
         sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
             schema=schema, uname=sql.user, t=test_clean_up_new_table
@@ -262,7 +262,7 @@ class TestCleanUpNewTablesMs:
     def test_clean_up_new_tables_rename(self):
         schema=sql.default_schema
         # make sure table doesnt exists
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        sql.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         sql.query("""
             CREATE TABLE {} (
@@ -295,7 +295,7 @@ class TestCleanUpNewTablesMs:
         assert sql.data
 
         # drop table
-        sql.drop_table(table=test_clean_up_new_table2, schema=schema)
+        sql.drop_table(table_name=test_clean_up_new_table2, schema_name=schema)
         # check table is no longer in the log
         sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
             schema=schema, uname=sql.user, t=test_clean_up_new_table2
