@@ -125,7 +125,7 @@ def get_query_table_schema_name(tbl_str, db_type):
         if tbl_str.islower() and " " not in tbl_str:
             return tbl_str
         else:
-            return f'"\'{tbl_str}\'"'
+            return f"{tbl_str}"
 
     if db_type == MS:
         return f'[{tbl_str}]'

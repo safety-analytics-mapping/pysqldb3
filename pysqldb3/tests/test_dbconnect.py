@@ -556,14 +556,14 @@ class TestLogging:
         # table to csv
         db.table_to_csv(table_for_testing_logging,
                         schema=schema,
-                        output_file=os.path.join(fldr, table_for_testing_logging + '.csv'))
+                        output_file=os.path.join(fldr, f'{table_for_testing_logging}.csv'))
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, table_for_testing_logging + '.csv'))
+        assert os.path.isfile(os.path.join(fldr, f'{table_for_testing_logging}.csv'))
 
         # clean up
         db.drop_table(schema, table_for_testing_logging)
-        os.remove(os.path.join(fldr, table_for_testing_logging + '.csv'))
+        os.remove(os.path.join(fldr, f'{table_for_testing_logging}.csv'))
 
     def test_pg_capitals(self):
         # Assert no test table
