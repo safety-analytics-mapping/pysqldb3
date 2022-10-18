@@ -538,7 +538,7 @@ class DbConnect:
                 self.query("""SELECT pg_terminate_backend(%i);""" % pid)
 
     def my_tables(self, schema='public'):
-        # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
+        # type: (DbConnect, str) -> Optional[pd.DataFrame]
         """
         Get a list of tables for which you are the owner (PG only).
         :param schema: Schema to look in (defaults to public)
@@ -650,7 +650,7 @@ class DbConnect:
 
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
               lock_table=None, return_df=False, days=7, internal=False):
-        # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[None, pd.DataFrame]
+        # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[pd.DataFrame]
         """
         Runs Query object from input SQL string and adds query to queries
         :param query: String sql query to be run
@@ -823,7 +823,7 @@ class DbConnect:
             # Skip rows if specified
             if i < skip_rows and skip_rows != 0:
                 continue
-            
+
             col_name, col_type = col[0], type_decoder(col[1], varchar_length=allowed_length)
 
             if column_type_overrides and col_name in column_type_overrides.keys():

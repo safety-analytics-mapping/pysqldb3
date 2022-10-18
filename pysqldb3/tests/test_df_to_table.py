@@ -183,8 +183,27 @@ class TestDfToTableSchemaPG:
         # Cleanup
         db.drop_table(table=table_name, schema='working')
 
-    # Log tests are in test_dbconnect
+    def df_to_table_schema_pg_skiprows(self, schema='working'):
+        # set up test df
+        test_df = pd.DataFrame({'a':1,'b':2,'c':3,'d':4,'e':5,'f':6,'g':7,'h':8})
+        db.drop_table(table=table_name, schema=schema)
 
+        # assert doesn't exist yet and length is 8
+        assert not db.table_exists(table=table_name, schema=schema)
+        assert len(test_df) == 8
+
+        # test
+        db.dataframe_to_table(test_df, table=table_name, schema=schema, skip_rows=4)
+
+        # assert table exists and length is 4
+        assert db.table_exists(table=table_name, schema=schema)
+        table_df = db.dfquery(f"SELECT * FROM {schema}.{table_name}")
+        assert len(table_df) == 4
+
+        # cleanup
+        db.drop_table(table=table_name, schema=schema)
+    
+    # Log tests are in test_dbconnect
 
 class TestDfToTableSchemaMS:
     def test_df_to_table_schema_ms_basic(self):
@@ -346,6 +365,25 @@ class TestDfToTableSchemaMS:
         # Cleanup
         sql.drop_table(table=table_name, schema='dbo')
 
+    def test_df_to_table_schema_ms_skiprows(self, schema='dbo'):
+        # setup test df
+        test_df = pd.DataFrame({'a':1,'b':2,'c':3,'d':4,'e':5,'f':6,'g':7,'h':8})
+        sql.drop_table(table=table_name, schema=schema)
+
+        # assert doesn't exist yet
+        assert not sql.table_exists(table=table_name, schema=schema)
+
+        # test
+        sql.dataframe_to_table(test_df, table=table_name, schema=schema, skip_rows=4)
+
+        # assert table exists and length is 4
+        assert sql.table_exists(table_name)
+        table_df = sql.dfquery(f"SELECT * FROM [{schema}].{table_name}")
+        assert len(table_df) == 4
+
+        # cleanup
+        sql.drop_table(table=table_name, schema=schema)
+
     # Log tests are in test_dbconnect
 
 
@@ -491,6 +529,24 @@ class TestDfToTablePG:
 
         # Cleanup
         db.drop_table(table=table_name, schema='working')
+
+    def test_df_to_table_pg_skiprows(self, schema='working'):
+        # setup test df
+        test_df = pd.DataFrame({'a':1,'b':2,'c':3,'d':4,'e':5,'f':6,'g':7,'h':8})
+
+        # assert doesnt exist yet
+        assert not db.table_exists(table_name, schema=schema)
+
+        # test
+        db.dataframe_to_table(test_df, table=table_name, schema=schema, skip_rows=4)
+
+        # assert table exists and length is 4
+        assert db.table_exists(table_name, schema=schema)
+        table_df = db.dfquery(f"SELECT * FROM {schema}.{table_name}")
+        assert len(table_df) == 4
+
+        # cleanup
+        db.drop_table(table_name, schema=schema)
 
     # Log tests are in test_dbconnect
 
