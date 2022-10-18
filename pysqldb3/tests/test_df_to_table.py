@@ -33,7 +33,7 @@ class TestDfToTableSchemaPG:
         assert not db.table_exists(table=table_name, schema='working')
 
         # dataframe_to_table_schema
-        i_s = db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working')
+        i_s = db.dataframe_to_table(df=test_df, table=table_name, schema='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -60,7 +60,7 @@ class TestDfToTableSchemaPG:
         assert not db.table_exists(table=table_name, schema='working')
 
         # dataframe_to_table_schema
-        i_s = db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working')
+        i_s = db.dataframe_to_table(df=test_df, table=table_name, schema='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -82,7 +82,7 @@ class TestDfToTableSchemaPG:
         """.format(table_name))['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
-        i_s = db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working', overwrite=True,
+        i_s = db.dataframe_to_table(df=test_df, table=table_name, schema='working', overwrite=True,
                                            column_type_overrides={'a': 'varchar'})
 
         # Assert table exists
@@ -119,7 +119,7 @@ class TestDfToTableSchemaPG:
         assert not db.table_exists(table=table_name, schema=db.default_schema)
 
         # dataframe_to_table_schema
-        db.dataframe_to_table_schema(df=test_df, table=table_name)
+        db.dataframe_to_table(df=test_df, table=table_name)
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema=db.default_schema)
@@ -146,7 +146,7 @@ class TestDfToTableSchemaPG:
         assert not db.table_exists(table=table_name, schema='working')
 
         # Dataframe_to_table_schema
-        db.dataframe_to_table_schema(df=test_df, table=table_name, schema='working')
+        db.dataframe_to_table(df=test_df, table=table_name, schema='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -165,7 +165,7 @@ class TestDfToTableSchemaPG:
         test_df2 = pd.DataFrame([{"x": 1, "y": 2, "z": 3, "1": 4}, {"x": 5, "y": 6, "z": 7, "1": 8}])
 
         # Dataframe_to_table overwrite
-        db.dataframe_to_table_schema(df=test_df2, table=table_name, schema='working', overwrite=True)
+        db.dataframe_to_table(df=test_df2, table=table_name, schema='working', overwrite=True)
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -196,7 +196,7 @@ class TestDfToTableSchemaMS:
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # dataframe_to_table_schema
-        sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo')
+        sql.dataframe_to_table(df=test_df, table=table_name, schema='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -223,7 +223,7 @@ class TestDfToTableSchemaMS:
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # dataframe_to_table_schema
-        i_s = sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo')
+        i_s = sql.dataframe_to_table(df=test_df, table=table_name, schema='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -245,7 +245,7 @@ class TestDfToTableSchemaMS:
         """.format(table_name))['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
-        i_s = sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo', overwrite=True,
+        i_s = sql.dataframe_to_table(df=test_df, table=table_name, schema='dbo', overwrite=True,
                                             column_type_overrides={'a': 'varchar'})
 
         # Assert table exists
@@ -282,7 +282,7 @@ class TestDfToTableSchemaMS:
         assert not sql.table_exists(table=table_name, schema=sql.default_schema)
 
         # dataframe_to_table_schema
-        sql.dataframe_to_table_schema(df=test_df, table=table_name)
+        sql.dataframe_to_table(df=test_df, table=table_name)
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema=sql.default_schema)
@@ -309,7 +309,7 @@ class TestDfToTableSchemaMS:
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # Dataframe_to_table_schema
-        sql.dataframe_to_table_schema(df=test_df, table=table_name, schema='dbo')
+        sql.dataframe_to_table(df=test_df, table=table_name, schema='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -328,7 +328,7 @@ class TestDfToTableSchemaMS:
         test_df2 = pd.DataFrame([{"x": 1, "y": 2, "z": 3, "1": 4}, {"x": 5, "y": 6, "z": 7, "1": 8}])
 
         # Dataframe_to_table overwrite
-        sql.dataframe_to_table_schema(df=test_df2, table=table_name, schema='dbo', overwrite=True)
+        sql.dataframe_to_table(df=test_df2, table=table_name, schema='dbo', overwrite=True)
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -358,7 +358,7 @@ class TestDfToTablePG:
         assert not db.table_exists(table=table_name, schema='working')
 
         # Dataframe_to_table
-        db.dataframe_to_table(df=test_df, table=table_name, schema='working')
+        db.dataframe_to_existing_table(df=test_df, table=table_name, schema='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -378,7 +378,7 @@ class TestDfToTablePG:
         assert not db.table_exists(table=table_name, schema='working')
 
         # Dataframe_to_table
-        db.dataframe_to_table(df=test_df, table=table_name, schema='working')
+        db.dataframe_to_existing_table(df=test_df, table=table_name, schema='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -394,7 +394,7 @@ class TestDfToTablePG:
          """.format(table_name))['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
-        db.dataframe_to_table(df=test_df, table=table_name, schema='working', overwrite=True,
+        db.dataframe_to_existing_table(df=test_df, table=table_name, schema='working', overwrite=True,
                                                  column_type_overrides={'a': 'varchar'})
 
         # Assert table exists
@@ -417,7 +417,7 @@ class TestDfToTablePG:
         assert not db.table_exists(table=table_name, schema=db.default_schema)
 
         # Dataframe_to_table
-        db.dataframe_to_table(df=test_df, table=table_name)
+        db.dataframe_to_existing_table(df=test_df, table=table_name)
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema=db.default_schema)
@@ -437,7 +437,7 @@ class TestDfToTablePG:
         assert not db.table_exists(table=table_name, schema='working')
 
         # Dataframe_to_table
-        db.dataframe_to_table(df=test_df, table=table_name, schema='working')
+        db.dataframe_to_existing_table(df=test_df, table=table_name, schema='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -450,7 +450,7 @@ class TestDfToTablePG:
         test_df2 = pd.DataFrame([{"x": 1, "y": 2, "z": 3}, {"x": 4, "y": 5, "z": 6}])
 
         # Dataframe_to_table overwrite
-        db.dataframe_to_table(df=test_df2, table=table_name, schema='working', overwrite=True)
+        db.dataframe_to_existing_table(df=test_df2, table=table_name, schema='working', overwrite=True)
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -470,7 +470,7 @@ class TestDfToTablePG:
         assert not db.table_exists(table=table_name, schema='working')
 
         # Dataframe_to_table
-        db.dataframe_to_table(df=test_df, table=table_name, schema='working')
+        db.dataframe_to_existing_table(df=test_df, table=table_name, schema='working')
 
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
@@ -481,7 +481,7 @@ class TestDfToTablePG:
 
         # Add more with input schema for existing table
         additional_df = pd.DataFrame([{"a": 7, "b": 8, "c": 9}, {"a": 10, "b": 11, "c": 12}])
-        db.dataframe_to_table(df=additional_df, table=table_name, schema='working',
+        db.dataframe_to_existing_table(df=additional_df, table=table_name, schema='working',
                               table_schema=[['a', 'integer'], ['b', 'integer'], ['c', 'integer']])
 
         # Assert table correctness with addition
@@ -505,7 +505,7 @@ class TestDfToTableMS:
         assert not sql.table_exists(table=table_name)
 
         # Dataframe_to_table
-        sql.dataframe_to_table(df=test_df, table=table_name)
+        sql.dataframe_to_existing_table(df=test_df, table=table_name)
 
         # Assert table exists
         assert sql.table_exists(table=table_name)
@@ -525,7 +525,7 @@ class TestDfToTableMS:
         assert not sql.table_exists(table=table_name, schema=sql.default_schema)
 
         # Dataframe_to_table
-        sql.dataframe_to_table(df=test_df, table=table_name, schema=sql.default_schema)
+        sql.dataframe_to_existing_table(df=test_df, table=table_name, schema=sql.default_schema)
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema=sql.default_schema)
@@ -541,7 +541,7 @@ class TestDfToTableMS:
           """.format(table_name))['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
-        sql.dataframe_to_table(df=test_df, table=table_name, schema=sql.default_schema, overwrite=True,
+        sql.dataframe_to_existing_table(df=test_df, table=table_name, schema=sql.default_schema, overwrite=True,
                                column_type_overrides={'a': 'varchar'})
 
         # Assert table exists
@@ -564,7 +564,7 @@ class TestDfToTableMS:
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # Dataframe_to_table
-        sql.dataframe_to_table(df=test_df, table=table_name, schema='dbo')
+        sql.dataframe_to_existing_table(df=test_df, table=table_name, schema='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -584,7 +584,7 @@ class TestDfToTableMS:
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # Dataframe_to_table
-        sql.dataframe_to_table(df=test_df, table=table_name, schema='dbo')
+        sql.dataframe_to_existing_table(df=test_df, table=table_name, schema='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -597,7 +597,7 @@ class TestDfToTableMS:
         test_df2 = pd.DataFrame([{"x": 1, "y": 2, "z": 3}, {"x": 4, "y": 5, "z": 6}])
 
         # Dataframe_to_table overwrite
-        sql.dataframe_to_table(df=test_df2, table=table_name, schema='dbo', overwrite=True)
+        sql.dataframe_to_existing_table(df=test_df2, table=table_name, schema='dbo', overwrite=True)
 
         # Assert table (still) exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -618,7 +618,7 @@ class TestDfToTableMS:
         assert not sql.table_exists(table=table_name, schema='dbo')
 
         # Dataframe_to_table
-        sql.dataframe_to_table(df=test_df, table=table_name, schema='dbo')
+        sql.dataframe_to_existing_table(df=test_df, table=table_name, schema='dbo')
 
         # Assert table exists
         assert sql.table_exists(table=table_name, schema='dbo')
@@ -629,7 +629,7 @@ class TestDfToTableMS:
 
         # Add more with input schema for existing table
         additional_df = pd.DataFrame([{"a": 7, "b": 8, "c": 9}, {"a": 10, "b": 11, "c": 12}])
-        sql.dataframe_to_table(df=additional_df, table=table_name, schema='dbo',
+        sql.dataframe_to_existing_table(df=additional_df, table=table_name, schema='dbo',
                                table_schema=[['a', 'integer'], ['b', 'integer'], ['c', 'integer']])
 
         # Assert table correctness with addition

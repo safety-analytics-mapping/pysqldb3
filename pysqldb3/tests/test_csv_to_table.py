@@ -199,7 +199,7 @@ class TestBulkCSVToTablePG:
         db.query('drop table if exists working.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        input_schema = db.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema='working')
+        input_schema = db.dataframe_to_table(df=pd.read_csv(fp), table=create_table_name, schema='working')
         db._bulk_csv_to_table(input_file=fp, table=create_table_name, schema='working', table_schema=input_schema)
 
         # Check to see if table is in database
@@ -221,7 +221,7 @@ class TestBulkCSVToTablePG:
         db.query('drop table if exists {}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        input_schema = db.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name)
+        input_schema = db.dataframe_to_table(df=pd.read_csv(fp), table=create_table_name)
         db._bulk_csv_to_table(input_file=fp, table=create_table_name, table_schema=input_schema)
 
         # Check to see if table is in database
@@ -454,7 +454,7 @@ class TestBulkCSVToTableMS:
             sql.query('drop table dbo.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema='dbo')
+        input_schema = sql.dataframe_to_table(df=pd.read_csv(fp), table=create_table_name, schema='dbo')
         sql._bulk_csv_to_table(input_file=fp, table=create_table_name, schema='dbo', table_schema=input_schema)
 
         # Check to see if table is in database
@@ -477,7 +477,7 @@ class TestBulkCSVToTableMS:
             sql.query('drop table {}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name)
+        input_schema = sql.dataframe_to_table(df=pd.read_csv(fp), table=create_table_name)
         sql._bulk_csv_to_table(input_file=fp, table=create_table_name, table_schema=input_schema)
 
         # Check to see if table is in database

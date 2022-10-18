@@ -444,7 +444,7 @@ class TestLogging:
         assert before_drop_working_log_length == 0
 
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-        db.dataframe_to_table(df=df, schema='working', table=table_for_testing_logging)
+        db.dataframe_to_existing_table(df=df, schema='working', table=table_for_testing_logging)
 
         after_log_df = db.dfquery("""
                     SELECT *
@@ -502,7 +502,7 @@ class TestLogging:
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df.to_csv(fp)
 
-        input_schema = db.dataframe_to_table_schema(df, table=table_for_testing_logging,
+        input_schema = db.dataframe_to_table(df, table=table_for_testing_logging,
                                                     schema='working', temp=True, overwrite=True)
 
         db._bulk_csv_to_table(input_file=fp, schema='working', table=table_for_testing_logging,

@@ -788,7 +788,7 @@ class DbConnect:
     IO Functions
     """
 
-    def dataframe_to_table_schema(self, df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
+    def dataframe_to_table(self, df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
                                   column_type_overrides=None, days=7):
 
         """
@@ -838,7 +838,7 @@ class DbConnect:
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema
 
-    def dataframe_to_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
+    def dataframe_to_existing_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
                            allow_max_varchar=False, column_type_overrides=None, days=7):
         """
         Adds data from Pandas DataFrame to existing table
@@ -861,7 +861,7 @@ class DbConnect:
             schema = self.default_schema
 
         if not table_schema:
-            table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
+            table_schema = self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                           allow_max_varchar=allow_max_varchar,
                                                           column_type_overrides=column_type_overrides,
                                                           days=days)
@@ -947,7 +947,7 @@ class DbConnect:
             df = df.drop('ogc_fid', 1)
 
         # Calls dataframe_to_table_schema fn
-        table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
+        table_schema = self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                       allow_max_varchar=allow_max,
                                                       column_type_overrides=column_type_overrides,
                                                       days=days)
@@ -973,7 +973,7 @@ class DbConnect:
 
         else:
             # Calls dataframe_to_table fn
-            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
+            self.dataframe_to_existing_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
                                     temp=temp, days=days)
 
     def _bulk_csv_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
@@ -1328,7 +1328,7 @@ class DbConnect:
                 df = pd.read_excel(input_file, sheet_name=sheet_name)
 
             # Call dataframe_to_table fn
-            self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
+            self.dataframe_to_existing_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                     column_type_overrides=column_type_overrides, days=days)
 
         # Try to remove new file if applicable.
