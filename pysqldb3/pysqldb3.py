@@ -789,7 +789,7 @@ class DbConnect:
     """
 
     def dataframe_to_table(self, df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
-                                  column_type_overrides=None, days=7):
+                                  column_type_overrides=None, days=7, skip_rows=0):
 
         """
         Translates Pandas DataFrame into empty database table.
@@ -803,6 +803,7 @@ class DbConnect:
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param skip_rows: Number of rows at beginning of dataframe to skip upon read. If 0, read in all rows. Defaults to 0.
         :return: Table schema that was created from DataFrame
         """
         if not schema:
@@ -816,7 +817,13 @@ class DbConnect:
             allowed_length = 500
 
         # Parse df for schema
-        for col in df.dtypes.iteritems():
+        items = df.dtypes.iteritems()
+        for i, col in enumerate(items):
+
+            # Skip rows if specified
+            if i < skip_rows and skip_rows != 0:
+                continue
+            
             col_name, col_type = col[0], type_decoder(col[1], varchar_length=allowed_length)
 
             if column_type_overrides and col_name in column_type_overrides.keys():
@@ -839,7 +846,7 @@ class DbConnect:
         return input_schema
 
     def dataframe_to_existing_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
-                           allow_max_varchar=False, column_type_overrides=None, days=7):
+                           allow_max_varchar=False, column_type_overrides=None, days=7, skip_rows=0):
         """
         Adds data from Pandas DataFrame to existing table
         :param df: Pandas DataFrame to be added to database
@@ -854,6 +861,7 @@ class DbConnect:
                 detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True and table schema needs to be created, the number of days that the temp table will be
                      kept. Defaults to 7.
+        :param skip_rows: Number of rows at beginning of dataframe to skip upon read. If 0, read in all rows. Defaults to 0.
         :return: None
         """
 
@@ -864,7 +872,7 @@ class DbConnect:
             table_schema = self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                           allow_max_varchar=allow_max_varchar,
                                                           column_type_overrides=column_type_overrides,
-                                                          days=days)
+                                                          days=days, skip_rows=skip_rows)
 
         # Insert data
         print('Reading data into Database\n')
@@ -886,7 +894,7 @@ class DbConnect:
         print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema, t=table))
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     long_varchar_check=False, column_type_overrides=None, days=7):
+                     long_varchar_check=False, column_type_overrides=None, days=7, skip_rows=0):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -900,6 +908,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param skip_rows: Number of rows at beginning of dataframe to skip upon read. If 0, read in all rows. Defaults to 0.
         :return:
         """
 
@@ -950,7 +959,7 @@ class DbConnect:
         table_schema = self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                       allow_max_varchar=allow_max,
                                                       column_type_overrides=column_type_overrides,
-                                                      days=days)
+                                                      days=days, skip_rows=skip_rows)
 
         # For larger files use GDAL to import
         if df.shape[0] > 999:
@@ -974,7 +983,7 @@ class DbConnect:
         else:
             # Calls dataframe_to_table fn
             self.dataframe_to_existing_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
-                                    temp=temp, days=days)
+                                    temp=temp, days=days, skip_rows=skip_rows)
 
     def _bulk_csv_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
         """
