@@ -1191,6 +1191,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param skip_rows: Number of rows to skip at beginning of xlsx (0 means read in all rows, default 0)
         :return:
         """
         # Add default schema
