@@ -198,7 +198,7 @@ class TestDfToTableSchemaPG:
         # test
         db.dataframe_to_table(test_df, table=table_name, schema=schema_name, skip_rows=4)
 
-        # assert table exists and length is 8
+        # assert table exists and correct columns
         assert db.table_exists(table=table_name, schema=schema_name)
         table_df = db.dfquery(f"SELECT * FROM {schema_name}.{table_name}")
         assert all([col in test_df.columns for col in ['e','f','g','h']])
@@ -381,7 +381,7 @@ class TestDfToTableSchemaMS:
         # test
         sql.dataframe_to_table(test_df, table=table_name, schema=schema_name, skip_rows=4)
 
-        # assert table exists and length is 8
+        # assert table exists and correct columns
         assert sql.table_exists(table_name)
         table_df = sql.dfquery(f"SELECT * FROM [{schema_name}].{table_name}")
         assert all([col in test_df.columns for col in ['e','f','g','h']])
@@ -548,7 +548,7 @@ class TestDfToTablePG:
         # test
         db.dataframe_to_table(test_df, table=table_name, schema=schema_name, skip_rows=4)
 
-        # assert table exists and length is 4
+        # assert table exists and correct columns
         assert db.table_exists(table_name, schema=schema_name)
         table_df = db.dfquery(f"SELECT * FROM {schema_name}.{table_name}")
         assert all([col in test_df.columns for col in ['e','f','g','h']])

@@ -1,5 +1,5 @@
 import os
-
+import pytest
 import configparser
 import pandas as pd
 
@@ -183,6 +183,33 @@ class TestCsvToTablePG:
 
     # Temp test is in logging tests
 
+    @pytest.mark.issue4
+    def test_csv_to_table_skiprows(self, schema_name='working'):
+        # Drop existing table
+        db.query(f"DROP TABLE IF EXISTS {schema_name}.{create_table_name}")
+
+        # set up csv
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test2.csv"
+        db.csv_to_table(fp, overwrite=True, schema=schema_name, table=create_table_name)
+
+        # assert correct rows in table
+        dfq1 = db.dfquery(f"SELECT neighborhoods FROM {schema_name}.{create_table_name}")
+        assert all([col in dfq1.columns for col in ['Corona','Kensington','Morris Heights','Bayside','Inwood']])
+        assert len(dfq1) == 5
+
+        # test
+        create_table_name2 = f'test_csv_to_table_skiprows_2_{db.user}'
+        db.csv_to_table(fp, overwrite=True, schema=schema_name, table=create_table_name2, skip_rows=3)
+
+        # assert first three rows have been removed from table
+        dfq2 = db.dfquery(f"SELECT neighborhoods FROM {schema_name}.{create_table_name2}")
+        assert all([col in dfq2.columns for col in ['Bayside','Inwood']])
+        assert len(dfq2) == 2
+
+        # cleanup
+        db.drop_table(create_table_name, schema=schema_name)
+        db.drop_table(create_table_name2, schema=schema_name)
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
@@ -264,6 +291,33 @@ class TestBulkCSVToTablePG:
     def test_bulk_csv_to_table_input_schema(self):
         # Test input schema
         return
+    
+    @pytest.mark.issue4
+    def test_bulk_csv_to_table_skiprows(self, schema_name='working'):
+        # drop tables if they exist
+        db.query(f"DROP TABLE IF EXISTS {schema_name}.{create_table_name}")
+        
+        # set up csv
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
+        db.csv_to_table(fp, overwrite=True, schema=schema_name, table=create_table_name)
+
+        # assert table in db and correct rows
+        dfq1 = db.dfquery(f"SELECT neighborhoods FROM {schema_name}.{create_table_name}")
+        assert all([col in dfq1.columns for col in ['Corona','Kensington','Morris Heights','Bayside','Inwood']])
+        assert len(dfq1) == 5
+
+        # test
+        create_table_name2 = f'test_csv_to_table_skiprrows_2_{db.user}'
+        sql.csv_to_table(fp, overwrite=True, schema=schema_name, table=create_table_name2, skiprows=3)
+
+        # assert first three rows skipped in table
+        dfq2 = db.dfquery(f"SELECT neighborhoods FROM {schema_name}.{create_table_name2}")
+        assert all([col in dfq2.columns for col in ['Bayside','Inwood']])
+        assert len(dfq2) == 2
+
+        # cleanup
+        db.drop_table(schema=schema_name, table=create_table_name)
+        db.drop_table(schema=schema_name, table=create_table_name2)
 
     # Temp test is in logging tests
 
