@@ -76,18 +76,18 @@ class TestQueryCreatesTablesSql():
         """
         assert query.Query.query_renames_table(query_string, 'dbo') == {'dbo.node': 'test'}
 
-    def test_query_renames_table_logging_not_temp(self):
-        sql.drop_table('dbo', '___test___test___')
-        assert not db.table_exists('___test___test___', schema='dbo')
-        sql.query("create table dbo.___test___test___ (id int);", temp=False)
-        assert sql.table_exists('___test___test___', schema='dbo')
-        assert not sql.check_table_in_log('___test___test___', schema='dbo')
+    def test_query_renames_table_logging_not_temp(self, schema_name='dbo'):
+        sql.drop_table(schema_name,f'___test___test___')
+        assert not db.table_exists('___test___test___', schema=schema_name)
+        sql.query(f"create table {schema_name}.___test___test___ (id int);", temp=False)
+        assert sql.table_exists('___test___test___', schema=schema_name)
+        assert not sql.check_table_in_log('___test___test___', schema=schema_name)
 
-        sql.drop_table('dbo', '___test___test___2')
-        sql.query("EXEC sp_rename 'dbo.___test___test___', '___test___test___2'")
-        assert sql.table_exists('___test___test___2', schema='dbo')
-        assert not sql.check_table_in_log('___test___test___2', schema='dbo')
-        sql.drop_table('dbo', '___test___test___2')
+        sql.drop_table(schema_name, '___test___test___2')
+        sql.query(f"EXEC sp_rename '{schema_name}.___test___test___', '___test___test___2'")
+        assert sql.table_exists('___test___test___2', schema=schema_name)
+        assert not sql.check_table_in_log('___test___test___2', schema=schema_name)
+        sql.drop_table(schema_name, '___test___test___2')
 
     def test_query_renames_table_logging_temp(self):
         sql.drop_table('dbo', '___test___test___')
