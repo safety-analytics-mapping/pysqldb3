@@ -306,3 +306,20 @@ def set_up_xls():
         row = 0
     w.save(xls_file2)
     print ('%s created\n' % os.path.basename(xls_file2))
+
+def write_test_config(config_filename='db_config.cfg'):
+    """
+    Writes out config file for test suite.
+    :param config_filename: Name of config file to write to test dir.
+    """
+    test_config_sections = ['PG_DB','SECOND_PG_DB','SQL_DB','SECOND_SQL_DB']
+    test_config_keys = ['TYPE','SERVER','DB_NAME','DB_USER','DB_PASSWORD']
+    test_config = f'{os.path.join(os.path.dirname(os.path.abspath(__file__)))}\\tests\\{config_filename}'
+
+    # Write out config file
+    with open(test_config, 'w') as config_file:
+        for section in test_config_sections:
+            config_file.write(f'[{section}]\n')
+            for key in test_config_keys:
+                config_file.write(f'{key}=\n')
+            config_file.write('\n')
