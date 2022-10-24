@@ -30,6 +30,7 @@ test_pg_to_pg_tbl = 'tst_pg_to_pg_tbl_{}'.format(db.user)
 test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 
 
+
 # class TestPgToSql:
 #     @classmethod
 #     def setup_class(cls):
@@ -706,12 +707,6 @@ class TestPgToPgQry:
 
     def test_sql_to_pg_qry_empty_query_error(self):
         return
-
-    def test_sql_to_pg_qry_empty_wrong_layer_error(self):
-        return
-
-    def test_sql_to_pg_qry_empty_overwrite_error(self):
-        return
-
+        
     # Note: temporary functionality will be tested separately!
     # Still to test: LDAP, print_cmd
