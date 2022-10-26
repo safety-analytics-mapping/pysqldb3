@@ -15,6 +15,7 @@ test_config_file_2 = os.path.join(os.path.dirname(os.path.abspath(__file__)), 't
 
 class TestConfigIO:
 
+    @pytest.mark.issue8
     def test_read_default_config(self):
         # Test
         cfg_sections = read_config(config_file)
@@ -26,6 +27,7 @@ class TestConfigIO:
         for sec in target_sections_keys:
             assert cfg_sections.get(sec) == target_sections_keys.get(sec)
 
+    @pytest.mark.issue8
     def test_write_default_config(self):
         # assert config2.cfg doesn't exist
         assert not os.path.exists(config_file_2)
@@ -43,6 +45,7 @@ class TestConfigIO:
         # cleanup
         os.remove(config_file_2)
 
+    @pytest.mark.issue8
     def test_read_testing_config(self):
         # Test
         cfg_sections = read_config(test_config_file)
@@ -54,6 +57,7 @@ class TestConfigIO:
         for sec in target_sections_keys:
             assert cfg_sections.get(sec) == target_sections_keys.get(sec)
 
+    @pytest.mark.issue8
     def test_write_testing_config(self):
         # assert db_config2.cfg doesn't exist
         assert not os.path.exists(test_config_file_2)
