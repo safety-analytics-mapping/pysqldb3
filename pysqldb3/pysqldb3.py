@@ -327,7 +327,7 @@ class DbConnect:
 
         # For each schema check if log file exists
         for s in self.get_schemas():
-            if self.table_exists(self.log_table, schema=s, internal=True):
+            if self.table_exists(self.log_table, schema_name=s, internal=True):
 
                 # For each table in log file check if exists
                 self.query("select table_name from {}.{}".format(s, self.log_table), timeme=False, internal=True)
@@ -337,7 +337,7 @@ class DbConnect:
                         query_table_name = get_query_table_schema_name(str(t[0]), self.type)
 
                         # If table does not exist, add to the list of tables to delete
-                        if not self.table_exists(query_table_name, schema=s, internal=True):
+                        if not self.table_exists(query_table_name, schema_name=s, internal=True):
                             # Add the original version back to be deleted
                             to_delete.append(str(t[0]))
 
@@ -365,7 +365,7 @@ class DbConnect:
             self.query(MS_SCHEMA_FOR_LOG_CLEANUP_QUERY, internal=True)
 
         for sch in self.__get_most_recent_query_data(internal=True):
-            if self.table_exists(self.log_table, schema=sch[0], internal=True):
+            if self.table_exists(self.log_table, schema_name=sch[0], internal=True):
                 self.__drop_expired_tables(sch[0])
 
         self.__remove_nonexistent_tables_from_logs()
@@ -380,7 +380,7 @@ class DbConnect:
             server, database, schema, table = parse_table_string(table_str, self.default_schema, self.type)
 
             # Check if log table exists
-            if self.table_exists(self.log_table, schema=schema, internal=True):
+            if self.table_exists(self.log_table, schema_name=schema, internal=True):
                 # Delete from log to avoid dropping perm tables with same name
                 self.query(
                     """DELETE FROM {s}."{tmp}" WHERE table_schema = '{s}' AND table_name = '{t}'""".format(
@@ -430,7 +430,7 @@ class DbConnect:
             db = ''
 
         # Check if log exists; if not make one
-        if not self.table_exists(self.log_table, schema=schema_name, server=server, database=database):
+        if not self.table_exists(self.log_table, schema_name=schema_name, server=server, database=database):
             if self.type == MS:
                 self.query(MS_CREATE_LOG_TABLE_QUERY.format(s=schema_name, log=self.log_table, serv=ser, db=db),
                            timeme=False, temp=False, internal=True)
@@ -466,7 +466,7 @@ class DbConnect:
     User-facing functions
     """
 
-    def check_logs(self, schema=None):
+    def check_logs(self, schema_name=None):
         """
         :param schema: schema to check; defaults to the default_schema
         :return: df
@@ -476,7 +476,7 @@ class DbConnect:
 
         return self.dfquery("select * from {}.{}".format(schema, self.log_table))
 
-    def check_table_in_log(self, table_name, schema=None):
+    def check_table_in_log(self, table_name, schema_name=None):
         """
         :param table_name: name of table to check
         :param schema: schema to check; defaults to the default_schema
@@ -485,7 +485,7 @@ class DbConnect:
         if not schema:
             schema = self.default_schema
         self.query("select * from {s}.{lt} where table_name = '{tn}'".format(
-            s=schema, lt=self.log_table, tn=table_name))
+            s=schema_name, lt=self.log_table, tn=table_name))
 
         self.check_conn()
         return self.data
@@ -537,7 +537,7 @@ class DbConnect:
             for pid in tqdm(pids_to_kill):
                 self.query("""SELECT pg_terminate_backend(%i);""" % pid)
 
-    def my_tables(self, schema='public'):
+    def my_tables(self, schema_name='public'):
         # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
         """
         Get a list of tables for which you are the owner (PG only).
@@ -548,26 +548,26 @@ class DbConnect:
             print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
             return
 
-        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
+        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema_name, u=self.user))
 
-    def table_exists(self, table, **kwargs):
+    def table_exists(self, table_name, **kwargs):
         # type: (DbConnect, str, **str) -> bool
         """
         Checks if table exists in the database
-        :param table: table name
+        :param table_name: table name
         :param kwargs:
-                :schema: schema for check (defaults to default schema)
+                :schema_name: schema for check (defaults to default schema)
         :return: bool
         """
-        schema = kwargs.get('schema', self.default_schema)
+        schema_name = kwargs.get('schema_name', self.default_schema)
         server = kwargs.get('server', self.server)
         database = kwargs.get('database', self.database)
         internal = kwargs.get('internal', False)
 
         cleaned_server = get_unique_table_schema_string(server, self.type)
         cleaned_database = get_unique_table_schema_string(database, self.type)
-        cleaned_schema = get_unique_table_schema_string(schema, self.type)
-        cleaned_table = get_unique_table_schema_string(table, self.type)
+        cleaned_schema = get_unique_table_schema_string(schema_name, self.type)
+        cleaned_table = get_unique_table_schema_string(table_name, self.type)
 
         if self.type == PG:
             self.query(PG_TABLE_EXISTS_QUERY.format(s=cleaned_schema, t=cleaned_table), timeme=False, internal=internal)
@@ -602,7 +602,7 @@ class DbConnect:
                                       user=self.user, password=self.password, ldap=self.LDAP,
                                       default=self.default_connect, use_native_driver=self.use_native_driver)
 
-                return other_dbc.table_exists(self.log_table, schema=cleaned_schema)
+                return other_dbc.table_exists(self.log_table, schema_name=cleaned_schema)
         else:
             return False
 
@@ -730,7 +730,7 @@ class DbConnect:
             self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema_name, table_name, c),
                        timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
-            if self.table_exists(schema=schema_name, table=table_name):
+            if self.table_exists(schema_name=schema_name, table_name=table_name):
                 self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema_name, table_name, c),
                            timeme=False, strict=strict, internal=internal)
             else:
@@ -838,14 +838,14 @@ class DbConnect:
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema
 
-    def dataframe_to_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
+    def dataframe_to_table(self, df, table_name, df_schema_name=None, schema_name=None, overwrite=False, temp=True,
                            allow_max_varchar=False, column_type_overrides=None, days=7):
         """
         Adds data from Pandas DataFrame to existing table
         :param df: Pandas DataFrame to be added to database
-        :param table: Table name to be used in database
-        :param table_schema: schema of dataframe (returned from dataframe_to_table_schema)
-        :param schema: Database schema to use for destination in database (defaults to db's default schema)
+        :param table_name: Table name to be used in database
+        :param df_schema_name: schema of dataframe (returned from dataframe_to_table_schema)
+        :param schema_name: Database schema to use for destination in database (defaults to db's default schema)
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
@@ -861,7 +861,7 @@ class DbConnect:
             schema = self.default_schema
 
         if not table_schema:
-            table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema_name=schema, temp=temp,
+            table_schema = self.dataframe_to_table_schema(df, table_name, overwrite=overwrite, schema_name=schema_name, temp=temp,
                                                           allow_max_varchar=allow_max_varchar,
                                                           column_type_overrides=column_type_overrides,
                                                           days=days)
@@ -878,21 +878,21 @@ class DbConnect:
             self.query(u"""
                 INSERT INTO {s}.{t} ({cols})
                 VALUES ({d})
-            """.format(s=schema, t=table,
+            """.format(s=schema_name, t=table_name,
                        cols=str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", ''),
                        d=row_values), strict=False, timeme=False)
 
-        df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False)
-        print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema, t=table))
+        df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema_name, t=table_name), timeme=False)
+        print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema_name, t=table_name))
 
-    def csv_to_table(self, input_file=None, overwrite=False, schema_name=None, table=None, temp=True, sep=',',
+    def csv_to_table(self, input_file=None, overwrite=False, schema_name=None, table_name=None, temp=True, sep=',',
                      long_varchar_check=False, column_type_overrides=None, days=7):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
         :param overwrite: If table exists in database, will overwrite; defaults to False
         :param schema_name: Schema of table; if None, defaults to db's default schema
-        :param table: Name for final database table; defaults to filename in path
+        :param table_name: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
         :param sep: Separator for csv file, defaults to comma (,)
         :param long_varchar_check: Boolean to allow unlimited/max varchar columns; defaults to False
@@ -921,7 +921,7 @@ class DbConnect:
         if not table:
             table = os.path.basename(input_file).split('.')[0]
 
-        if not overwrite and self.table_exists(schema=schema_name, table=table):
+        if not overwrite and self.table_exists(schema_name=schema_name, table_name=table_name):
             print('Must set overwrite=True; table already exists.')
             return
 
@@ -947,7 +947,7 @@ class DbConnect:
             df = df.drop('ogc_fid', 1)
 
         # Calls dataframe_to_table_schema fn
-        table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema_name=schema_name, temp=temp,
+        table_schema = self.dataframe_to_table_schema(df, table_name, overwrite=overwrite, schema_name=schema_name, temp=temp,
                                                       allow_max_varchar=allow_max,
                                                       column_type_overrides=column_type_overrides,
                                                       days=days)
@@ -955,25 +955,25 @@ class DbConnect:
         # For larger files use GDAL to import
         if df.shape[0] > 999:
             try:
-                success = self._bulk_csv_to_table(input_file=input_file, schema_name=schema_name, table_name=table,
+                success = self._bulk_csv_to_table(input_file=input_file, schema_name=schema_name, table_name=table_name,
                                                   table_schema=table_schema, days=days)
 
                 if not success:
-                    raise AssertionError('Bulk CSV loading failed.'.format(schema_name, table))
+                    raise AssertionError('Bulk CSV loading failed.'.format(schema_name, table_name))
 
             except SystemExit:
                 raise AssertionError(
-                    'Bulk CSV loading failed.'.format(schema_name, table)
+                    'Bulk CSV loading failed.'.format(schema_name, table_name)
                 )
             except Exception as e:
                 print(e)
                 raise AssertionError(
-                    'Bulk CSV loading failed.'.format(schema_name, table)
+                    'Bulk CSV loading failed.'.format(schema_name, table_name)
                 )
 
         else:
             # Calls dataframe_to_table fn
-            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema_name,
+            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema_name=schema_name,
                                     temp=temp, days=days)
 
     def _bulk_csv_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False, days=7):
@@ -981,7 +981,7 @@ class DbConnect:
         Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.
         :param input_file: Source CSV filepath
         :param schema_name: Schema to write to; defaults to db's default schema
-        :param table: Destination table name to write data to; defaults to user/date defined
+        :param table_name: Destination table name to write data to; defaults to user/date defined
         :param table_schema:
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
@@ -996,7 +996,7 @@ class DbConnect:
         Shell for bulk_file_to_table. Routed to by xls_to_table when record count is >= 1,000.
         :param input_file: Source XLSX filepath
         :param schema_name: Schema to write to; defaults to db's default schema
-        :param table: Destination table name to write data to; defaults to user/date defined
+        :param table_name: Destination table name to write data to; defaults to user/date defined
         :param table_schema:
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param header: defaults to True; true if the xlsx includes a header/column names
@@ -1014,7 +1014,7 @@ class DbConnect:
         data types from Pandas.
         :param input_file: Source CSV/XLS filepath
         :param schema_name: Schema to write to; defaults to db's default schema
-        :param table: Destination table name to write data to; defaults to user/date defined
+        :param table_name: Destination table name to write data to; defaults to user/date defined
         :param table_schema: schema of dataframe (returned from dataframe_to_table_schema)
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param excel_header: defaults to True; true if the csv/xls includes a header/column names
@@ -1116,7 +1116,7 @@ class DbConnect:
 
 
 
-            if self.table_exists(schema=schema_name, table=table_name):
+            if self.table_exists(schema_name=schema_name, table_name=table_name):
                 # Move into final table from stg
                 qry = """
                 INSERT INTO {s}.{t}
@@ -1188,7 +1188,7 @@ class DbConnect:
         if not schema_name:
             schema_name = self.default_schema
 
-        if not overwrite and self.table_exists(schema=schema_name, table=table_name):
+        if not overwrite and self.table_exists(schema_name=schema_name, table_name=table_name):
             print('Must set overwrite=True; table already exists.')
             return
 
@@ -1203,7 +1203,7 @@ class DbConnect:
             table_name = os.path.basename(input_file).split('.')[0]
 
         # Ogr doesn't check overwriting; will append unless stopped.
-        if self.table_exists(table=table_name, schema=schema_name) and not overwrite:
+        if self.table_exists(table_name=table_name, schema_name=schema_name) and not overwrite:
             print('{}.{} already exists. Use overwrite=True to replace.'.format(schema_name, table_name))
             return
 
@@ -1288,9 +1288,9 @@ class DbConnect:
             if success:
                 self.query("""
                 select * 
-                into {schema}.{table}
-                from {schema}.{stg_table}
-                """.format(schema=schema_name, table=table_name, stg_table="stg_{}".format(table_name)), days=days)
+                into {schema_name}.{table_name}
+                from {schema_name}.{stg_table}
+                """.format(schema_name=schema_name, table_name=table_name, stg_table="stg_{}".format(table_name)), days=days)
 
                 # Drop stg table
                 self.drop_table(schema_name=schema_name, table_name="stg_{}".format(table_name))
@@ -1328,7 +1328,7 @@ class DbConnect:
                 df = pd.read_excel(input_file, sheet_name=sheet_name)
 
             # Call dataframe_to_table fn
-            self.dataframe_to_table(df, table_name, overwrite=overwrite, schema=schema_name, temp=temp,
+            self.dataframe_to_table(df, table_name, overwrite=overwrite, schema_name=schema_name, temp=temp,
                                     column_type_overrides=column_type_overrides, days=days)
 
         # Try to remove new file if applicable.
@@ -1595,7 +1595,7 @@ class DbConnect:
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports table to a shp file. Generates query to query_to_shp.
-        :param table: Database table name as string type
+        :param table_name: Database table name as string type
         :param schema_name: Database table's schema (defults to db default schema)
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
         :param path: folder path for output shp
@@ -1619,7 +1619,7 @@ class DbConnect:
                      quote_strings=True):
         """
         Writes table to csv
-        :param table: table name
+        :param table_name: table name
         :param schema_name: schema for table (defaults to default schema)
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
         :param output_file: String for csv output file location (defaults to current directory)
@@ -1658,7 +1658,7 @@ class DbConnect:
         """
         Imports shape file to database. This uses GDAL to generate the table.
         :param path: File path of the shapefile
-        :param table: Table name to use in the database
+        :param table_name: Table name to use in the database
         :param schema_name: Schema to use in the database (defaults to db's default schema)
         :param shp_name: Shapefile name (ends in .shp)
         :param cmd: Optional ogr2ogr command to overwrite default
@@ -1708,7 +1708,7 @@ class DbConnect:
         """
         Imports shape file feature class to database. This uses GDAL to generate the table.
         :param path: Filepath to the geodatabase
-        :param table: Table name to use in the database
+        :param table_name: Table name to use in the database
         :param schema_name: Schema to use in the database
         :param shp_name:  FeatureClass name
         :param gdal_data_loc: Filepath/location of GDAL on computer
@@ -1735,7 +1735,7 @@ class DbConnect:
         table_name = table_name.lower()
 
         shp = Shapefile(dbo=self, path=path, table_name=table_name, schema_name=schema_name, query=None,
-                        shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,skip_failures=skip_failures)
+                        shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc, skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
 
