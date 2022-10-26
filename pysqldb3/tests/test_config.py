@@ -39,6 +39,9 @@ class TestConfigIO:
         assert cfg_sections.keys() == target_sections_keys.keys()
         for sec in target_sections_keys:
             assert cfg_sections.get(sec) == target_sections_keys.get(sec)
+        
+        # cleanup
+        os.remove(config_file_2)
 
     def test_read_testing_config(self):
         # Test
@@ -64,3 +67,6 @@ class TestConfigIO:
         assert target_sections_keys.keys() == target_sections_keys.keys()
         for sec in target_sections_keys:
             assert target_sections_keys.get(sec) == target_sections_keys.get(sec)
+        
+        # cleanup
+        os.remove(test_config_file_2)
