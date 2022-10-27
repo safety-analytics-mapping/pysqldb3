@@ -1,5 +1,4 @@
 import getpass
-
 import pyodbc
 from tqdm import tqdm
 from typing import Optional, Union
@@ -377,14 +376,14 @@ class DbConnect:
         :return:
         """
         for table_str in tables_dropped:
-            server, database, schema, table = parse_table_string(table_str, self.default_schema, self.type)
+            server, database, schema_name, table_name = parse_table_string(table_str, self.default_schema, self.type)
 
             # Check if log table exists
-            if self.table_exists(self.log_table, schema_name=schema, internal=True):
+            if self.table_exists(self.log_table, schema_name=schema_name, internal=True):
                 # Delete from log to avoid dropping perm tables with same name
                 self.query(
                     """DELETE FROM {s}."{tmp}" WHERE table_schema = '{s}' AND table_name = '{t}'""".format(
-                        s=schema, t=table, tmp=self.log_table),
+                        s=schema_name, t=table_name, tmp=self.log_table),
                     timeme=False, internal=True
                 )
 
@@ -408,8 +407,8 @@ class DbConnect:
         # type: (DbConnect, str, str, str, str, str, datetime) -> None
         """
         Writes tables to temp log to be deleted after expiration date.
-        :param schema: database schema name
-        :param table: table name
+        :param schema_name: database schema name
+        :param table_name: table name
         :param owner: userid for table owner
         :param server: database server path
         :param database: database name
@@ -538,7 +537,7 @@ class DbConnect:
                 self.query("""SELECT pg_terminate_backend(%i);""" % pid)
 
     def my_tables(self, schema_name='public'):
-        # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
+        # type: (DbConnect, str) -> Optional[pd.DataFrame]
         """
         Get a list of tables for which you are the owner (PG only).
         :param schema: Schema to look in (defaults to public)
@@ -650,7 +649,7 @@ class DbConnect:
 
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
               lock_table=None, return_df=False, days=7, internal=False):
-        # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[None, pd.DataFrame]
+        # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[pd.DataFrame]
         """
         Runs Query object from input SQL string and adds query to queries
         :param query: String sql query to be run
@@ -705,8 +704,8 @@ class DbConnect:
         """
         Drops table from database and removes from the temp log table
         If a table uses "" or [] because of case, spaces, or periods, they (""/[]) must be inputted explicitly.
-        :param schema: schema
-        :param table: table name
+        :param schema_name: schema name
+        :param table_name: table name
         :param cascade: boolean if want to cascade
         :param strict: boolean; defaults to True to end on failure. Set to false during cleanup subroutine
         :param server: server path
@@ -741,8 +740,8 @@ class DbConnect:
         # type: (DbConnect, str, str, str, str) -> None
         """
         Renames the column (old column) to the new column name on the specified table.
-        :param schema: schema
-        :param table: table name
+        :param schema_name: schema
+        :param table_name: table name
         :param old_column: old column to be renamed
         :param new_column: new column name
         :return:
