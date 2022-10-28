@@ -68,7 +68,7 @@ class TestQueryCreatesTablesSql():
         """
 
         assert query.Query.query_renames_table(query_string, default_schema=schema_name) == \
-        {f"""{schema_name}.node_{sql.user}': f'test_{sql.user}', {schema_name}.node0_{sql.user}""": f'test3_{sql.user}'}
+        {f"{schema_name}.node_{sql.user}": f"test_{sql.user}", f"{schema_name}.node0_{sql.user}": f"test3_{sql.user}"}
 
     def test_query_renames_table_from_qry_w_comments(self, schema_name=sql_test_schema):
         query_string = f"""
