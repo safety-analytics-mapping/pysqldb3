@@ -54,6 +54,8 @@ class TestQueryCreatesTablesSql():
         assert query.Query.query_renames_table(query_string, schema_name) == {f'[{schema_name}].[node_{sql.user}]': f'[test_{sql.user}]'}
 
     def test_query_renames_table_from_qry_multiple(self, schema_name='dbo'):
+        # Rename dbo.test3_{sql.user} to dbo.node0_{sql.user}, copy test_{sql.user} from test0_{sql.user},
+        # and rename dbo.test_{sql.user} to node_{sql.user}
         query_string = f"""
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test3_{sql.user}', 'node0_{sql.user}'
 
@@ -63,8 +65,11 @@ class TestQueryCreatesTablesSql():
 
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
         """
-        assert query.Query.query_renames_table(query_string, schema_name=schema_name) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}', \
-         f'{schema_name}.node0_{sql.user}': f'test3_{sql.user}'}
+
+        # assert dbo.node0_{sql.user} = test3_{sql.user}
+        # and dbo.node_{sql.user} = test_{sql.user}
+        assert query.Query.query_renames_table(query_string, default_schema=schema_name) == \
+        {f"""{schema_name}.node_{sql.user}': f'test_{sql.user}', {schema_name}.node0_{sql.user}""": f'test3_{sql.user}'}
 
     def test_query_renames_table_from_qry_w_comments(self, schema_name='dbo'):
         query_string = f"""
@@ -130,8 +135,8 @@ class TestQueryCreatesTablesPgSql():
             ALTER TABLE {schema_name}.test2_{db.user}
             RENAME TO node2_{db.user};
         """
-        assert query.Query.query_renames_table(query_string, 'public') == {f'"{schema_name}"."node"': f'"test_{db.user}"',
-                                                                               f'{schema_name}.node2': f'test2_{db.user}'}
+        assert query.Query.query_renames_table(query_string, 'public') == {f'"{schema_name}"."node_{db.user}"': f'"test_{db.user}"',
+                                                                               f'{schema_name}.node2_{db.user}': f'test2_{db.user}'}
 
     def test_query_renames_table_from_qry_w_comments(self, schema_name='working'):
         query_string = f"""
