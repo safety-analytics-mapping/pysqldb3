@@ -144,3 +144,7 @@ tests/test_data/*
 *.prj
 *.shp
 *.shx
+
+# Pysqldb3 config files
+config.cfg
+tests/db_config.cfg
