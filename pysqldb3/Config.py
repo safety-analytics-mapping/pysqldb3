@@ -62,7 +62,6 @@ def get_gdal_data_path():
 
 def read_config(confi_path='.\config.cfg'):
     sections = defaultdict(dict)
-
     if os.path.isfile(confi_path):
         with open(confi_path, 'r') as f:
             section_header=None
