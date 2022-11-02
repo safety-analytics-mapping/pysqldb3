@@ -433,8 +433,8 @@ class TestRenameIndexMS:
         sql.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
         sql.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=test_table + '.shp', private=True)
 
-        # check index on org table
-        assert len(self.get_indexes(test_table, schema)) == 1
+        # check spatial index on org table
+        assert str((f'{test_table}_geom_idx', 'SPATIAL')) in [str(i) for i in self.get_indexes(test_table, schema)]
 
         # rename table
         sql.query("EXEC sp_rename '{s}.{t}', '{nt}'".format(
@@ -443,7 +443,8 @@ class TestRenameIndexMS:
 
         # check index on renamed table no longer references org table
         assert len(self.get_indexes(test_table, schema)) == 0
-        assert len(self.get_indexes(new_test_table, schema)) == 1
+        # check spatial index is now mapped to new table name
+        assert str((f'{new_test_table}_geom_idx', 'SPATIAL')) in [str(i) for i in self.get_indexes(new_test_table, schema)]
 
         # check old table name not referenced in index after rename
         assert {test_table in i[0] for i in self.get_indexes(new_test_table, schema)} == {False}

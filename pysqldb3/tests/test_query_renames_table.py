@@ -24,7 +24,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 sql_test_schema = 'testing'
 pg_test_schema = 'working'
 
-class TestQueryCreatesTablesSql():
+
+class TestQueryCreatesTablesSql:
     def test_query_renames_table_from_qry(self, schema_name=sql_test_schema):
         query_string = f"""
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
