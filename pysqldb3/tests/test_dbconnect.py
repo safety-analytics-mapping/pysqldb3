@@ -468,7 +468,9 @@ class TestLogging:
 
         before_log_length = len(before_log_df)
         assert before_log_length == 0
-
+        # make sure table doesnt exists
+        db.drop_table(table=table_for_testing_logging, schema='working')
+        # import table
         db.shp_to_table(path=os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data',
                         shp_name='test.shp',
                         schema='working',

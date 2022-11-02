@@ -148,3 +148,6 @@ tests/test_data/*
 # Pysqldb3 config files
 config.cfg
 tests/db_config.cfg
+pysqldb3/tests/db_config.cfg
+*.xlsx
+*.xls

@@ -102,18 +102,18 @@ class TestFeatureClassToTablePg:
         columns = {i[0] for i in db.data}
         types = {i[1] for i in db.data}
 
-        assert columns == {'vintersect', 'objectid', 'geom', 'nodeid'}
-        assert types == {'integer', 'integer', 'integer', 'character varying', 'USER-DEFINED'}
+        assert {'vintersect', 'objectid', 'geom', 'nodeid'}.issubset(columns)
+        assert {'integer', 'integer', 'integer', 'character varying', 'USER-DEFINED'}.issubset(types)
 
         # check non geom data
         db.query("""
-                    select objectid, nodeid, vintersect from {}.{} where nodeid in (88, 98, 100)
+                    select nodeid, vintersect, st_astext(geom) geom from {}.{} where nodeid in (88, 98, 100)
                 """.format(
             db.default_schema, table))
 
-        row_values = [(87, 88, 'VirtualIntersection'),
-                      (97, 98, ''),
-                      (99, 100, 'VirtualIntersection')]
+        row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.06807594 126536.071389675)'),
+                      (98, '', 'MULTIPOINT(914714.799522936 126499.808012366)'),
+                      (100, 'VirtualIntersection', 'MULTIPOINT(914872.034109682 126696.62913236)')]
 
         # assert db.data == row_values
         for c in range(len(db.data)):
@@ -266,18 +266,18 @@ class TestFeatureClassToTableMs:
         columns = {i[0] for i in sql.data}
         types = {i[1] for i in sql.data}
 
-        assert columns == {'objectid', 'geom', 'nodeid', 'vintersect'}
-        assert types == {'int', 'geometry', 'int', 'nvarchar'}
+        assert {'objectid', 'geom', 'nodeid', 'vintersect'}.issubset(columns)
+        assert {'int', 'geometry', 'int', 'nvarchar'}.issubset(types)
 
         # check non geom data
         sql.query("""
-                            select objectid, nodeid, vintersect from {}.{} where nodeid in (88, 98, 100)
+                            select nodeid, vintersect, geom.STAsText() geom from {}.{} where nodeid in (88, 98, 100)
                         """.format(
                              sql.default_schema, table))
 
-        row_values = [(87, 88, 'VirtualIntersection'),
-                   (97, 98, ''),
-                   (99, 100, 'VirtualIntersection')]
+        row_values = [(88, 'VirtualIntersection', 'MULTIPOINT ((914145.06807594 126536.07138967514))'),
+                      (98, '', 'MULTIPOINT ((914714.79952293634 126499.80801236629))'),
+                      (100, 'VirtualIntersection', 'MULTIPOINT ((914872.03410968184 126696.62913236022))')]
 
         for c in range(len(sql.data)):
             for r in range(len(sql.data[c])):
