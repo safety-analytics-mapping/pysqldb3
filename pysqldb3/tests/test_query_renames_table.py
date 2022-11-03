@@ -21,8 +21,9 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'), ldap=True)
 
-sql_test_schema = 'testing'
-pg_test_schema = 'working'
+
+sql_test_schema = config.get('SQL_DB', 'WORKING_SCHEMA')
+pg_test_schema = config.get('PG_DB', 'WORKING_SCHEMA')
 
 
 class TestQueryCreatesTablesSql:

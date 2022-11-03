@@ -111,9 +111,9 @@ class TestFeatureClassToTablePg:
                 """.format(
             db.default_schema, table))
 
-        row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.06807594 126536.071389675)'),
-                      (98, '', 'MULTIPOINT(914714.799522936 126499.808012366)'),
-                      (100, 'VirtualIntersection', 'MULTIPOINT(914872.034109682 126696.62913236)')]
+        row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.06807594 126536.07138967514)'),
+                      (98, '', 'MULTIPOINT(914714.7995229363 126499.8080123663)'),
+                      (100, 'VirtualIntersection', 'MULTIPOINT(914872.0341096818 126696.62913236022)')]
 
         # assert db.data == row_values
         for c in range(len(db.data)):
