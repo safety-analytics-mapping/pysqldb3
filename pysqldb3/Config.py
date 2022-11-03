@@ -30,7 +30,8 @@ class SqlDriver:
         mx = 0
 
         numbers = [re.findall(x, _) for _ in driver_list]
-
+        if [] in numbers:
+            numbers.remove([])
         for _ in numbers:
             if int(_[0])>mx:
                 mx=int(_[0])
@@ -94,7 +95,7 @@ def write_config(confi_path='.\config.cfg'):
                 existing_sections[rec_section]['ODBC_DRIVER']=odbc.odbc_driver
                 existing_sections[rec_section]['NATIVE_DRIVER']=odbc.native_driver
             elif rec_section == 'GDAL DATA':
-                existing_sections[rec_section]['GDAL_DATA']=get_gdal_data_path()
+                existing_sections[rec_section]['GDAL_DATA_LOC']=get_gdal_data_path()
             else:
                 print(f'\nMissing section {rec_section} from config file. Plesae edit {confi_path} to add')
                 open_config = True

@@ -1,13 +1,12 @@
 import random
 import os
 import pandas as pd
-from .. import shapefile
-import subprocess
 import requests
 import zipfile
 from xlrd import open_workbook
 from xlutils.copy import copy
-
+from ..Config import write_config
+write_config(confi_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests','') + "\\config.cfg")
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
 
