@@ -7,7 +7,8 @@ import requests
 import zipfile
 from xlrd import open_workbook
 from xlutils.copy import copy
-
+from ..Config import write_config
+write_config(config_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests', '') + "\\config.cfg")
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
 

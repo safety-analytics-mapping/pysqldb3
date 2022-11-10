@@ -7,6 +7,8 @@ import configparser
 import numpy as np
 import pandas as pd
 from shapely import wkb
+from .Config import write_config
+write_config(config_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
