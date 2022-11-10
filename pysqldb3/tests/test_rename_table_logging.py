@@ -7,13 +7,13 @@ from .. import pysqldb3 as pysqldb
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-ms = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB', 'TYPE'),
+ms = pysqldb.DbConnect(db_type=config.get('SECOND_SQL_DB', 'TYPE'),
                        server=config.get('SECOND_SQL_DB', 'SERVER'),
                        db_name=config.get('SECOND_SQL_DB', 'DB_NAME'),
                        user=config.get('SECOND_SQL_DB', 'DB_USER'),
                        password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
 
-pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+pg = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
                        server=config.get('SECOND_PG_DB', 'SERVER'),
                        db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                        user=config.get('SECOND_PG_DB', 'DB_USER'),

@@ -13,7 +13,7 @@ class Query:
     """
 
     def __str__(self):
-        # type (Query) -> str
+        # db_type (Query) -> str
         """
         String query info
         :return: Query print statement (time and results)
@@ -74,7 +74,7 @@ class Query:
         self.__auto_comment()
 
     def __query_time_format(self):
-        # type: (Query) -> str
+        # db_type: (Query) -> str
         """
         Formats the query duration time string
         :return:
@@ -88,7 +88,7 @@ class Query:
             return 'Query run in {} seconds'.format(self.query_time)
 
     def __safe_commit(self):
-        # type: (Query) -> None
+        # db_type: (Query) -> None
         """
         After any query, commit changes or rollback if not possible
         :return: None
@@ -129,7 +129,7 @@ class Query:
             self.dbo.check_conn()
 
     def __run_query(self, internal):
-        # type: (Query) -> None
+        # db_type: (Query) -> None
         """
         Runs SQL query via steps below.
         :return: None

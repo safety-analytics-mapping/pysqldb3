@@ -10,13 +10,13 @@ from . import helpers
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
                        db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
@@ -493,7 +493,7 @@ class TestPgToPg:
 
     def test_pg_to_pg_basic_table(self):
         # Must have RIS DB info in db_config.cfg [SECOND_PG_DB] section
-        ris = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+        ris = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
                                 server=config.get('SECOND_PG_DB', 'SERVER'),
                                 db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                                 user=config.get('SECOND_PG_DB', 'DB_USER'),
@@ -544,7 +544,7 @@ class TestPgToPg:
 
     def test_pg_to_pg_basic_name_table(self):
         # Must have RIS DB info in db_config.cfg [SECOND_PG_DB] section
-        ris = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+        ris = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
                                 server=config.get('SECOND_PG_DB', 'SERVER'),
                                 db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                                 user=config.get('SECOND_PG_DB', 'DB_USER'),
@@ -607,11 +607,11 @@ class TestPgToPg:
 
 class TestPgToPgQry:
     def test_pg_to_pg_qry_basic_table(self):
-        org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
-                                server=config.get('SECOND_PG_DB', 'SERVER'),
-                                db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
-                                user=config.get('SECOND_PG_DB', 'DB_USER'),
-                                password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
+        org_pg = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
+                                   server=config.get('SECOND_PG_DB', 'SERVER'),
+                                   database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                                   user=config.get('SECOND_PG_DB', 'DB_USER'),
+                                   password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 
         # Assert pg table doesn't exist
         db.drop_table(schema_name=db.default_schema, table_name=test_pg_to_pg_qry_table)
@@ -654,7 +654,7 @@ class TestPgToPgQry:
         org_pg.drop_table(schema_name='public', table_name=test_pg_to_pg_qry_table)
 
     def test_pg_to_pg_qry_dest_schema(self):
-        org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+        org_pg = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
                                    server=config.get('SECOND_PG_DB', 'SERVER'),
                                    db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                                    user=config.get('SECOND_PG_DB', 'DB_USER'),

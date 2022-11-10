@@ -32,7 +32,7 @@ VARCHAR_MAX = {
 
 
 def clean_query_special_characters(query_string):
-    # type(str) -> str
+    # db_type(str) -> str
     """
     Cleans special characters
     :param query_string:
@@ -190,14 +190,14 @@ def parse_table_string(table_name, default_schema_name, db_type):
 
 def type_decoder(typ, varchar_length=500):
     """
-    Lazy type decoding from pandas to SQL. There are problems assoicated with NaN values for numeric types when
+    Lazy db_type decoding from pandas to SQL. There are problems assoicated with NaN values for numeric types when
     stored as Object dtypes.
 
     This does not try to optimize for smallest size datatype.
 
     :param typ: Numpy dtype for column
     :param varchar_length: Length for varchar columns
-    :return: String representing data type
+    :return: String representing data db_type
     """
     if typ == np.dtype('M'):
         return 'timestamp'
@@ -340,7 +340,7 @@ def parse_shp_path(path=None, shp_name=None):
     :param shp_name: shapefile name
     :return: path (without shp), shp_name
     """
-    # type: (str, str)
+    # db_type: (str, str)
     if not path:
         return path, shp_name
 

@@ -12,21 +12,21 @@ from .. import pysqldb3 as pysqldb
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
                        db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True)
 
-ris_db = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+ris_db = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
                            server=config.get('SECOND_PG_DB', 'SERVER'),
                            db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
                            user=config.get('SECOND_PG_DB', 'DB_USER'),
                            password=config.get('SECOND_PG_DB', 'DB_PASSWORD'),
                            allow_temp_tables=True)
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
@@ -85,7 +85,7 @@ class TestQueryToCSVPG:
         Testing a DB connection issue where it wasn't possible to query and then query_to_csv without a connection
         closed issue.
         """
-        db2 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+        db2 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                                 server=config.get('PG_DB', 'SERVER'),
                                 db_name=config.get('PG_DB', 'DB_NAME'),
                                 user=config.get('PG_DB', 'DB_USER'),

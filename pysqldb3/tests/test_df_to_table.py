@@ -8,13 +8,13 @@ from .. import pysqldb3 as pysqldb
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
                        db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
@@ -400,7 +400,7 @@ class TestDfToTablePG:
         # Assert table exists
         assert db.table_exists(table=table_name, schema='working')
 
-        # Assert column type changed (column a is text)
+        # Assert column db_type changed (column a is text)
         test_df = pd.DataFrame([{"a": '1', "b": 2, "c": 3}, {"a": '4', "b": 5, "c": 6}])
         table_df = db.dfquery('select * from working.{}'.format(table_name))
 
@@ -547,7 +547,7 @@ class TestDfToTableMS:
         # Assert table exists
         assert sql.table_exists(table=table_name, schema=sql.default_schema)
 
-        # Assert column type changed (column a is text)
+        # Assert column db_type changed (column a is text)
         test_df = pd.DataFrame([{"a": '1', "b": 2, "c": 3}, {"a": '4', "b": 5, "c": 6}])
         table_df = sql.dfquery('select * from {}'.format(table_name))
 

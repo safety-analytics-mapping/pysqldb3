@@ -26,15 +26,15 @@ class DbConnect:
     Database Connection class
     """
 
-    def __init__(self, user=None, password=None, ldap=False, type=None, server=None, db_name=None, port=5432,
+    def __init__(self, user=None, password=None, ldap=False, db_type=None, server=None, database=None, port=5432,
                  allow_temp_tables=False, use_native_driver=True, default=False, quiet=False):
-        # type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool) -> None
+        # db_type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool) -> None
         """
         :params:
         user (string): default None
         password (string): default None
         ldap (bool): default None
-        type (string): default None
+        db_type (string): default None
         server (string): default None
         db_name (string): default None
         port (int): default 5432
@@ -48,7 +48,7 @@ class DbConnect:
         self.LDAP = ldap
         if self.LDAP and not self.user:
             self.user = getpass.getuser()
-        self.type = type
+        self.type = db_type
         self.server = get_unique_table_schema_string(server, self.type)
         self.database = db_name
         self.port = port
@@ -79,7 +79,7 @@ class DbConnect:
         self.__cleanup_subroutine()
 
     def __str__(self):
-        # type: (DbConnect) -> str
+        # db_type: (DbConnect) -> str
         """
         :return: string of database connection info
         """
@@ -95,7 +95,7 @@ class DbConnect:
                 )
 
     def __get_most_recent_query_data(self, internal=False):
-        # type: (DbConnect) -> list
+        # db_type: (DbConnect) -> list
         """
         Helper function to return the most recent query data
         :return:
@@ -106,9 +106,9 @@ class DbConnect:
             return self.queries[-1].data
 
     def __set_type(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
-        Sets standardized type of Db
+        Sets standardized db_type of Db
         """
         if self.type and type(self.type) == str and self.type.upper() in POSTGRES_TYPES:
             self.type = PG
@@ -117,10 +117,10 @@ class DbConnect:
             self.type = MS
 
     def __get_default_schema(self, db_type):
-        # type: (str) -> str
+        # db_type: (str) -> str
         """
-        Gets default schema name depending on db type
-        :param db_type: str of db type
+        Gets default schema name depending on db db_type
+        :param db_type: str of db db_type
         :return: str of default schema name
         """
         if db_type == MS:
@@ -135,13 +135,13 @@ class DbConnect:
     """
 
     def __get_credentials(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Requests any missing credentials needed for db connection
         :return: None
         """
         if self.default_connect:
-            self.type = config.get('DEFAULT DATABASE', 'type')
+            self.type = config.get('DEFAULT DATABASE', 'db_type')
             self.__set_type()
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
@@ -154,7 +154,7 @@ class DbConnect:
 
             # Prompts user input for each missing parameter
             if not self.type:
-                self.type = input('Database type (MS/PG)').upper()
+                self.type = input('Database db_type (MS/PG)').upper()
             if not self.server:
                 self.server = input('Server:')
             if not self.database:
@@ -165,7 +165,7 @@ class DbConnect:
                 self.password = getpass.getpass('Password ({})'.format(self.database.lower()))
 
     def __connect_pg(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Creates connection to pg db
         :return: None
@@ -180,7 +180,7 @@ class DbConnect:
         self.conn = psycopg2.connect(**self.params)
 
     def __connect_ms(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Creates connection to sql server db
         :return: None
@@ -227,10 +227,10 @@ class DbConnect:
                 self.conn = pyodbc.connect(**self.params)
 
     def connect(self, quiet=False):
-        # type: (DbConnect, bool) -> None
+        # db_type: (DbConnect, bool) -> None
         """
         Connects to database
-        Requires all connection parameters to be entered and connection type
+        Requires all connection parameters to be entered and connection db_type
         :param quiet: if true, does not output db as str
         :return:
         """
@@ -240,7 +240,7 @@ class DbConnect:
         if not quiet and not self.quiet:
             print(self)
 
-        # Connect based on type of database
+        # Connect based on db_type of database
         if self.type == PG:
             self.__connect_pg()
 
@@ -251,7 +251,7 @@ class DbConnect:
         self.connection_count += 1
 
     def disconnect(self, quiet=False):
-        # type: (DbConnect, bool) -> None
+        # db_type: (DbConnect, bool) -> None
         """
         Closes connection to db
         :param quiet: boolean to print out connection closing (defaults to false)
@@ -317,7 +317,7 @@ class DbConnect:
             print('Attempted to remove {} expired temp tables: {}'.format(cleaned, to_clean))
 
     def __remove_nonexistent_tables_from_logs(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Removes from the log table any table that no longer exists in the database
         :return:
@@ -350,7 +350,7 @@ class DbConnect:
                     )
 
     def __cleanup_subroutine(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Drops any tables that have expired (based on log table) and removes them from the log by:
         1. Calling  __drop_expired_tables to remove expired tables
@@ -370,7 +370,7 @@ class DbConnect:
         self.__remove_nonexistent_tables_from_logs()
 
     def __remove_dropped_tables_from_log(self, tables_dropped):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Removes tables dropped in already-run Queries from log.
         :return:
@@ -404,7 +404,7 @@ class DbConnect:
 
     def log_temp_table(self, schema_name, table_name, owner, server=None, database=None,
                        expiration=datetime.datetime.now() + datetime.timedelta(days=7)):
-        # type: (DbConnect, str, str, str, str, str, datetime) -> None
+        # db_type: (DbConnect, str, str, str, str, str, datetime) -> None
         """
         Writes tables to temp log to be deleted after expiration date.
         :param schema_name: database schema name
@@ -490,7 +490,7 @@ class DbConnect:
         return self.data
 
     def cleanup_new_tables(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Drops all newly created tables from this DbConnect object
         :return: None
@@ -505,7 +505,7 @@ class DbConnect:
         self.tables_created = list()
 
     def blocking_me(self):
-        # type: (DbConnect) -> pd.DataFrame
+        # db_type: (DbConnect) -> pd.DataFrame
         """
         Runs dfquery to find which queries or users are blocking the user defined in the connection. Postgres Only.
         :return: Pandas DataFrame of blocking queries
@@ -516,7 +516,7 @@ class DbConnect:
         return self.dfquery(PG_BLOCKING_QUERY % self.user)
 
     def kill_blocks(self):
-        # type: (DbConnect) -> None
+        # db_type: (DbConnect) -> None
         """
         Will kill any queries that are blocking, that the user (defined in the connection) owns. Postgres Only.
         :return: None
@@ -596,7 +596,8 @@ class DbConnect:
             else:
                 # need to connect to other db to check for log
                 # todo: there must be a better way to do this, but havent found it yet
-                other_dbc = DbConnect(type=self.type, server=cleaned_server, db_name=cleaned_database,
+
+                other_dbc = DbConnect(db_type=self.type, server=cleaned_server, db_name=cleaned_database,
                                       port=self.port,
                                       user=self.user, password=self.password, ldap=self.LDAP,
                                       default=self.default_connect, use_native_driver=self.use_native_driver)
@@ -606,7 +607,7 @@ class DbConnect:
             return False
 
     def get_schemas(self):
-        # type: (DbConnect) -> list
+        # db_type: (DbConnect) -> list
         """
         Gets a list of schemas available in the database
         :return: list of schemas
@@ -798,8 +799,8 @@ class DbConnect:
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table as not-temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
-                raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+        :param column_type_overrides: Dict of db_type key=column name, value=column db_type. Will manually set the
+                raw column name as that db_type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return: Table schema that was created from DataFrame
@@ -848,8 +849,8 @@ class DbConnect:
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
-                raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+        :param column_type_overrides: Dict of db_type key=column name, value=column db_type. Will manually set the
+                raw column name as that db_type in the query, regardless of the pandas/postgres/sql server automatic
                 detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True and table schema needs to be created, the number of days that the temp table will be
                      kept. Defaults to 7.
@@ -895,8 +896,8 @@ class DbConnect:
         :param temp: Boolean for temporary table; defaults to True
         :param sep: Separator for csv file, defaults to comma (,)
         :param long_varchar_check: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
-        raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+        :param column_type_overrides: Dict of db_type key=column name, value=column db_type. Will manually set the
+        raw column name as that db_type in the query, regardless of the pandas/postgres/sql server automatic
         detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
@@ -1095,7 +1096,7 @@ class DbConnect:
                                                                    enumerate(table_schema)]:
                     column_names.remove("ogr_fid")
 
-                # Cast all fields to new type to move from stg to final table
+                # Cast all fields to new db_type to move from stg to final table
                 # take staging field name from stg table
                 cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
                         enumerate(table_schema)]
@@ -1177,8 +1178,8 @@ class DbConnect:
         :param schema_name: Schema of table; if None, defaults to db's default schema
         :param table: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
-        raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+        :param column_type_overrides: Dict of db_type key=column name, value=column db_type. Will manually set the
+        raw column name as that db_type in the query, regardless of the pandas/postgres/sql server automatic
         detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
@@ -1338,7 +1339,7 @@ class DbConnect:
                      quiet=False):
         """
         Exports query results to a csv file.
-        :param query: SQL query as string type
+        :param query: SQL query as string db_type
         :param strict: If true will run sys.exit on failed query attempts
         :param output_file: File path for resulting csv file
         :param open_file: If true will auto open the output csv file when done
@@ -1375,10 +1376,10 @@ class DbConnect:
         """
 
         def df_to_geojson(df):
-            geojson = {'type': 'FeatureCollection', 'features': []}
+            geojson = {'db_type': 'FeatureCollection', 'features': []}
 
             for _, row in df.iterrows():
-                feature = {'type': 'Feature', 'properties': {}, 'geometry': json.loads(row['geojson_geometry']),
+                feature = {'db_type': 'Feature', 'properties': {}, 'geometry': json.loads(row['geojson_geometry']),
                            'id': row['id']}
                 geojson['features'].append(feature)
 
@@ -1461,7 +1462,7 @@ class DbConnect:
                      print_cmd=False, srid=2263):
         """
         Exports query results to a shp file.
-        :param query: SQL query as string type
+        :param query: SQL query as string db_type
         :param path: folder path for output shp
         :param shp_name: filename for shape (should end in .shp)
         :param cmd: GDAL command to overwrite default
@@ -1522,7 +1523,7 @@ class DbConnect:
             col_df = self.dfquery("""
             SELECT
                 [column] = c.name,
-                [type] = t.name, 
+                [db_type] = t.name, 
                 c.max_length, 
                 c.precision, 
                 c.scale, 
@@ -1541,7 +1542,7 @@ class DbConnect:
 
             cols = ['[' + c + ']' for c in list(col_df['column'])]
             dt_col_names = ['[' + c + ']' for c in list(
-                col_df[col_df['type'].str.contains('datetime') | col_df['type'].str.contains('timestamp')]['column'])]
+                col_df[col_df['db_type'].str.contains('datetime') | col_df['db_type'].str.contains('timestamp')]['column'])]
 
         # Make string of columns to be returned by select statement
         return_cols = ' , '.join([c for c in cols if c not in dt_col_names])
@@ -1555,11 +1556,11 @@ class DbConnect:
                 print_cols = str([str(c[1:-1]) for c in dt_col_names])
 
             print("""
-            The following columns are of type datetime/timestamp: \n
+            The following columns are of db_type datetime/timestamp: \n
             {}
             
             Shapefiles don't support datetime/timestamps with both the date and time. Each column will be split up
-            into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
+            into colname_dt (of db_type date) and colname_tm (of db_type **string/varchar**). 
             """.format(print_cols))
 
             # Add the date and time (casted as a string) to the output

@@ -9,19 +9,19 @@ from . import helpers
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
                        db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'), allow_temp_tables=True)
 
-db2 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+db2 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                         server=config.get('PG_DB', 'SERVER'),
                         db_name=config.get('PG_DB', 'DB_NAME'),
                         user=config.get('PG_DB', 'DB_USER'),
                         password=config.get('PG_DB', 'DB_PASSWORD'))
 
-db3 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+db3 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                         server=config.get('PG_DB', 'SERVER'),
                         db_name=config.get('PG_DB', 'DB_NAME'),
                         user=config.get('PG_DB', 'DB_USER'),

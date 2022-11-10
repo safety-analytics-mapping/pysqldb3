@@ -82,7 +82,7 @@ def write_config(config_path='.\config.cfg'):
     required_sections = {
         'ODBC Drivers': {'ODBC_DRIVER': '', 'NATIVE_DRIVER': ''},
         'GDAL DATA': {'GDAL_DATA_LOC': ''},
-        'DEFAULT DATABASE': {'type': '', 'server': '', 'database': ''}
+        'DEFAULT DATABASE': {'db_type': '', 'server': '', 'database': ''}
     }
     existing_sections = read_config(config_path)
 

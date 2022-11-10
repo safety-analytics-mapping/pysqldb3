@@ -13,7 +13,7 @@ test_config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSWORD'),
                        user=test_config.get('PG_DB', 'DB_USER'))
 
-sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
+sql = pysqldb.DbConnect(db_type=test_config.get('SQL_DB', 'TYPE'),
                         server=test_config.get('SQL_DB', 'SERVER'),
                         db_name=test_config.get('SQL_DB', 'DB_NAME'),
                         user=test_config.get('SQL_DB', 'DB_USER'),
@@ -326,7 +326,7 @@ class TestLogging:
 
         assert updated_exp_date == (datetime.datetime.now().date() - datetime.timedelta(1))
 
-        reconnect_db = pysqldb.DbConnect(type=db.type,
+        reconnect_db = pysqldb.DbConnect(db_type=db.type,
                                          server=db.server,
                                          db_name=db.database,
                                          user=db.user,

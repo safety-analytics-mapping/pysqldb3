@@ -10,7 +10,7 @@ from . import helpers
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
                        db_name=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
@@ -18,14 +18,14 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        allow_temp_tables=True
                        )
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         db_name=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-# ldap_sql = pysqldb.DbConnect(type='MS',
+# ldap_sql = pysqldb.DbConnect(db_type='MS',
 #                              database='CLION',
 #                              server='DOTGISSQL01',
 #                              ldap=True)
