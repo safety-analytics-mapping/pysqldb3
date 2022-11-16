@@ -60,7 +60,7 @@ class TestQueryToShpPg:
         # Manually check SRID of projection file and verify it contains 2263
         cmd = r'gdalsrsinfo {}\{}'.format(fldr, shp).replace('\\', '/')
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
-        assert b'"EPSG",2263' in ogr_response
+        assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
 
         # clean up
         db.drop_table(pg_schmma, test_table)
@@ -461,7 +461,7 @@ class TestQueryToShpMs:
         # Manually check SRID of projection file and verify it contains 2263
         cmd = r'gdalsrsinfo {}\{}'.format(fldr, shp).replace('\\', '/')
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
-        assert b'"EPSG",2263' in ogr_response
+        assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
 
         # clean up
         sql.drop_table(ms_schema, test_table)

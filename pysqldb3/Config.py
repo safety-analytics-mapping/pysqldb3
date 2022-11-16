@@ -58,7 +58,11 @@ class SqlDriver:
 
 
 def get_gdal_data_path():
-    return os.environ["GDAL_DATA"]
+    if 'PostgreSQL' not in os.environ["GDAL_DATA"]:
+        return os.environ["GDAL_DATA"]
+    else:
+        print('Missing GDAL data folder path...\n')
+        return ''
 
 
 def read_config(confi_path='.\config.cfg'):

@@ -69,7 +69,7 @@ class TestXlsToTablePG:
         # Assert df column types match without override
         pd.testing.assert_frame_equal(
             pd.DataFrame(
-                [{"column_name": 'a', "data_type": 'integer'}, {"column_name": 'b', "data_type": 'integer'}]),
+                [{"column_name": 'a', "data_type": 'bigint'}, {"column_name": 'b', "data_type": 'bigint'}]),
 
             db.dfquery("""
 
@@ -134,7 +134,7 @@ class TestXlsToTablePG:
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
         xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
-                                                                              "Unnamed: 0.1": "unnamed__0_1"})
+                                                                              "Unnamed: 0.1": "unnamed__01"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
@@ -163,7 +163,7 @@ class TestXlsToTablePG:
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
         xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
-                                                                              "Unnamed: 0.1": "unnamed__0_1"})
+                                                                              "Unnamed: 0.1": "unnamed__01"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
@@ -337,7 +337,7 @@ class TestXlsToTableMS:
 
         # Assert df column types match without override
         pd.testing.assert_frame_equal(pd.DataFrame(
-            [{"column_name": 'a', "data_type": 'int'}, {"column_name": 'b', "data_type": 'int'}]),
+            [{"column_name": 'a', "data_type": 'bigint'}, {"column_name": 'b', "data_type": 'bigint'}]),
 
             sql.dfquery("""
 
@@ -399,7 +399,7 @@ class TestXlsToTableMS:
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
         xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
-                                                                              "Unnamed: 0.1": "unnamed__0_1"})
+                                                                              "Unnamed: 0.1": "unnamed__01"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
@@ -427,7 +427,7 @@ class TestXlsToTableMS:
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
         xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
-                                                                              "Unnamed: 0.1": "unnamed__0_1"})
+                                                                              "Unnamed: 0.1": "unnamed__01"})
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
