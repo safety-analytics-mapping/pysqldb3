@@ -30,10 +30,10 @@ class Query:
             r=records,
             qt=qt)
 
-    def __init__(self, dbo, query, strict=True, permission=True, temp=True, comment='', no_comment=False,
+    def __init__(self, dbconn, query, strict=True, permission=True, temp=True, comment='', no_comment=False,
                  timeme=True, iterate=False, lock_table=None, internal=False):
         """
-        :param dbo: DbConnect object
+        :param dbconn: DbConnect object
         :param query: String/unicode sql query to be run
         :param strict: If true will run sys.exit on failed query attempts
         :param permission:
@@ -45,7 +45,7 @@ class Query:
         :param lock_table:
         """
         # Explicitly in __init__
-        self.dbo = dbo
+        self.dbconn = dbconn
         self.query = query
         self.strict = strict
         self.permission = permission
@@ -94,9 +94,9 @@ class Query:
         :return: None
         """
         try:
-            self.dbo.conn.commit()
+            self.dbconn.conn.commit()
         except Exception as e:
-            self.dbo.conn.rollback()
+            self.dbconn.conn.rollback()
             print("- ERROR: Query could not be committed. Query rolled back.")
             raise e
 
@@ -121,12 +121,12 @@ class Query:
         self.data = cur.fetchall()
 
     def __update_log_for_renamed_table(self, new_table_name, old_table_name):
-        _serv, _dab, schema, new_table = parse_table_string(new_table_name, self.dbo.default_schema, self.dbo.type)
+        _host, _dbname, schema_name, new_table_name = parse_table_string(new_table_name, self.dbconn.default_schema, self.dbconn.type)
 
-        if self.dbo.table_exists(self.dbo.log_table, schema=schema, internal=True):
-            self.dbo.query("update {s}.{l} set table_name = '{nt}' where table_name = '{ot}'".format(
-                s=schema, l=self.dbo.log_table, nt=new_table_name, ot=old_table_name), internal=True, strict=False)
-            self.dbo.check_conn()
+        if self.dbconn.table_exists(self.dbconn.log_table, schema=schema_name, internal=True):
+            self.dbconn.query("update {s}.{l} set table_name = '{nt}' where table_name = '{ot}'".format(
+                s=schema_name, l=self.dbconn.log_table, nt=new_table_name, ot=old_table_name), internal=True, strict=False)
+            self.dbconn.check_conn()
 
     def __run_query(self, internal):
         # db_type: (Query) -> None
@@ -138,10 +138,10 @@ class Query:
         self.query_start = datetime.datetime.now()
 
         # 1. Get connection cursor
-        if self.iterate and self.dbo.type == PG:
-            cur = self.dbo.conn.cursor(name='ss')
+        if self.iterate and self.dbconn.type == PG:
+            cur = self.dbconn.conn.cursor(name='ss')
         else:
-            cur = self.dbo.conn.cursor()
+            cur = self.dbconn.conn.cursor()
 
         # 2. Query string replacement for special characters
         self.query = clean_query_special_characters(self.query)
@@ -156,7 +156,7 @@ class Query:
 
         except Exception as e:
             # 4.2.1 If failure, return failure reason and time
-            if self.dbo.type == MS:
+            if self.dbconn.type == MS:
                 if 'encode' in str(e).lower() or 'ascii' in str(e).lower():
                     print("- Query failed: use a Unicode string (u'string') to perform queries with special characters."
                           "\n\t {}  \n\t".format(e))
@@ -167,7 +167,7 @@ class Query:
                     else:
                         print("- Query failed: " + err[0] + "\n\t")
 
-            if self.dbo.type == PG:
+            if self.dbconn.type == PG:
                 print("- Query failed: " + str(e) + '\n\t')
 
             print('- Query run {dt}\n\t{q}'.format(
@@ -177,7 +177,7 @@ class Query:
             del cur
 
             # 4.2.2 Then rollback
-            self.dbo.conn.rollback()
+            self.dbconn.conn.rollback()
 
             # 4.2.3 Exit
             if self.strict:
@@ -192,7 +192,7 @@ class Query:
         # 6. After execution:
         if self.iterate:
             # 6.1 Iterate if an iterating query
-            if self.dbo.type == PG:
+            if self.dbconn.type == PG:
                 cur.itersize = 20000
             self.current_cur = cur
         else:
@@ -203,8 +203,8 @@ class Query:
             # 6.3 Commit and run new/dropped/renamed tables routine
             self.__safe_commit()
             if not internal:
-                self.renamed_tables = self.query_renames_table(self.query, self.dbo.default_schema)
-                self.new_tables = self.query_creates_table(self.query, self.dbo.default_schema, self.dbo.type)
+                self.renamed_tables = self.query_renames_table(self.query, self.dbconn.default_schema)
+                self.new_tables = self.query_creates_table(self.query, self.dbconn.default_schema, self.dbconn.type)
 
                 # Add renamed tables to query's new table list
                 # self.new_tables += [t for t in self.renamed_tables.keys()]
@@ -212,8 +212,8 @@ class Query:
 
                 if self.permission:
                     for t in self.new_tables:
-                        self.dbo.query('grant select on {t} to public;'.format(t=t),
-                                       strict=False, timeme=False, internal=True)
+                        self.dbconn.query('grant select on {t} to public;'.format(t=t),
+                                          strict=False, timeme=False, internal=True)
 
                 if self.renamed_tables:
                     for i in self.renamed_tables.keys():
@@ -223,24 +223,24 @@ class Query:
                         self.rename_index(i, self.renamed_tables[i])
 
                         # Add standardized previous table name to dropped tables to remove from log
-                        server, database, sch, tbl = parse_table_string(i, self.dbo.default_schema, self.dbo.type)
-                        org_table = get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
-                            self.renamed_tables[i], self.dbo.type)
+                        server, database, sch, tbl = parse_table_string(i, self.dbconn.default_schema, self.dbconn.type)
+                        org_table = get_query_table_schema_name(sch, self.dbconn.type) + '.' + get_query_table_schema_name(
+                            self.renamed_tables[i], self.dbconn.type)
                         self.dropped_tables.append(org_table)
 
                         # If the standardized previous table name is in this query's new tables, replace with new name
                         if org_table in self.new_tables:
                             self.new_tables[self.new_tables.index(org_table)] = \
-                                get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
-                                tbl, self.dbo.type)
+                                get_query_table_schema_name(sch, self.dbconn.type) + '.' + get_query_table_schema_name(
+                                tbl, self.dbconn.type)
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
-                        if org_table in self.dbo.tables_created:
+                        if org_table in self.dbconn.tables_created:
                             # self.dbo.tables_created.remove(org_table)
-                            self.dbo.tables_created[self.dbo.tables_created.index(org_table)] = \
-                                get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
-                                tbl, self.dbo.type)
+                            self.dbconn.tables_created[self.dbconn.tables_created.index(org_table)] = \
+                                get_query_table_schema_name(sch, self.dbconn.type) + '.' + get_query_table_schema_name(
+                                tbl, self.dbconn.type)
 
                 if self.timeme:
                     print(self)
@@ -251,7 +251,7 @@ class Query:
         Note: cannot use pd.read_sql() because the structure will necessitate running query twice
         :return: Pandas DataFrame of the results of the query
         """
-        if self.dbo.type == MS:
+        if self.dbconn.type == MS:
             self.data = [tuple(i) for i in self.data]
             df = pd.DataFrame(self.data, columns=self.data_columns)
         else:
@@ -345,10 +345,10 @@ class Query:
             return []
 
     @staticmethod
-    def query_renames_table(query, default_schema):
+    def query_renames_table(query, default_schema_name):
         """
         Checks if a rename query is run
-        :return: Dict {schema.new table name: original table name}
+        :return: Dict {[schema].[new table name]: [original table name]}
         """
         _ = query.split()
         query = ' '.join(_)
@@ -373,7 +373,7 @@ class Query:
                 row = [r for r in row if r and r.strip() != "'"]
 
                 if len(row) == 3:
-                    old_schema = default_schema + "."
+                    old_schema = default_schema_name + "."
                     old_table_name = row[1]
 
                 if len(row) == 4:
@@ -404,70 +404,71 @@ class Query:
         :return:
         """
         # Get indices for new table
-        server, database, sch, tbl = parse_table_string(new_table_name, self.dbo.default_schema, self.dbo.type)
-        if not database:
-            database = self.dbo.database
+        host, db_name, schema_name, table_name = parse_table_string(new_table_name, self.dbconn.default_schema, self.dbconn.type)
+        if not db_name:
+            db_name = self.dbconn.db_name
 
-        if not server:
-            server = self.dbo.server
+        if not host:
+            host = self.dbconn.host
 
-        if self.dbo.type == 'PG':
+        if self.dbconn.type == 'PG':
             old_table_name = old_table_name.replace('"', '').replace('\n', '').strip()
             new_table_name = new_table_name.replace('"', '').replace('\n', '').strip()
             query = """
                 SELECT indexname
                 FROM pg_indexes
-                WHERE tablename = '{t}'
-                AND schemaname='{s}';
-            """.format(t=tbl, s=sch)
-        elif self.dbo.type == 'MS':
+                WHERE tablename = '{table}'
+                AND schemaname='{schema}';
+            """.format(table=table_name, schema=schema_name)
+        elif self.dbconn.type == 'MS':
             query = """      
                 SELECT a.name AS indexname
-                FROM {d}.sys.indexes AS a
-                INNER JOIN {d}.sys.index_columns AS b
+                FROM {db}.sys.indexes AS a
+                INNER JOIN {db}.sys.index_columns AS b
                     ON a.object_id = b.object_id AND a.index_id = b.index_id
                 WHERE
                     a.is_hypothetical = 0 
-                    AND a.object_id = OBJECT_ID('{s}.{t}')
-            """.format(t=tbl, s=sch, d=database)
+                    AND a.object_id = OBJECT_ID('{schema}.{table}')
+            """.format(table=table_name, schema=schema_name, db=db_name)
         # make sure looking in the right server, dont need to worry about db, since this is a sys table
 
-        if not get_unique_table_schema_string(server, self.dbo.type) == self.dbo.server:
-            print('Warning: any associated indexes will not be renamed on {ser}.{db}.{sch}.{tbl}'.format(
-                ser=server, db=database, sch=sch, tbl=tbl
+        if not get_unique_table_schema_string(host, self.dbconn.type) == self.dbconn.server:
+            print('Warning: any associated indexes will not be renamed on {host}.{db}.{schema}.{table}'.format(
+                host=host, db=db_name, schema=schema_name, table=table_name
             ))
             indices = []
         else:
-            self.dbo.query(query, strict=True, timeme=False, internal=True)
-            indices = self.dbo.internal_data or []
+            self.dbconn.query(query, strict=True, timeme=False, internal=True)
+            indices = self.dbconn.internal_data or []
 
         for idx in indices:
             if old_table_name in idx[0]:
-                new_idx = idx[0].replace(old_table_name, tbl)
+                new_idx = idx[0].replace(old_table_name, table_name)
 
-                if self.dbo.type == 'PG':
-                    new_idx_qry = 'ALTER INDEX IF EXISTS {s}."{i}" RENAME to "{i2}"'.format(s=sch, i=idx[0], i2=new_idx)
-                elif self.dbo.type == 'MS':
-                    new_idx_qry = "EXEC sp_rename '{t}.{i}', '{i2}', N'INDEX';".format(i=idx[0], i2=new_idx,
-                                                                                       t=new_table_name)
+                if self.dbconn.type == 'PG':
+                    new_idx_qry = 'ALTER INDEX IF EXISTS {schema}."{idx}" RENAME to "{idx2}"'.format(
+                        schema=schema_name, idx=idx[0], idx2=new_idx)
+                elif self.dbconn.type == 'MS':
+                    new_idx_qry = "EXEC sp_rename '{table}.{idx}', '{idx2}', N'INDEX';".format(idx=idx[0],
+                        idx2=new_idx, table=new_table_name)
 
-                self.dbo.query(query=new_idx_qry, strict=False, timeme=False, internal=True)
+                self.dbconn.query(query=new_idx_qry, strict=False, timeme=False, internal=True)
 
     def __auto_comment(self):
         """
         Automatically generates comment for PostgreSQL tables if created with Query
         :return:
         """
-        if self.dbo.type == PG and not self.no_comment:
-            for t in self.new_tables:
+        if self.dbconn.type == PG and not self.no_comment:
+            for table in self.new_tables:
                 # tables in new_tables list will contain schema if provided, otherwise will default to public
                 q = """COMMENT ON TABLE {t} IS 'Created by {u} on {d}\n{cmnt}'""".format(
-                    t=t,
-                    u=self.dbo.user,
+                    t=table,
+                    u=self.dbconn.user,
                     d=self.query_start.strftime('%Y-%m-%d %H:%M'),
                     cmnt=self.comment
                 )
-                self.dbo.query(q, strict=False, timeme=False, internal=True)
+                self.dbconn.query(q, strict=False, timeme=False, internal=True)
 
     def iterable_query_to_csv(self, output, open_file, quote_strings, sep):
         """
@@ -557,7 +558,7 @@ class Query:
 
         # Close connections
         self.__safe_commit()
-        self.dbo.conn.close()
+        self.dbconn.conn.close()
 
         if open_file:
             os.startfile(output)
@@ -591,7 +592,7 @@ class Query:
         _ = chunks()
         for (chunk, pos) in _:
             # convert to data frame
-            if self.dbo.type == MS:
+            if self.dbconn.type == MS:
                 self.data = [tuple(i) for i in self.data]
                 df = pd.DataFrame(self.data, columns=self.data_columns)
             else:
@@ -639,14 +640,14 @@ class Query:
                 os.startfile(output)
 
     @staticmethod
-    def query_to_shp(dbo, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
+    def query_to_shp(dbo, query, path=None, shpfile_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
                      srid=2263):
         """
         Writes results of the query to a shp file by calling Shapefile ogr command's in write_shp fn
         :param dbo:
         :param query:
         :param path:
-        :param shp_name:
+        :param shpfile_name:
         :param cmd:
         :param gdal_data_loc:
         :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
@@ -657,7 +658,7 @@ class Query:
         shp = Shapefile(dbo=dbo,
                         path=path,
                         query=query,
-                        shp_name=shp_name,
+                        shpfile_name=shpfile_name,
                         cmd=cmd,
                         gdal_data_loc=gdal_data_loc,
                         srid=srid)
