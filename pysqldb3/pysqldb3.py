@@ -33,7 +33,7 @@ class DbConnect:
         :params:
         user (string): default None
         password (string): default None
-        ldap (bool): Whether to use LDAP (trusted connection) for connection. default None
+        use_ldap (bool): Whether to use LDAP (ie. Windows account) for connection. default None
         db_type (string): default None
         server (string): default None
         db_name (string): default None

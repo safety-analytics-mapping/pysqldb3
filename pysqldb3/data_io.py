@@ -5,80 +5,80 @@ from .cmds import *
 from .util import *
 
 
-def pg_to_sql(pg, ms, orig_table_name, LDAP=False, spatial=True, orig_schema_name=None, dest_schema_name=None, dest_table_name=None,
-              print_cmd=False, temp=True):
+def pg_to_sql(pg_dbconn, ms_dbconn, src_table_name, use_ldap=False, is_spatial=True, src_schema_name=None,
+              dest_schema_name=None, dest_table_name=None, print_cmd=False, temp=True):
     """
     Migrates tables from Postgres to SQL Server, generates spatial tables in MS if spatial in PG.
 
-    :param pg: DbConnect instance connecting to PostgreSQL source database
-    :param ms: DbConnect instance connecting to SQL Server destination database
-    :param orig_table_name: table name of table to migrate
-    :param LDAP: Flag for using LDAP credentials (defaults to False)
-    :param spatial: Flag for spatial table (defaults to True)
-    :param orig_schema_name: PostgreSQL schema for origin table (defaults to orig db's default schema)
+    :param pg_dbconn: DbConnect instance connecting to PostgreSQL source database
+    :param ms_dbconn: DbConnect instance connecting to SQL Server destination database
+    :param src_table_name: table name of source table to migrate
+    :param use_ldap: Flag for using LDAP credentials (defaults to False)
+    :param is_spatial: Flag for spatial table (defaults to True)
+    :param src_schema_name: PostgreSQL schema for source table (defaults to orig db's default schema)
     :param dest_schema_name: SQL Server schema for destination table (defaults to dest db's default schema)
     :param dest_table_name: Table name of final migrated table in SQL Server database
-    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param print_cmd: Option to print ogr2ogr command line statement (defaults to False) - used for debugging
     :param temp: Flag for temporary table (defaults to True)
     :return:
     """
-    if not orig_schema_name:
-        orig_schema_name = pg.default_schema
+    if not src_schema_name:
+        orig_schema_name = pg_dbconn.default_schema
 
     if not dest_schema_name:
-        dest_schema_name = ms.default_schema
+        dest_schema_name = ms_dbconn.default_schema
 
     if not dest_table_name:
-        dest_table_name = orig_table_name
+        dest_table_name = src_table_name
 
-    if spatial:
-        spatial = ' -a_srs EPSG:2263 '
-        nlt_spatial = ' '
+    if is_spatial:
+        spatial_cmd = ' -a_srs EPSG:2263 '
+        nlt_spatial_cmd = ' '
     else:
-        spatial = ' '
-        nlt_spatial = '-nlt NONE'
+        spatial_cmd = ' '
+        nlt_spatial_cmd = '-nlt NONE'
 
-    if LDAP:
+    if use_ldap:
         cmd = PG_TO_SQL_LDAP_CMD.format(
-            ms_pass='',
-            ms_user='',
-            pg_pass=pg.password,
-            pg_user=pg.user,
-            ms_server=ms.server,
-            ms_db=ms.database,
-            pg_host=pg.server,
-            pg_port=pg.port,
-            pg_database=pg.database,
-            pg_schema=orig_schema_name,
-            pg_table=orig_table_name,
-            ms_schema=dest_schema_name,
-            spatial=spatial,
+            ms_password='',
+            ms_username='',
+            pg_password=pg_dbconn.password,
+            pg_username=pg_dbconn.username,
+            ms_host=ms_dbconn.host,
+            ms_dbname=ms_dbconn.db_name,
+            pg_host=pg_dbconn.host,
+            pg_port=pg_dbconn.port,
+            pg_dbname=pg_dbconn.db_name,
+            pg_schema_name=src_schema_name,
+            pg_table_name=src_table_name,
+            ms_schema_name=dest_schema_name,
+            is_spatial=spatial_cmd,
             dest_name=dest_table_name,
-            nlt_spatial=nlt_spatial,
+            nlt_spatial=nlt_spatial_cmd,
             gdal_data=GDAL_DATA_LOC
         )
     else:
         cmd = PG_TO_SQL_CMD.format(
-            ms_pass=ms.password,
-            ms_user=ms.user,
-            pg_pass=pg.password,
-            pg_user=pg.user,
-            ms_server=ms.server,
-            ms_db=ms.database,
-            pg_host=pg.server,
-            pg_port=pg.port,
-            pg_database=pg.database,
-            pg_schema=orig_schema_name,
-            pg_table=orig_table_name,
-            ms_schema=dest_schema_name,
-            spatial=spatial,
+            ms_password=ms_dbconn.password,
+            ms_username=ms_dbconn.username,
+            pg_password=pg_dbconn.password,
+            pg_username=pg_dbconn.user,
+            ms_host=ms_dbconn.server,
+            ms_dbname=ms_dbconn.database,
+            pg_host=pg_dbconn.server,
+            pg_port=pg_dbconn.port,
+            pg_dbname=pg_dbconn.db_name,
+            pg_schema_name=src_schema_name,
+            pg_table_name=src_table_name,
+            ms_schema_name=dest_schema_name,
+            is_spatial=spatial_cmd,
             dest_name=dest_table_name,
-            nlt_spatial=nlt_spatial,
+            nlt_spatial=nlt_spatial_cmd,
             gdal_data=GDAL_DATA_LOC
         )
 
     if print_cmd:
-        print(print_cmd_string([ms.password, pg.password], cmd))
+        print(print_cmd_string([ms_dbconn.password, pg_dbconn.password], cmd))
 
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
@@ -86,25 +86,25 @@ def pg_to_sql(pg, ms, orig_table_name, LDAP=False, spatial=True, orig_schema_nam
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
-        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms_dbconn.password, pg_dbconn.password], cmd), returncode=1)
 
-    ms.tables_created.append(dest_schema_name + "." + dest_table_name)
+    ms_dbconn.tables_created.append(dest_schema_name + "." + dest_table_name)
 
     if temp:
-        ms.log_temp_table(dest_schema_name, dest_table_name, ms.user)
+        ms_dbconn.log_temp_table(dest_schema_name, dest_table_name, ms_dbconn.user)
 
 
-def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema_name=None, print_cmd=False, temp=True,
+def sql_to_pg_qry(ms_dbconn, pg_dbconn, query, LDAP=False, is_spatial=True, dest_schema_name=None, print_cmd=False, temp=True,
                   dest_table_name=None, pg_encoding='UTF8'):
     """
     Migrates the result of a query from SQL Server database to PostgreSQL database, and generates spatial tables in
     PG if spatial in MS.
 
-    :param ms: DbConnect instance connecting to SQL Server destination database
-    :param pg: DbConnect instance connecting to PostgreSQL source database
+    :param ms_dbconn: DbConnect instance connecting to SQL Server destination database
+    :param pg_dbconn: DbConnect instance connecting to PostgreSQL source database
     :param query: query in SQL
     :param LDAP: Flag for using LDAP credentials (defaults to False)
-    :param spatial: Flag for spatial table (defaults to True)
+    :param is_spatial: Flag for spatial table (defaults to True)
     :param dest_schema_name: PostgreSQL schema for destination table (defaults to db's default schema)
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :param temp: flag, defaults to true, for temporary tables
@@ -113,59 +113,57 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema_name=None
     :return:
     """
     if not dest_schema_name:
-        dest_schema_name = pg.default_schema
+        dest_schema_name = pg_dbconn.default_schema
 
     if not dest_table_name:
-        dest_table_name = '_{u}_{d}'.format(u=pg.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+        dest_table_name = '_{u}_{d}'.format(u=pg_dbconn.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
 
-    if spatial:
-        spatial = 'MSSQLSpatial'
-        nlt_spatial = ' '
+    if is_spatial:
+        spatial_cmd = 'MSSQLSpatial'
+        nlt_spatial_cmd = ' '
     else:
-        spatial = 'MSSQL'
-        nlt_spatial = '-nlt NONE'
+        spatial_cmd = 'MSSQL'
+        nlt_spatial_cmd = '-nlt NONE'
 
     if LDAP:
         cmd = SQL_TO_PG_LDAP_QRY_CMD.format(
-            ms_pass='',
-            ms_user='',
-            pg_pass=pg.password,
-            pg_user=pg.user,
-            ms_server=ms.server,
-            ms_db=ms.database,
-            pg_host=pg.server,
-            pg_port=pg.port,
-            ms_database=ms.database,
-            pg_database=pg.database,
+            ms_password='',
+            ms_username='',
+            pg_password=pg_dbconn.password,
+            pg_username=pg_dbconn.user,
+            ms_host=ms_dbconn.server,
+            pg_host=pg_dbconn.server,
+            pg_port=pg_dbconn.port,
+            ms_dbname=ms_dbconn.database,
+            pg_dbname=pg_dbconn.database,
             pg_schema=dest_schema_name,
             sql_select=query,
-            spatial=spatial,
+            is_spatial=spatial_cmd,
             table_name=dest_table_name,
-            nlt_spatial=nlt_spatial,
+            nlt_spatial=nlt_spatial_cmd,
             gdal_data=GDAL_DATA_LOC
         )
     else:
         cmd = SQL_TO_PG_QRY_CMD.format(
-            ms_pass=ms.password,
-            ms_user=ms.user,
-            pg_pass=pg.password,
-            pg_user=pg.user,
-            ms_server=ms.server,
-            ms_db=ms.database,
-            pg_host=pg.server,
-            pg_port=pg.port,
-            ms_database=ms.database,
-            pg_database=pg.database,
+            ms_password=ms_dbconn.password,
+            ms_username=ms_dbconn.username,
+            pg_password=pg_dbconn.password,
+            pg_username=pg_dbconn.username,
+            ms_host=ms_dbconn.server,
+            pg_host=pg_dbconn.server,
+            pg_port=pg_dbconn.port,
+            ms_dbname=ms_dbconn.db_name,
+            pg_dbname=pg_dbconn.db_name,
             pg_schema=dest_schema_name,
             sql_select=query,
-            spatial=spatial,
+            is_spatial=spatial_cmd,
             table_name=dest_table_name,
-            nlt_spatial=nlt_spatial,
+            nlt_spatial=nlt_spatial_cmd,
             gdal_data=GDAL_DATA_LOC
         )
 
     if print_cmd:
-        print(print_cmd_string([ms.password, pg.password], cmd))
+        print(print_cmd_string([ms_dbconn.password, pg_dbconn.password], cmd))
 
     cmd_env = os.environ.copy()
     cmd_env['PGCLIENTENCODING'] = pg_encoding
@@ -177,14 +175,14 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema_name=None
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
-        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms_dbconn.password, pg_dbconn.password], cmd), returncode=1)
 
-    clean_geom_column(pg, dest_table_name, dest_schema_name)
+    clean_geom_column(pg_dbconn, dest_table_name, dest_schema_name)
 
-    pg.tables_created.append(dest_schema_name + "." + dest_table_name)
+    pg_dbconn.tables_created.append(dest_schema_name + "." + dest_table_name)
 
     if temp:
-        pg.log_temp_table(dest_schema_name, dest_table_name, pg.user)
+        pg_dbconn.log_temp_table(dest_schema_name, dest_table_name, pg_dbconn.username)
 
 
 def sql_to_pg(ms, pg, orig_table_name, LDAP=False, spatial=True, orig_schema_name=None, dest_schema_name=None, print_cmd=False,
@@ -199,7 +197,7 @@ def sql_to_pg(ms, pg, orig_table_name, LDAP=False, spatial=True, orig_schema_nam
     :param spatial: Flag for spatial table (defaults to True)
     :param orig_schema_name: SQL Server schema for origin table (defaults to default schema function result)
     :param dest_schema_name: PostgreSQL schema for destination table (defaults to default schema function result)
-    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param print_cmd: Option to print ogr2ogr command line statement (defaults to False) - used for debugging
     :param dest_table_name: Table name of final migrated table in PostgreSQL database
     :param temp: flag, defaults to true, for temporary tables
     :param gdal_data_loc: location of GDAL data
