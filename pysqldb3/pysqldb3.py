@@ -26,14 +26,14 @@ class DbConnect:
     Database Connection class
     """
 
-    def __init__(self, user=None, password=None, ldap=False, db_type=None, server=None, database=None, port=5432,
+    def __init__(self, username=None, password=None, use_ldap=False, db_type=None, host=None, db_name=None, port=5432,
                  allow_temp_tables=False, use_native_driver=True, default=False, quiet=False):
         # db_type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool) -> None
         """
         :params:
         user (string): default None
         password (string): default None
-        ldap (bool): default None
+        ldap (bool): Whether to use LDAP (trusted connection) for connection. default None
         db_type (string): default None
         server (string): default None
         db_name (string): default None
@@ -43,14 +43,14 @@ class DbConnect:
         quiet (bool): automatically performs all tasks quietly; defaults to False
         """
         # Explicitly in __init__ fn call
-        self.user = user
+        self.username = username
         self.password = password
-        self.LDAP = ldap
-        if self.LDAP and not self.user:
-            self.user = getpass.getuser()
+        self.LDAP = use_ldap
+        if self.LDAP and not self.username:
+            self.username = getpass.getuser()
         self.type = db_type
-        self.server = get_unique_table_schema_string(server, self.type)
-        self.database = db_name
+        self.host = get_unique_table_schema_string(host, self.type)
+        self.db_name = db_name
         self.port = port
         self.allow_temp_tables = allow_temp_tables
         self.use_native_driver = use_native_driver
@@ -75,7 +75,7 @@ class DbConnect:
         # Connect and clean logs
         self.__get_credentials()
         self.default_schema = self.__get_default_schema(self.type)
-        self.log_table = TEMP_LOG_TABLE.format(self.user)
+        self.log_table = TEMP_LOG_TABLE.format(self.username)
         self.__cleanup_subroutine()
 
     def __str__(self):
@@ -84,15 +84,8 @@ class DbConnect:
         :return: string of database connection info
         """
 
-        return 'Database connection ({typ}) to {db} on {srv} - user: {usr} \nConnection established {dt}, /' \
-               '\n- ris version {v} - '.format(
-                typ=self.type,
-                db=self.database,
-                srv=self.server,
-                usr=self.user,
-                dt=self.connection_start,
-                v=__version__
-                )
+        return f'Database connection ({self.type}) to {self.db_name} on {self.host} - user: {self.username} \nConnection established {self.connection_start}, /' \
+               '\n- ris version {__version__} - '
 
     def __get_most_recent_query_data(self, internal=False):
         # db_type: (DbConnect) -> list
@@ -143,26 +136,26 @@ class DbConnect:
         if self.default_connect:
             self.type = config.get('DEFAULT DATABASE', 'db_type')
             self.__set_type()
-            self.server = config.get('DEFAULT DATABASE', 'server')
-            self.database = config.get('DEFAULT DATABASE', 'database')
+            self.host = config.get('DEFAULT DATABASE', 'server')
+            self.db_name = config.get('DEFAULT DATABASE', 'database')
 
         # Only prompts user if missing necessary information
-        if ((self.LDAP and not all((self.database, self.server))) or
-                (not self.LDAP and (not all((self.user, self.password, self.database, self.server))))):
+        if ((self.LDAP and not all((self.db_name, self.host))) or
+                (not self.LDAP and (not all((self.username, self.password, self.db_name, self.host))))):
 
             print('\nAdditional database connection details required:')
 
             # Prompts user input for each missing parameter
             if not self.type:
                 self.type = input('Database db_type (MS/PG)').upper()
-            if not self.server:
-                self.server = input('Server:')
-            if not self.database:
-                self.database = input('Database name:')
-            if not self.user and not self.LDAP:
-                self.user = input('User name ({}):'.format(self.database.lower()))
+            if not self.host:
+                self.host = input('Host:')
+            if not self.db_name:
+                self.db_name = input('Database name:')
+            if not self.username and not self.LDAP:
+                self.username = input('User name ({}):'.format(self.db_name.lower()))
             if not self.password and not self.LDAP:
-                self.password = getpass.getpass('Password ({})'.format(self.database.lower()))
+                self.password = getpass.getpass('Password ({})'.format(self.db_name.lower()))
 
     def __connect_pg(self):
         # db_type: (DbConnect) -> None
@@ -171,10 +164,10 @@ class DbConnect:
         :return: None
         """
         self.params = {
-            'dbname': self.database,
-            'user': self.user,
+            'dbname': self.db_name,
+            'user': self.username,
             'password': self.password,
-            'host': self.server,
+            'host': self.host,
             'port': self.port
         }
         self.conn = psycopg2.connect(**self.params)
@@ -199,17 +192,17 @@ class DbConnect:
         if self.LDAP:
             self.params = {
                 'DRIVER': driver,
-                'DATABASE': self.database,
-                'SERVER': self.server,
+                'DATABASE': self.db_name,
+                'SERVER': self.host,
                 'Trusted_Connection': 'yes'
             }
         else:
             self.params = {
                 'DRIVER': driver,
-                'DATABASE': self.database,
-                'UID': self.user,
+                'DATABASE': self.db_name,
+                'UID': self.username,
                 'PWD': self.password,
-                'SERVER': self.server
+                'SERVER': self.host
             }
 
         try:
@@ -260,13 +253,8 @@ class DbConnect:
         try:
             self.conn.close()
             if not quiet and not self.quiet:
-                print('Database connection ({typ}) to {db} on {srv} - user: {usr} \nConnection closed {dt}'.format(
-                    typ=self.type,
-                    db=self.database,
-                    srv=self.server,
-                    usr=self.user,
-                    dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                ))
+                dt = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                print(f'Database connection ({self.type}) to {self.db_name} on {self.host} - user: {self.username} \nConnection closed {dt}')
         except Exception as e:
             print(e)
             return
@@ -292,7 +280,7 @@ class DbConnect:
         # type: (DbConnect, str) -> None
         """
         Deletes tables that have expired, as listed in the temp log
-        :param schema: database schema name
+        :param schema_name: database schema name
         :return:
         """
         self.query("""
@@ -314,7 +302,7 @@ class DbConnect:
             cleaned += 1
 
         if cleaned > 0:
-            print('Attempted to remove {} expired temp tables: {}'.format(cleaned, to_clean))
+            print(f'Attempted to remove {cleaned} expired temp tables: {to_clean}')
 
     def __remove_nonexistent_tables_from_logs(self):
         # db_type: (DbConnect) -> None
@@ -399,10 +387,10 @@ class DbConnect:
 
             # All archive tables should default to permanent
             if sch != 'archive':
-                self.log_temp_table(sch, tbl, self.user, database=database, server=server,
+                self.log_temp_table(sch, tbl, self.username, database=database, server=server,
                                     expiration=datetime.datetime.now() + datetime.timedelta(days=days))
 
-    def log_temp_table(self, schema_name, table_name, owner, server=None, database=None,
+    def log_temp_table(self, schema_name, table_name, owner, host=None, db_name=None,
                        expiration=datetime.datetime.now() + datetime.timedelta(days=7)):
         # db_type: (DbConnect, str, str, str, str, str, datetime) -> None
         """
@@ -410,8 +398,8 @@ class DbConnect:
         :param schema_name: database schema name
         :param table_name: table name
         :param owner: userid for table owner
-        :param server: database server path
-        :param database: database name
+        :param host: database server address
+        :param db_name: database name
         :param expiration: date after which the table can be deleted (defaults to 7 days)
         :return:
         """
@@ -419,17 +407,17 @@ class DbConnect:
         if table_name == self.log_table:
             return
 
-        if server:
-            ser = server + '.'
+        if host:
+            ser = host + '.'
         else:
             ser = ''
-        if database:
-            db = database + '.'
+        if db_name:
+            db = db_name + '.'
         else:
             db = ''
 
         # Check if log exists; if not make one
-        if not self.table_exists(self.log_table, schema_name=schema_name, server=server, database=database):
+        if not self.table_exists(self.log_table, schema_name=schema_name, host=host, db_name=db_name):
             if self.type == MS:
                 self.query(MS_CREATE_LOG_TABLE_QUERY.format(s=schema_name, log=self.log_table, serv=ser, db=db),
                            timeme=False, temp=False, internal=True)
@@ -467,22 +455,22 @@ class DbConnect:
 
     def check_logs(self, schema_name=None):
         """
-        :param schema: schema to check; defaults to the default_schema
+        :param schema_name: schema to check; defaults to the default_schema
         :return: df
         """
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
 
-        return self.dfquery("select * from {}.{}".format(schema, self.log_table))
+        return self.dfquery("select * from {}.{}".format(schema_name, self.log_table))
 
     def check_table_in_log(self, table_name, schema_name=None):
         """
         :param table_name: name of table to check
-        :param schema: schema to check; defaults to the default_schema
+        :param schema_name: schema to check; defaults to the default_schema
         :return: df
         """
-        if not schema:
-            schema = self.default_schema
+        if not schema_name:
+            schema_name = self.default_schema
         self.query("select * from {s}.{lt} where table_name = '{tn}'".format(
             s=schema_name, lt=self.log_table, tn=table_name))
 
@@ -513,7 +501,7 @@ class DbConnect:
         if self.type == MS:
             print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
 
-        return self.dfquery(PG_BLOCKING_QUERY % self.user)
+        return self.dfquery(PG_BLOCKING_QUERY % self.username)
 
     def kill_blocks(self):
         # db_type: (DbConnect) -> None
@@ -525,7 +513,7 @@ class DbConnect:
             print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
             return
 
-        self.query(PG_KILL_BLOCKS_QUERY % self.user, internal=True)
+        self.query(PG_KILL_BLOCKS_QUERY % self.username, internal=True)
 
         pids_to_kill = [pid[0] for pid in self.__get_most_recent_query_data(internal=True)]
 
@@ -540,14 +528,14 @@ class DbConnect:
         # type: (DbConnect, str) -> Optional[pd.DataFrame]
         """
         Get a list of tables for which you are the owner (PG only).
-        :param schema: Schema to look in (defaults to public)
+        :param schema_name: Schema to look in (defaults to public)
         :return: Pandas DataFrame of the table list
         """
         if self.type == MS:
             print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
             return
 
-        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema_name, u=self.user))
+        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema_name, u=self.username))
 
     def table_exists(self, table_name, **kwargs):
         # type: (DbConnect, str, **str) -> bool
@@ -559,8 +547,8 @@ class DbConnect:
         :return: bool
         """
         schema_name = kwargs.get('schema_name', self.default_schema)
-        server = kwargs.get('server', self.server)
-        database = kwargs.get('database', self.database)
+        server = kwargs.get('server', self.host)
+        database = kwargs.get('database', self.db_name)
         internal = kwargs.get('internal', False)
 
         cleaned_server = get_unique_table_schema_string(server, self.type)
@@ -581,11 +569,11 @@ class DbConnect:
             # this is a catch for when server and db are passed in but dont have values
             # this is happening in some of the logging/clean up functions
             if not cleaned_server:
-                cleaned_server = self.server
+                cleaned_server = self.host
             if not cleaned_database:
-                cleaned_database = self.database
+                cleaned_database = self.db_name
 
-            if cleaned_server == self.server and cleaned_database == get_unique_table_schema_string(self.database,
+            if cleaned_server == self.host and cleaned_database == get_unique_table_schema_string(self.db_name,
                                                                                                     self.type):
                 self.query(MS_TABLE_EXISTS_QUERY.format(s=cleaned_schema, t=cleaned_table), timeme=False,
                            internal=internal)
@@ -599,7 +587,7 @@ class DbConnect:
 
                 other_dbc = DbConnect(db_type=self.type, server=cleaned_server, db_name=cleaned_database,
                                       port=self.port,
-                                      user=self.user, password=self.password, ldap=self.LDAP,
+                                      user=self.username, password=self.password, ldap=self.LDAP,
                                       default=self.default_connect, use_native_driver=self.use_native_driver)
 
                 return other_dbc.table_exists(self.log_table, schema_name=cleaned_schema)
@@ -857,10 +845,10 @@ class DbConnect:
         :return: None
         """
 
-        if not schema:
+        if not schema_name:
             schema = self.default_schema
 
-        if not table_schema:
+        if not df_schema_name:
             table_schema = self.dataframe_to_table_schema(df, table_name, overwrite=overwrite, schema_name=schema_name, temp=temp,
                                                           allow_max_varchar=allow_max_varchar,
                                                           column_type_overrides=column_type_overrides,
@@ -879,7 +867,7 @@ class DbConnect:
                 INSERT INTO {s}.{t} ({cols})
                 VALUES ({d})
             """.format(s=schema_name, t=table_name,
-                       cols=str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", ''),
+                       cols=str(['"' + str(i[0]) + '"' for i in schema_name])[1:-1].replace("'", ''),
                        d=row_values), strict=False, timeme=False)
 
         df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema_name, t=table_name), timeme=False)
@@ -918,7 +906,7 @@ class DbConnect:
         if not input_file:
             input_file = file_loc('file')
 
-        if not table:
+        if not table_name:
             table = os.path.basename(input_file).split('.')[0]
 
         if not overwrite and self.table_exists(schema_name=schema_name, table_name=table_name):
@@ -973,7 +961,7 @@ class DbConnect:
 
         else:
             # Calls dataframe_to_table fn
-            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema_name=schema_name,
+            self.dataframe_to_table(df, table_name, table_schema=table_schema, overwrite=overwrite, schema_name=schema_name,
                                     temp=temp, days=days)
 
     def _bulk_csv_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False, days=7):
@@ -1036,21 +1024,21 @@ class DbConnect:
         # This is needed because GDAL doesnt parse datatypes (all to varchar)
         if self.type == PG:
             cmd = PG_BULK_FILE_TO_TABLE_CMD.format(t=types[self.type],
-                                                   server=self.server,
+                                                   server=self.host,
                                                    port=self.port,
-                                                   user=self.user,
+                                                   user=self.username,
                                                    password=self.password,
-                                                   db=self.database,
+                                                   db=self.db_name,
                                                    f=input_file,
                                                    schema=schema_name,
                                                    tbl=table_name
                                                    )
         else:
             cmd = MS_BULK_FILE_TO_TABLE_CMD.format(t=types[self.type],
-                                                   server=self.server,
-                                                   user=self.user,
+                                                   server=self.host,
+                                                   user=self.username,
                                                    password=self.password,
-                                                   db=self.database,
+                                                   db=self.db_name,
                                                    f=input_file,
                                                    schema=schema_name,
                                                    tbl=table_name
@@ -1176,7 +1164,7 @@ class DbConnect:
         :param sheet_name : str, int or None, defaults to the first sheet
         :param overwrite: If table exists in database, will overwrite; defaults to False
         :param schema_name: Schema of table; if None, defaults to db's default schema
-        :param table: Name for final database table; defaults to filename in path
+        :param table_name: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
         :param column_type_overrides: Dict of db_type key=column name, value=column db_type. Will manually set the
         raw column name as that db_type in the query, regardless of the pandas/postgres/sql server automatic
@@ -1425,13 +1413,13 @@ class DbConnect:
                 map_type = 'BOROUGH'
 
         if id_column and not geom_column:
-            if self.database.lower() == 'ris':
+            if self.db_name.lower() == 'ris':
                 geom_map = {
                     "PRECINCT": ("precinct", "districts_police_precincts"),
                     "NTA": ("ntacode", "districts_neighborhood_tabulation_areas"),
                 }
 
-            if self.database.lower() == 'crashdata':
+            if self.db_name.lower() == 'crashdata':
                 geom_map = {
                     "PRECINCT": ("precinct", "districts_police_precincts"),
                     "NTA": ("ntacode", "districts_nta"),
@@ -1476,7 +1464,7 @@ class DbConnect:
         self.allow_temp_tables = True
 
         # Makes a temp table name
-        tmp_table_name = "tmp_query_to_shp_{}_{}".format(self.user,
+        tmp_table_name = "tmp_query_to_shp_{}_{}".format(self.username,
                                                          str(datetime.datetime.now())[:16].replace('-', '_').replace(
                                                              ' ', '_').replace(':', ''))
 
