@@ -13,7 +13,7 @@ order by s.schema_id
 """
 
 MS_CREATE_LOG_TABLE_QUERY = r"""
-CREATE TABLE {serv}{db}{s}.{log} (
+CREATE TABLE {host}{db}{schema}.{log} (
     tbl_id int IDENTITY(1,1) PRIMARY KEY,
     table_owner varchar(255),
     table_schema varchar(255),
@@ -24,14 +24,14 @@ CREATE TABLE {serv}{db}{s}.{log} (
 """
 
 MS_ADD_TABLE_TO_LOG_QUERY = r"""
-MERGE {ser}{db}{s}.__temp_log_table_{u}__ AS [Target] 
+MERGE {host}{db}{schema}.__temp_log_table_{username}__ AS [Target] 
 USING (
     SELECT 
-        '{u} 'as table_owner,
-        '{s}' as table_schema,
-        '{t}' as table_name,
-        '{dt}' as created_on , 
-        '{ex}' as expires
+        '{username} 'as table_owner,
+        '{schema}' as table_schema,
+        '{table}' as table_name,
+        '{created}' as created_on,
+        '{expires}' as expires
 ) AS [Source] ON [Target].table_schema = [Source].table_schema 
     and [Target].table_name = [Source].table_name 
 WHEN MATCHED THEN UPDATE 
@@ -43,7 +43,7 @@ WHEN NOT MATCHED THEN INSERT (table_owner, table_schema, table_name, created_on,
 """
 
 PG_CREATE_LOG_TABLE_QUERY = r"""
-CREATE TABLE {s}.{log}  (
+CREATE TABLE {schema}.{log}  (
     tbl_id SERIAL,
     table_owner varchar,
     table_schema varchar,
@@ -55,14 +55,14 @@ CREATE TABLE {s}.{log}  (
 """
 
 PG_ADD_TABLE_TO_LOG_QUERY = r"""
-INSERT INTO {s}.{log} (
+INSERT INTO {schema}.{log} (
     table_owner,
     table_schema,
     table_name,
     created_on , 
     expires
 )
-VALUES ('{u}', '{s}', '{t}', '{dt}', '{ex}')
+VALUES ('{username}', '{schema}', '{table}', '{created}', '{expires}')
 ON CONFLICT (table_schema, table_name) DO 
 UPDATE SET expires = EXCLUDED.expires, created_on=EXCLUDED.created_on
 """
@@ -121,8 +121,8 @@ SELECT
 FROM
     pg_catalog.pg_tables
 WHERE
-    schemaname ='{s}'
-    AND tableowner='{u}'
+    schemaname ='{schema}'
+    AND tableowner='{username}'
 ORDER BY 
     tablename
 """
@@ -131,8 +131,8 @@ PG_TABLE_EXISTS_QUERY = r"""
 SELECT EXISTS (
 SELECT 1
 FROM pg_catalog.pg_tables
-WHERE schemaname = '{s}'
-AND tablename = '{t}'
+WHERE schemaname = '{schema}'
+AND tablename = '{table}'
 )        
 """
 
@@ -141,7 +141,7 @@ SELECT *
 FROM sys.tables t 
 JOIN sys.schemas s 
 ON t.schema_id = s.schema_id
-WHERE LOWER(s.name) = '{s}' AND LOWER(t.name) = '{t}'
+WHERE LOWER(s.name) = '{schema}' AND LOWER(t.name) = '{table}'
 """
 
 MS_GET_SCHEMAS_QUERY = r"""
@@ -173,13 +173,13 @@ on  t.relnamespace = n.oid
 where
     t.relkind = 'r'
     and n.nspname != 'pg_catalog'
-    and t.relname = '{t}'
-    and n.nspname = '{s}'
+    and t.relname = '{table}'
+    and n.nspname = '{schema}'
 """
 
 SHP_DEL_INDICES_QUERY_MS = r"""
     SELECT
-        '{t}' as table_name,
+        '{table}' as table_name,
         a.name AS index_name,
         COL_NAME(b.object_id,b.column_id) AS Column_Name,
         type_desc
@@ -190,7 +190,7 @@ SHP_DEL_INDICES_QUERY_MS = r"""
         ON a.object_id = b.object_id AND a.index_id = b.index_id
     WHERE
         a.is_hypothetical = 0 
-        AND a.object_id = OBJECT_ID('{s}.{t}')
+        AND a.object_id = OBJECT_ID('{schema}.{table}')
         AND type_desc !='SPATIAL' -- taken care of by GDAL
 """
 
