@@ -10,23 +10,23 @@ class Shapefile:
     def __str__(self):
         pass
 
-    def __init__(self, dbo=None, path=None, table_name=None, schema_name=None, query=None, shp_name=None, cmd=None,
+    def __init__(self, dbconn=None, path=None, table_name=None, schema_name=None, query=None, shpfile_name=None, command=None,
                  srid='2263', port=5432, gdal_data_loc=GDAL_DATA_LOC, skip_failures=''):
-        self.dbo = dbo
+        self.dbconn = dbconn
         self.path = path
-        self.table = table_name
-        self.schema = schema_name
+        self.table_name = table_name
+        self.schema_name = schema_name
         self.query = query
-        self.shp_name = shp_name
-        self.cmd = cmd
+        self.shpfile_name = shpfile_name
+        self.command = command
         self.srid = srid
         self.port = port
         self.gdal_data_loc = gdal_data_loc
         self.skip_failures=skip_failures
 
         # Use default schema from db object
-        if not self.schema:
-            self.schema = dbo.default_schema
+        if not self.schema_name:
+            self.schema_name = dbconn.default_schema
 
     @staticmethod
     def name_extension(name):
@@ -46,84 +46,81 @@ class Shapefile:
         :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
         :return:
         """
-        if self.table:
-            qry = "SELECT * FROM {s}.{t}".format(s=self.schema, t=self.table)
+        if self.table_name:
+            query = "SELECT * FROM {schema}.{table}".format(schema=self.schema_name, table=self.table_name)
         else:
-            qry = u"SELECT * FROM ({q}) x".format(q=self.query)
+            query = u"SELECT * FROM ({query}) x".format(query=self.query)
 
-        self.path, shp = parse_shp_path(self.path, self.shp_name)
+        self.path, shpfile = parse_shp_path(self.path, self.shpfile_name)
 
-        if not self.shp_name:
-            if shp:
-                self.shp_name = shp
+        if not self.shpfile_name:
+            if shpfile:
+                self.shpfile_name = shpfile
             else:
                 output_file_name = file_loc('save')
-                self.shp_name = os.path.basename(output_file_name)
+                self.shpfile_name = os.path.basename(output_file_name)
                 self.path = os.path.dirname(output_file_name)
 
-        if self.shp_name[-4:] == ".shp" and "." in self.shp_name[:-4]:
-            self.shp_name = self.shp_name[:-4].replace(".", "_") + ".shp"
+        if self.shpfile_name[-4:] == ".shp" and "." in self.shpfile_name[:-4]:
+            self.shpfile_name = self.shpfile_name[:-4].replace(".", "_") + ".shp"
             print(' The "." character is not allowed in output shp file names. Any "." have been removed.')
-        elif self.shp_name[-4:] != ".shp" and "." in self.shp_name:
-            self.shp_name = self.shp_name.replace(".", "_")
+        elif self.shpfile_name[-4:] != ".shp" and "." in self.shpfile_name:
+            self.shpfile_name = self.shpfile_name.replace(".", "_")
             print(' The "." character is not allowed in output shp file names. Any "." have been removed.')
 
         if not self.path:
             self.path = file_loc('folder')
 
-        if not self.cmd:
-            if self.dbo.type == 'PG':
-                self.cmd = WRITE_SHP_CMD_PG.format(export_path=self.path,
-                                                   shpname=self.name_extension(self.shp_name),
-                                                   host=self.dbo.server,
-                                                   username=self.dbo.user,
-                                                   db=self.dbo.database,
-                                                   password=self.dbo.password,
-                                                   pg_sql_select=qry,
+        if not self.command:
+            if self.dbconn.type == 'PG':
+                self.command = WRITE_SHP_CMD_PG.format(export_path=self.path,
+                                                   shpfile=self.name_extension(self.shpfile_name),
+                                                   host=self.dbconn.host,
+                                                   username=self.dbconn.username,
+                                                   db=self.dbconn.db_name,
+                                                   password=self.dbconn.password,
+                                                   pg_sql_select=query,
                                                    srid=self.srid,
                                                    gdal_data=self.gdal_data_loc)
-            elif self.dbo.type == 'MS':
-                if self.dbo.LDAP:
-                    self.cmd = WRITE_SHP_CMD_MS.replace(";UID={username};PWD={password}", "").format(
+            elif self.dbconn.type == 'MS':
+                if self.dbconn.use_ldap:
+                    self.command = WRITE_SHP_CMD_MS.replace(";UID={username};PWD={password}", "").format(
                         export_path=self.path,
-                        shpname=self.name_extension(self.shp_name),
-                        host=self.dbo.server,
-                        db=self.dbo.database,
-                        ms_sql_select=qry,
+                        shpfile=self.name_extension(self.shpfile_name),
+                        host=self.dbconn.host,
+                        db=self.dbconn.db_name,
+                        ms_sql_select=query,
                         srid=self.srid,
                         gdal_data=self.gdal_data_loc
                     )
                 else:
-                    self.cmd = WRITE_SHP_CMD_MS.format(export_path=self.path,
-                                                       shpname=self.name_extension(self.shp_name),
-                                                       host=self.dbo.server,
-                                                       username=self.dbo.user,
-                                                       db=self.dbo.database,
-                                                       password=self.dbo.password,
-                                                       ms_sql_select=qry,
+                    self.command = WRITE_SHP_CMD_MS.format(export_path=self.path,
+                                                       shpfile=self.name_extension(self.shpfile_name),
+                                                       host=self.dbconn.server,
+                                                       username=self.dbconn.user,
+                                                       db=self.dbconn.database,
+                                                       password=self.dbconn.password,
+                                                       ms_sql_select=query,
                                                        srid=self.srid,
                                                        gdal_data=self.gdal_data_loc)
 
         if print_cmd:
-            print(print_cmd_string([self.dbo.password], self.cmd))
+            print(print_cmd_string([self.dbconn.password], self.command))
 
         try:
-            ogr_response = subprocess.check_output(shlex.split(self.cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            ogr_response = subprocess.check_output(shlex.split(self.command.replace('\n', ' ')), stderr=subprocess.STDOUT)
             print(ogr_response)
         except subprocess.CalledProcessError as e:
             print("Ogr2ogr Output:\n", e.output)
             print('Ogr2ogr command failed. The shapefile/feature class was not written.')
-            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], self.cmd), returncode=1)
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbconn.password], self.command), returncode=1)
 
-        if self.table:
-            print('{t} shapefile \nwritten to: {p}\ngenerated from: {q}'.format(t=self.name_extension(self.shp_name),
-                                                                                p=self.path,
-                                                                                q=self.table))
+        if self.table_name:
+            print('{shp} shapefile \nwritten to: {path}\ngenerated from: {table}'.format(
+                shp=self.name_extension(self.shpfile_name), path=self.path, table=self.table_name))
         else:
-            print(u'{t} shapefile \nwritten to: {p}\ngenerated from: {q}'.format(
-                t=self.name_extension(self.shp_name),
-                p=self.path,
-                q=self.query))
+            print(u'{shp} shapefile \nwritten to: {path}\ngenerated from: {table}'.format(
+                shp=self.name_extension(self.shpfile_name), path=self.path, table=self.query))
 
     def table_exists(self):
         """
@@ -132,34 +129,36 @@ class Shapefile:
         :return: boolean if shp name exists as a table in the schema
         """
 
-        return self.dbo.table_exists(table=self.table, schema=self.schema)
+        return self.dbconn.table_exists(table_name=self.table_name, schema_name=self.schema_name)
 
     def del_indexes(self):
         """
         Drops indexes
         :return:
         """
-        if self.dbo.type == 'PG':
-            self.dbo.query(SHP_DEL_INDICES_QUERY_PG.format(s=self.schema, t=self.table), internal=True)
-            indexes_to_delete = self.dbo.internal_data
+        if self.dbconn.type == 'PG':
+            self.dbconn.query(SHP_DEL_INDICES_QUERY_PG.format(
+                schema_name=self.schema_name, table_name=self.table_name), internal=True)
+            indexes_to_delete = self.dbconn.internal_data
 
             for _ in list(indexes_to_delete):
                 table_name, schema_name, index_name, column_name = _
                 if 'pkey' not in index_name and 'PK' not in index_name:
-                    self.dbo.query('DROP INDEX {s}.{i}'.format(s=self.schema, i=index_name),
-                                   strict=False, internal=True)
+                    self.dbconn.query('DROP INDEX {schema}.{index}'.format(schema=self.schema_name, index=index_name),
+                        strict=False, internal=True)
         else:
-            self.dbo.query(SHP_DEL_INDICES_QUERY_MS.format(s=self.schema, t=self.table), internal=True)
-            indexes_to_delete = self.dbo.internal_data
+            self.dbconn.query(SHP_DEL_INDICES_QUERY_MS.format(schema_name=self.schema_name, table_name=self.table_name), internal=True)
+            indexes_to_delete = self.dbconn.internal_data
 
             for _ in list(indexes_to_delete):
                 table_name, index_name, column_name, idx_typ = _
                 if 'pkey' not in index_name and 'PK' not in index_name:
-                    self.dbo.query('DROP INDEX {t}.{i}'.format(t=self.table, i=index_name), strict=False, internal=True)
+                    self.dbconn.query('DROP INDEX {table}.{index}'.format(table=self.table_name, index=index_name),
+                        strict=False, internal=True)
 
     def read_shp(self, precision=False, private=False, shp_encoding=None, print_cmd=False):
         """
-        Reads a shapefile in as a table
+        Reads a shapefile into a dbconnect as a table
 
         :param precision:
         :param private:
@@ -174,99 +173,98 @@ class Shapefile:
         else:
             precision = ''
 
-        if not all([self.path, self.shp_name]):
+        if not all([self.path, self.shpfile_name]):
             filename = file_loc('file', 'Missing file info - Opening search dialog...')
-            self.shp_name = os.path.basename(filename)
+            self.shpfile_name = os.path.basename(filename)
             self.path = os.path.dirname(filename)
 
-        if not self.table:
-            self.table = self.shp_name.replace('.shp', '').lower()
+        if not self.table_name:
+            self.table_name = self.shpfile_name.replace('.shp', '').lower()
 
-        self.table = self.table.lower()
+        self.table_name = self.table_name.lower()
         if self.table_exists():
             # Clean up spatial index
             self.del_indexes()
 
-            print('Deleting existing table {s}.{t}'.format(s=self.schema, t=self.table))
-            self.dbo.drop_table(schema=self.schema, table=self.table)
+            print('Deleting existing table {schema}.{table}'.format(schema=self.schema_name, table=self.table_name))
+            self.dbconn.drop_table(schema=self.schema_name, table=self.table_name)
 
-        if self.dbo.type == 'PG':
+        if self.dbconn.type == 'PG':
             cmd = READ_SHP_CMD_PG.format(
                 gdal_data=self.gdal_data_loc,
                 srid=self.srid,
-                host=self.dbo.server,
-                dbname=self.dbo.database,
-                user=self.dbo.user,
-                password=self.dbo.password,
-                shp=os.path.join(self.path, self.shp_name).lower(),
-                schema=self.schema,
-                tbl_name=self.table,
-                perc=precision,
+                host=self.dbconn.host,
+                db=self.dbconn.db_name,
+                username=self.dbconn.username,
+                password=self.dbconn.password,
+                shpfile=os.path.join(self.path, self.shpfile_name).lower(),
+                schema=self.schema_name,
+                table=self.table_name,
+                precision=precision,
                 port=port
             )
-        elif self.dbo.type == 'MS':
-            if self.dbo.LDAP:
-                cmd = READ_SHP_CMD_MS.format(
+        elif self.dbconn.type == 'MS':
+            if self.dbconn.use_ldap:
+                command = READ_SHP_CMD_MS.format(
                     gdal_data=self.gdal_data_loc,
                     srid=self.srid,
-                    host=self.dbo.server,
-                    dbname=self.dbo.database,
-                    shp=os.path.join(self.path, self.shp_name).lower(),
-                    schema=self.schema,
-                    tbl_name=self.table,
-                    perc=precision,
+                    host=self.dbconn.host,
+                    db=self.dbconn.db_name,
+                    shpfile=os.path.join(self.path, self.shpfile_name).lower(),
+                    schema=self.schema_name,
+                    table=self.table_name,
+                    precision=precision,
                     port=port
                 )
-                cmd.replace(";UID={user};PWD={password}", "")
+                command.replace(";UID={user};PWD={password}", "")
 
             else:
-                cmd = READ_SHP_CMD_MS.format(
+                command = READ_SHP_CMD_MS.format(
                     gdal_data=self.gdal_data_loc,
                     srid=self.srid,
-                    host=self.dbo.server,
-                    dbname=self.dbo.database,
-                    user=self.dbo.user,
-                    password=self.dbo.password,
-                    shp=os.path.join(self.path, self.shp_name).lower(),
-                    schema=self.schema,
-                    tbl_name=self.table,
-                    perc=precision,
+                    host=self.dbconn.host,
+                    db=self.dbconn.db_name,
+                    username=self.dbconn.username,
+                    password=self.dbconn.password,
+                    shpfile=os.path.join(self.path, self.shpfile_name).lower(),
+                    schema=self.schema_name,
+                    table=self.table_name,
+                    precision=precision,
                     port=port
                 )
 
-        cmd_env = os.environ.copy()
+        command_env = os.environ.copy()
 
         if shp_encoding and shp_encoding.upper() == 'LATIN1':
-            cmd_env['PGCLIENTENCODING'] = 'LATIN1'
+            command_env['PGCLIENTENCODING'] = 'LATIN1'
 
         if shp_encoding and shp_encoding.upper().replace('-', '') == 'UTF8':
-            cmd_env['PGCLIENTENCODING'] = 'UTF8'
+            command_env['PGCLIENTENCODING'] = 'UTF8'
 
         if print_cmd:
-            print(print_cmd_string([self.dbo.password], cmd))
+            print(print_cmd_string([self.dbconn.password], command))
 
         try:
-            ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, env=cmd_env)
+            ogr_response = subprocess.check_output(shlex.split(command), stderr=subprocess.STDOUT, env=command_env)
             print(ogr_response)
         except subprocess.CalledProcessError as e:
             print("Ogr2ogr Output:\n", e.output)
             print('Ogr2ogr command failed. The shapefile was not read in.')
-            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], cmd), returncode=1)
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbconn.password], command), returncode=1)
 
-        if self.dbo.type == 'PG':
-            self.dbo.query(SHP_COMMENT_QUERY.format(
-                s=self.schema,
-                t=self.table,
-                u=self.dbo.user,
-                p=self.path,
-                shp=self.shp_name,
-                d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        if self.dbconn.type == 'PG':
+            self.dbconn.query(SHP_COMMENT_QUERY.format(
+                schema=self.schema_name,
+                table=self.table_name,
+                username=self.dbconn.username,
+                path=self.path,
+                shpfile=self.shpfile_name,
+                dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             ), timeme=False, internal=True)
 
         if not private:
-            self.dbo.query('grant select on {s}."{t}" to public;'.format(
-                s=self.schema,
-                t=self.table), timeme=False, internal=True)
+            self.dbconn.query('grant select on {s}."{t}" to public;'.format(
+                s=self.schema_name, t=self.table_name), timeme=False, internal=True)
 
         self.rename_geom()
 
@@ -278,48 +276,48 @@ class Shapefile:
         :param fc_encoding: Optional encoding of data within feature class
         :return:
         """
-        if not all([self.path, self.shp_name]):
+        if not all([self.path, self.shpfile_name]):
             return 'Missing path and/or shp_name'
 
-        if not self.table:
-            self.table = self.shp_name.lower()
+        if not self.table_name:
+            self.table_name = self.shpfile_name.lower()
 
         if self.table_exists():
             # clean up spatial index
             self.del_indexes()
-            print('Deleting existing table {s}.{t}'.format(s=self.schema, t=self.table))
-            if self.dbo.type == 'MS':
-                self.dbo.drop_table(self.schema, self.table)
+            print('Deleting existing table {schema}.{table}'.format(schema=self.schema_name, table=self.table_name))
+            if self.dbconn.type == 'MS':
+                self.dbconn.drop_table(self.schema_name, self.table_name)
             else:
-                self.dbo.drop_table(self.schema, self.table, cascade=True)
+                self.dbconn.drop_table(self.schema_name, self.table_name, cascade=True)
 
-        if self.dbo.type == 'PG':
+        if self.dbconn.type == 'PG':
             cmd = READ_FEATURE_CMD.format(
                 gdal_data=self.gdal_data_loc,
                 srid=self.srid,
-                host=self.dbo.server,
-                dbname=self.dbo.database,
-                user=self.dbo.user,
-                password=self.dbo.password,
+                host=self.dbconn.host,
+                dbname=self.dbconn.database,
+                username=self.dbconn.username,
+                password=self.dbconn.password,
                 gdb=self.path,
-                feature=self.shp_name,
-                tbl_name=self.table,
-                sch=self.schema
+                feature=self.shpfile_name,
+                table_name=self.table_name,
+                schema_name=self.schema_name
             )
         else:
             # TODO: add LDAP version trusted_connection=yes
             cmd = READ_FEATURE_CMD_MS.format(
                 gdal_data=self.gdal_data_loc,
                 srid=self.srid,
-                ms_server=self.dbo.server,
-                ms_db=self.dbo.database,
-                ms_user=self.dbo.user,
-                ms_pass=self.dbo.password,
+                ms_host=self.dbconn.host,
+                ms_dbname=self.dbconn.db_name,
+                ms_username=self.dbconn.username,
+                ms_password=self.dbconn.password,
                 gdb=self.path,
-                feature=self.shp_name,
-                tbl_name=self.table,
-                sch=self.schema,
-                sf=self.skip_failures
+                feature=self.shpfile_name,
+                table_name=self.table_name,
+                schema_name=self.schema_name,
+                skip_failures=self.skip_failures
             )
 
         cmd_env = os.environ.copy()
@@ -330,7 +328,7 @@ class Shapefile:
             cmd_env['PGCLIENTENCODING'] = 'UTF8'
 
         if print_cmd:
-            print(print_cmd_string([self.dbo.password], cmd))
+            print(print_cmd_string([self.dbconn.password], cmd))
 
         try:
             ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
@@ -338,20 +336,19 @@ class Shapefile:
         except subprocess.CalledProcessError as e:
             print("Ogr2ogr Output:\n", e.output)
             print('Ogr2ogr command failed. The feature class was not read in.')
-            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], cmd), returncode=1)
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbconn.password], cmd), returncode=1)
 
-        if self.dbo.type == 'PG':
-            self.dbo.query(FEATURE_COMMENT_QUERY.format(
-                s=self.schema,
-                t=self.table,
-                u=self.dbo.user,
-                d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        if self.dbconn.type == 'PG':
+            self.dbconn.query(FEATURE_COMMENT_QUERY.format(
+                schema_name=self.schema_name,
+                table_name=self.table_name,
+                username=self.dbconn.username,
+                dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             ), timeme=False, internal=True)
 
         if not private:
-            self.dbo.query('grant select on {s}."{t}" to public;'.format(
-                s=self.schema,
-                t=self.table), timeme=False, internal=True)
+            self.dbconn.query('grant select on {schema}."{table}" to public;'.format(
+                schema=self.schema_name, table=self.table_name), timeme=False, internal=True)
 
         self.rename_geom()
 
@@ -361,49 +358,49 @@ class Shapefile:
 
         :return:
         """
-        self.dbo.query("""
+        self.dbconn.query("""
                         SELECT column_name
                         FROM information_schema.columns
-                        WHERE table_schema = '{s}'
-                        AND table_name   = '{t}';
-                    """.format(s=self.schema, t=self.table), timeme=False, internal=True)
+                        WHERE table_schema = '{schema}'
+                        AND table_name   = '{table}';
+                    """.format(schema=self.schema_name, table=self.table_name), timeme=False, internal=True)
         f = None
 
-        if self.dbo.type == 'PG':
+        if self.dbconn.type == 'PG':
 
             # Get the column in question
-            if 'wkb_geometry' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            if 'wkb_geometry' in [i[0] for i in self.dbconn.internal_queries[-1].data]:
                 f = 'wkb_geometry'
-            elif 'shape' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            elif 'shape' in [i[0] for i in self.dbconn.internal_queries[-1].data]:
                 f = 'shape'
 
             if f:
                 # Rename column
-                self.dbo.rename_column(schema=self.schema, table=self.table, old_column=f, new_column='geom')
+                self.dbconn.rename_column(schema=self.schema_name, table=self.table_name, old_column=f, new_column='geom')
 
                 # Rename index
-                self.dbo.query("""
+                self.dbconn.query("""
                     ALTER INDEX IF EXISTS
-                    {s}.{t}_{f}_geom_idx
-                    RENAME to {t}_geom_idx
-                """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
+                    {schema}.{table}_{f}_geom_idx
+                    RENAME to {table}_geom_idx
+                """.format(schema=self.schema_name, table=self.table_name, f=f), timeme=False, internal=True)
 
-        elif self.dbo.type == 'MS':
+        elif self.dbconn.type == 'MS':
             # Get the column in question
-            if 'ogr_geometry' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            if 'ogr_geometry' in [i[0] for i in self.dbconn.internal_queries[-1].data]:
                 f = 'ogr_geometry'
-            elif 'Shape' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            elif 'Shape' in [i[0] for i in self.dbconn.internal_queries[-1].data]:
                 f = 'Shape'
 
             if f:
                 # Rename column
-                self.dbo.rename_column(schema=self.schema, table=self.table, old_column=f, new_column='geom')
+                self.dbconn.rename_column(schema=self.schema_name, table=self.table_name, old_column=f, new_column='geom')
 
                 # Rename index if exists
                 try:
-                    self.dbo.query("""
-                        EXEC sp_rename N'{s}.{t}.ogr_{s}_{t}_{f}_sidx', N'{t}_geom_idx', N'INDEX';
-                    """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
+                    self.dbconn.query("""
+                        EXEC sp_rename N'{schema}.{table}.ogr_{schema}_{table}_{f}_sidx', N'{table}_geom_idx', N'INDEX';
+                    """.format(schema=self.schema_name, table=self.table_name, f=f), timeme=False, internal=True)
                 except SystemExit as e:
                     print(e)
                     print('Warning - could not update index name after renaming geometry. It may not exist.')

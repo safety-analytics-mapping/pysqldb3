@@ -211,8 +211,8 @@ class Query:
                 self.dropped_tables = self.query_drops_table(self.query)
 
                 if self.permission:
-                    for t in self.new_tables:
-                        self.dbconn.query('grant select on {t} to public;'.format(t=t),
+                    for tbl in self.new_tables:
+                        self.dbconn.query('grant select on {table} to public;'.format(table=tbl),
                                           strict=False, timeme=False, internal=True)
 
                 if self.renamed_tables:

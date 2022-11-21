@@ -195,12 +195,12 @@ SHP_DEL_INDICES_QUERY_MS = r"""
 """
 
 SHP_COMMENT_QUERY = r"""
-comment on table {s}.{t} is '{t} created by {u} on {d}
-shp source: {p}\{shp}
+comment on table {schema}.{table} is '{table} created by {username} on {dt}
+shp source: {path}\{shpfile}
 - imported using pysql module -'
 """
 
 FEATURE_COMMENT_QUERY = """
-comment on table {s}.{t} is '{t} created by {u} on {d}
+comment on table {schema}.{table} is '{table} created by {username} on {dt}
 - imported using pysql module -'
 """

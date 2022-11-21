@@ -42,12 +42,12 @@ ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "ESRI Shapefile" "{export
 
 READ_SHP_CMD_PG = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
 "EPSG:{srid}" -progress -f "PostgreSQL" PG:"host={host} port={port} dbname={dbname} 
-user={username} password={password}" "{shpfile_name}" -nln {schema_name}.{table_name} {perc}
+user={username} password={password}" "{shpfile_name}" -nln {schema_name}.{table_name} {precision}
 """.replace('\n', ' ')
 
 READ_SHP_CMD_MS = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
 "EPSG:{srid}" -progress -f MSSQLSpatial "MSSQL:server={host}; database={dbname}; UID={username}; PWD={password}"
- "{shpfile_name}" -nln {schema_name}.{table_name} {perc} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
+ "{shpfile_name}" -nln {schema_name}.{table_name} {precision} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
 """.replace('\n', ' ')
 
 READ_FEATURE_CMD = r"""
