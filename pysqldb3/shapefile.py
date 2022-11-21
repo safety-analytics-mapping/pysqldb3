@@ -187,10 +187,10 @@ class Shapefile:
             self.del_indexes()
 
             print('Deleting existing table {schema}.{table}'.format(schema=self.schema_name, table=self.table_name))
-            self.dbconn.drop_table(schema=self.schema_name, table=self.table_name)
+            self.dbconn.drop_table(schema_name=self.schema_name, table_name=self.table_name)
 
         if self.dbconn.type == 'PG':
-            cmd = READ_SHP_CMD_PG.format(
+            command = READ_SHP_CMD_PG.format(
                 gdal_data=self.gdal_data_loc,
                 srid=self.srid,
                 host=self.dbconn.host,
@@ -263,8 +263,8 @@ class Shapefile:
             ), timeme=False, internal=True)
 
         if not private:
-            self.dbconn.query('grant select on {s}."{t}" to public;'.format(
-                s=self.schema_name, t=self.table_name), timeme=False, internal=True)
+            self.dbconn.query('grant select on {schema}."{table}" to public;'.format(
+                schema=self.schema_name, table=self.table_name), timeme=False, internal=True)
 
         self.rename_geom()
 
@@ -376,7 +376,7 @@ class Shapefile:
 
             if f:
                 # Rename column
-                self.dbconn.rename_column(schema=self.schema_name, table=self.table_name, old_column=f, new_column='geom')
+                self.dbconn.rename_column(schema_name=self.schema_name, table_name=self.table_name, old_column=f, new_column='geom')
 
                 # Rename index
                 self.dbconn.query("""
@@ -394,7 +394,7 @@ class Shapefile:
 
             if f:
                 # Rename column
-                self.dbconn.rename_column(schema=self.schema_name, table=self.table_name, old_column=f, new_column='geom')
+                self.dbconn.rename_column(schema_name=self.schema_name, table_name=self.table_name, old_column=f, new_column='geom')
 
                 # Rename index if exists
                 try:
