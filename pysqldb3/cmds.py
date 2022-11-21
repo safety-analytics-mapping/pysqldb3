@@ -115,8 +115,8 @@ UID={ms_username};PWD={ms_password}" {ms_schema_name}.{ms_table_name} -lco OVERW
 
 PG_TO_PG_CMD = r"""
 ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "PostgreSQL" PG:"host={dest_host} port={dest_port}  
-dbname={dest_dbname} user={dest_username} password={dest_password}" PG:"host={from_pg_host} port={from_pg_port} 
-dbname={src_dbname}  user={src_username} password={src_password}" {from_pg_schema_name}.{from_pg_table_name} 
+dbname={dest_dbname} user={dest_username} password={dest_password}" PG:"host={from_pg_host} port={src_port} 
+dbname={src_dbname}  user={src_username} password={src_password}" {src_schema_name}.{src_table_name} 
 -lco OVERWRITE=yes -nln {dest_schema_name}.{dest_table_name} {nlt_spatial} -progress
 """.replace('\n', ' ')
 
