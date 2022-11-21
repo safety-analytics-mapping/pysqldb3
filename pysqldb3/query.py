@@ -67,7 +67,7 @@ class Query:
         self.new_tables = list()
         self.renamed_tables = list()
         self.dropped_tables = list()
-        self.current_cur = None
+        self.current_cursor = None
 
         # Run (execute) query, comments, and logging.
         self.__run_query(internal)
@@ -121,7 +121,7 @@ class Query:
         self.data = cur.fetchall()
 
     def __update_log_for_renamed_table(self, new_table_name, old_table_name):
-        _host, _dbname, schema_name, new_table_name = parse_table_string(new_table_name, self.dbconn.default_schema, self.dbconn.type)
+        _host, _db_name, schema_name, new_table_name = parse_table_string(new_table_name, self.dbconn.default_schema, self.dbconn.type)
 
         if self.dbconn.table_exists(self.dbconn.log_table, schema=schema_name, internal=True):
             self.dbconn.query("update {s}.{l} set table_name = '{nt}' where table_name = '{ot}'".format(
@@ -223,24 +223,24 @@ class Query:
                         self.rename_index(i, self.renamed_tables[i])
 
                         # Add standardized previous table name to dropped tables to remove from log
-                        server, database, sch, tbl = parse_table_string(i, self.dbconn.default_schema, self.dbconn.type)
-                        org_table = get_query_table_schema_name(sch, self.dbconn.type) + '.' + get_query_table_schema_name(
+                        host, db_name, schema, table = parse_table_string(i, self.dbconn.default_schema, self.dbconn.type)
+                        src_table = get_query_table_schema_name(schema, self.dbconn.type) + '.' + get_query_table_schema_name(
                             self.renamed_tables[i], self.dbconn.type)
-                        self.dropped_tables.append(org_table)
+                        self.dropped_tables.append(src_table)
 
                         # If the standardized previous table name is in this query's new tables, replace with new name
-                        if org_table in self.new_tables:
-                            self.new_tables[self.new_tables.index(org_table)] = \
-                                get_query_table_schema_name(sch, self.dbconn.type) + '.' + get_query_table_schema_name(
-                                tbl, self.dbconn.type)
+                        if src_table in self.new_tables:
+                            self.new_tables[self.new_tables.index(src_table)] = \
+                                get_query_table_schema_name(schema, self.dbconn.type) + '.' + get_query_table_schema_name(
+                                table, self.dbconn.type)
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
-                        if org_table in self.dbconn.tables_created:
+                        if src_table in self.dbconn.tables_created:
                             # self.dbo.tables_created.remove(org_table)
-                            self.dbconn.tables_created[self.dbconn.tables_created.index(org_table)] = \
-                                get_query_table_schema_name(sch, self.dbconn.type) + '.' + get_query_table_schema_name(
-                                tbl, self.dbconn.type)
+                            self.dbconn.tables_created[self.dbconn.tables_created.index(src_table)] = \
+                                get_query_table_schema_name(schema, self.dbconn.type) + '.' + get_query_table_schema_name(
+                                table, self.dbconn.type)
 
                 if self.timeme:
                     print(self)
@@ -300,18 +300,18 @@ class Query:
             # Clean table names via parse_table_string, get_query_table_schema_name
             parsed_tables = [parse_table_string(a, default_schema, db_type) for a in all_tables]
             parsed_tables_clean = []
-            for ser, db, s, t in parsed_tables:
+            for host, db_name, schema, table in parsed_tables:
                 # format variables
-                ser = get_query_table_schema_name(ser, db_type)
-                db = get_query_table_schema_name(db, db_type)
-                s = get_query_table_schema_name(s, db_type)
-                t = get_query_table_schema_name(t, db_type)
-                if ser:
-                    parsed_tables_clean.append('.'.join([ser, db, s, t]))
-                elif db:
-                    parsed_tables_clean.append('.'.join([db, s, t]))
+                host = get_query_table_schema_name(host, db_type)
+                db_name = get_query_table_schema_name(db_name, db_type)
+                schema = get_query_table_schema_name(schema, db_type)
+                table = get_query_table_schema_name(table, db_type)
+                if host:
+                    parsed_tables_clean.append('.'.join([host, db_name, schema, table]))
+                elif db_name:
+                    parsed_tables_clean.append('.'.join([db_name, schema, table]))
                 else:
-                    parsed_tables_clean.append('.'.join([s, t]))
+                    parsed_tables_clean.append('.'.join([schema, table]))
             return parsed_tables_clean
         else:
             return []
@@ -441,18 +441,18 @@ class Query:
             self.dbconn.query(query, strict=True, timeme=False, internal=True)
             indices = self.dbconn.internal_data or []
 
-        for idx in indices:
-            if old_table_name in idx[0]:
-                new_idx = idx[0].replace(old_table_name, table_name)
+        for index in indices:
+            if old_table_name in index[0]:
+                new_index = index[0].replace(old_table_name, table_name)
 
                 if self.dbconn.type == 'PG':
-                    new_idx_qry = 'ALTER INDEX IF EXISTS {schema}."{idx}" RENAME to "{idx2}"'.format(
-                        schema=schema_name, idx=idx[0], idx2=new_idx)
+                    new_index_query = 'ALTER INDEX IF EXISTS {schema}."{oindex}" RENAME to "{nindex}"'.format(
+                        schema=schema_name, oindex=index[0], nindex=new_index)
                 elif self.dbconn.type == 'MS':
-                    new_idx_qry = "EXEC sp_rename '{table}.{idx}', '{idx2}', N'INDEX';".format(idx=idx[0],
-                        idx2=new_idx, table=new_table_name)
+                    new_index_query = "EXEC sp_rename '{table}.{oindex}', '{nindex}', N'INDEX';".format(
+                        oindex=index[0], nindex=new_index, table=new_table_name)
 
-                self.dbconn.query(query=new_idx_qry, strict=False, timeme=False, internal=True)
+                self.dbconn.query(query=new_index_query, strict=False, timeme=False, internal=True)
 
     def __auto_comment(self):
         """
@@ -462,13 +462,13 @@ class Query:
         if self.dbconn.type == PG and not self.no_comment:
             for table in self.new_tables:
                 # tables in new_tables list will contain schema if provided, otherwise will default to public
-                q = """COMMENT ON TABLE {t} IS 'Created by {u} on {d}\n{cmnt}'""".format(
-                    t=table,
-                    u=self.dbconn.user,
-                    d=self.query_start.strftime('%Y-%m-%d %H:%M'),
-                    cmnt=self.comment
+                query = """COMMENT ON TABLE {table} IS 'Created by {user} on {dt}\n{comment}'""".format(
+                    table=table,
+                    user=self.dbconn.username,
+                    dt=self.query_start.strftime('%Y-%m-%d %H:%M'),
+                    comment=self.comment
                 )
-                self.dbconn.query(q, strict=False, timeme=False, internal=True)
+                self.dbconn.query(query, strict=False, timeme=False, internal=True)
 
     def iterable_query_to_csv(self, output, open_file, quote_strings, sep):
         """
@@ -482,16 +482,16 @@ class Query:
         :return:
         """
         self.has_data = True
-        cur = self.current_cur
+        cursor = self.current_cursor
 
         batch = []
         i = 0
         first_iteration = True
 
         # Iterate over server-side cursor
-        for row in cur:
+        for row in cursor:
             if i == 0:
-                self.data_description = cur.description
+                self.data_description = cursor.description
                 self.data_columns = [desc[0] for desc in self.data_description]
 
             # Get data
@@ -640,11 +640,11 @@ class Query:
                 os.startfile(output)
 
     @staticmethod
-    def query_to_shp(dbo, query, path=None, shpfile_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
+    def query_to_shp(dbconn, query, path=None, shpfile_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
                      srid=2263):
         """
         Writes results of the query to a shp file by calling Shapefile ogr command's in write_shp fn
-        :param dbo:
+        :param dbconn:
         :param query:
         :param path:
         :param shpfile_name:
@@ -655,7 +655,7 @@ class Query:
         :return:
         """
 
-        shp = Shapefile(dbo=dbo,
+        shp = Shapefile(dbconn=dbconn,
                         path=path,
                         query=query,
                         shpfile_name=shpfile_name,
