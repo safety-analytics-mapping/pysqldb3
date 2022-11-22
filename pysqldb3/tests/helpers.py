@@ -44,10 +44,10 @@ def set_up_test_table_sql(sql, schema='dbo'):
         return
 
     sql.query("""
-    create table {s}.{t} (test_col1 int, test_col2 int, geom geometry);
-    insert into {s}.{t} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-    insert into {s}.{t} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
-    """.format(s=schema, t=table_name))
+    create table {schema}.{table} (test_col1 int, test_col2 int, geom geometry);
+    insert into {schema}.{table} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+    insert into {schema}.{table} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+    """.format(schema=schema, table=table_name))
 
 
 def clean_up_test_table_sql(sql, schema='dbo'):
@@ -132,13 +132,13 @@ def set_up_two_test_tables_pg(db):
         lon2 = -74 + dec_lon2
 
         db.query("""
-        INSERT INTO working.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
-        """.format(table_name, i, c1, c2, lat, lon))
+        INSERT INTO working.{table} values
+        ({i}, {cc1}, {c2}, ST_SetSRID(ST_MakePoint({lat}, {lon}), 4326))
+        """.format(table=table_name, i=i, c1=c1, c2=c2, lat=lat, lon=lon))
 
         db.query("""
-        INSERT INTO working.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
+        INSERT INTO working.{table} values
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat2}, {lon2}), 4326))
         """.format(table_name2, i, c1, c2, lat2, lon2))
 
 
@@ -176,7 +176,7 @@ def clean_up_feature_class():
     zip_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/nyclion_21d.zip')
     fldr = os.path.dirname(zip_path)+'/lion'
     gdb = "lion.gdb"
-    print ('Deleting any existing gdb')
+    print('Deleting any existing gdb')
     # os.remove(os.path.join(fldr, gdb))
     os.rmdir(fldr)
 
@@ -256,10 +256,10 @@ def set_up_schema(db, ms_schema='dbo', pg_schema='working'):
 
 def clean_up_schema(db, schema):
     if db.type == 'PG':
-        c = ' cascade'
+        cascade = ' cascade'
     else:
-        c = ''
-    db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
+        cascade = ''
+    db.query("DROP SCHEMA IF EXISTS {schema}{cascade};".format(schema=schema, cascade=cascade))
 
 def clean_up_shp(file_path):
     for ext in ('.shp', '.dbf', '.shx', '.prj'):

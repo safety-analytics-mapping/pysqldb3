@@ -10,26 +10,26 @@ config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                       server=config.get('PG_DB', 'SERVER'),
+                       host=config.get('PG_DB', 'SERVER'),
                        db_name=config.get('PG_DB', 'DB_NAME'),
-                       user=config.get('PG_DB', 'DB_USER'),
+                       username=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'), allow_temp_tables=True)
 
 db2 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                        server=config.get('PG_DB', 'SERVER'),
+                        host=config.get('PG_DB', 'SERVER'),
                         db_name=config.get('PG_DB', 'DB_NAME'),
-                        user=config.get('PG_DB', 'DB_USER'),
+                        username=config.get('PG_DB', 'DB_USER'),
                         password=config.get('PG_DB', 'DB_PASSWORD'))
 
 db3 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                        server=config.get('PG_DB', 'SERVER'),
+                        host=config.get('PG_DB', 'SERVER'),
                         db_name=config.get('PG_DB', 'DB_NAME'),
-                        user=config.get('PG_DB', 'DB_USER'),
+                        username=config.get('PG_DB', 'DB_USER'),
                         password=config.get('PG_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{}'.format(db.user)
-pg_table_name2 = 'pg_test_table_{}_2'.format(db.user)
-create_table_name = 'long_time_table_{}'.format(db.user)
+pg_table_name = 'pg_test_table_{user}'.format(user=db.username)
+pg_table_name2 = 'pg_test_table_{user}_2'.format(user=db.username)
+create_table_name = 'long_time_table_{user}'.format(user=db.username)
 
 
 def blockfunc1():
@@ -39,20 +39,20 @@ def blockfunc1():
     try:
         db.query("""
         --IntentionalBlockingQuery    
-        insert into working.{}  
+        insert into working.{create_table}  
         select distinct n.id
         from (
         select * 
-        from working.{}
+        from working.{table}
         limit 10000
         ) l 
         join (
         select * 
-        from working.{}
+        from working.{table2}
         limit 10000
         ) n
         on st_intersects(l.geom, n.geom);
-       """.format(create_table_name, pg_table_name, pg_table_name2))
+       """.format(create_table=create_table_name, table=pg_table_name, table2=pg_table_name2))
     except Exception as e:
         print(e)
 
@@ -63,11 +63,11 @@ def blockfunc2():
     """
     time.sleep(1)
     db2.query("""
-    LOCK TABLE working.{} IN ACCESS EXCLUSIVE MODE;
+    LOCK TABLE working.{create_table} IN ACCESS EXCLUSIVE MODE;
 
     select * 
-    from working.{}
-    """.format(create_table_name, create_table_name))
+    from working.{create_table}
+    """.format(create_table=create_table_name))
 
 
 def blockfunc3(q):
@@ -111,20 +111,20 @@ class TestBlocking:
         db.drop_table(schema_name='working', table_name=create_table_name)
 
         db.query("""
-        create table working.{} as 
+        create table working.{create_table} as 
         select distinct n.id
         from (
         select * 
-        from working.{}
+        from working.{table}
         limit 1
         ) l 
         join (
         select * 
-        from working.{}
+        from working.{table2}
         limit 1
         ) n
         on st_intersects(l.geom, n.geom);
-        """.format(create_table_name, pg_table_name, pg_table_name2))
+        """.format(create_table=create_table_name, table=pg_table_name, table2=pg_table_name2))
 
         """
         Run queries in parallel
@@ -171,20 +171,20 @@ class TestBlocking:
         db.drop_table(schema_name='working', table_name=create_table_name)
 
         db.query("""
-        create table working.{} as 
+        create table working.{create_table} as 
         select distinct n.id
         from (
         select * 
-        from working.{}
+        from working.{table}
         limit 1
         ) l 
         join (
         select * 
-        from working.{}
+        from working.{table2}
         limit 1
         ) n
         on st_intersects(l.geom, n.geom);
-        """.format(create_table_name, pg_table_name, pg_table_name2))
+        """.format(create_table=create_table_name, table=pg_table_name, table2=pg_table_name2))
 
         """
         Run queries in parallel
@@ -214,7 +214,7 @@ class TestBlocking:
         """
         Confirms no records were added to created table, meaning the insert query was killed successfully.
         """
-        end_result_df = db.dfquery("""select * from working.{}""".format(create_table_name))
+        end_result_df = db.dfquery("""select * from working.{create_table}""".format(create_table=create_table_name))
         assert len(end_result_df) <= 1
 
         """
