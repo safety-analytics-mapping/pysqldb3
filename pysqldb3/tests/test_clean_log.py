@@ -1,5 +1,3 @@
-import configparser
-
 from .. import pysqldb3 as pysqldb
 from ..data_io import *
 
@@ -20,8 +18,8 @@ ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                               password=config.get('SQL_DB', 'DB_PASSWORD'),
                               allow_temp_tables=True)
 
-test_clean_up_new_table = 'test_new_table_testing_{user}'.format(user=pg_dbconn.username)
-test_clean_up_new_table2 = 'test_new_table_testing_{user}_2'.format(user=pg_dbconn.username)
+test_clean_up_new_table = 'test_new_table_testing_{username}'.format(user=pg_dbconn.username)
+test_clean_up_new_table2 = 'test_new_table_testing_{username}_2'.format(user=pg_dbconn.username)
 
 
 class TestCleanUpNewTablesPg:
@@ -126,34 +124,34 @@ class TestCleanUpNewTablesPg:
         assert pg_dbconn.table_exists(table_name=test_clean_up_new_table, schema_name=schema_name)
 
         # make sure table was added to log
-        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{tcn_table}'".format(
+        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{table}'".format(
             schema=schema_name,
             username=pg_dbconn.username,
-            tcn_table=test_clean_up_new_table))
+            table=test_clean_up_new_table))
         assert pg_dbconn.data
 
         # rename table
         pg_dbconn.drop_table(schema_name, test_clean_up_new_table2)
-        pg_dbconn.query("alter table {schema}.{tcn_table} rename to {tcn_table2}".format(
+        pg_dbconn.query("alter table {schema}.{table} rename to {table2}".format(
             schema=schema_name,
-            tcn_table=test_clean_up_new_table,
-            tcn_table2=test_clean_up_new_table2))
+            table=test_clean_up_new_table,
+            table2=test_clean_up_new_table2))
 
         # make sure table was created
-        assert pg_dbconn.table_exists(test_clean_up_new_table2, schema=schema_name)
+        assert pg_dbconn.table_exists(table_name=test_clean_up_new_table2, schema_name=schema_name)
 
         # make sure log was updated
-        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{tcn_table}'".format(
+        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{table}'".format(
             schema=schema_name,
             username=pg_dbconn.username,
-            tcn_table=test_clean_up_new_table
+            table=test_clean_up_new_table
         ))
         assert not pg_dbconn.data
 
-        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{tcn_table2}'".format(
+        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{table2}'".format(
             schema=schema_name,
             username=pg_dbconn.username,
-            tcn_table2=test_clean_up_new_table2
+            table2=test_clean_up_new_table2
         ))
         print(pg_dbconn.queries[-1].renamed_tables)
         print(pg_dbconn.data)
@@ -162,10 +160,10 @@ class TestCleanUpNewTablesPg:
         # drop table
         pg_dbconn.drop_table(table_name=test_clean_up_new_table2, schema_name=schema_name)
         # check table is no longer in the log
-        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{tcn_table2}'".format(
+        pg_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{table2}'".format(
             schema=schema_name,
             username=pg_dbconn.username,
-            tcn_table2=test_clean_up_new_table2
+            table2=test_clean_up_new_table2
         ))
         assert not pg_dbconn.data
 
@@ -241,12 +239,12 @@ class TestCleanUpNewTablesMs:
         ms_dbconn.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         ms_dbconn.query("""
-            CREATE TABLE {tcnt} (
+            CREATE TABLE {table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-        """.format(tcnt=test_clean_up_new_table))
+        """.format(table=test_clean_up_new_table))
         # make sure table was created
         assert ms_dbconn.table_exists(test_clean_up_new_table, schema=schema)
         # make sure table was added to log
@@ -298,19 +296,19 @@ class TestCleanUpNewTablesMs:
         assert not ms_dbconn.data
 
     def test_clean_up_new_tables_rename(self):
-        schema=ms_dbconn.default_schema
+        schema = ms_dbconn.default_schema
         # make sure table doesnt exists
         ms_dbconn.drop_table(table_name=test_clean_up_new_table, schema_name=schema)
         # create table
         ms_dbconn.query("""
-            CREATE TABLE {} (
+            CREATE TABLE {table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-        """.format(test_clean_up_new_table))
+        """.format(table=test_clean_up_new_table))
         # make sure table was created
-        assert ms_dbconn.table_exists(test_clean_up_new_table, schema=schema)
+        assert ms_dbconn.table_exists(table_name=test_clean_up_new_table, schema_name=schema)
         # make sure table was added to log
         ms_dbconn.query("select * from {schema}.__temp_log_table_{username}__ where table_name = '{table}'".format(
             schema=schema,

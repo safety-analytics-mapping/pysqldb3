@@ -9,27 +9,27 @@ from . import helpers
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                       host=config.get('PG_DB', 'SERVER'),
-                       db_name=config.get('PG_DB', 'DB_NAME'),
-                       username=config.get('PG_DB', 'DB_USER'),
-                       password=config.get('PG_DB', 'DB_PASSWORD'), allow_temp_tables=True)
+dbconn1 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
+                            host=config.get('PG_DB', 'SERVER'),
+                            db_name=config.get('PG_DB', 'DB_NAME'),
+                            username=config.get('PG_DB', 'DB_USER'),
+                            password=config.get('PG_DB', 'DB_PASSWORD'), allow_temp_tables=True)
 
-db2 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                        host=config.get('PG_DB', 'SERVER'),
-                        db_name=config.get('PG_DB', 'DB_NAME'),
-                        username=config.get('PG_DB', 'DB_USER'),
-                        password=config.get('PG_DB', 'DB_PASSWORD'))
+dbconn2 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
+                            host=config.get('PG_DB', 'SERVER'),
+                            db_name=config.get('PG_DB', 'DB_NAME'),
+                            username=config.get('PG_DB', 'DB_USER'),
+                            password=config.get('PG_DB', 'DB_PASSWORD'))
 
-db3 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                        host=config.get('PG_DB', 'SERVER'),
-                        db_name=config.get('PG_DB', 'DB_NAME'),
-                        username=config.get('PG_DB', 'DB_USER'),
-                        password=config.get('PG_DB', 'DB_PASSWORD'))
+dbconn3 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
+                            host=config.get('PG_DB', 'SERVER'),
+                            db_name=config.get('PG_DB', 'DB_NAME'),
+                            username=config.get('PG_DB', 'DB_USER'),
+                            password=config.get('PG_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{user}'.format(user=db.username)
-pg_table_name2 = 'pg_test_table_{user}_2'.format(user=db.username)
-create_table_name = 'long_time_table_{user}'.format(user=db.username)
+pg_table_name = 'pg_test_table_{user}'.format(user=dbconn1.username)
+pg_table_name2 = 'pg_test_table_{user}_2'.format(user=dbconn1.username)
+create_table_name = 'long_time_table_{user}'.format(user=dbconn1.username)
 
 
 def blockfunc1():
@@ -37,7 +37,7 @@ def blockfunc1():
     This function intentionally uses a cartesian join to take a long time.
     """
     try:
-        db.query("""
+        dbconn1.query("""
         --IntentionalBlockingQuery    
         insert into working.{create_table}  
         select distinct n.id
@@ -62,7 +62,7 @@ def blockfunc2():
     This function intentionally uses a lock to try to cause a block.
     """
     time.sleep(1)
-    db2.query("""
+    dbconn2.query("""
     LOCK TABLE working.{create_table} IN ACCESS EXCLUSIVE MODE;
 
     select * 
@@ -77,7 +77,7 @@ def blockfunc3(q):
     It then captures the results of blocking_me.
     """
     time.sleep(2)
-    q.put(db3.blocking_me())
+    q.put(dbconn3.blocking_me())
 
 
 def blockfunc4(q):
@@ -87,14 +87,14 @@ def blockfunc4(q):
     It then captures the results of blocking_me and kills them.
     """
     time.sleep(2)
-    q.put(db3.blocking_me())
-    db3.kill_blocks()
+    q.put(dbconn3.blocking_me())
+    dbconn3.kill_blocks()
 
 
 class TestBlocking:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_two_test_tables_pg(db)
+        helpers.set_up_two_test_tables_pg(dbconn1)
 
     def test_blocking_me(self):
         """
@@ -108,9 +108,9 @@ class TestBlocking:
         Create new shell of table
         """
         q = Queue()
-        db.drop_table(schema_name='working', table_name=create_table_name)
+        dbconn1.drop_table(schema_name='working', table_name=create_table_name)
 
-        db.query("""
+        dbconn1.query("""
         create table working.{create_table} as 
         select distinct n.id
         from (
@@ -154,7 +154,7 @@ class TestBlocking:
         """
         Cleanup
         """
-        db.drop_table(schema_name='working', table_name=create_table_name)
+        dbconn1.drop_table(schema_name='working', table_name=create_table_name)
 
     def test_kill_blocks(self):
         """
@@ -168,9 +168,9 @@ class TestBlocking:
         Create new shell of table
         """
         q = Queue()
-        db.drop_table(schema_name='working', table_name=create_table_name)
+        dbconn1.drop_table(schema_name='working', table_name=create_table_name)
 
-        db.query("""
+        dbconn1.query("""
         create table working.{create_table} as 
         select distinct n.id
         from (
@@ -214,17 +214,17 @@ class TestBlocking:
         """
         Confirms no records were added to created table, meaning the insert query was killed successfully.
         """
-        end_result_df = db.dfquery("""select * from working.{create_table}""".format(create_table=create_table_name))
+        end_result_df = dbconn1.dfquery("""select * from working.{create_table}""".format(create_table=create_table_name))
         assert len(end_result_df) <= 1
 
         """
         Cleanup
         """
-        db.drop_table(schema_name='working', table_name=create_table_name)
+        dbconn1.drop_table(schema_name='working', table_name=create_table_name)
 
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_two_test_tables_pg(db)
-        db.cleanup_new_tables()
-        db2.cleanup_new_tables()
-        db3.cleanup_new_tables()
+        helpers.clean_up_two_test_tables_pg(dbconn1)
+        dbconn1.cleanup_new_tables()
+        dbconn2.cleanup_new_tables()
+        dbconn3.cleanup_new_tables()
