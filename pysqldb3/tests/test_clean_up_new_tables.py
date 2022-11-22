@@ -1,6 +1,3 @@
-import configparser
-import os
-
 from .. import pysqldb3 as pysqldb
 from ..data_io import *
 
@@ -248,9 +245,9 @@ class TestCleanUpNewTablesMs:
 class TestCleanUpNewTablesIO:
     def test_pg_to_pg(self):
         ris = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
-                                server=config.get('SECOND_PG_DB', 'SERVER'),
+                                host=config.get('SECOND_PG_DB', 'SERVER'),
                                 db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
-                                user=config.get('SECOND_PG_DB', 'DB_USER'),
+                                username=config.get('SECOND_PG_DB', 'DB_USER'),
                                 password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 
         # Setup
@@ -258,23 +255,22 @@ class TestCleanUpNewTablesIO:
         pg_dbconn.drop_table(schema_name=pg_schema, table_name=test_pg_to_pg_cleanup_table)
 
         pg_dbconn.query("""
-        create table {0}.{1}(col1 int, col2 int);
-
-        insert into {0}.{1} values (1, 2);
-        """.format(pg_schema, test_pg_to_pg_cleanup_table))
+        create table {schema}.{table} (col1 int, col2 int);
+        insert into {schema}.{table} values (1, 2);
+        """.format(schema=pg_schema, table=test_pg_to_pg_cleanup_table))
 
         assert len(ris.tables_created) == 0
-        assert not ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
+        assert not ris.table_exists(schema_name=pg_schema, table_name=test_pg_to_pg_cleanup_table)
 
-        pg_to_pg(from_pg=pg_dbconn, to_pg=ris, org_schema=pg_schema, org_table_name=test_pg_to_pg_cleanup_table,
-                 dest_schema=pg_schema)
+        pg_to_pg(src_dbconn=pg_dbconn, dest_dbconn=ris, src_schema_name=pg_schema,
+                 src_table_name=test_pg_to_pg_cleanup_table, dest_schema_name=pg_schema)
 
-        assert ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
+        assert ris.table_exists(schema_name=pg_schema, table_name=test_pg_to_pg_cleanup_table)
         assert len(ris.tables_created) == 1
 
         ris.cleanup_new_tables()
 
-        assert not ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
+        assert not ris.table_exists(schema_name=pg_schema, table_name=test_pg_to_pg_cleanup_table)
         assert len(ris.tables_created) == 0
 
         pg_dbconn.drop_table(schema_name=pg_schema, table_name=test_pg_to_pg_cleanup_table)
@@ -285,22 +281,22 @@ class TestCleanUpNewTablesIO:
         pg_dbconn.drop_table(schema_name=pg_schema, table_name=test_pg_to_sql_cleanup_table)
         ms_dbconn.drop_table(schema_name=ms_schema, table_name=test_pg_to_sql_cleanup_table)
         pg_dbconn.query("""
-        create table {0}.{1}(col1 int, col2 int);
-
-        insert into {0}.{1} values (1, 2);
-        """.format(pg_schema, test_pg_to_sql_cleanup_table))
+        create table {schema}.{table} (col1 int, col2 int);
+        insert into {schema}.{table} values (1, 2);
+        """.format(schema=pg_schema, table=test_pg_to_sql_cleanup_table))
 
         assert len(ms_dbconn.tables_created) == 0
-        assert not ms_dbconn.table_exists(schema=ms_schema, table=test_pg_to_sql_cleanup_table)
+        assert not ms_dbconn.table_exists(schema_name=ms_schema, table_name=test_pg_to_sql_cleanup_table)
 
-        pg_to_sql(pg=pg_dbconn, ms=ms_dbconn, org_schema=pg_schema, org_table=test_pg_to_sql_cleanup_table, dest_schema=ms_schema)
+        pg_to_sql(pg_dbconn=pg_dbconn, ms_dbconn=ms_dbconn, src_schema_name=pg_schema,
+                  src_table_name=test_pg_to_sql_cleanup_table, dest_schema_name=ms_schema)
 
-        assert ms_dbconn.table_exists(schema=ms_schema, table=test_pg_to_sql_cleanup_table)
+        assert ms_dbconn.table_exists(schema_name=ms_schema, table_name=test_pg_to_sql_cleanup_table)
         assert len(ms_dbconn.tables_created) == 1
 
         ms_dbconn.cleanup_new_tables()
 
-        assert not ms_dbconn.table_exists(schema=ms_schema, table=test_pg_to_sql_cleanup_table)
+        assert not ms_dbconn.table_exists(schema_name=ms_schema, table_name=test_pg_to_sql_cleanup_table)
         assert len(ms_dbconn.tables_created) == 0
 
         pg_dbconn.drop_table(schema_name=pg_schema, table_name=test_pg_to_sql_cleanup_table)
@@ -317,16 +313,17 @@ class TestCleanUpNewTablesIO:
         """.format(ms_schema, test_sql_to_pg_cleanup_table))
 
         assert len(pg_dbconn.tables_created) == 0
-        assert not pg_dbconn.table_exists(schema=pg_schema, table=test_sql_to_pg_cleanup_table)
+        assert not pg_dbconn.table_exists(schema_name=pg_schema, table_name=test_sql_to_pg_cleanup_table)
 
-        sql_to_pg(ms=ms_dbconn, pg=pg_dbconn, org_schema=ms_schema, org_table=test_sql_to_pg_cleanup_table, dest_schema=pg_schema)
+        sql_to_pg(ms_dbconn=ms_dbconn, pg_dbconn=pg_dbconn, src_ms_schema_name=ms_schema,
+                  src_ms_table_name=test_sql_to_pg_cleanup_table, dest_pg_schema_name=pg_schema)
 
-        assert pg_dbconn.table_exists(schema=pg_schema, table=test_sql_to_pg_cleanup_table)
+        assert pg_dbconn.table_exists(schema_name=pg_schema, table_name=test_sql_to_pg_cleanup_table)
         assert len(pg_dbconn.tables_created) == 1
 
         pg_dbconn.cleanup_new_tables()
 
-        assert not pg_dbconn.table_exists(schema=pg_schema, table=test_sql_to_pg_cleanup_table)
+        assert not pg_dbconn.table_exists(schema_name=pg_schema, table_name=test_sql_to_pg_cleanup_table)
         assert len(pg_dbconn.tables_created) == 0
 
         ms_dbconn.drop_table(schema_name=ms_schema, table_name=test_sql_to_pg_cleanup_table)
@@ -337,15 +334,15 @@ class TestCleanUpNewTablesIO:
         sql_query = "select 1 as col1, 2 as col2"
 
         assert len(pg_dbconn.tables_created) == 0
-        assert not pg_dbconn.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_cleanup_table)
+        assert not pg_dbconn.table_exists(schema_name=pg_schema, table_name=test_sql_to_pg_qry_cleanup_table)
 
-        sql_to_pg_qry(ms=ms_dbconn, pg=pg_dbconn, query=sql_query, dest_table=test_sql_to_pg_qry_cleanup_table,
-                      dest_schema=pg_schema)
+        sql_to_pg_qry(ms_dbconn=ms_dbconn, pg_dbconn=pg_dbconn, query=sql_query,
+                      dest_table_name=test_sql_to_pg_qry_cleanup_table, dest_schema_name=pg_schema)
 
-        assert pg_dbconn.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_cleanup_table)
+        assert pg_dbconn.table_exists(schema_name=pg_schema, table_name=test_sql_to_pg_qry_cleanup_table)
         assert len(pg_dbconn.tables_created) == 1
 
         pg_dbconn.cleanup_new_tables()
 
-        assert not pg_dbconn.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_cleanup_table)
+        assert not pg_dbconn.table_exists(schema_name=pg_schema, table_name=test_sql_to_pg_qry_cleanup_table)
         assert len(pg_dbconn.tables_created) == 0
