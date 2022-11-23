@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import requests
 import zipfile
+import configparser
 from xlrd import open_workbook
 from xlutils.copy import copy
 from ..Config import write_config
@@ -157,7 +158,15 @@ def set_up_feature_class():
     if not os.path.isfile(zip_path):
 
         download_url = r'https://www1.nyc.gov/assets/planning/download/zip/data-maps/open-data/nyclion_21d.zip'
-        r = requests.get(download_url)
+
+        config = configparser.ConfigParser()
+        config.read(DIR.replace('\\test_data', "\\db_config.cfg"))
+
+        http = config.get('PROXIES', 'http')
+        https = config.get('PROXIES', 'https')
+
+
+        r = requests.get(download_url, proxies={'http':http, 'https':https})
 
         with open(zip_path, 'wb') as f:
             f.write(r.content)
