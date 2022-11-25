@@ -285,7 +285,7 @@ def set_up_xls():
         clean_up_file(xls_file1)
 
     test_df1 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
-    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'))
+    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
     print ('%s created\n' % os.path.basename(xls_file1))
 
     xls_file2 = os.path.join(DIR, 'test_xls_with_sheet.xls')
@@ -294,16 +294,10 @@ def set_up_xls():
 
     test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
 
-    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet')
+    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet', index=False)
     w = copy(open_workbook(xls_file2))
     Sheet2 = w.add_sheet('Sheet2')
     col, row = 0, 0
-    Sheet2.write(row, col, '')
-    row += 1
-    for i in range(len(test_df2)):
-        Sheet2.write(row, col, i)
-        row += 1
-    col, row = 1, 0
     for c in test_df2.columns:
         Sheet2.write(row, col, c)
         row += 1

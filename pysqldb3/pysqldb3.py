@@ -1735,7 +1735,8 @@ class DbConnect:
         table = table.lower()
 
         shp = Shapefile(dbo=self, path=path, table=table, schema=schema, query=None,
-                        shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,skip_failures=skip_failures)
+                        shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,
+                        skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
 
