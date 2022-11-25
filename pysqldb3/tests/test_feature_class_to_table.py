@@ -107,13 +107,13 @@ class TestFeatureClassToTablePg:
 
         # check non geom data
         db.query("""
-                    select nodeid, vintersect, st_astext(geom) geom from {}.{} where nodeid in (88, 98, 100)
+                    select nodeid, vintersect, st_astext(geom, 1) geom from {}.{} where nodeid in (88, 98, 100)
                 """.format(
             db.default_schema, table))
 
-        row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.06807594 126536.07138967514)'),
-                      (98, '', 'MULTIPOINT(914714.7995229363 126499.8080123663)'),
-                      (100, 'VirtualIntersection', 'MULTIPOINT(914872.0341096818 126696.62913236022)')]
+        row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.1 126536.1)'),
+                      (98, '', 'MULTIPOINT(914714.8 126499.8)'),
+                      (100, 'VirtualIntersection', 'MULTIPOINT(914872 126696.6)')]
 
         # assert db.data == row_values
         for c in range(len(db.data)):
