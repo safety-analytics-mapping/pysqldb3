@@ -48,10 +48,10 @@ class TestFeatureClassToTablePg:
         pg_dbconn.drop_table(table_name=table, schema_name=pg_dbconn.default_schema)
         assert not pg_dbconn.table_exists(table_name=table, schema=pg_dbconn.default_schema)
 
-        pg_dbconn.feature_class_to_table(fgdb, table, schema_name=None, fc_name=fc)
+        pg_dbconn.feature_class_to_table(fgdb, table_name=table, schema_name=None, fc_name=fc)
         assert pg_dbconn.table_exists(table_name=table, schema_name=pg_dbconn.default_schema)
 
-        pg_dbconn.drop_table(pg_dbconn.default_schema, table)
+        pg_dbconn.drop_table(schema_name=pg_dbconn.default_schema, table_name=table)
 
     @pytest.mark.order3
     def test_import_fc_new_name_schema(self):
@@ -79,7 +79,7 @@ class TestFeatureClassToTablePg:
         pg_dbconn.feature_class_to_table(fgdb, table_name=table, fc_name=fc, schema_name=schema, srid=4326)
         assert pg_dbconn.table_exists(table_name=table, schema_name=schema)
 
-        pg_dbconn.query("select distinct st_srid(geom) from {}.{}".format(schema, table))
+        pg_dbconn.query("select distinct st_srid(geom) from {schema}.{table}".format(schema=schema, table=table))
         assert pg_dbconn.data[0][0] == 4326
 
         pg_dbconn.drop_table(schema_name=schema, table_name=table)
@@ -181,7 +181,7 @@ class TestFeatureClassToTablePg:
         pg_dbconn.drop_table(table_name=not_temp_table, schema_name=schema)
         assert not pg_dbconn.table_exists(table_name=not_temp_table, schema_name=schema)
 
-        pg_dbconn.feature_class_to_table(fgdb, not_temp_table, fc_name=fc, schema_name=schema, temp=False)
+        pg_dbconn.feature_class_to_table(fgdb, table_name=not_temp_table, fc_name=fc, schema_name=schema, temp=False)
         assert pg_dbconn.table_exists(table_name=not_temp_table, schema_name=schema)
 
         pg_dbconn.query("select * from {schema}.__temp_log_table_{user}__ where table_name = '{table}'".format(
@@ -214,12 +214,12 @@ class TestFeatureClassToTableMs:
     @pytest.mark.order10
     def test_import_fc_new_name(self):
         ms_dbconn.drop_table(table_name=table, schema_name=ms_dbconn.default_schema)
-        assert not ms_dbconn.table_exists(table, schema=ms_dbconn.default_schema)
+        assert not ms_dbconn.table_exists(table_name=table, schema=ms_dbconn.default_schema)
 
-        ms_dbconn.feature_class_to_table(fgdb, table, schema_name=None, fc_name=fc, skip_failures='-skip_failures')
+        ms_dbconn.feature_class_to_table(fgdb, table_name=table, schema_name=None, fc_name=fc, skip_failures='-skip_failures')
         assert ms_dbconn.table_exists(table_name=table, schema_name=ms_dbconn.default_schema)
 
-        ms_dbconn.drop_table(ms_dbconn.default_schema, table)
+        ms_dbconn.drop_table(schema_name=ms_dbconn.default_schema, table_name=table)
 
     @pytest.mark.order11
     def test_import_fc_new_name_schema(self):
@@ -238,24 +238,24 @@ class TestFeatureClassToTableMs:
         schema = 'dbo'
 
         ms_dbconn.drop_table(table_name=table, schema_name=schema)
-        assert not ms_dbconn.table_exists(table, schema=schema)
+        assert not ms_dbconn.table_exists(table_name=table, schema_name=schema)
 
-        ms_dbconn.feature_class_to_table(fgdb, table, fc_name=fc, schema_name=schema, srid=4326, skip_failures='-skip_failures')
+        ms_dbconn.feature_class_to_table(fgdb, table_name=table, fc_name=fc, schema_name=schema, srid=4326, skip_failures='-skip_failures')
         assert ms_dbconn.table_exists(table_name=table, schema_name=schema)
 
-        ms_dbconn.query("select distinct geom.STSrid from {}.{}".format(schema, table))
+        ms_dbconn.query("select distinct geom.STSrid from {schema}.{table}".format(schema=schema, table=table))
         assert ms_dbconn.data[0][0] == 4326
 
-        ms_dbconn.drop_table(schema, table)
+        ms_dbconn.drop_table(schema_name=schema, table_name=table)
 
     @pytest.mark.order13
     def test_import_fc_new_name_data_check(self):
         ms_dbconn.drop_table(table_name=table, schema_name=ms_dbconn.default_schema)
 
-        assert not ms_dbconn.table_exists(table, schema=ms_dbconn.default_schema)
+        assert not ms_dbconn.table_exists(table_name=table, schema=ms_dbconn.default_schema)
         ms_dbconn.feature_class_to_table(fgdb, table_name=table, schema_name=None, fc_name=fc, skip_failures='-skip_failures')
 
-        assert ms_dbconn.table_exists(table, schema=ms_dbconn.default_schema)
+        assert ms_dbconn.table_exists(table_name=table, schema_name=ms_dbconn.default_schema)
         ms_dbconn.query("""
                 select column_name, data_type
                 from INFORMATION_SCHEMA.COLUMNS
@@ -330,7 +330,7 @@ class TestFeatureClassToTableMs:
             schema=schema, table=table, user=ms_dbconn.username))
         assert len(ms_dbconn.data) == 0
 
-        ms_dbconn.drop_table(schema, table)
+        ms_dbconn.drop_table(schema_name=schema, table_name=table)
 
     @pytest.mark.order16
     def test_import_fc_new_name_schema_private(self):
