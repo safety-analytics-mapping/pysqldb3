@@ -12,73 +12,72 @@ from .. import pysqldb3 as pysqldb
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                       server=config.get('PG_DB', 'SERVER'),
-                       db_name=config.get('PG_DB', 'DB_NAME'),
-                       user=config.get('PG_DB', 'DB_USER'),
-                       password=config.get('PG_DB', 'DB_PASSWORD'),
-                       allow_temp_tables=True)
+pg_dbconn = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
+                              host=config.get('PG_DB', 'SERVER'),
+                              db_name=config.get('PG_DB', 'DB_NAME'),
+                              username=config.get('PG_DB', 'DB_USER'),
+                              password=config.get('PG_DB', 'DB_PASSWORD'),
+                              allow_temp_tables=True)
 
-ris_db = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
-                           server=config.get('SECOND_PG_DB', 'SERVER'),
-                           db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
-                           user=config.get('SECOND_PG_DB', 'DB_USER'),
-                           password=config.get('SECOND_PG_DB', 'DB_PASSWORD'),
-                           allow_temp_tables=True)
+ris_dbconn = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
+                               host=config.get('SECOND_PG_DB', 'SERVER'),
+                               db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
+                               username=config.get('SECOND_PG_DB', 'DB_USER'),
+                               password=config.get('SECOND_PG_DB', 'DB_PASSWORD'),
+                               allow_temp_tables=True)
 
-sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        db_name=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'),
-                        allow_temp_tables=True)
+ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
+                              host=config.get('SQL_DB', 'SERVER'),
+                              db_name=config.get('SQL_DB', 'DB_NAME'),
+                              username=config.get('SQL_DB', 'DB_USER'),
+                              password=config.get('SQL_DB', 'DB_PASSWORD'),
+                              allow_temp_tables=True)
 
-test_csv_name = 'test_csv_name_table_{}'.format(db.user)
+test_csv_name = 'test_csv_name_table_{user}'.format(user=pg_dbconn.username)
 
 
 class TestQueryToCSVPG:
     def test_query_to_csv_basic(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
-        db.query("""
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into working.{} values ('a', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+        pg_dbconn.query("""
+            create table working.{table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into working.{table} values ('a', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        db.query_to_csv(query='select * from working.{}'.format(test_csv_name),
-                        output_file=output)
+        pg_dbconn.query_to_csv(query='select * from working.{table}'.format(table=test_csv_name),
+                               output_file=output)
 
         # Get result from query_to_csv as df
         result_df = pd.read_csv(output)
 
         # Get result from dfquery
-        query_df = db.dfquery('select * from working.{}'.format(test_csv_name))
+        query_df = pg_dbconn.dfquery('select * from working.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_special_char(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
-        db.query("""
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
+        pg_dbconn.query("""
+            create table working.{table} (col1 varchar, col2 varchar, col3 varchar);
 
-            insert into working.{} values ('á', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            insert into working.{table} values ('á', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        db.query_to_csv(query='select * from working.{}'.format(test_csv_name),
-                        output_file=output)
+        pg_dbconn.query_to_csv(query='select * from working.{table}'.format(table=test_csv_name),
+                               output_file=output)
 
     def test_query_to_csv_query_first(self):
         """
@@ -86,9 +85,9 @@ class TestQueryToCSVPG:
         closed issue.
         """
         db2 = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                                server=config.get('PG_DB', 'SERVER'),
+                                host=config.get('PG_DB', 'SERVER'),
                                 db_name=config.get('PG_DB', 'DB_NAME'),
-                                user=config.get('PG_DB', 'DB_USER'),
+                                username=config.get('PG_DB', 'DB_USER'),
                                 password=config.get('PG_DB', 'DB_PASSWORD'))
 
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
@@ -96,23 +95,22 @@ class TestQueryToCSVPG:
 
         # Setup table
         db2.query("""
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into working.{} values ('a', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            create table working.{table} (col1 varchar, col2 varchar, col3 varchar);
+            insert into working.{table} values ('a', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Random query
-        db2.dfquery("select * from working.{}".format(test_csv_name))
+        db2.dfquery("select * from working.{table}".format(table=test_csv_name))
 
         # Query_to_csv
-        db2.query_to_csv(query='select * from working.{}'.format(test_csv_name),
+        db2.query_to_csv(query='select * from working.{table}'.format(table=test_csv_name),
                          output_file=output)
 
         # Get result from query_to_csv as df
         result_df = pd.read_csv(output)
 
         # Get result from dfquery
-        query_df = db2.dfquery('select * from working.{}'.format(test_csv_name))
+        query_df = db2.dfquery('select * from working.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
@@ -123,35 +121,35 @@ class TestQueryToCSVPG:
         os.remove(output)
 
     def test_query_to_csv_no_output(self):
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
-        db.query("""
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
+        pg_dbconn.query("""
+            create table working.{table} (col1 varchar, col2 varchar, col3 varchar);
 
-            insert into working.{} values ('a', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            insert into working.{table} values ('a', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        db.query_to_csv(query='select * from working.{}'.format(test_csv_name))
+        pg_dbconn.query_to_csv(query='select * from working.{table}'.format(table=test_csv_name))
 
         # Get result from query_to_csv as df
-        output = os.path.join(os.getcwd(), 'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
+        output = os.path.join(os.getcwd(), 'data_{dt}.csv'.format(dt=datetime.datetime.now().strftime('%Y%m%d%H%M')))
         result_df = pd.read_csv(output)
 
         # Get result from dfquery
-        query_df = db.dfquery('select * from working.{}'.format(test_csv_name))
+        query_df = pg_dbconn.dfquery('select * from working.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_strict(self):
         try:
-            db.query_to_csv(query='select * from junktable', strict=True)
+            pg_dbconn.query_to_csv(query='select * from junktable', strict=True)
         except SystemExit:
             return
 
@@ -162,54 +160,54 @@ class TestQueryToCSVPG:
 
     def test_query_to_csv_sep(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
-        db.query("""
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
-
-            insert into working.{} values ('a', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+        pg_dbconn.query("""
+            create table working.{table} (col1 varchar, col2 varchar, col3 varchar);
+            
+            insert into working.{table} values ('a', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        db.query_to_csv(query='select * from working.{}'.format(test_csv_name),
-                        output_file=output,
-                        sep=';')
+        pg_dbconn.query_to_csv(query='select * from working.{table}'.format(table=test_csv_name),
+                               output_file=output,
+                               sep=';')
 
         # Get result from query_to_csv as df
         result_df = pd.read_csv(output, sep=';')
 
         # Get result from dfquery
-        query_df = db.dfquery('select * from working.{}'.format(test_csv_name))
+        query_df = pg_dbconn.dfquery('select * from working.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_quote_strings(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
 
         # Setup table
-        db.query("""
-            create table working.{} (col1 varchar, col2 varchar, col3 varchar);
+        pg_dbconn.query("""
+            create table working.{table} (col1 varchar, col2 varchar, col3 varchar);
 
-            insert into working.{} values ('a,', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            insert into working.{table} values ('a,', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        db.query_to_csv(query='select * from working.{}'.format(test_csv_name),
-                        output_file=output,
-                        quote_strings=False)
+        pg_dbconn.query_to_csv(query='select * from working.{table}'.format(table=test_csv_name),
+                               output_file=output,
+                               quote_strings=False)
 
         # Get result from query_to_csv as df
         result_df = pd.read_csv(output)
 
         # Get result from dfquery
-        query_df = db.dfquery('select * from working.{}'.format(test_csv_name))
+        query_df = pg_dbconn.dfquery('select * from working.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
@@ -221,69 +219,69 @@ class TestQueryToCSVPG:
         assert '"' not in raw_csv_with_quotes.iloc[0]["col3"]
 
         # Cleanup
-        db.drop_table(schema_name='working', table_name=test_csv_name)
+        pg_dbconn.drop_table(schema_name='working', table_name=test_csv_name)
         os.remove(output)
 
 
 class TestQueryToCSVMS:
     def test_query_to_csv_basic(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
-        sql.query("""
-            create table dbo.{} (col1 varchar, col2 varchar, col3 varchar);
+        ms_dbconn.query("""
+            create table dbo.{table} (col1 varchar, col2 varchar, col3 varchar);
 
-            insert into dbo.{} values ('a', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            insert into dbo.{table} values ('a', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        sql.query_to_csv(query='select * from dbo.{}'.format(test_csv_name),
-                         output_file=output)
+        ms_dbconn.query_to_csv(query='select * from dbo.{table}'.format(table=test_csv_name),
+                               output_file=output)
 
         # Get result from query_to_csv as df
         result_df = pd.read_csv(output)
 
         # Get result from dfquery
-        query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
+        query_df = ms_dbconn.dfquery('select * from dbo.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_no_output(self):
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
-        sql.query("""
-            create table dbo.{} (col1 varchar, col2 varchar, col3 varchar);
+        ms_dbconn.query("""
+            create table dbo.{table} (col1 varchar, col2 varchar, col3 varchar);
 
-            insert into dbo.{} values ('a', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            insert into dbo.{table} values ('a', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        sql.query_to_csv(query='select * from dbo.{}'.format(test_csv_name))
+        ms_dbconn.query_to_csv(query='select * from dbo.{table}'.format(table=test_csv_name))
 
         # Get result from query_to_csv as df
-        output = os.path.join(os.getcwd(), 'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
+        output = os.path.join(os.getcwd(), 'data_{dt}.csv'.format(dt=datetime.datetime.now().strftime('%Y%m%d%H%M')))
         result_df = pd.read_csv(output)
 
         # Get result from dfquery
-        query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
+        query_df = ms_dbconn.dfquery('select * from dbo.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_strict(self):
         try:
-            sql.query_to_csv(query='select * from junktable', strict=True)
+            ms_dbconn.query_to_csv(query='select * from junktable', strict=True)
         except SystemExit:
             return
 
@@ -294,54 +292,54 @@ class TestQueryToCSVMS:
 
     def test_query_to_csv_sep(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
-        sql.query("""
-            create table dbo.{} (col1 varchar, col2 varchar, col3 varchar);
+        ms_dbconn.query("""
+            create table dbo.{table} (col1 varchar, col2 varchar, col3 varchar);
 
-            insert into dbo.{} values ('a', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            insert into dbo.{table} values ('a', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        sql.query_to_csv(query='select * from dbo.{}'.format(test_csv_name),
-                         output_file=output,
-                         sep=';')
+        ms_dbconn.query_to_csv(query='select * from dbo.{table}'.format(table=test_csv_name),
+                               output_file=output,
+                               sep=';')
 
         # Get result from query_to_csv as df
         result_df = pd.read_csv(output, sep=';')
 
         # Get result from dfquery
-        query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
+        query_df = ms_dbconn.dfquery('select * from dbo.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
 
         # Cleanup
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)
 
     def test_query_to_csv_quote_strings(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
 
         # Setup table
-        sql.query("""
-            create table dbo.{} (col1 text, col2 varchar, col3 varchar);
+        ms_dbconn.query("""
+            create table dbo.{table} (col1 text, col2 varchar, col3 varchar);
 
-            insert into dbo.{} values ('a, ', 'b', 'c');
-        """.format(test_csv_name, test_csv_name))
+            insert into dbo.{table} values ('a, ', 'b', 'c');
+        """.format(table=test_csv_name))
 
         # Query_to_csv
-        sql.query_to_csv(query='select * from dbo.{}'.format(test_csv_name),
-                         output_file=output,
-                         quote_strings=False)
+        ms_dbconn.query_to_csv(query='select * from dbo.{table}'.format(table=test_csv_name),
+                               output_file=output,
+                               quote_strings=False)
 
         # Get result from query_to_csv as df
         result_df = pd.read_csv(output)
 
         # Get result from dfquery
-        query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
+        query_df = ms_dbconn.dfquery('select * from dbo.{table}'.format(table=test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df, query_df)
@@ -353,5 +351,5 @@ class TestQueryToCSVMS:
         assert '"' not in raw_csv_with_quotes.iloc[0]["col3"]
 
         # Cleanup
-        sql.drop_table(schema_name='dbo', table_name=test_csv_name)
+        ms_dbconn.drop_table(schema_name='dbo', table_name=test_csv_name)
         os.remove(output)

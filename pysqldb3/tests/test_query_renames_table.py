@@ -9,17 +9,17 @@ from .. import pysqldb3 as pysqldb
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                       server=config.get('PG_DB', 'SERVER'),
-                       db_name=config.get('PG_DB', 'DB_NAME'),
-                       user=config.get('PG_DB', 'DB_USER'),
-                       password=config.get('PG_DB', 'DB_PASSWORD'))
+pg_dbconn = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
+                              host=config.get('PG_DB', 'SERVER'),
+                              db_name=config.get('PG_DB', 'DB_NAME'),
+                              username=config.get('PG_DB', 'DB_USER'),
+                              password=config.get('PG_DB', 'DB_PASSWORD'))
 
-sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        db_name=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'))
+ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
+                              host=config.get('SQL_DB', 'SERVER'),
+                              db_name=config.get('SQL_DB', 'DB_NAME'),
+                              username=config.get('SQL_DB', 'DB_USER'),
+                              password=config.get('SQL_DB', 'DB_PASSWORD'))
 
 
 class TestQueryCreatesTablesSql():
@@ -77,30 +77,30 @@ class TestQueryCreatesTablesSql():
         assert query.Query.query_renames_table(query_string, 'dbo') == {'dbo.node': 'test'}
 
     def test_query_renames_table_logging_not_temp(self):
-        sql.drop_table('dbo', '___test___test___')
-        assert not db.table_exists('___test___test___', schema='dbo')
-        sql.query("create table dbo.___test___test___ (id int);", temp=False)
-        assert sql.table_exists('___test___test___', schema='dbo')
-        assert not sql.check_table_in_log('___test___test___', schema='dbo')
+        ms_dbconn.drop_table('dbo', '___test___test___')
+        assert not pg_dbconn.table_exists('___test___test___', schema_name='dbo')
+        ms_dbconn.query("create table dbo.___test___test___ (id int);", temp=False)
+        assert ms_dbconn.table_exists('___test___test___', schema_name='dbo')
+        assert not ms_dbconn.check_table_in_log('___test___test___', schema_name='dbo')
 
-        sql.drop_table('dbo', '___test___test___2')
-        sql.query("EXEC sp_rename 'dbo.___test___test___', '___test___test___2'")
-        assert sql.table_exists('___test___test___2', schema='dbo')
-        assert not sql.check_table_in_log('___test___test___2', schema='dbo')
-        sql.drop_table('dbo', '___test___test___2')
+        ms_dbconn.drop_table('dbo', '___test___test___2')
+        ms_dbconn.query("EXEC sp_rename 'dbo.___test___test___', '___test___test___2'")
+        assert ms_dbconn.table_exists('___test___test___2', schema_name='dbo')
+        assert not ms_dbconn.check_table_in_log('___test___test___2', schema_name='dbo')
+        ms_dbconn.drop_table('dbo', '___test___test___2')
 
     def test_query_renames_table_logging_temp(self):
-        sql.drop_table('dbo', '___test___test___')
-        assert not db.table_exists('___test___test___', schema='dbo')
-        sql.query("create table dbo.___test___test___ (id int);", temp=True)
-        assert sql.table_exists('___test___test___', schema='dbo')
-        assert sql.check_table_in_log('___test___test___', schema='dbo')
+        ms_dbconn.drop_table('dbo', '___test___test___')
+        assert not pg_dbconn.table_exists('___test___test___', schema_name='dbo')
+        ms_dbconn.query("create table dbo.___test___test___ (id int);", temp=True)
+        assert ms_dbconn.table_exists('___test___test___', schema_name='dbo')
+        assert ms_dbconn.check_table_in_log('___test___test___', schema_name='dbo')
 
-        sql.drop_table('dbo', '___test___test___2')
-        sql.query("EXEC sp_rename 'dbo.___test___test___', '___test___test___2'")
-        assert sql.table_exists('___test___test___2', schema='dbo')
-        assert sql.check_table_in_log('___test___test___2', schema='dbo')
-        sql.drop_table('dbo', '___test___test___2')
+        ms_dbconn.drop_table('dbo', '___test___test___2')
+        ms_dbconn.query("EXEC sp_rename 'dbo.___test___test___', '___test___test___2'")
+        assert ms_dbconn.table_exists('___test___test___2', schema_name='dbo')
+        assert ms_dbconn.check_table_in_log('___test___test___2', schema_name='dbo')
+        ms_dbconn.drop_table('dbo', '___test___test___2')
 
 
 class TestQueryCreatesTablesPgSql():
@@ -146,28 +146,28 @@ class TestQueryCreatesTablesPgSql():
 
 
     def test_query_renames_table_logging_not_temp(self):
-        db.drop_table('working', '___test___test___')
-        assert not db.table_exists('___test___test___', schema='working')
-        db.query("create table working.___test___test___ (id int);", temp=False)
-        assert db.table_exists('___test___test___', schema='working')
-        assert not db.check_table_in_log('___test___test___', schema='working')
+        pg_dbconn.drop_table('working', '___test___test___')
+        assert not pg_dbconn.table_exists('___test___test___', schema_name='working')
+        pg_dbconn.query("create table working.___test___test___ (id int);", temp=False)
+        assert pg_dbconn.table_exists('___test___test___', schema_name='working')
+        assert not pg_dbconn.check_table_in_log('___test___test___', schema_name='working')
 
-        db.drop_table('working', '___test___test___2')
-        db.query("alter table working.___test___test___ rename to ___test___test___2 ")
-        assert db.table_exists('___test___test___2', schema='working')
-        assert not db.check_table_in_log('___test___test___2', schema='working')
-        db.drop_table('working', '___test___test___2')
+        pg_dbconn.drop_table('working', '___test___test___2')
+        pg_dbconn.query("alter table working.___test___test___ rename to ___test___test___2 ")
+        assert pg_dbconn.table_exists('___test___test___2', schema_name='working')
+        assert not pg_dbconn.check_table_in_log('___test___test___2', schema_name='working')
+        pg_dbconn.drop_table('working', '___test___test___2')
 
     def test_query_renames_table_logging_temp(self):
-        db.drop_table('working', '___test___test___')
-        assert not db.table_exists('___test___test___', schema='working')
-        db.query("create table working.___test___test___ (id int);", temp=True)
-        assert db.table_exists('___test___test___', schema='working')
-        assert db.check_table_in_log('___test___test___', schema='working')
+        pg_dbconn.drop_table('working', '___test___test___')
+        assert not pg_dbconn.table_exists('___test___test___', schema_name='working')
+        pg_dbconn.query("create table working.___test___test___ (id int);", temp=True)
+        assert pg_dbconn.table_exists('___test___test___', schema_name='working')
+        assert pg_dbconn.check_table_in_log('___test___test___', schema_name='working')
 
-        db.drop_table('working', '___test___test___2')
-        db.query("alter table working.___test___test___ rename to ___test___test___2 ")
-        assert db.table_exists('___test___test___2', schema='working')
-        assert db.check_table_in_log('___test___test___2', schema='working')
-        db.drop_table('working', '___test___test___2')
+        pg_dbconn.drop_table('working', '___test___test___2')
+        pg_dbconn.query("alter table working.___test___test___ rename to ___test___test___2 ")
+        assert pg_dbconn.table_exists('___test___test___2', schema_name='working')
+        assert pg_dbconn.check_table_in_log('___test___test___2', schema_name='working')
+        pg_dbconn.drop_table('working', '___test___test___2')
 
