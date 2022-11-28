@@ -73,7 +73,7 @@ class TestRenamesGeomPg:
         # import with pysqldb
 
         assert db.table_exists(table, schema=db.default_schema) is False
-        db.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc)
+        db.feature_class_to_table(fgdb, table, schema_name=None, fc_name=fc)
 
         db.query("""
             SELECT column_name, data_type
@@ -126,7 +126,7 @@ class TestRenamesGeomPg:
         # import with pysqldb
         assert not db.table_exists(table, schema=db.default_schema)
 
-        db.shp_to_table(path=fldr, table_name=table, shp_name=shp)
+        db.shp_to_table(path=fldr, table_name=table, shpfile_name=shp)
 
         db.query("""
                     SELECT column_name, data_type
@@ -193,7 +193,7 @@ class TestRenamesGeomMs:
         # import with pysqldb
         assert not sql.table_exists(table, schema=sql.default_schema)
 
-        sql.feature_class_to_table(fgdb, table, schema_name=None, shp_name=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(fgdb, table, schema_name=None, fc_name=fc, skip_failures='-skip_failures')
 
         sql.query("""
             SELECT column_name, data_type
@@ -247,7 +247,7 @@ class TestRenamesGeomMs:
         # import with pysqldb
         assert sql.table_exists(table, schema=sql.default_schema) is False
 
-        sql.shp_to_table(path=fldr, table_name=table, shp_name=shp)
+        sql.shp_to_table(path=fldr, table_name=table, shpfile_name=shp)
 
         sql.query("""
                     SELECT column_name, data_type

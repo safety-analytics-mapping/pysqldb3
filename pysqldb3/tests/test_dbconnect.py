@@ -469,7 +469,7 @@ class TestLogging:
         assert before_log_length == 0
 
         pg_dbconn.shp_to_table(path=os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data',
-                               shp_name='test.shp',
+                               shpfile_name='test.shp',
                                schema_name='working',
                                table_name=table_for_testing_logging)
 
@@ -505,7 +505,7 @@ class TestLogging:
                                                            schema_name='working', temp=True, overwrite=True)
 
         pg_dbconn._bulk_csv_to_table(input_file=fp, schema_name='working', table_name=table_for_testing_logging,
-                                     table_schema=input_schema)
+                                     df_schema=input_schema)
 
         after_log_df = pg_dbconn.dfquery("""
                     SELECT *

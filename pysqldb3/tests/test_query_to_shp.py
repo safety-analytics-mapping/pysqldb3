@@ -52,7 +52,7 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -107,7 +107,7 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp,
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp,
                         path=fldr+'\\'+'test_'+shp, print_cmd=True)
 
         # check table in folder
@@ -164,7 +164,7 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp,
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp,
                         path=fldr+'\\'+'test_'+shp, print_cmd=True)
 
         # check table in folder
@@ -190,7 +190,7 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -215,7 +215,7 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -244,7 +244,7 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -271,7 +271,7 @@ class TestQueryToShpPg:
 
         # table to shp
         db.query_to_shp("select * from {}.{} limit 0".format(pg_schmma, test_table),
-                        shp_name=shp, path=fldr, print_cmd=True)
+                        shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -307,14 +307,14 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
         db.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=pg_schmma,
-                        shp_name=shp, print_cmd=True)
+                        shpfile_name=shp, print_cmd=True)
 
         db.query(f"""
         select
@@ -363,14 +363,14 @@ class TestQueryToShpPg:
         assert db.table_exists(test_table, schema=pg_schmma)
 
         # table to shp
-        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp("select * from {}.{}".format(pg_schmma, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
         db.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=pg_schmma,
-                        shp_name=shp, print_cmd=True)
+                        shpfile_name=shp, print_cmd=True)
 
         db.query(f"""
         select
@@ -401,13 +401,13 @@ class TestQueryToShpPg:
         shp = 'test'
 
         # This is encoded as utf8 and then ogr default's to LATIN1 encoding
-        db.query_to_shp(query=u"select '©' as sc",  shp_name=shp, path=fldr, print_cmd=True)
+        db.query_to_shp(query=u"select '©' as sc", shpfile_name=shp, path=fldr, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
 
         # Upload shp (with special character)
-        db.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema_name=pg_schmma, table_name=test_table)
+        db.shp_to_table(path=fldr, shpfile_name=shp + '.dbf', schema_name=pg_schmma, table_name=test_table)
 
         # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
         # Though ogr uses LATIN1, our PG server stores things using UTF8; this is decoded and then encoded as LATIN1 to get the initial character.
@@ -423,7 +423,7 @@ class TestQueryToShpPg:
 
         # This should fail
         try:
-            db.query_to_shp(query="select * from table_does_not_exist", shp_name=shp, path=fldr, print_cmd=True)
+            db.query_to_shp(query="select * from table_does_not_exist", shpfile_name=shp, path=fldr, print_cmd=True)
         except:
             Failed = True
         # check table in not folder
@@ -453,7 +453,7 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shpfile_name=shp, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -518,8 +518,8 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp,
-                        path=fldr + '\\' + 'test_' + shp, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shpfile_name=shp,
+                         path=fldr + '\\' + 'test_' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -584,8 +584,8 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp - make sure shp_name overwrites any shp in the path
-        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp,
-                        path=fldr + '\\' + 'test_' + shp, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shpfile_name=shp,
+                         path=fldr + '\\' + 'test_' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -636,7 +636,7 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -665,7 +665,7 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(ms_schema, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -700,7 +700,7 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -731,7 +731,7 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select top 0 * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select top 0 * from {}.{}".format(schema, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -770,13 +770,13 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=schema, shp_name=shp, print_cmd=True)
+        sql.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=schema, shpfile_name=shp, print_cmd=True)
 
         sql.query("""
         select
@@ -828,13 +828,13 @@ class TestQueryToShpMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to shp
-        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp("select * from {}.{}".format(schema, test_table), shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=schema, shp_name=shp, print_cmd=True)
+        sql.shp_to_table(path=fldr, table_name=test_table + 'QA', schema_name=schema, shpfile_name=shp, print_cmd=True)
 
         sql.query("""
         select
@@ -866,13 +866,13 @@ class TestQueryToShpMs:
         shp = 'test'
 
         # This is encoded in UTF8 and then uses ogr's SQL default LATIN1
-        sql.query_to_shp(query=u"select '©' as sc",  shp_name=shp, path=fldr, print_cmd=True)
+        sql.query_to_shp(query=u"select '©' as sc", shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
 
         # Upload shp (with special character)
-        sql.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema_name=schema, table_name=test_table)
+        sql.shp_to_table(path=fldr, shpfile_name=shp + '.dbf', schema_name=schema, table_name=test_table)
 
         # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
         # ogr and SQL Server use/default to LATIN1; thus, encoding our string in LATIN1 will result in the correct character
@@ -888,7 +888,7 @@ class TestQueryToShpMs:
 
         # This should fail
         try:
-            sql.query_to_shp(query="select * from table_does_not_exist", shp_name=shp, path=fldr, print_cmd=True)
+            sql.query_to_shp(query="select * from table_does_not_exist", shpfile_name=shp, path=fldr, print_cmd=True)
         except:
             Failed = True
         # check table in not folder

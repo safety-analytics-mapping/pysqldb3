@@ -352,7 +352,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp, shp_name=shp_name, schema_name=pg_schema, table_name=test_reuploaded_table_name, print_cmd=True)
+        db.shp_to_table(path=fp, shpfile_name=shp_name, schema_name=pg_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery("select * from {}.{} order by id limit 100".format(pg_schema, pg_table_name))
@@ -461,7 +461,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp+'\\'+'err_'+shp_name, shp_name=shp_name ,schema_name=pg_schema,
+        db.shp_to_table(path=fp+'\\'+'err_'+shp_name, shpfile_name=shp_name, schema_name=pg_schema,
                         table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -508,7 +508,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp, shp_name=shp_name, schema_name=pg_schema, table_name=test_reuploaded_table_name, print_cmd=True)
+        db.shp_to_table(path=fp, shpfile_name=shp_name, schema_name=pg_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery("select * from {}.{} order by id limit 100".format(pg_schema, pg_table_name))
@@ -567,7 +567,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.shp_to_table(path=fp, shp_name=shp_name, schema_name=ms_schema, table_name=test_reuploaded_table_name, print_cmd=True)
+        sql.shp_to_table(path=fp, shpfile_name=shp_name, schema_name=ms_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery("select top 10 * from {}.{} order by test_col1".format(ms_schema,
@@ -684,7 +684,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.shp_to_table(path=fp, shp_name=shp_name, schema_name=ms_schema, table_name=test_reuploaded_table_name, print_cmd=True)
+        sql.shp_to_table(path=fp, shpfile_name=shp_name, schema_name=ms_schema, table_name=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")

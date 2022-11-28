@@ -183,8 +183,8 @@ class TestRenameIndexPG:
         q = """
             select 1 id, 'test text' txt, st_setsrid(st_makepoint(1015329.1, 213793.1),2263) geom
         """
-        db.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        db.shp_to_table(path=fldr, table_name=test_table, schema_name=schema, shp_name=test_table + '.shp')
+        db.query_to_shp(q, path=fldr, shpfile_name=test_table + '.shp')
+        db.shp_to_table(path=fldr, table_name=test_table, schema_name=schema, shpfile_name=test_table + '.shp')
 
         # check index on org table
         print(self.get_indexes(test_table, schema))
@@ -430,8 +430,8 @@ class TestRenameIndexMS:
         q = """
             select 1 id, 'test text' txt, geometry::STGeomFromText('POINT(1015329.34900 213793.65100)', 2263) geom
         """
-        sql.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        sql.shp_to_table(path=fldr, table_name=test_table, schema_name=schema, shp_name=test_table + '.shp', private=True)
+        sql.query_to_shp(q, path=fldr, shpfile_name=test_table + '.shp')
+        sql.shp_to_table(path=fldr, table_name=test_table, schema_name=schema, shpfile_name=test_table + '.shp', private=True)
 
         # check index on org table
         assert len(self.get_indexes(test_table, schema)) == 1

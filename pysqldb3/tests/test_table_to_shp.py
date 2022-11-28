@@ -53,7 +53,7 @@ class TestTableToShpPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema_name=pg_schema, shp_name=shp, path=fldr, print_cmd=True)
+        db.table_to_shp(test_table, schema_name=pg_schema, shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -103,7 +103,7 @@ class TestTableToShpPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema_name=pg_schema, shp_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
+        db.table_to_shp(test_table, schema_name=pg_schema, shpfile_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -128,7 +128,7 @@ class TestTableToShpPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, pg_schema, path=fldr, shp_name=shp, print_cmd=True)
+        db.table_to_shp(test_table, pg_schema, path=fldr, shpfile_name=shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -162,7 +162,7 @@ class TestTableToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema_name=ms_schema, shp_name=shp, path=fldr, print_cmd=True)
+        sql.table_to_shp(test_table, schema_name=ms_schema, shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -223,7 +223,7 @@ class TestTableToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema_name=ms_schema, shp_name=shp ,path=fldr + '\\' + 'err_'+shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema_name=ms_schema, shpfile_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
@@ -253,7 +253,7 @@ class TestTableToShpMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema_name=ms_schema, path=fldr, shp_name=shp, print_cmd=True)
+        sql.table_to_shp(test_table, schema_name=ms_schema, path=fldr, shpfile_name=shp, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))

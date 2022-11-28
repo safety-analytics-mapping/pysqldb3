@@ -944,7 +944,7 @@ class DbConnect:
         if df.shape[0] > 999:
             try:
                 success = self._bulk_csv_to_table(input_file=input_file, schema_name=schema_name, table_name=table_name,
-                                                  table_schema=table_schema, days=days)
+                                                  df_schema=table_schema, days=days)
 
                 if not success:
                     raise AssertionError('Bulk CSV loading failed.'.format(schema_name, table_name))
@@ -964,19 +964,19 @@ class DbConnect:
             self.dataframe_to_table(df, table_name, table_schema=table_schema, overwrite=overwrite, schema_name=schema_name,
                                     temp=temp, days=days)
 
-    def _bulk_csv_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False, days=7):
+    def _bulk_csv_to_table(self, input_file=None, schema_name=None, table_name=None, df_schema=None, print_cmd=False, days=7):
         """
         Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.
         :param input_file: Source CSV filepath
         :param schema_name: Schema to write to; defaults to db's default schema
         :param table_name: Destination table name to write data to; defaults to user/date defined
-        :param table_schema:
+        :param df_schema:
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
         return self._bulk_file_to_table(input_file=input_file, schema_name=schema_name, table_name=table_name,
-                                        table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
+                                        df_schema=df_schema, print_cmd=print_cmd, excel_header=False, days=days)
 
     def _bulk_xlsx_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False,
                             header=True, days=7):
@@ -992,9 +992,9 @@ class DbConnect:
         :return:
         """
         return self._bulk_file_to_table(input_file=input_file, schema_name=schema_name, table_name=table_name,
-                                        table_schema=table_schema, print_cmd=print_cmd, excel_header=header, days=days)
+                                        df_schema=table_schema, print_cmd=print_cmd, excel_header=header, days=days)
 
-    def _bulk_file_to_table(self, input_file=None, schema_name=None, table_name=None, table_schema=None, print_cmd=False,
+    def _bulk_file_to_table(self, input_file=None, schema_name=None, table_name=None, df_schema=None, print_cmd=False,
                             excel_header=True, days=7):
         """
         Uses GDAL to import CSV/XLSX files.
@@ -1003,7 +1003,7 @@ class DbConnect:
         :param input_file: Source CSV/XLS filepath
         :param schema_name: Schema to write to; defaults to db's default schema
         :param table_name: Destination table name to write data to; defaults to user/date defined
-        :param table_schema: schema of dataframe (returned from dataframe_to_table_schema)
+        :param df_schema: schema of dataframe (returned from dataframe_to_table_schema)
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param excel_header: defaults to True; true if the csv/xls includes a header/column names
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
@@ -1061,7 +1061,7 @@ class DbConnect:
             return False
 
         try:
-            if table_schema:
+            if df_schema:
                 # Need to get staging field names, GDAL sanitizes differently
                 if self.type == MS:
                     sq, p = 'TOP 1', ''
@@ -1076,18 +1076,18 @@ class DbConnect:
 
                 # Drop ogc_fid
                 if "ogc_fid" in column_names and "ogc_fid" not in [col_name for i, (col_name, col_type) in
-                                                                   enumerate(table_schema)]:
+                                                                   enumerate(df_schema)]:
                     column_names.remove("ogc_fid")
 
                 # Drop ogr_fid
                 if "ogr_fid" in column_names and "ogr_fid" not in [col_name for i, (col_name, col_type) in
-                                                                   enumerate(table_schema)]:
+                                                                   enumerate(df_schema)]:
                     column_names.remove("ogr_fid")
 
                 # Cast all fields to new db_type to move from stg to final table
                 # take staging field name from stg table
                 cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
-                        enumerate(table_schema)]
+                        enumerate(df_schema)]
                 # cols = [c.encode('utf-8') for c in cols]
                 cols = str(cols).replace("'", "")[1:-1]
             else:
@@ -1446,13 +1446,13 @@ class DbConnect:
         fig.show()
         return
 
-    def query_to_shp(self, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_shp(self, query, path=None, shpfile_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
         Exports query results to a shp file.
         :param query: SQL query as string db_type
         :param path: folder path for output shp
-        :param shp_name: filename for shape (should end in .shp)
+        :param shpfile_name: filename for shape (should end in .shp)
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: boolean to print ogr command (without password)
@@ -1566,7 +1566,7 @@ class DbConnect:
 
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         new_query = u"select {} from ({}) q ".format(return_cols, query)
-        Query.query_to_shp(self, new_query, path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+        Query.query_to_shp(self, new_query, path=path, shp_name=shpfile_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                            print_cmd=print_cmd, srid=srid)
 
         # Drop the temp table
@@ -1579,7 +1579,7 @@ class DbConnect:
         self.last_query = new_query
         self.allow_temp_tables = original_temp_flag
 
-    def table_to_shp(self, table_name, schema_name=None, strict=True, path=None, shp_name=None, cmd=None,
+    def table_to_shp(self, table_name, schema_name=None, strict=True, path=None, shpfile_name=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports table to a shp file. Generates query to query_to_shp.
@@ -1587,7 +1587,7 @@ class DbConnect:
         :param schema_name: Database table's schema (defults to db default schema)
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
         :param path: folder path for output shp
-        :param shp_name: filename for shape (should end in .shp)
+        :param shpfile_name: filename for shape (should end in .shp)
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: Boolean flag to print the OGR command
@@ -1597,10 +1597,10 @@ class DbConnect:
         if not schema_name:
             schema_name = self.default_schema
 
-        path, shp_name = parse_shp_path(path, shp_name)
+        path, shpfile_name = parse_shp_path(path, shpfile_name)
 
         return self.query_to_shp("select * from {}.{}".format(schema_name, table_name),
-                                 path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+                                 path=path, shpfile_name=shpfile_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                                  print_cmd=print_cmd, srid=srid)
 
     def table_to_csv(self, table_name, schema_name=None, strict=True, output_file=None, open_file=False, sep=',',
@@ -1640,7 +1640,7 @@ class DbConnect:
         if not self.allow_temp_tables:
             self.disconnect(True)
 
-    def shp_to_table(self, path=None, table_name=None, schema_name=None, shp_name=None, cmd=None,
+    def shp_to_table(self, path=None, table_name=None, schema_name=None, shpfile_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      shp_encoding=None, print_cmd=False, days=7):
         """
@@ -1648,7 +1648,7 @@ class DbConnect:
         :param path: File path of the shapefile
         :param table_name: Table name to use in the database
         :param schema_name: Schema to use in the database (defaults to db's default schema)
-        :param shp_name: Shapefile name (ends in .shp)
+        :param shpfile_name: Shapefile name (ends in .shp)
         :param cmd: Optional ogr2ogr command to overwrite default
         :param srid:  SRID to use (defaults to 2263)
         :param port:
@@ -1668,21 +1668,21 @@ class DbConnect:
         if not port:
             port = self.port
 
-        path, shp = parse_shp_path(path, shp_name)
-        if not shp_name:
-            shp_name = shp
+        path, shp = parse_shp_path(path, shpfile_name)
+        if not shpfile_name:
+            shpfile_name = shp
 
-        if not all([path, shp_name]):
+        if not all([path, shpfile_name]):
             filename = file_loc('file', 'Missing file info - Opening search dialog...')
-            shp_name = os.path.basename(filename)
+            shpfile_name = os.path.basename(filename)
             path = os.path.dirname(filename)
 
         if not table_name:
-            table_name = shp_name.replace('.shp', '').lower()
+            table_name = shpfile_name.replace('.shp', '').lower()
 
         table_name = table_name.lower()
 
-        shp = Shapefile(dbo=self, path=path, table_name=table_name, schema_name=schema_name, shp_name=shp_name,
+        shp = Shapefile(dbo=self, path=path, table_name=table_name, schema_name=schema_name, shp_name=shpfile_name,
                         cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
 
         shp.read_shp(precision, private, shp_encoding, print_cmd)
@@ -1690,7 +1690,7 @@ class DbConnect:
         if temp:
             self.__run_table_logging([schema_name + "." + table_name], days=days)
 
-    def feature_class_to_table(self, path, table_name, schema_name=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
+    def feature_class_to_table(self, path, table_name, schema_name=None, fc_name=None, gdal_data_loc=GDAL_DATA_LOC,
                                srid=2263, private=False, temp=True, fc_encoding=None, print_cmd=False,
                                days=7, skip_failures=''):
         """
@@ -1698,7 +1698,7 @@ class DbConnect:
         :param path: Filepath to the geodatabase
         :param table_name: Table name to use in the database
         :param schema_name: Schema to use in the database
-        :param shp_name:  FeatureClass name
+        :param fc_name:  FeatureClass name
         :param gdal_data_loc: Filepath/location of GDAL on computer
         :param srid: SRID to use (defaults to 2263)
         :param private: If True any new tables will override defaut grant select permissions; defaults to False
@@ -1712,18 +1712,18 @@ class DbConnect:
         if not schema_name:
             schema_name = self.default_schema
 
-        if not all([path, shp_name]):
+        if not all([path, fc_name]):
             filename = file_loc('file', 'Missing file info - Opening search dialog...')
-            shp_name = os.path.basename(filename)
+            fc_name = os.path.basename(filename)
             path = os.path.dirname(filename)
 
         if not table_name:
-            table_name = shp_name.replace('.shp', '').lower()
+            table_name = fc_name.replace('.shp', '').lower()
 
         table_name = table_name.lower()
 
         shp = Shapefile(dbo=self, path=path, table_name=table_name, schema_name=schema_name, query=None,
-                        shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc, skip_failures=skip_failures)
+                        shp_name=fc_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc, skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
 

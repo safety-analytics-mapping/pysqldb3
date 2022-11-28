@@ -200,7 +200,7 @@ class TestBulkCSVToTablePG:
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
         input_schema = pg_dbconn.dataframe_to_table_schema(df=pd.read_csv(fp), table_name=create_table_name, schema_name='working')
-        pg_dbconn._bulk_csv_to_table(input_file=fp, table_name=create_table_name, schema_name='working', table_schema=input_schema)
+        pg_dbconn._bulk_csv_to_table(input_file=fp, table_name=create_table_name, schema_name='working', df_schema=input_schema)
 
         # Check to see if table is in database
         assert pg_dbconn.table_exists(table_name=create_table_name, schema_name='working')
@@ -222,7 +222,7 @@ class TestBulkCSVToTablePG:
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
         input_schema = pg_dbconn.dataframe_to_table_schema(df=pd.read_csv(fp), table_name=create_table_name)
-        pg_dbconn._bulk_csv_to_table(input_file=fp, table_name=create_table_name, table_schema=input_schema)
+        pg_dbconn._bulk_csv_to_table(input_file=fp, table_name=create_table_name, df_schema=input_schema)
 
         # Check to see if table is in database
         assert pg_dbconn.table_exists(table_name=create_table_name)
@@ -453,7 +453,7 @@ class TestBulkCSVToTableMS:
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
         input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table_name=create_table_name, schema_name='dbo')
-        sql._bulk_csv_to_table(input_file=fp, table_name=create_table_name, schema_name='dbo', table_schema=input_schema)
+        sql._bulk_csv_to_table(input_file=fp, table_name=create_table_name, schema_name='dbo', df_schema=input_schema)
 
         # Check to see if table is in database
         assert sql.table_exists(table_name=create_table_name, schema_name='dbo')
@@ -476,7 +476,7 @@ class TestBulkCSVToTableMS:
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
         input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table_name=create_table_name)
-        sql._bulk_csv_to_table(input_file=fp, table_name=create_table_name, table_schema=input_schema)
+        sql._bulk_csv_to_table(input_file=fp, table_name=create_table_name, df_schema=input_schema)
 
         # Check to see if table is in database
         # This example is linked to the mssql default server bug
