@@ -12,18 +12,18 @@ from . import helpers
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-db = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
-                       server=config.get('PG_DB', 'SERVER'),
-                       db_name=config.get('PG_DB', 'DB_NAME'),
-                       user=config.get('PG_DB', 'DB_USER'),
-                       password=config.get('PG_DB', 'DB_PASSWORD'),
-                       allow_temp_tables=True
-                       )
+pg_dbconn = pysqldb.DbConnect(db_type=config.get('PG_DB', 'TYPE'),
+                              host=config.get('PG_DB', 'SERVER'),
+                              db_name=config.get('PG_DB', 'DB_NAME'),
+                              username=config.get('PG_DB', 'DB_USER'),
+                              password=config.get('PG_DB', 'DB_PASSWORD'),
+                              allow_temp_tables=True
+                              )
 
 sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
+                        host=config.get('SQL_DB', 'SERVER'),
                         db_name=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
+                        username=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
@@ -32,7 +32,7 @@ sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
 #                              server='DOTGISSQL01',
 #                              ldap=True)
 
-test_table = '__testing_query_to_shp_{}__'.format(db.user)
+test_table = '__testing_query_to_shp_{user}__'.format(user=pg_dbconn.username)
 ms_schema = 'risadmin'
 pg_schema = 'working'
 
@@ -43,100 +43,100 @@ class TestTableToShpPg:
         shp = 'test.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, txt text, dte timestamp, geom geometry(Point));
+        pg_dbconn.query("""
+            DROP TABLE IF EXISTS {schema}.{table};
+            CREATE TABLE {schema}.{table} (id int, txt text, dte timestamp, geom geometry(Point));
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{table}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=pg_schema, t=test_table))
-        assert db.table_exists(test_table, schema=pg_schema)
+        """.format(schema=pg_schema, table=test_table))
+        assert pg_dbconn.table_exists(table_name=test_table, schema_name=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema_name=pg_schema, shpfile_name=shp, path=fldr, print_cmd=True)
+        pg_dbconn.table_to_shp(test_table, schema_name=pg_schema, shpfile_name=shp, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # clean up
-        db.drop_table(pg_schema, test_table)
+        pg_dbconn.drop_table(pg_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_table_to_shp_basic_pth(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, txt text, dte timestamp, geom geometry(Point));
+        pg_dbconn.query("""
+            DROP TABLE IF EXISTS {schema}.{table};
+            CREATE TABLE {schema}.{table} (id int, txt text, dte timestamp, geom geometry(Point));
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{table}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=pg_schema, t=test_table))
-        assert db.table_exists(test_table, schema=pg_schema)
+        """.format(schema=pg_schema, table=test_table))
+        assert pg_dbconn.table_exists(test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema_name=pg_schema, path=fldr + '\\' + shp, print_cmd=True)
+        pg_dbconn.table_to_shp(test_table, schema_name=pg_schema, path=f'{dir}\\{shp}', print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp))
+        assert os.path.isfile(os.path.join(dir, shp))
 
         # clean up
-        db.drop_table(pg_schema, test_table)
+        pg_dbconn.drop_table(pg_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fldr, shp.replace('shp', ext)))
+            os.remove(os.path.join(dir, shp.replace('shp', ext)))
 
     def test_table_to_shp_basic_pth_w_name(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, txt text, dte timestamp, geom geometry(Point));
+        pg_dbconn.query("""
+            DROP TABLE IF EXISTS {schema}.{table};
+            CREATE TABLE {schema}.{table} (id int, txt text, dte timestamp, geom geometry(Point));
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{table}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=pg_schema, t=test_table))
-        assert db.table_exists(test_table, schema=pg_schema)
+        """.format(schema=pg_schema, table=test_table))
+        assert pg_dbconn.table_exists(table_name=test_table, schema=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, schema_name=pg_schema, shpfile_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
+        pg_dbconn.table_to_shp(table_name=test_table, schema_name=pg_schema, shpfile_name=shp, path=dir + '\\' + 'err_' + shp, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp))
+        assert os.path.isfile(os.path.join(dir, shp))
 
         # clean up
-        db.drop_table(pg_schema, test_table)
+        pg_dbconn.drop_table(schema_name=pg_schema, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fldr, shp.replace('shp', ext)))
+            os.remove(os.path.join(dir, shp.replace('shp', ext)))
 
     def test_table_to_shp_basic_quotes(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-        shp = test_table+'.shp'
+        dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        shp = test_table + '.shp'
 
         # create table
-        db.query("""
-            DROP TABLE IF EXISTS {s}.{t};
-            CREATE TABLE {s}.{t} (id int, "txt" text, dte timestamp, geom geometry(Point));
+        pg_dbconn.query("""
+            DROP TABLE IF EXISTS {schema}.{table};
+            CREATE TABLE {schema}.{table} (id int, "txt" text, dte timestamp, geom geometry(Point));
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{table}
              VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
-        """.format(s=pg_schema, t=test_table))
-        assert db.table_exists(test_table, schema=pg_schema)
+        """.format(schema=pg_schema, table=test_table))
+        assert pg_dbconn.table_exists(table_name=test_table, schema_name=pg_schema)
 
         # table to shp
-        db.table_to_shp(test_table, pg_schema, path=fldr, shpfile_name=shp, print_cmd=True)
+        pg_dbconn.table_to_shp(table_name=test_table, schema_name=pg_schema, path=dir, shpfile_name=shp, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp))
+        assert os.path.isfile(os.path.join(dir, shp))
 
         # clean up
-        db.drop_table(schema_name=pg_schema, table_name=test_table)
+        pg_dbconn.drop_table(schema_name=pg_schema, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fldr, shp.replace('.shp', '.'+ext)))
+            os.remove(os.path.join(dir, shp.replace('.shp', '.'+ext)))
 
 
 class TestTableToShpMs:
@@ -146,129 +146,129 @@ class TestTableToShpMs:
 
 
     def test_table_to_shp_basic(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
         sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
+            CREATE TABLE {schema}.{table} (id int, txt text, dte datetime, geom geometry);
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{table}
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=ms_schema, t=test_table))
-        assert sql.table_exists(test_table, schema=ms_schema)
+        """.format(schema=ms_schema, table=test_table))
+        assert sql.table_exists(table_name=test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema_name=ms_schema, shpfile_name=shp, path=fldr, print_cmd=True)
+        sql.table_to_shp(table_name=test_table, schema_name=ms_schema, shpfile_name=shp, path=dir, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp))
+        assert os.path.isfile(os.path.join(dir, shp))
 
         # clean up
         sql.drop_table(ms_schema, test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
-                os.remove(os.path.join(fldr, shp.replace('shp', ext)))
+                os.remove(os.path.join(dir, shp.replace('shp', ext)))
             except:
                 pass
 
     def test_table_to_shp_basic_pth(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
         sql.drop_table(schema_name=ms_schema, table_name=test_table)
 
         # create table
         sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
+            CREATE TABLE {schema}.{table} (id int, txt text, dte datetime, geom geometry);
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{table}
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=ms_schema, t=test_table))
-        assert sql.table_exists(test_table, schema=ms_schema)
+        """.format(schema=ms_schema, table=test_table))
+        assert sql.table_exists(table_name=test_table, schema=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema_name=ms_schema, path=fldr + '\\' + shp, print_cmd=True)
+        sql.table_to_shp(table_name=test_table, schema_name=ms_schema, path=f'{dir}\\{shp}', print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp))
+        assert os.path.isfile(os.path.join(dir, shp))
 
         # clean up
-        sql.drop_table(ms_schema, test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
-                os.remove(os.path.join(fldr, shp.replace('shp', ext)))
+                os.remove(os.path.join(dir, shp.replace('shp', ext)))
             except:
                 pass
 
     def test_table_to_shp_basic_pth_w_name(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
 
         sql.drop_table(schema_name=ms_schema, table_name=test_table)
         # create table
         sql.query("""
-            CREATE TABLE {s}.{t} (id int, txt text, dte datetime, geom geometry);
+            CREATE TABLE {schema}.{table} (id int, txt text, dte datetime, geom geometry);
 
-            INSERT INTO {s}.{t}
+            INSERT INTO {schema}.{table}
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=ms_schema, t=test_table))
-        assert sql.table_exists(test_table, schema=ms_schema)
+        """.format(schema=ms_schema, table=test_table))
+        assert sql.table_exists(table_name=test_table, schema_name=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema_name=ms_schema, shpfile_name=shp, path=fldr + '\\' + 'err_' + shp, print_cmd=True)
+        sql.table_to_shp(table_name=test_table, schema_name=ms_schema, shpfile_name=shp, path=f'{dir}\\err_{shp}', print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp))
+        assert os.path.isfile(os.path.join(dir, shp))
 
         # clean up
-        sql.drop_table(ms_schema, test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
-                os.remove(os.path.join(fldr, shp.replace('shp', ext)))
+                os.remove(os.path.join(dir, shp.replace('shp', ext)))
             except:
                 pass
 
     def test_table_to_shp_basic_brackets(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = test_table+'.shp'
         sql.drop_table(table_name=test_table, schema_name=ms_schema)
 
         # create table
         sql.query("""
-                    CREATE TABLE {s}.{t} (id int, [txt] text, dte datetime, geom geometry);
+                    CREATE TABLE {schema}.{table} (id int, [txt] text, dte datetime, geom geometry);
 
-                    INSERT INTO {s}.{t}
+                    INSERT INTO {schema}.{table}
                     (id, txt, dte, geom)
                      VALUES (1, 'test text', CURRENT_TIMESTAMP,
                      geometry::Point(1015329.1, 213793.1, 2263))
-                """.format(s=ms_schema, t=test_table))
-        assert sql.table_exists(test_table, schema=ms_schema)
+                """.format(schema=ms_schema, table=test_table))
+        assert sql.table_exists(table_name=test_table, schema_name=ms_schema)
 
         # table to shp
-        sql.table_to_shp(test_table, schema_name=ms_schema, path=fldr, shpfile_name=shp, print_cmd=True)
+        sql.table_to_shp(table_name=test_table, schema_name=ms_schema, path=dir, shpfile_name=shp, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp))
+        assert os.path.isfile(os.path.join(dir, shp))
 
         # clean up
-        sql.drop_table(ms_schema, test_table)
+        sql.drop_table(schema_name=ms_schema, table_name=test_table)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             try:
-                os.remove(os.path.join(fldr, shp.replace('shp', ext)))
+                os.remove(os.path.join(dir, shp.replace('shp', ext)))
             except:
                 pass
 
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
-        sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
+        sql.query("drop table {schema}.{table}".format(schema=ms_schema, table=sql.log_table))
         sql.cleanup_new_tables()
         # helpers.clean_up_schema(sql, schema=ms_schema)
