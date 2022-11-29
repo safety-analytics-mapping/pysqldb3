@@ -7,29 +7,29 @@ class TestStringParser:
     def test_string_parser_basic_default_server_ms(self):
         host, db_name, schema_name, table_name = parse_table_string("example", "dbo", "MS")
         assert schema_name == "dbo"
-        assert table == "example"
+        assert table_name == "example"
 
     def test_string_parser_basic_default_server_pg(self):
         host, db_name, schema_name, table_name = parse_table_string('example', "public", "PG")
         assert schema_name == "public"
-        assert table == "example"
+        assert table_name == "example"
 
     def test_string_parser_schema_name_table_periods_ms(self):
         host, db_name, schema_name, table_name = parse_table_string('generic.example', "dbo", "MS")
         assert schema_name == 'generic'
-        assert table == 'example'
+        assert table_name == 'example'
 
     def test_string_parser_schema_name_table_periods_pg(self):
         host, db_name, schema_name, table_name = parse_table_string('generic.example', "public", "PG")
         assert schema_name == 'generic'
-        assert table == 'example'
+        assert table_name == 'example'
 
     def test_string_parser_server_schema_name_table_periods_ms(self):
         host, db_name, schema_name, table_name = parse_table_string('a.generic.example', "dbo", "MS")
         assert not host
         assert db_name == 'a'
         assert schema_name == 'generic'
-        assert table == 'example'
+        assert table_name == 'example'
 
     def test_string_parser_server_schema_name_table_periods_pg(self):
         host, db_name, schema_name, table_name = parse_table_string('a.generic.example', "public", "PG")
