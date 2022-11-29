@@ -7,96 +7,96 @@ from .. import pysqldb3 as pysqldb
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
-ms = pysqldb.DbConnect(db_type=config.get('SECOND_SQL_DB', 'TYPE'),
-                       server=config.get('SECOND_SQL_DB', 'SERVER'),
-                       db_name=config.get('SECOND_SQL_DB', 'DB_NAME'),
-                       user=config.get('SECOND_SQL_DB', 'DB_USER'),
-                       password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
+ms_dbconn = pysqldb.DbConnect(db_type=config.get('SECOND_SQL_DB', 'TYPE'),
+                              host=config.get('SECOND_SQL_DB', 'SERVER'),
+                              db_name=config.get('SECOND_SQL_DB', 'DB_NAME'),
+                              username=config.get('SECOND_SQL_DB', 'DB_USER'),
+                              password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
 
-pg = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
-                       server=config.get('SECOND_PG_DB', 'SERVER'),
-                       db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
-                       user=config.get('SECOND_PG_DB', 'DB_USER'),
-                       password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
+pg_dbconn = pysqldb.DbConnect(db_type=config.get('SECOND_PG_DB', 'TYPE'),
+                              host=config.get('SECOND_PG_DB', 'SERVER'),
+                              db_name=config.get('SECOND_PG_DB', 'DB_NAME'),
+                              username=config.get('SECOND_PG_DB', 'DB_USER'),
+                              password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 
 
 
 class Test_rename_ms():
     def test_rename_no_log_exists(self):
-        tbl = '__test__'
-        rename = '%s_rename_' % tbl
-        ms.drop_table(ms.default_schema, '{t}'.format(t=tbl))
+        table = '__test__'
+        renamed_table = '%s_rename_' % table
+        ms_dbconn.drop_table(schema_name=ms_dbconn.default_schema, table_name=table)
         # set up
-        ms.query("create table {}.{} (test_col int)".format(ms.default_schema, tbl)) # this will create the log
-        ms.drop_table(ms.default_schema, '__temp_log_table_None__') # drop it to test the known condition
+        ms_dbconn.query("create table {schema}.{table} (test_col int)".format(schema=ms_dbconn.default_schema, table=table)) # this will create the log
+        ms_dbconn.drop_table(schema_name=ms_dbconn.default_schema, table_name='__temp_log_table_None__') # drop it to test the known condition
 
-        ms.drop_table(ms.default_schema, '{r}'.format(r=rename))
-        ms.query("EXEC sp_rename '{s}.{t}', '{r}';".format(s=ms.default_schema, t=tbl, r=rename))
+        ms_dbconn.drop_table(schema_name=ms_dbconn.default_schema, table_name=renamed_table)
+        ms_dbconn.query("EXEC sp_rename '{schema}.{table}', '{renamed}';".format(schema=ms_dbconn.default_schema, table=table, renamed=renamed_table))
 
-        assert ms.table_exists(rename, schema=ms.default_schema)
+        assert ms_dbconn.table_exists(table_name=renamed_table, schema_name=ms_dbconn.default_schema)
 
-        assert not ms.table_exists('__temp_log_table_None__', schema=ms.default_schema)
+        assert not ms_dbconn.table_exists(table_name='__temp_log_table_None__', schema=ms_dbconn.default_schema)
 
-        ms.drop_table(ms.default_schema, tbl)
-        ms.drop_table(ms.default_schema, rename)
+        ms_dbconn.drop_table(schema_name=ms_dbconn.default_schema, table_name=table)
+        ms_dbconn.drop_table(schema_name=ms_dbconn.default_schema, table_name=renamed_table)
 
 
     def test_rename_log_exists(self):
-        tbl = '__test__' # table to be logged
-        rename = '%s_rename_' % tbl # renamed table to be logged
-        tbl2 = '__test2__' # table not to be logged
-        rename2 = '%s_rename_' % tbl2 # renamed table not to be logged
+        table = '__test__' # table to be logged
+        renamed_table = '%s_rename_' % table # renamed table to be logged
+        table2 = '__test2__' # table not to be logged
+        renamed_table2 = '%s_rename_' % table2 # renamed table not to be logged
 
         # create temp table
-        ms.drop_table(ms.default_schema, '{t}'.format(t=tbl))
-        ms.query("create table {}.{} (test_col int)".format(ms.default_schema, tbl)) # this will create the log
+        ms_dbconn.drop_table(ms_dbconn.default_schema, '{table}'.format(table=table))
+        ms_dbconn.query("create table {schema}.{table} (test_col int)".format(schema=ms_dbconn.default_schema, table=table)) # this will create the log
 
         # create non-temp table
-        ms.drop_table(ms.default_schema, '{t}'.format(t=tbl2))
-        ms.query("create table {}.{} (test_col int)".format(ms.default_schema, tbl2), temp=False)  # this will add a table to the log
+        ms_dbconn.drop_table(ms_dbconn.default_schema, '{table}'.format(table=table2))
+        ms_dbconn.query("create table {schema}.{table} (test_col int)".format(schema=ms_dbconn.default_schema, table=table2), temp=False)  # this will add a table to the log
 
         # rename temp table - should update log
-        ms.drop_table(ms.default_schema, '{r}'.format(r=rename))
-        ms.query("EXEC sp_rename '{s}.{t}', '{r}';".format(s=ms.default_schema, t=tbl, r=rename))
+        ms_dbconn.drop_table(ms_dbconn.default_schema, '{renamed}'.format(renamed=renamed_table))
+        ms_dbconn.query("EXEC sp_rename '{schema}.{table}', '{renamed}';".format(schema=ms_dbconn.default_schema, table=table, renamed=renamed_table))
 
         # rename non-temp table should not effect log
-        ms.drop_table(ms.default_schema, '{r}'.format(r=rename2))
-        ms.query("EXEC sp_rename '{s}.{t}', '{r}';".format(s=ms.default_schema, t=tbl2, r=rename2))
+        ms_dbconn.drop_table(ms_dbconn.default_schema, '{renamed}'.format(renamed=renamed_table2))
+        ms_dbconn.query("EXEC sp_rename '{schema}.{table}', '{renamed}';".format(schema=ms_dbconn.default_schema, table=table2, renamed=renamed_table2))
 
         # make sure tables exist
-        assert ms.table_exists(rename, schema=ms.default_schema)
-        assert ms.table_exists(rename2, schema=ms.default_schema)
+        assert ms_dbconn.table_exists(table_name=renamed_table, schema=ms_dbconn.default_schema)
+        assert ms_dbconn.table_exists(table_name=renamed_table2, schema=ms_dbconn.default_schema)
 
         # make sure temp rename is in th elog and non-temp rename is not
-        ms.query("select table_name from {}.{}".format(ms.default_schema, ms.log_table))
-        assert rename in rename in [i[0] for i in ms.data]
-        assert not rename2 in rename in [i[0] for i in ms.data]
+        ms_dbconn.query("select table_name from {schema}.{table}".format(schema=ms_dbconn.default_schema, table=ms_dbconn.log_table))
+        assert renamed_table in renamed_table in [i[0] for i in ms_dbconn.data]
+        assert not renamed_table2 in renamed_table in [i[0] for i in ms_dbconn.data]
 
         # clean up
-        ms.drop_table(ms.default_schema, '{t}'.format(t=tbl))
-        ms.drop_table(ms.default_schema, '{t}'.format(t=tbl2))
-        ms.drop_table(ms.default_schema, '{r}'.format(r=rename))
-        ms.drop_table(ms.default_schema, '{r}'.format(r=rename2))
+        ms_dbconn.drop_table(table_name=ms_dbconn.default_schema, schema_name=table)
+        ms_dbconn.drop_table(table_name=ms_dbconn.default_schema, schema_name=table2)
+        ms_dbconn.drop_table(table_name=ms_dbconn.default_schema, schema_name=renamed_table)
+        ms_dbconn.drop_table(table_name=ms_dbconn.default_schema, schema_name=renamed_table2)
 
 
 class Test_rename_pg():
     def test_rename_no_log_exists(self):
-        tbl = '__test__'
-        rename = '%s_rename_' % tbl
-        pg.drop_table(pg.default_schema, '{t}'.format(t=tbl))
+        table = '__test__'
+        renamed_table = '%s_rename_' % table
+        pg_dbconn.drop_table(pg_dbconn.default_schema, '{table}'.format(table=table))
         # set up
-        pg.query("create table {}.{} (test_col int)".format(pg.default_schema, tbl)) # this will create the log
-        pg.drop_table(pg.default_schema, '__temp_log_table_None__') # drop it to test the known condition
+        pg_dbconn.query("create table {schema}.{table} (test_col int)".format(schema=pg_dbconn.default_schema, table=table)) # this will create the log
+        pg_dbconn.drop_table(pg_dbconn.default_schema, '__temp_log_table_None__') # drop it to test the known condition
 
-        pg.drop_table(pg.default_schema, '{r}'.format(r=rename))
-        pg.query("alter table {s}.{t} rename to {r};".format(s=pg.default_schema, t=tbl, r=rename))
+        pg_dbconn.drop_table(pg_dbconn.default_schema, '{rename}'.format(rename=renamed_table))
+        pg_dbconn.query("alter table {schema}.{table} rename to {renamed};".format(schema=pg_dbconn.default_schema, table=table, renamed=renamed_table))
 
-        assert pg.table_exists(rename, schema=pg.default_schema)
+        assert pg_dbconn.table_exists(table_name=renamed_table, schema_name=pg_dbconn.default_schema)
 
-        assert not pg.table_exists('__temp_log_table_None__', schema=pg.default_schema)
+        assert not pg_dbconn.table_exists('__temp_log_table_None__', schema=pg_dbconn.default_schema)
 
-        pg.drop_table(pg.default_schema, tbl)
-        pg.drop_table(pg.default_schema, rename)
+        pg_dbconn.drop_table(schema_name=pg_dbconn.default_schema, table_name=table)
+        pg_dbconn.drop_table(schema_name=pg_dbconn.default_schema, table_name=renamed_table)
 
 
     def test_rename_log_exists(self):
@@ -106,32 +106,32 @@ class Test_rename_pg():
         rename2 = '%s_rename_' % tbl2 # renamed table not to be logged
 
         # create temp table
-        pg.drop_table(pg.default_schema, '{t}'.format(t=tbl))
-        pg.query("create table {}.{} (test_col int)".format(pg.default_schema, tbl)) # this will create the log
+        pg_dbconn.drop_table(pg_dbconn.default_schema, '{table}'.format(table=tbl))
+        pg_dbconn.query("create table {schema}.{table} (test_col int)".format(schema=pg_dbconn.default_schema, table=tbl)) # this will create the log
 
         # create non-temp table
-        pg.drop_table(pg.default_schema, '{t}'.format(t=tbl2))
-        pg.query("create table {}.{} (test_col int)".format(pg.default_schema, tbl2), temp=False)  # this will add a table to the log
+        pg_dbconn.drop_table(pg_dbconn.default_schema, '{table}'.format(table=tbl2))
+        pg_dbconn.query("create table {schema}.{table} (test_col int)".format(schema=pg_dbconn.default_schema, table=tbl2), temp=False)  # this will add a table to the log
 
         # rename temp table - should update log
-        pg.drop_table(pg.default_schema, '{r}'.format(r=rename))
-        pg.query("alter table {s}.{t} rename to {r};".format(s=pg.default_schema, t=tbl, r=rename))
+        pg_dbconn.drop_table(pg_dbconn.default_schema, '{rename}'.format(rename=rename))
+        pg_dbconn.query("alter table {schema}.{table} rename to {renamed};".format(schema=pg_dbconn.default_schema, table=tbl, renamed=rename))
 
         # rename non-temp table should not effect log
-        pg.drop_table(pg.default_schema, '{r}'.format(r=rename2))
-        pg.query("alter table {s}.{t} rename to {r};".format(s=pg.default_schema, t=tbl2, r=rename2))
+        pg_dbconn.drop_table(pg_dbconn.default_schema, '{rename}'.format(rename=rename2))
+        pg_dbconn.query("alter table {schema}.{table} rename to {renamed};".format(schema=pg_dbconn.default_schema, table=tbl2, renamed=rename2))
 
         # make sure tables exist
-        assert pg.table_exists(rename, schema=pg.default_schema)
-        assert pg.table_exists(rename2, schema=pg.default_schema)
+        assert pg_dbconn.table_exists(table_name=rename, schema_name=pg_dbconn.default_schema)
+        assert pg_dbconn.table_exists(table_name=rename2, schema_name=pg_dbconn.default_schema)
 
         # make sure temp rename is in th elog and non-temp rename is not
-        pg.query("select table_name from {}.{}".format(pg.default_schema, pg.log_table))
-        assert rename in pg.data[0]
-        assert not rename2 in pg.data[0]
+        pg_dbconn.query("select table_name from {schema}.{table}".format(schema=pg_dbconn.default_schema, table=pg_dbconn.log_table))
+        assert rename in pg_dbconn.data[0]
+        assert not rename2 in pg_dbconn.data[0]
 
         # clean up
-        pg.drop_table(pg.default_schema, '{t}'.format(t=tbl))
-        pg.drop_table(pg.default_schema, '{t}'.format(t=tbl2))
-        pg.drop_table(pg.default_schema, '{r}'.format(r=rename))
-        pg.drop_table(pg.default_schema, '{r}'.format(r=rename2))
+        pg_dbconn.drop_table(schema_name=pg_dbconn.default_schema, table_name=tbl)
+        pg_dbconn.drop_table(schema_name=pg_dbconn.default_schema, table_name=tbl2)
+        pg_dbconn.drop_table(schema_name=pg_dbconn.default_schema, table_name=rename)
+        pg_dbconn.drop_table(schema_name=pg_dbconn.default_schema, table_name=rename2)
