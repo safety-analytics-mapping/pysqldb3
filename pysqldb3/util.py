@@ -227,19 +227,6 @@ def clean_cell(x):
     elif type(x) == str:
         x = x.replace("'", '-qte-chr-')
 
-        # Try to first decode as utf-8; otherwise, try as latin1
-        try:
-            x = x.decode('utf-8')
-        except Exception as e:
-            print(e)
-            print('Decoding input string as utf-8 failed; trying as Latin1 ')
-
-            try:
-                x = x.decode('latin1')
-            except Exception as e:
-                print(e)
-                print('Decoding input string as Latin1 failed; leaving as str ')
-
     elif type(x) == datetime.date:
         x = x.strftime('%Y-%m-%d')
     elif type(x) == datetime.datetime:
