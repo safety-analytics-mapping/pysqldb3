@@ -69,7 +69,7 @@ class TestQuery:
         """.format(table=test_query_table))
 
         # Assert query successfully executed create table
-        assert ms_dbconn.table_exists(table=test_query_table, schema='dbo')
+        assert ms_dbconn.table_exists(table_name=test_query_table, schema='dbo')
 
         # Assert correctly executed insert
         ms_dbconn.query("""
@@ -205,7 +205,7 @@ class TestQuery:
                 """.format(table=test_query_table)
 
         ms_dbconn.query(create_table_string)
-        assert ms_dbconn.table_exists(table=test_query_table, schema='dbo')
+        assert ms_dbconn.table_exists(table_name=test_query_table, schema='dbo')
 
         drop_table_string = """
                     drop table dbo.{table};

@@ -1,5 +1,5 @@
 import os
-import random
+#import random
 
 import configparser
 import pandas as pd
@@ -677,7 +677,7 @@ class TestPgToPgQry:
                              dest_table_name=test_pg_to_pg_qry_table, dest_schema_name='working', print_cmd=True)
 
         # Assert sql_to_pg_qry successful and correct length
-        assert pg_dbc.table_exists(schema='working', table=test_pg_to_pg_qry_table)
+        assert pg_dbc.table_exists(schema='working', table_name=test_pg_to_pg_qry_table)
         assert len(pg_dbc.dfquery('select * from working.{table}'.format(table=test_pg_to_pg_qry_table))) == 2
 
         # Assert df equality

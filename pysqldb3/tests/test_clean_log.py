@@ -18,8 +18,8 @@ ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                               password=config.get('SQL_DB', 'DB_PASSWORD'),
                               allow_temp_tables=True)
 
-test_clean_up_new_table = 'test_new_table_testing_{username}'.format(user=pg_dbconn.username)
-test_clean_up_new_table2 = 'test_new_table_testing_{username}_2'.format(user=pg_dbconn.username)
+test_clean_up_new_table = 'test_new_table_testing_{username}'.format(username=pg_dbconn.username)
+test_clean_up_new_table2 = 'test_new_table_testing_{username}_2'.format(username=pg_dbconn.username)
 
 
 class TestCleanUpNewTablesPg:

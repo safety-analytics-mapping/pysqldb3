@@ -105,7 +105,7 @@ class Query:
             try:
                 print("- Trying to obtain exclusive lock on table {}.".format(self.lock_table))
                 cur.execute("LOCK TABLE {} IN ACCESS EXCLUSIVE MODE NOWAIT".format(self.lock_table))
-            except psycopg2.errors.LockNotAvailable as a:
+            except psycopg2.OperationalError as a:
                 print("- Failed to obtain exclusive lock on table {}. Try again.".format(self.lock_table))
                 raise a
 
@@ -640,7 +640,7 @@ class Query:
                 os.startfile(output)
 
     @staticmethod
-    def query_to_shp(dbconn, query, path=None, shpfile_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
+    def query_to_shp(dbconn, query, path=None, shpfile_name=None, command=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
                      srid=2263):
         """
         Writes results of the query to a shp file by calling Shapefile ogr command's in write_shp fn
@@ -648,7 +648,7 @@ class Query:
         :param query:
         :param path:
         :param shpfile_name:
-        :param cmd:
+        :param command:
         :param gdal_data_loc:
         :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
         :param srid: sets SRID
@@ -659,7 +659,7 @@ class Query:
                         path=path,
                         query=query,
                         shpfile_name=shpfile_name,
-                        cmd=cmd,
+                        command=command,
                         gdal_data_loc=gdal_data_loc,
                         srid=srid)
 

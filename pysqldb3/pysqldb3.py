@@ -1,7 +1,8 @@
 import getpass
 import pyodbc
 from tqdm import tqdm
-from typing import Optional, Union
+from typing import Optional
+# from typing import Union
 import openpyxl
 import json
 import plotly.express as px
@@ -676,7 +677,7 @@ class DbConnect:
             self.data = qry.data
             self.tables_created += [nt for nt in qry.new_tables]
             self.tables_dropped += [dt for dt in qry.dropped_tables]
-            self.last_query = qry.query_string
+            self.last_query = qry.query
 
             if qry.dropped_tables:
                 self.__remove_dropped_tables_from_log(qry.dropped_tables)

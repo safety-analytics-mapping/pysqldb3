@@ -2,7 +2,7 @@ import configparser
 import os
 
 from .. import pysqldb3 as pysqldb
-from . import helpers
+#from . import helpers
 
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")

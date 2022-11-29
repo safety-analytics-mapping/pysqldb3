@@ -51,7 +51,7 @@ def clean_geom_column(db, table_name, schema_name):
     Checks for column named wkb_geometry and renames to geom
     :param db: pysql.DbConect object
     :param table_name: table name
-    :param schema: database schema name
+    :param schema_name: database schema name
     :return:
     """
     # Check if there is a geom column

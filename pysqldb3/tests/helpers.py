@@ -1,8 +1,8 @@
 import random
 import os
 import pandas as pd
-from .. import shapefile
-import subprocess
+#from .. import shapefile
+#import subprocess
 import requests
 import zipfile
 from xlrd import open_workbook
@@ -133,13 +133,13 @@ def set_up_two_test_tables_pg(db):
 
         db.query("""
         INSERT INTO working.{table} values
-        ({i}, {cc1}, {c2}, ST_SetSRID(ST_MakePoint({lat}, {lon}), 4326))
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat}, {lon}), 4326))
         """.format(table=table_name, i=i, c1=c1, c2=c2, lat=lat, lon=lon))
 
         db.query("""
         INSERT INTO working.{table} values
         ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat2}, {lon2}), 4326))
-        """.format(table_name2, i, c1, c2, lat2, lon2))
+        """.format(table=table_name2, i=i, c1=c1, c2=c2, lat2=lat2, lon2=lon2))
 
 
 def clean_up_two_test_tables_pg(db):

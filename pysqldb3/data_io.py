@@ -399,14 +399,14 @@ def pg_to_pg_qry(src_dbconn, dest_dbconn, query, dest_schema_name=None, print_cm
     )
 
     if print_cmd:
-        print (print_cmd_string([src_dbconn.password, dest_dbconn.password], cmd))
+        print(print_cmd_string([src_dbconn.password, dest_dbconn.password], cmd))
 
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
         print(ogr_response)
     except subprocess.CalledProcessError as e:
-        print ("Ogr2ogr Output:\n", e.output)
-        print ('Ogr2ogr command failed.')
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([src_dbconn.password, dest_dbconn.password], cmd), returncode=1)
 
     clean_geom_column(dest_dbconn, dest_table_name, dest_schema_name)
@@ -414,4 +414,4 @@ def pg_to_pg_qry(src_dbconn, dest_dbconn, query, dest_schema_name=None, print_cm
     dest_dbconn.tables_created.append(dest_schema_name + "." + dest_table_name)
 
     if is_temp:
-        to_pg.log_temp_table(dest_schema_name, dest_table_name, dest_dbconn.username)
+        dest_dbconn.log_temp_table(dest_schema_name, dest_table_name, dest_dbconn.username)
