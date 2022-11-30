@@ -1,6 +1,6 @@
 import getpass
 
-import pyodbc
+import pymssql
 from tqdm import tqdm
 from typing import Optional, Union
 import openpyxl
@@ -186,35 +186,21 @@ class DbConnect:
         Creates connection to sql server db
         :return: None
         """
-        if self.use_native_driver:
-            # driver = 'SQL Server Native Client 10.0'
-            driver = '{SQL Server Native Client 11.0}'
-            # driver = '{ODBC Driver 17 for SQL Server}'
-        else:
-            driver = 'SQL Server'
-
-            if self.connection_count == 0:
-                print('Warning:\n\tWithout SQL Server Native Client 10.0 \
-                                   datetime2 will not be interpreted correctly\n')
 
         if self.LDAP:
             self.params = {
-                'DRIVER': driver,
-                'DATABASE': self.database,
-                'SERVER': self.server,
-                'Trusted_Connection': 'yes'
+                'database': self.database,
+                'host': self.server
             }
         else:
             self.params = {
-                'DRIVER': driver,
-                'DATABASE': self.database,
-                'UID': self.user,
-                'PWD': self.password,
-                'SERVER': self.server
-            }
+                'database': self.database,
+                'host': self.server,
+                'user': self.user,
+                'password': self.password            }
 
         try:
-            self.conn = pyodbc.connect(**self.params)
+            self.conn = pymssql.connect(**self.params)
         except Exception as e:
             print(e)
             # Revert to SQL driver and show warning
@@ -224,8 +210,7 @@ class DbConnect:
                     print('Warning:\n\tMissing SQL Server Native Client 10.0 \
                                       datetime2 will not be interpreted correctly\n')
 
-                self.params['DRIVER'] = 'SQL Server'
-                self.conn = pyodbc.connect(**self.params)
+                self.conn = pymssql.connect(**self.params)
 
     def connect(self, quiet=False):
         # type: (DbConnect, bool) -> None
@@ -281,8 +266,9 @@ class DbConnect:
 
         elif self.type == MS:
             try:
-                self.conn.cursor()
-            except pyodbc.ProgrammingError:
+                self.conn._conn.connected
+            except Exception as e:
+                print(e)
                 self.connect(True)
 
     """

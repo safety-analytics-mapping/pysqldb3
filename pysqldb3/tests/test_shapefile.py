@@ -214,9 +214,9 @@ class TestReadShpMS:
         diff_df = sql.dfquery("""
         select distinct raw_inputs.geom.STDistance(end_table.geom) as distance
         from (
-            (select 1 as id, geometry::Point(1015329.1, 213793.1, 2263) as geom)
+            (select 1 as id, geometry::Point(-73.88782477721676, 40.75343453961836, 2263) as geom)
             union all
-            (select 2 as id, geometry::Point(1015428.1, 213086.1, 2263) as geom)
+            (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
         join {}.{} end_table
         on raw_inputs.id=end_table.gid
@@ -254,13 +254,13 @@ class TestReadShpMS:
         # This method was used because the geometries themselves may be recorded differently but mean the same (after mapping on QGIS)
         diff_df = sql.dfquery(f"""
         select distinct raw_inputs.geom.STDistance(end_table.geom) as distance
-        from (
-            (select 1 as id, geometry::Point(1015329.1, 213793.1, 2263) as geom)
+        from (            
+            (select 1 as id, geometry::Point( -73.88782477721676, 40.75343453961836, 2263) as geom)
             union all
-            (select 2 as id, geometry::Point(1015428.1, 213086.1, 2263) as geom)
+            (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
         join {ms_schema}.test end_table
-        on raw_inputs.id=end_table.gid::int
+        on raw_inputs.id=cast(end_table.gid as int)
         """)
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
@@ -291,12 +291,12 @@ class TestReadShpMS:
         diff_df = sql.dfquery("""
         select distinct raw_inputs.geom.STDistance(end_table.geom) as distance
         from (
-            (select 1 as id, geometry::Point(1015329.1, 213793.1, 2263) as geom)
+            (select 1 as id, geometry::Point(-73.88782477721676, 40.75343453961836, 2263) as geom)
             union all
-            (select 2 as id, geometry::Point(1015428.1, 213086.1, 2263) as geom)
+            (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
         join {} end_table
-        on raw_inputs.id=end_table.gid::int
+        on raw_inputs.id=cast(end_table.gid as int)
         """.format(test_read_shp_table_name))
 
         assert len(diff_df) == 1

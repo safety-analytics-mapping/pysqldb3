@@ -221,12 +221,10 @@ def set_up_shapefile():
         'some_value': {0: 'test1', 1: 'test2'}
     }
     df = pd.DataFrame(data)
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv", index=False)
-    fle = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv"
+    df.to_csv(os.path.join(DIR, "sample.csv"), index=False)
+    fle = os.path.join(DIR, "sample.csv")
 
-    pth = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\"
-
-    cmd = f'''ogr2ogr -f "ESRI Shapefile" {pth}test.shp -dialect sqlite -sql 
+    cmd = f'''ogr2ogr -f "ESRI Shapefile" {DIR}\\test.shp -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326), some_value FROM sample" {fle}'''
     os.system(cmd.replace('\n', ' '))
     print ('Sample shapefile ready...')
