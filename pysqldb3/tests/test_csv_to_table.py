@@ -21,8 +21,8 @@ sql = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                         username=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{}'.format(pg_dbconn.username)
-create_table_name = 'sample_acs_test_csv_to_table_{}'.format(pg_dbconn.username)
+pg_table_name = 'pg_test_table_{table}'.format(table=pg_dbconn.username)
+create_table_name = 'sample_acs_test_csv_to_table_{table}'.format(table=pg_dbconn.username)
 
 
 class TestCsvToTablePG:
@@ -79,8 +79,8 @@ class TestCsvToTablePG:
                                       pg_dbconn.dfquery("""
                                             select distinct column_name, data_type
                                             from information_schema.columns
-                                            where table_name = '{}' and lower(column_name) not like '%unnamed%';
-                                      """.format(create_table_name)))
+                                            where table_name = '{table}' and lower(column_name) not like '%unnamed%';
+                                      """.format(table=create_table_name)))
 
         # Cleanup
         pg_dbconn.drop_table(schema_name='working', table_name=create_table_name)
@@ -226,7 +226,7 @@ class TestBulkCSVToTablePG:
 
         # Check to see if table is in database
         assert pg_dbconn.table_exists(table_name=create_table_name)
-        db_df = pg_dbconn.dfquery("select * from {}".format(create_table_name))
+        db_df = pg_dbconn.dfquery("select * from {table}".format(table=create_table_name))
 
         # Get csv df via pd.read_csv
         csv_df = pd.read_csv(fp)

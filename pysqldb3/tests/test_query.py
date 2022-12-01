@@ -24,7 +24,7 @@ ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                               username=config.get('SQL_DB', 'DB_USER'),
                               password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-test_query_table = 'test_query_table_{}'.format(pg_dbconn.username)
+test_query_table = 'test_query_table_{user}'.format(user=pg_dbconn.username)
 
 
 class TestQuery:

@@ -203,9 +203,9 @@ class TestCleanUpNewTablesPg:
                 column3 timestamp
             );
         """.format(table=table_name))
-        pg_dbconn.query(""" INSERT INTO {}
+        pg_dbconn.query(""" INSERT INTO {table}
             VALUES (1, 'test', now())
-            """.format(table_name))
+            """.format(table=table_name))
 
         # make sure table was created - table exists wont work on temp tables
         pg_dbconn.query("select * from %s" % table_name)

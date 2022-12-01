@@ -154,9 +154,9 @@ class DbConnect:
             if not self.db_name:
                 self.db_name = input('Database name:')
             if not self.username and not self.LDAP:
-                self.username = input('User name ({}):'.format(self.db_name.lower()))
+                self.username = input('User name ({user}):'.format(user=self.db_name.lower()))
             if not self.password and not self.LDAP:
-                self.password = getpass.getpass('Password ({})'.format(self.db_name.lower()))
+                self.password = getpass.getpass('Password ({password})'.format(password=self.db_name.lower()))
 
     def __connect_pg(self):
         # db_type: (DbConnect) -> None
@@ -285,12 +285,12 @@ class DbConnect:
         :return:
         """
         self.query("""
-            SELECT table_schema, table_name FROM {s}.{l}
-            WHERE expires < '{dt}'
+            SELECT table_schema, table_name FROM {schema}.{table}
+            WHERE expires < '{date}'
             """.format(
-            s=schema_name,
-            l=self.log_table,
-            dt=datetime.datetime.now().strftime('%Y-%m-%d')
+            schema=schema_name,
+            table=self.log_table,
+            date=datetime.datetime.now().strftime('%Y-%m-%d')
         ), timeme=False, internal=True)
 
         to_clean = self.__get_most_recent_query_data(internal=True)
@@ -299,7 +299,7 @@ class DbConnect:
         for sch, table in to_clean:
             drop_schema_name = get_query_table_schema_name(sch, self.type)
             drop_table_name = get_query_table_schema_name(table, self.type)
-            self.drop_table(drop_schema_name, drop_table_name, strict=False, internal=True)
+            self.drop_table(schema_name=drop_schema_name, table_name=drop_table_name, strict=False, internal=True)
             cleaned += 1
 
         if cleaned > 0:
@@ -314,26 +314,26 @@ class DbConnect:
         to_delete = list()
 
         # For each schema check if log file exists
-        for s in self.get_schemas():
-            if self.table_exists(self.log_table, schema_name=s, internal=True):
+        for sch in self.get_schemas():
+            if self.table_exists(table_name=self.log_table, schema=sch, internal=True):
 
                 # For each table in log file check if exists
-                self.query("select table_name from {}.{}".format(s, self.log_table), timeme=False, internal=True)
+                self.query("select table_name from {schema}.{table}".format(schema=sch, table=self.log_table), timeme=False, internal=True)
 
                 if self.__get_most_recent_query_data(internal=True):
                     for t in self.__get_most_recent_query_data(internal=True):
                         query_table_name = get_query_table_schema_name(str(t[0]), self.type)
 
                         # If table does not exist, add to the list of tables to delete
-                        if not self.table_exists(query_table_name, schema_name=s, internal=True):
+                        if not self.table_exists(table_name=query_table_name, schema=sch, internal=True):
                             # Add the original version back to be deleted
                             to_delete.append(str(t[0]))
 
                 # Remove stale table names
                 if to_delete:
                     self.query(
-                        "delete from {s}.{l} where table_name in ({tn})".format(
-                            s=s, l=self.log_table, tn=str(to_delete)[1:-1]
+                        "delete from {schema}.{table} where table_name in ({table_name})".format(
+                            schema=sch, table=self.log_table, table_name=str(to_delete)[1:-1]
                         ),
                         strict=False, timeme=False, internal=True
                     )
@@ -353,7 +353,7 @@ class DbConnect:
             self.query(MS_SCHEMA_FOR_LOG_CLEANUP_QUERY, internal=True)
 
         for sch in self.__get_most_recent_query_data(internal=True):
-            if self.table_exists(self.log_table, schema_name=sch[0], internal=True):
+            if self.table_exists(table_name=self.log_table, schema=sch[0], internal=True):
                 self.__drop_expired_tables(sch[0])
 
         self.__remove_nonexistent_tables_from_logs()
@@ -365,14 +365,14 @@ class DbConnect:
         :return:
         """
         for table_str in tables_dropped:
-            server, database, schema_name, table_name = parse_table_string(table_str, self.default_schema, self.type)
+            host, db_name, schema_name, table_name = parse_table_string(table_str, self.default_schema, self.type)
 
             # Check if log table exists
             if self.table_exists(self.log_table, schema_name=schema_name, internal=True):
                 # Delete from log to avoid dropping perm tables with same name
                 self.query(
-                    """DELETE FROM {s}."{tmp}" WHERE table_schema = '{s}' AND table_name = '{t}'""".format(
-                        s=schema_name, t=table_name, tmp=self.log_table),
+                    """DELETE FROM {schema}."{tmp_table}" WHERE table_schema = '{schema}' AND table_name = '{table}'""".format(
+                        schema=schema_name, table=table_name, tmp_table=self.log_table),
                     timeme=False, internal=True
                 )
 
@@ -384,11 +384,11 @@ class DbConnect:
         """
 
         for table in new_tables:
-            server, database, sch, tbl = parse_table_string(table, self.default_schema, self.type)
+            host, db_name, schema_name, table_name = parse_table_string(table, self.default_schema, self.type)
 
             # All archive tables should default to permanent
-            if sch != 'archive':
-                self.log_temp_table(sch, tbl, self.username, database=database, server=server,
+            if schema_name != 'archive':
+                self.log_temp_table(schema_name=schema_name, table_name=table_name, username=self.username, db_name=db_name, host=host,
                                     expiration=datetime.datetime.now() + datetime.timedelta(days=days))
 
     def log_temp_table(self, schema_name, table_name, owner, host=None, db_name=None,
@@ -418,7 +418,7 @@ class DbConnect:
             db = ''
 
         # Check if log exists; if not make one
-        if not self.table_exists(self.log_table, schema_name=schema_name, host=host, db_name=db_name):
+        if not self.table_exists(table_name=self.log_table, schema_name=schema_name, host=host, db_name=db_name):
             if self.type == MS:
                 self.query(MS_CREATE_LOG_TABLE_QUERY.format(s=schema_name, log=self.log_table, serv=ser, db=db),
                            timeme=False, temp=False, internal=True)
@@ -430,24 +430,24 @@ class DbConnect:
         # Add new table to log
         if self.type == PG:
             self.query(PG_ADD_TABLE_TO_LOG_QUERY.format(
-                s=schema_name,
+                schema=schema_name,
                 log=self.log_table,
-                u=owner,
-                t=table_name,
-                dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
-                ex=expiration
+                username=owner,
+                table=table_name,
+                date=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+                expires=expiration
             ), strict=False, timeme=False, internal=True)
 
         elif self.type == MS:
             self.query(MS_ADD_TABLE_TO_LOG_QUERY.format(
-                s=schema_name,
+                schema=schema_name,
                 log=self.log_table,
-                u=owner,
-                t=table_name,
-                dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
-                ex=expiration,
-                ser=ser,
-                db=db
+                username=owner,
+                table=table_name,
+                date=datetime.datetime.now().strftime('%Y-%m-%d %H:%M'),
+                expires=expiration,
+                host=ser,
+                db_name=db
             ), strict=False, timeme=False, internal=True)
 
     """
@@ -462,7 +462,7 @@ class DbConnect:
         if not schema_name:
             schema_name = self.default_schema
 
-        return self.dfquery("select * from {}.{}".format(schema_name, self.log_table))
+        return self.dfquery("select * from {schema}.{table}".format(schema=schema_name, table=self.log_table))
 
     def check_table_in_log(self, table_name, schema_name=None):
         """
@@ -472,8 +472,8 @@ class DbConnect:
         """
         if not schema_name:
             schema_name = self.default_schema
-        self.query("select * from {s}.{lt} where table_name = '{tn}'".format(
-            s=schema_name, lt=self.log_table, tn=table_name))
+        self.query("select * from {schema}.{table} where table_name = '{table_name}'".format(
+            schema=schema_name, table=self.log_table, table_name=table_name))
 
         self.check_conn()
         return self.data
@@ -536,7 +536,7 @@ class DbConnect:
             print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
             return
 
-        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema_name, u=self.username))
+        return self.dfquery(PG_MY_TABLES_QUERY.format(schema=schema_name, username=self.username))
 
     def table_exists(self, table_name, **kwargs):
         # type: (DbConnect, str, **str) -> bool
@@ -548,17 +548,17 @@ class DbConnect:
         :return: bool
         """
         schema_name = kwargs.get('schema_name', self.default_schema)
-        server = kwargs.get('server', self.host)
-        database = kwargs.get('database', self.db_name)
+        host = kwargs.get('host', self.host)
+        db_name = kwargs.get('database', self.db_name)
         internal = kwargs.get('internal', False)
 
-        cleaned_server = get_unique_table_schema_string(server, self.type)
-        cleaned_database = get_unique_table_schema_string(database, self.type)
+        cleaned_server = get_unique_table_schema_string(host, self.type)
+        cleaned_database = get_unique_table_schema_string(db_name, self.type)
         cleaned_schema = get_unique_table_schema_string(schema_name, self.type)
         cleaned_table = get_unique_table_schema_string(table_name, self.type)
 
         if self.type == PG:
-            self.query(PG_TABLE_EXISTS_QUERY.format(s=cleaned_schema, t=cleaned_table), timeme=False, internal=internal)
+            self.query(PG_TABLE_EXISTS_QUERY.format(schema=cleaned_schema, table=cleaned_table), timeme=False, internal=internal)
 
             if self.__get_most_recent_query_data(internal=internal)[0][0]:
                 return True
@@ -576,7 +576,7 @@ class DbConnect:
 
             if cleaned_server == self.host and cleaned_database == get_unique_table_schema_string(self.db_name,
                                                                                                     self.type):
-                self.query(MS_TABLE_EXISTS_QUERY.format(s=cleaned_schema, t=cleaned_table), timeme=False,
+                self.query(MS_TABLE_EXISTS_QUERY.format(schema=cleaned_schema, table=cleaned_table), timeme=False,
                            internal=internal)
                 if self.__get_most_recent_query_data(internal=internal):
                     return True
@@ -591,7 +591,7 @@ class DbConnect:
                                       user=self.username, password=self.password, ldap=self.LDAP,
                                       default=self.default_connect, use_native_driver=self.use_native_driver)
 
-                return other_dbc.table_exists(self.log_table, schema_name=cleaned_schema)
+                return other_dbc.table_exists(table_name=self.log_table, schema=cleaned_schema)
         else:
             return False
 
@@ -621,19 +621,19 @@ class DbConnect:
             self.query("""
             SELECT {cols}
             FROM information_schema.columns
-            WHERE table_schema = '{s}' 
-                AND table_name = '{t}'
+            WHERE table_schema = '{schema}' 
+                AND table_name = '{table}'
             ORDER BY ordinal_position;
-            """.format(cols=columns, s=schema_name, t=table_name), timeme=False, internal=True)
+            """.format(cols=columns, schema=schema_name, table=table_name), timeme=False, internal=True)
 
         if self.type == MS:
             self.query("""
             SELECT {cols}
             FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE table_schema = '{s}' 
-                AND table_name = '{t}'
+            WHERE table_schema = '{schema}' 
+                AND table_name = '{table}'
             ORDER BY ORDINAL_POSITION;
-            """.format(cols=columns, s=schema_name, t=table_name), timeme=False, internal=True)
+            """.format(cols=columns, schema=schema_name, table=table_name), timeme=False, internal=True)
 
         return self.__get_most_recent_query_data(internal=True)
 
@@ -716,14 +716,15 @@ class DbConnect:
         else:
             db = ''
         if self.type == PG:
-            self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema_name, table_name, c),
+            self.query('DROP TABLE IF EXISTS {schema}.{table} {cascade}'.format(schema=schema_name, table=table_name, cascade=c),
                        timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
             if self.table_exists(schema_name=schema_name, table_name=table_name):
-                self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema_name, table_name, c),
-                           timeme=False, strict=strict, internal=internal)
+                self.query('DROP TABLE {host}{db}{schema}.{table} {cascade}'.format(host=ser, db=db, schema=schema_name,
+                table=table_name, cascade=c),
+                        timeme=False, strict=strict, internal=internal)
             else:
-                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema_name, table_name))
+                dropped_tables_list = Query.query_drops_table('DROP TABLE {schema}.{table}'.format(schema=schema_name, table=table_name))
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
 
     def rename_column(self, schema_name, table_name, old_column, new_column):
@@ -740,11 +741,11 @@ class DbConnect:
             schema_name = self.default_schema
 
         if self.type == PG:
-            self.query("alter table {s}.{t} rename column {o} to {n}".format(s=schema_name, t=table_name, o=old_column,
-                                                                             n=new_column))
+            self.query("alter table {schema}.{table} rename column {old} to {new}".format(
+                schema=schema_name, table=table_name, old=old_column, new=new_column))
         elif self.type == MS:
-            self.query("EXEC sp_RENAME '{s}.{t}.{o}', '{n}', 'COLUMN'".format(s=schema_name, t=table_name, o=old_column,
-                                                                              n=new_column))
+            self.query("EXEC sp_RENAME '{schema}.{table}.{old}', '{new}', 'COLUMN'".format(
+                schema=schema_name, table=table_name, old=old_column, new=new_column))
 
     def dfquery(self, query, strict=False, permission=True, temp=True, timeme=False, no_comment=False, comment='',
                 lock_table=None, days=7, internal=False):
@@ -818,10 +819,10 @@ class DbConnect:
 
         # Create table in database
         qry = """
-                CREATE TABLE {s}.{t} (
+                CREATE TABLE {schema}.{table} (
                 {cols}
                 )
-        """.format(s=schema_name, t=table_name,
+        """.format(schema=schema_name, table=table_name,
                    cols=str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", ""))
 
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
@@ -865,14 +866,14 @@ class DbConnect:
             row_values = row_values.replace('None', 'NULL')
 
             self.query(u"""
-                INSERT INTO {s}.{t} ({cols})
-                VALUES ({d})
-            """.format(s=schema_name, t=table_name,
+                INSERT INTO {schema}.{table} ({cols})
+                VALUES ({vals})
+            """.format(schema=schema_name, table=table_name,
                        cols=str(['"' + str(i[0]) + '"' for i in schema_name])[1:-1].replace("'", ''),
-                       d=row_values), strict=False, timeme=False)
+                       vals=row_values), strict=False, timeme=False)
 
-        df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema_name, t=table_name), timeme=False)
-        print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema_name, t=table_name))
+        df = self.dfquery("SELECT COUNT(*) as cnt FROM {schema}.{table}".format(schema=schema_name, table=table_name), timeme=False)
+        print('\n{count} rows added to {schema}.{table}\n'.format(count=df.cnt.values[0], schema=schema_name, table=table_name))
 
     def csv_to_table(self, input_file=None, overwrite=False, schema_name=None, table_name=None, temp=True, sep=',',
                      long_varchar_check=False, column_type_overrides=None, days=7):
@@ -1025,24 +1026,24 @@ class DbConnect:
         # This is needed because GDAL doesnt parse datatypes (all to varchar)
         if self.type == PG:
             cmd = PG_BULK_FILE_TO_TABLE_CMD.format(t=types[self.type],
-                                                   server=self.host,
+                                                   host=self.host,
                                                    port=self.port,
-                                                   user=self.username,
+                                                   username=self.username,
                                                    password=self.password,
                                                    db=self.db_name,
                                                    f=input_file,
                                                    schema=schema_name,
-                                                   tbl=table_name
+                                                   table=table_name
                                                    )
         else:
             cmd = MS_BULK_FILE_TO_TABLE_CMD.format(t=types[self.type],
-                                                   server=self.host,
-                                                   user=self.username,
+                                                   host=self.host,
+                                                   username=self.username,
                                                    password=self.password,
                                                    db=self.db_name,
                                                    f=input_file,
                                                    schema=schema_name,
-                                                   tbl=table_name
+                                                   table=table_name
                                                    )
 
         cmd_env = os.environ.copy()
@@ -1065,12 +1066,12 @@ class DbConnect:
             if df_schema:
                 # Need to get staging field names, GDAL sanitizes differently
                 if self.type == MS:
-                    sq, p = 'TOP 1', ''
+                    single_query, p = 'TOP 1', ''
                 else:
-                    sq, p = '', 'LIMIT 1'
+                    single_query, p = '', 'LIMIT 1'
 
                 # Query one row to get columns
-                self.query("select {sq} * from {s}.stg_{t} {p}".format(s=schema_name, t=table_name, sq=sq, p=p), strict=False,
+                self.query("select {single} * from {schema}.stg_{table} {p}".format(schema=schema_name, table=table_name, single=single_query, p=p), strict=False,
                            timeme=False)
 
                 column_names = self.queries[-1].data_columns
@@ -1108,13 +1109,13 @@ class DbConnect:
             if self.table_exists(schema_name=schema_name, table_name=table_name):
                 # Move into final table from stg
                 qry = """
-                INSERT INTO {s}.{t}
+                INSERT INTO {schema}.{table}
                 SELECT
                 {cols}
-                FROM {s}.stg_{t}
+                FROM {schema}.stg_{table}
                 """.format(
-                    s=schema_name,
-                    t=table_name,
+                    schema=schema_name,
+                    table=table_name,
                     cols=cols
                 )
 
@@ -1123,36 +1124,36 @@ class DbConnect:
                 # Move into final table from stg
                 qry = """
                 SELECT {cols}
-                INTO {s}.{t}
-                FROM {s}.stg_{t}
+                INTO {schema}.{table}
+                FROM {schema}.stg_{table}
                 """.format(
-                    s=schema_name,
-                    t=table_name,
+                    schema=schema_name,
+                    table=table_name,
                     cols=cols
                 )
 
                 self.query(qry, timeme=False, days=days)
 
             # Drop stg table
-            self.drop_table(schema_name=schema_name, table_name='stg_{}'.format(table_name))
+            self.drop_table(schema_name=schema_name, table_name='stg_{table}'.format(table=table_name))
 
             # Log rows added to table
-            df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema_name, t=table_name), timeme=False)
+            df = self.dfquery("SELECT COUNT(*) as cnt FROM {schema}.{table}".format(schema=schema_name, table=table_name), timeme=False)
 
             print("""
-            {c} rows added to {s}.{t}. 
+            {count} rows added to {schema}.{table}. 
             The table name may include stg_. This will not change the end result. 
-            """.format(c=df.cnt.values[0], s=schema_name, t=table_name))
+            """.format(count=df.cnt.values[0], schema=schema_name, table=table_name))
 
         except SystemExit:
             # Drop stg table
-            self.drop_table(schema_name=schema_name, table_name='stg_{}'.format(table_name))
+            self.drop_table(schema_name=schema_name, table_name='stg_{table}'.format(table=table_name))
             return False
 
         except Exception as e:
             print(e)
             # Drop stg table
-            self.drop_table(schema_name=schema_name, table_name='stg_{}'.format(table_name))
+            self.drop_table(schema_name=schema_name, table_name='stg_{table}'.format(table=table_name))
             return False
 
         return True
@@ -1193,7 +1194,7 @@ class DbConnect:
 
         # Ogr doesn't check overwriting; will append unless stopped.
         if self.table_exists(table_name=table_name, schema_name=schema_name) and not overwrite:
-            print('{}.{} already exists. Use overwrite=True to replace.'.format(schema_name, table_name))
+            print('{schema}.{table} already exists. Use overwrite=True to replace.'.format(schema=schema_name, table=table_name))
             return
 
         extension = os.path.basename(input_file).split('.')[-1]
@@ -1241,8 +1242,13 @@ class DbConnect:
                     df = pd.read_excel(input_file, sheet_name=sheet_name)
 
                 # Replace with .xlsx of just the desired sheet
-                input_file = "C:\\Users\\{}\\Documents".format(getpass.getuser()) + "\\" + \
-                             os.path.basename(input_file).split('.')[0] + "_{}.xlsx".format(sheet_name)
+                # input_file = "C:\\Users\\{}\\Documents".format(getpass.getuser()) + "\\" + \
+                #              os.path.basename(input_file).split('.')[0] + "_{}.xlsx".format(sheet_name)
+                # TODO: allow arbitrary directory for input_file
+                user = getpass.getuser()
+                input_filename = os.path.basename(input_file).split('.')[0]
+                input_file = f"C:\\Users\\{user}\\Documents\\{input_filename}_{sheet_name}.xlsx"
+
                 df.to_excel(input_file, index=False, header=True)
 
                 remove_file = True
@@ -1267,7 +1273,7 @@ class DbConnect:
         # Try bulk input
         if not multi_sheet and extension == 'xlsx' and not column_type_overrides:
             # Bulk input
-            success = self._bulk_xlsx_to_table(input_file=input_file, schema_name=schema_name, table_name="stg_{}".format(table_name))
+            success = self._bulk_xlsx_to_table(input_file=input_file, schema_name=schema_name, table_name="stg_{table}".format(table=table_name))
 
             # Overwrite if applicable and successful
             if success and overwrite:
@@ -1279,10 +1285,10 @@ class DbConnect:
                 select * 
                 into {schema_name}.{table_name}
                 from {schema_name}.{stg_table}
-                """.format(schema_name=schema_name, table_name=table_name, stg_table="stg_{}".format(table_name)), days=days)
+                """.format(schema_name=schema_name, table_name=table_name, stg_table="stg_{table}".format(table=table_name)), days=days)
 
                 # Drop stg table
-                self.drop_table(schema_name=schema_name, table_name="stg_{}".format(table_name))
+                self.drop_table(schema_name=schema_name, table_name="stg_{table}".format(table=table_name))
 
         # Warn why will not work for xls if bulk wasn't called
         if multi_sheet or extension != 'xlsx':
@@ -1340,13 +1346,13 @@ class DbConnect:
         # If no output specified, defaults to a generic data csv name with the date
         if not output_file:
             output_file = os.path.join(os.getcwd(),
-                                       'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
+                                       'data_{dt}.csv'.format(dt=datetime.datetime.now().strftime('%Y%m%d%H%M')))
 
         self.check_conn()
         qry = Query(self, query, strict=strict, timeme=(not quiet))
 
         if not quiet:
-            print('Writing to %s' % output_file)
+            print(f'Writing to {output_file}')
 
         qry.query_to_csv(output=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep)
 
@@ -1382,8 +1388,8 @@ class DbConnect:
             raise RuntimeError('Please input both geom and id columns or use the built-in precinct, nta, or borough.')
 
         if geom_column and id_column:
-            query = "select *, {} as id, st_asgeojson(st_transform({}, 4326))  geojson_geometry from ({}) q".format(
-                id_column, geom_column, query)
+            query = "select *, {id} as id, st_asgeojson(st_transform({geom}, 4326))  geojson_geometry from ({query}) q".format(
+                id=id_column, geom=geom_column, query=query)
 
         query_df = self.dfquery(query)
         query_df[value_column] = query_df[value_column].astype('float')
@@ -1429,10 +1435,10 @@ class DbConnect:
 
             g_df = self.dfquery("""
     
-            select {} as id, st_asgeojson(st_transform(geom, 4326)) geojson_geometry
-            from {}
+            select {maptype0} as id, st_asgeojson(st_transform(geom, 4326)) geojson_geometry
+            from {maptype1}
             
-            """.format(geom_map.get(map_type)[0], geom_map.get(map_type)[1]))
+            """.format(maptype0=geom_map.get(map_type)[0], maptype1=geom_map.get(map_type)[1]))
             geo_j = df_to_geojson(g_df)
         else:
             geo_j = df_to_geojson(query_df)
@@ -1465,34 +1471,34 @@ class DbConnect:
         self.allow_temp_tables = True
 
         # Makes a temp table name
-        tmp_table_name = "tmp_query_to_shp_{}_{}".format(self.username,
-                                                         str(datetime.datetime.now())[:16].replace('-', '_').replace(
-                                                             ' ', '_').replace(':', ''))
+        tmp_table_name = "tmp_query_to_shp_{user}_{dt}".format(user=self.username,
+                                                               dt=str(datetime.datetime.now())[:16]
+                                                               .replace('-', '_').replace(' ', '_').replace(':', ''))
 
         # Create temp table to get column types
         try:
             # Drop the temp table
             if self.type == PG:
-                self.query("drop table {}".format(tmp_table_name), internal=True, strict=False)
+                self.query("drop table {table}".format(table=tmp_table_name), internal=True, strict=False)
             elif self.type == MS:
-                self.query("drop table #{}".format(tmp_table_name), internal=True, strict=False)
+                self.query("drop table #{table}".format(table=tmp_table_name), internal=True, strict=False)
         except Exception as e:
             print(e)
             pass
 
         if self.type == PG:
             self.query(u"""    
-            create temp table {} as     
+            create temp table {table} as     
             select * 
-            from ({}) q 
+            from ({query}) q 
             limit 10
-            """.format(tmp_table_name, query), internal=True)
+            """.format(table=tmp_table_name, query=query), internal=True)
         elif self.type == MS:
             self.query(u"""        
             select top 10 * 
-            into #{}
-            from ({}) q 
-            """.format(tmp_table_name, query), internal=True)
+            into #{table}
+            from ({query}) q 
+            """.format(table=tmp_table_name, query=query), internal=True)
 
         # Extract column names, including datetime/timestamp types, from results
         if self.type == PG:
@@ -1500,8 +1506,8 @@ class DbConnect:
             SELECT *
             FROM
             INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = '{}'
-            """.format(tmp_table_name), internal=True)
+            WHERE TABLE_NAME = '{table}'
+            """.format(table=tmp_table_name), internal=True)
 
             cols = ['\\"' + c + '\\"' for c in list(col_df['column_name'])]
             dt_col_names = ['\\"' + c + '\\"' for c in list(
@@ -1526,8 +1532,8 @@ class DbConnect:
                 AND
                 t.system_type_id = t.user_type_id
             WHERE
-                [object_id] = OBJECT_ID(N'tempdb.dbo.#{}');
-            """.format(tmp_table_name), internal=True)
+                [object_id] = OBJECT_ID(N'tempdb.dbo.#{table}');
+            """.format(table=tmp_table_name), internal=True)
 
             cols = ['[' + c + ']' for c in list(col_df['column'])]
             dt_col_names = ['[' + c + ']' for c in list(
@@ -1546,11 +1552,11 @@ class DbConnect:
 
             print("""
             The following columns are of db_type datetime/timestamp: \n
-            {}
+            {cols}
             
             Shapefiles don't support datetime/timestamps with both the date and time. Each column will be split up
             into colname_dt (of db_type date) and colname_tm (of db_type **string/varchar**). 
-            """.format(print_cols))
+            """.format(cols=print_cols))
 
             # Add the date and time (casted as a string) to the output
             for col_name in dt_col_names:
@@ -1566,15 +1572,15 @@ class DbConnect:
                                     col=col_name[1:-1], short_col=shortened_col)
 
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
-        new_query = u"select {} from ({}) q ".format(return_cols, query)
+        new_query = u"select {cols} from ({qry}) q ".format(cols=return_cols, qry=query)
         Query.query_to_shp(self, new_query, path=path, shp_name=shpfile_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                            print_cmd=print_cmd, srid=srid)
 
         # Drop the temp table
         if self.type == PG:
-            self.query("drop table {}".format(tmp_table_name), internal=True)
+            self.query("drop table {table}".format(table=tmp_table_name), internal=True)
         elif self.type == MS:
-            self.query("drop table #{}".format(tmp_table_name), internal=True)
+            self.query("drop table #{table}".format(table=tmp_table_name), internal=True)
 
         # Reset the temp flag
         self.last_query = new_query
@@ -1600,7 +1606,7 @@ class DbConnect:
 
         path, shpfile_name = parse_shp_path(path, shpfile_name)
 
-        return self.query_to_shp("select * from {}.{}".format(schema_name, table_name),
+        return self.query_to_shp("select * from {schema}.{table}".format(schema=schema_name, table=table_name),
                                  path=path, shpfile_name=shpfile_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                                  print_cmd=print_cmd, srid=srid)
 
@@ -1622,19 +1628,19 @@ class DbConnect:
             output_file = os.path.join(os.getcwd(), table_name + '.csv')
 
         if schema_name:
-            schema_table = '{}.{}'.format(schema_name, table_name)
+            schema_table = '{schema}.{table}'.format(schema=schema_name, table=table_name)
         else:
-            schema_table = '{}'.format(table_name)
+            schema_table = '{table}'.format(table=table_name)
 
         query = """
         select *
-        from {}
-        """.format(schema_table)
+        from {table}
+        """.format(table=schema_table)
 
         self.check_conn()
         qry = Query(self, query, strict=strict, iterate=True, no_comment=True, temp=False)
 
-        print('Writing to %s' % output_file)
+        print(f'Writing to {output_file}')
 
         qry.iterable_query_to_csv(output=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep)
 

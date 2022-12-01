@@ -446,11 +446,11 @@ class Query:
                 new_index = index[0].replace(old_table_name, table_name)
 
                 if self.dbconn.type == 'PG':
-                    new_index_query = 'ALTER INDEX IF EXISTS {schema}."{oindex}" RENAME to "{nindex}"'.format(
-                        schema=schema_name, oindex=index[0], nindex=new_index)
+                    new_index_query = 'ALTER INDEX IF EXISTS {schema}."{old}" RENAME to "{new}"'.format(
+                        schema=schema_name, old=index[0], new=new_index)
                 elif self.dbconn.type == 'MS':
-                    new_index_query = "EXEC sp_rename '{table}.{oindex}', '{nindex}', N'INDEX';".format(
-                        oindex=index[0], nindex=new_index, table=new_table_name)
+                    new_index_query = "EXEC sp_rename '{table}.{old}', '{new}', N'INDEX';".format(
+                        old=index[0], new=new_index, table=new_table_name)
 
                 self.dbconn.query(query=new_index_query, strict=False, timeme=False, internal=True)
 
@@ -623,7 +623,7 @@ class Query:
         :return:
         """
         if not output:
-            output = os.path.join(os.getcwd(), 'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
+            output = os.path.join(os.getcwd(), 'data_{dt}.csv'.format(dt=datetime.datetime.now().strftime('%Y%m%d%H%M')))
 
         if len(self.data) > 100000:
             self.__chunked_write_csv(output=output, open_file=open_file, quote_strings=quote_strings, sep=sep)

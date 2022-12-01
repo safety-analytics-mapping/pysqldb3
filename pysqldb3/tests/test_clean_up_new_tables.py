@@ -18,12 +18,12 @@ ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                               password=config.get('SQL_DB', 'DB_PASSWORD'),
                               allow_temp_tables=True)
 
-test_pg_to_pg_cleanup_table = 'test_pg_to_pg_cleanup_{}'.format(pg_dbconn.username)
-test_pg_to_sql_cleanup_table = 'test_pg_to_pg_cleanup_{}'.format(pg_dbconn.username)
-test_sql_to_pg_cleanup_table = 'test_sql_to_pg_cleanup_{}'.format(pg_dbconn.username)
-test_clean_up_new_table = 'test_new_table_testing_{}'.format(pg_dbconn.username)
-test_clean_up_new_table2 = 'test_new_table_testing_{}_2'.format(pg_dbconn.username)
-test_sql_to_pg_qry_cleanup_table = 'test_sql_to_pg_qry_cleanup_{}'.format(pg_dbconn.username)
+test_pg_to_pg_cleanup_table = 'test_pg_to_pg_cleanup_{user}'.format(user=pg_dbconn.username)
+test_pg_to_sql_cleanup_table = 'test_pg_to_pg_cleanup_{user}'.format(user=pg_dbconn.username)
+test_sql_to_pg_cleanup_table = 'test_sql_to_pg_cleanup_{user}'.format(user=pg_dbconn.username)
+test_clean_up_new_table = 'test_new_table_testing_{user}'.format(user=pg_dbconn.username)
+test_clean_up_new_table2 = 'test_new_table_testing_{user}_2'.format(user=pg_dbconn.username)
+test_sql_to_pg_qry_cleanup_table = 'test_sql_to_pg_qry_cleanup_{user}'.format(user=pg_dbconn.username)
 
 
 ms_schema = 'dbo'
@@ -196,19 +196,19 @@ class TestCleanUpNewTablesMs:
         ms_dbconn.tables_created = []
 
         ms_dbconn.query("""
-            CREATE TABLE #{} (
+            CREATE TABLE #{table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-        """.format(table_name))
+        """.format(table=table_name))
 
         ms_dbconn.query("""
-                    INSERT INTO #{}
+                    INSERT INTO #{table}
                     VALUES (1, 'test', CURRENT_TIMESTAMP), (2, 'test', CURRENT_TIMESTAMP)
-         """.format(table_name))
+         """.format(table=table_name))
 
-        ms_dbconn.query("select * from #%s" % table_name)
+        ms_dbconn.query("select * from #{table}".format(table=table_name))
         assert len(ms_dbconn.data) == 2
         assert len(ms_dbconn.tables_created) == 0
 
@@ -219,27 +219,27 @@ class TestCleanUpNewTablesMs:
         ms_dbconn.drop_table(table_name=test_clean_up_new_table2, schema_name=ms_dbconn.default_schema)
 
         ms_dbconn.query("""
-            CREATE TABLE {} (
+            CREATE TABLE {table} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-        """.format(test_clean_up_new_table))
+        """.format(table=test_clean_up_new_table))
 
         ms_dbconn.query("""
-                    CREATE TABLE {} (
+                    CREATE TABLE {table} (
                         id int,
                         column2 text,
                         column3 timestamp
                     );
-                """.format(test_clean_up_new_table2))
+                """.format(table=test_clean_up_new_table2))
 
-        ms_dbconn.drop_table(ms_dbconn.default_schema, test_clean_up_new_table)
-        assert not ms_dbconn.table_exists(test_clean_up_new_table, schema=ms_dbconn.default_schema)
-        assert ms_dbconn.table_exists(test_clean_up_new_table2, schema=ms_dbconn.default_schema)
+        ms_dbconn.drop_table(schema_name=ms_dbconn.default_schema, table_name=test_clean_up_new_table)
+        assert not ms_dbconn.table_exists(table_name=test_clean_up_new_table, schema=ms_dbconn.default_schema)
+        assert ms_dbconn.table_exists(table_name=test_clean_up_new_table2, schema=ms_dbconn.default_schema)
 
         ms_dbconn.cleanup_new_tables()
-        assert not ms_dbconn.table_exists(test_clean_up_new_table2, schema='test')
+        assert not ms_dbconn.table_exists(table_name=test_clean_up_new_table2, schema='test')
 
 
 class TestCleanUpNewTablesIO:
@@ -303,14 +303,14 @@ class TestCleanUpNewTablesIO:
 
     def test_sql_to_pg(self):
         # Setup
-        pg_dbconn.tables_created =[]
+        pg_dbconn.tables_created = []
         ms_dbconn.drop_table(schema_name=ms_schema, table_name=test_sql_to_pg_cleanup_table)
 
         # Create
         ms_dbconn.query("""
-        create table {0}.{1} (col1 int, col2 int);
-        insert into {0}.{1} values (1, 2);
-        """.format(ms_schema, test_sql_to_pg_cleanup_table))
+        create table {schema}.{table} (col1 int, col2 int);
+        insert into {schema}.{table} values (1, 2);
+        """.format(schema=ms_schema, table=test_sql_to_pg_cleanup_table))
 
         assert len(pg_dbconn.tables_created) == 0
         assert not pg_dbconn.table_exists(schema_name=pg_schema, table_name=test_sql_to_pg_cleanup_table)

@@ -208,7 +208,7 @@ def type_decoder(typ, varchar_length=500):
     elif typ == np.dtype('float64'):
         return 'float'
     else:
-        return 'varchar ({})'.format(varchar_length)
+        return 'varchar ({length})'.format(length=varchar_length)
 
 
 def clean_cell(x):

@@ -218,14 +218,14 @@ class TestRenamesGeomMs:
 
         cmd = """ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs
         "EPSG:{srid}" -progress -f MSSQLSpatial "MSSQL:server={host};database={dbname};UID={username};PWD={password}"
-         "{shp}" -nln {schema}.{table} {precision} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
+         "{shpfile}" -nln {schema}.{table} {precision} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
         """.format(gdal_data=util.GDAL_DATA_LOC,
                    srid=2263,
                    host=ms_dbconn.host,
                    dbname=ms_dbconn.db_name,
                    username=ms_dbconn.username,
                    password=ms_dbconn.password,
-                   shp=os.path.join(dir, shp),
+                   shpfile=os.path.join(dir, shp),
                    schema=ms_dbconn.default_schema,
                    table=table,
                    precision='',

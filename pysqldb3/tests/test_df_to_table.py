@@ -20,7 +20,7 @@ ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                               username=config.get('SQL_DB', 'DB_USER'),
                               password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-table_name = 'test_df_to_table_{}'.format(pg_dbconn.username)
+table_name = 'test_df_to_table_{user}'.format(user=pg_dbconn.username)
 
 
 class TestDfToTableSchemaPG:
@@ -535,14 +535,14 @@ class TestDfToTableMS:
         assert ms_dbconn.table_exists(table_name=table_name, schema_name=ms_dbconn.default_schema)
 
         # Assert table correctness
-        table_df = ms_dbconn.dfquery('select * from {}'.format(table_name))
+        table_df = ms_dbconn.dfquery('select * from {table}'.format(table=table_name))
         pd.testing.assert_frame_equal(test_df, table_df)
 
         assert list(ms_dbconn.dfquery("""
           select distinct data_type
           from information_schema.columns
-          where table_name = '{}';
-          """.format(table_name))['data_type'])[0] == 'bigint'
+          where table_name = '{table}';
+          """.format(table=table_name))['data_type'])[0] == 'bigint'
 
         # Overwrite table with new column_type_overrides table
         ms_dbconn.dataframe_to_table(df=test_df, table_name=table_name, schema_name=ms_dbconn.default_schema, overwrite=True,

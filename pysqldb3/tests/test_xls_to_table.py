@@ -116,7 +116,7 @@ class TestXlsToTablePG:
 
     def test_xls_to_table_sheet(self):
         # xls_to_table
-        pg_dbconn.query('drop table if exists working.{}'.format(xls_table_name))
+        pg_dbconn.query('drop table if exists working.{table}'.format(table=xls_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls_with_sheet.xls"
 

@@ -18,10 +18,10 @@ ms_dbconn = pysqldb.DbConnect(db_type=test_config.get('SQL_DB', 'TYPE'),
                               username=test_config.get('SQL_DB', 'DB_USER'),
                               password=test_config.get('SQL_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{username}'.format(username=pg_dbconn.username)
-sql_table_name = 'sql_test_table_{username}'.format(username=ms_dbconn.username)
-table_for_testing = 'table_for_testing_{username}'.format(username=pg_dbconn.username)
-table_for_testing_logging = 'testing_logging_table_{username}'.format(username=pg_table_name)
+pg_table_name = 'pg_test_table_{user}'.format(user=pg_dbconn.username)
+sql_table_name = 'sql_test_table_{user}'.format(user=ms_dbconn.username)
+table_for_testing = 'table_for_testing_{user}'.format(user=pg_dbconn.username)
+table_for_testing_logging = 'testing_logging_table_{user}'.format(user=pg_table_name)
 
 
 class TestMisc:
@@ -610,8 +610,8 @@ class TestLogging:
 
         # Assert pg stores without quotes
         assert len(pg_dbconn.dfquery("""
-        SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name='{}'
-        """.format(table_for_testing_logging))) == 1
+        SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE table_name='{table}'
+        """.format(table=table_for_testing_logging))) == 1
 
         # Assert log stores without quotes
         assert len(pg_dbconn.dfquery("""
@@ -866,8 +866,8 @@ class TestLogging:
         FROM sys.tables t
         JOIN sys.schemas s
         ON t.schema_id = s.schema_id
-        WHERE s.name='dbo' and t.name = '"{}"'
-        """.format(table_for_testing_logging))) == 0
+        WHERE s.name='dbo' and t.name = '"{table}"'
+        """.format(table=table_for_testing_logging))) == 0
 
         # Assert doesn't exist in log either
         assert len(ms_dbconn.dfquery("""

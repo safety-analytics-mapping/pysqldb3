@@ -19,8 +19,8 @@ ms_dbconn = pysqldb.DbConnect(db_type=config.get('SQL_DB', 'TYPE'),
                               username=config.get('SQL_DB', 'DB_USER'),
                               password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-test_table = '___test_rename_index_org_tbl_{}__'.format(pg_dbconn.username)
-new_test_table = '___test_rename_index_new_tbl_{}__'.format(pg_dbconn.username)
+test_table = '___test_rename_index_org_tbl_{table}__'.format(table=pg_dbconn.username)
+new_test_table = '___test_rename_index_new_tbl_{table}__'.format(table=pg_dbconn.username)
 
 """
 Rename_index is in Query.
