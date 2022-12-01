@@ -197,7 +197,8 @@ class DbConnect:
                 'database': self.database,
                 'host': self.server,
                 'user': self.user,
-                'password': self.password            }
+                'password': self.password
+            }
 
         try:
             self.conn = pymssql.connect(**self.params)

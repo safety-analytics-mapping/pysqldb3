@@ -11,12 +11,17 @@ test_config = configparser.ConfigParser()
 test_config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
 
-
-sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
-                        server=test_config.get('SQL_DB', 'SERVER'),
-                        database=test_config.get('SQL_DB', 'DB_NAME'),
-                        user=test_config.get('SQL_DB', 'DB_USER'),
-                        password=test_config.get('SQL_DB', 'DB_PASSWORD'))
+if test_config.get('SQL_DB','LDAP').lower() == 'true':
+    sql = pysqldb.DbConnect(type=test_config.get('SQL_DB','TYPE'),
+                            server=test_config.get('SQL_DB','SERVER'),
+                            database=test_config.get('SQL_DB','DB_NAME'),
+                            ldap=True)
+else:
+    sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
+                            server=test_config.get('SQL_DB', 'SERVER'),
+                            database=test_config.get('SQL_DB', 'DB_NAME'),
+                            user=test_config.get('SQL_DB', 'DB_USER'),
+                            password=test_config.get('SQL_DB', 'DB_PASSWORD'))
 
 db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSWORD'),
                        user=test_config.get('PG_DB', 'DB_USER'))

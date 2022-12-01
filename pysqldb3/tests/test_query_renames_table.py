@@ -13,13 +13,22 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        server=config.get('PG_DB', 'SERVER'),
                        database=config.get('PG_DB', 'DB_NAME'),
                        user=config.get('PG_DB', 'DB_USER'),
-                       password=config.get('PG_DB', 'DB_PASSWORD'))
+                       password=config.get('PG_DB', 'DB_PASSWORD'),
+                       allow_temp_tables=True)
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'), ldap=True)
+if config.get('SQL_DB','LDAP').lower() == 'true':
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB','TYPE'),
+                            server=config.get('SQL_DB','SERVER'),
+                            database=config.get('SQL_DB','DB_NAME'),
+                            ldap=True,
+                            allow_temp_tables=True)
+else:
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                            server=config.get('SQL_DB', 'SERVER'),
+                            database=config.get('SQL_DB', 'DB_NAME'),
+                            user=config.get('SQL_DB', 'DB_USER'),
+                            password=config.get('SQL_DB', 'DB_PASSWORD'),
+                            allow_temp_tables=True)
 
 
 sql_test_schema = config.get('SQL_DB', 'WORKING_SCHEMA')

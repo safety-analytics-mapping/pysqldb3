@@ -13,11 +13,17 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'))
+if config.get('SQL_DB','LDAP').lower() == 'true':
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB','TYPE'),
+                            server=config.get('SQL_DB','SERVER'),
+                            database=config.get('SQL_DB','DB_NAME'),
+                            ldap=True)
+else:
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                            server=config.get('SQL_DB', 'SERVER'),
+                            database=config.get('SQL_DB', 'DB_NAME'),
+                            user=config.get('SQL_DB', 'DB_USER'),
+                            password=config.get('SQL_DB', 'DB_PASSWORD'))
 
 test_table = '___test_rename_index_org_tbl_{}__'.format(db.user)
 new_test_table = '___test_rename_index_new_tbl_{}__'.format(db.user)

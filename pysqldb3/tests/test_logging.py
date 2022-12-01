@@ -6,25 +6,42 @@ from . import helpers
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
+if config.get('SQL_DB','LDAP').lower() == 'true':
+    sql_dest = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                                 server=config.get('SQL_DB', 'SERVER'),
+                                 database=config.get('SQL_DB', 'DB_NAME'),
+                                 ldap=True)
+else:
+    sql_dest = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                            server=config.get('SQL_DB', 'SERVER'),
+                            database=config.get('SQL_DB', 'DB_NAME'),
+                            user=config.get('SQL_DB', 'DB_USER'),
+                            password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-sql_dest = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'))
+if config.get('SECOND_SQL_DB','LDAP').lower() == 'true':
+    sql_src = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB','TYPE'),
+                                server=config.get('SECOND_SQL_DB','SERVER'),
+                                database=config.get('SECOND_SQL_DB','DB_NAME'),
+                                ldap=True)
+else:
+    sql_src = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB', 'TYPE'),
+                            server=config.get('SECOND_SQL_DB', 'SERVER'),
+                            database=config.get('SECOND_SQL_DB', 'DB_NAME'),
+                            user=config.get('SECOND_SQL_DB', 'DB_USER'),
+                            password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
 
-sql_src = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB', 'TYPE'),
-                        server=config.get('SECOND_SQL_DB', 'SERVER'),
-                        database=config.get('SECOND_SQL_DB', 'DB_NAME'),
-                        user=config.get('SECOND_SQL_DB', 'DB_USER'),
-                        password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
-
-
-sql_dest_src_user = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SECOND_SQL_DB', 'DB_USER'),
-                        password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
+if config.get('SQL_DB','LDAP').lower() == 'true':
+    # connect with the first db's user to run cross-db tests
+    sql_dest_src_user = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                            server=config.get('SQL_DB', 'SERVER'),
+                            database=config.get('SQL_DB', 'DB_NAME'),
+                            ldap=True)
+else:
+    sql_dest_src_user = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                            server=config.get('SQL_DB', 'SERVER'),
+                            database=config.get('SQL_DB', 'DB_NAME'),
+                            user=config.get('SECOND_SQL_DB', 'DB_USER'),
+                            password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'))
 
 
 test_table = 'cross_db_test'

@@ -16,12 +16,18 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True)
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'),
-                        allow_temp_tables=True)
+if config.get('SQL_DB','LDAP').lower() == 'true':
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB','TYPE'),
+                            server=config.get('SQL_DB','SERVER'),
+                            database=config.get('SQL_DB','DB_NAME'),
+                            ldap=True)
+else:
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                            server=config.get('SQL_DB', 'SERVER'),
+                            database=config.get('SQL_DB', 'DB_NAME'),
+                            user=config.get('SQL_DB', 'DB_USER'),
+                            password=config.get('SQL_DB', 'DB_PASSWORD'),
+                            allow_temp_tables=True)
 
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node'

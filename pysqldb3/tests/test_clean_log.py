@@ -13,12 +13,19 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        password=config.get('PG_DB', 'DB_PASSWORD'),
                        allow_temp_tables=True)
 
-sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-                        server=config.get('SQL_DB', 'SERVER'),
-                        database=config.get('SQL_DB', 'DB_NAME'),
-                        user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'),
-                        allow_temp_tables=True)
+if config.get('SQL_DB','LDAP').lower() == 'true':
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB','TYPE'),
+                            server=config.get('SQL_DB','SERVER'),
+                            database=config.get('SQL_DB','DB_NAME'),
+                            ldap=True,
+                            allow_temp_tables=True)
+else:
+    sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                            server=config.get('SQL_DB', 'SERVER'),
+                            database=config.get('SQL_DB', 'DB_NAME'),
+                            user=config.get('SQL_DB', 'DB_USER'),
+                            password=config.get('SQL_DB', 'DB_PASSWORD'),
+                            allow_temp_tables=True)
 
 test_clean_up_new_table = 'test_new_table_testing_{}'.format(db.user)
 test_clean_up_new_table2 = 'test_new_table_testing_{}_2'.format(db.user)
