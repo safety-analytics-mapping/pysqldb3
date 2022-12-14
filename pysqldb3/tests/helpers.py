@@ -1,13 +1,15 @@
 import random
 import os
 import pandas as pd
-import shapefile
-import subprocess
 import requests
 import zipfile
+import configparser
+from xlrd import open_workbook
+from xlutils.copy import copy
+from ..Config import write_config
+write_config(confi_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests','') + "\\config.cfg")
 
-# from arcpy import Delete_management, CreateFileGDB_management, CreateFeatureclass_management, \
-#     env, AddField_management, da, FeatureClassToShapefile_conversion
+DIR = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
 
 
 def set_up_test_csv():
@@ -27,7 +29,6 @@ def set_up_test_csv():
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
-    # df.to_csv('tests/test_data/test.csv')
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
@@ -157,7 +158,15 @@ def set_up_feature_class():
     if not os.path.isfile(zip_path):
 
         download_url = r'https://www1.nyc.gov/assets/planning/download/zip/data-maps/open-data/nyclion_21d.zip'
-        r = requests.get(download_url)
+
+        config = configparser.ConfigParser()
+        config.read(DIR.replace('\\test_data', "\\db_config.cfg"))
+
+        http = config.get('PROXIES', 'http')
+        https = config.get('PROXIES', 'https')
+
+
+        r = requests.get(download_url, proxies={'http':http, 'https':https})
 
         with open(zip_path, 'wb') as f:
             f.write(r.content)
@@ -212,12 +221,10 @@ def set_up_shapefile():
         'some_value': {0: 'test1', 1: 'test2'}
     }
     df = pd.DataFrame(data)
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv", index=False)
-    fle = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\sample.csv"
+    df.to_csv(os.path.join(DIR, "sample.csv"), index=False)
+    fle = os.path.join(DIR, "sample.csv")
 
-    pth = r'C:\Users\heyse\Desktop\Folder\code\pysqldb3\tests\test_data\\'
-
-    cmd = f'''ogr2ogr -f "ESRI Shapefile" {pth}test.shp -dialect sqlite -sql 
+    cmd = f'''ogr2ogr -f "ESRI Shapefile" {DIR}\\test.shp -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326), some_value FROM sample" {fle}'''
     os.system(cmd.replace('\n', ' '))
     print ('Sample shapefile ready...')
@@ -233,27 +240,69 @@ def clean_up_shapefile():
     # Delete_management(os.path.join(fldr, shp))
 
 
-def set_up_schema(db):
+def set_up_schema(db, ms_schema='dbo', pg_schema='working'):
     if db.type == 'MS':
-        db.query("""
+        db.query(f"""
             IF NOT EXISTS (
                 SELECT  schema_name
                 FROM    information_schema.schemata
-                WHERE   schema_name = 'pytest' 
+                WHERE   schema_name = '{ms_schema}' 
             ) 
              
             BEGIN
-            EXEC sp_executesql N'CREATE SCHEMA pytest'
+            EXEC sp_executesql N'CREATE SCHEMA {ms_schema}'
             END
         """)
     if db.type == 'PG':
-        db.query("""
-            create schema if not exists pytest;
+        db.query(f"""
+            create schema if not exists {pg_schema};
         """)
 
-def clean_up_schema(db):
+
+def clean_up_schema(db, schema):
     if db.type == 'PG':
         c = ' cascade'
     else:
         c = ''
-    db.query("DROP SCHEMA IF EXISTS pytest{};".format(c))
+    db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
+
+def clean_up_shp(file_path):
+    for ext in ('.shp', '.dbf', '.shx', '.prj'):
+        clean_up_file(file_path.replace('.shp', ext))
+
+
+def clean_up_file(file_path):
+    if os.path.isfile(file_path):
+        os.remove(file_path)
+        print ('%s file removed\n' % os.path.basename(file_path))
+
+
+def set_up_xls():
+    xls_file1 = os.path.join(DIR, 'test_xls.xls')
+    if os.path.isfile(xls_file1):
+        clean_up_file(xls_file1)
+
+    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
+    print ('%s created\n' % os.path.basename(xls_file1))
+
+    xls_file2 = os.path.join(DIR, 'test_xls_with_sheet.xls')
+    if os.path.isfile(xls_file2):
+        clean_up_file(xls_file2)
+
+    test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+
+    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet', index=False)
+    w = copy(open_workbook(xls_file2))
+    Sheet2 = w.add_sheet('Sheet2')
+    col, row = 0, 0
+    for c in test_df2.columns:
+        Sheet2.write(row, col, c)
+        row += 1
+        for r in test_df2[c]:
+            Sheet2.write(row, col, r)
+            row += 1
+        col += 1
+        row = 0
+    w.save(xls_file2)
+    print ('%s created\n' % os.path.basename(xls_file2))

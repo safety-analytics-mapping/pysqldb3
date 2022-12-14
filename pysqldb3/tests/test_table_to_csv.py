@@ -29,15 +29,18 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 create_table_name = '_testing_table_to_csv_{}_{}_'.format(datetime.datetime.now().strftime('%Y-%m-%d').replace('-', '_'), db.user)
 
+ms_schema = 'dbo'
+pg_schema = 'working'
+
 
 class Test_Table_to_CSV_PG:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_schema(db)
-        helpers.set_up_test_table_pg(db, schema='pytest')
+        # helpers.set_up_schema(db, ms_schema=ms_schema)
+        helpers.set_up_test_table_pg(db, schema=pg_schema)
 
     def test_table_to_csv_check_file(self):
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
@@ -50,7 +53,7 @@ class Test_Table_to_CSV_PG:
             FROM
                 {s}.{pg}
             LIMIT 10
-        """.format(s=schema, t=create_table_name,pg=pg_table_name))
+        """.format(s=schema, t=create_table_name, pg=pg_table_name))
         assert db.table_exists(create_table_name, schema=schema)
 
         # table to csv
@@ -67,7 +70,7 @@ class Test_Table_to_CSV_PG:
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
     def test_table_to_csv_check_file_values(self):
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         db.query("""
@@ -111,7 +114,7 @@ class Test_Table_to_CSV_PG:
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
     def test_table_to_csv_check_file_values2(self):
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
@@ -150,7 +153,7 @@ class Test_Table_to_CSV_PG:
 
     def test_table_to_csv_check_file_values_sep(self):
         sep = ';'
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         db.query("""
                             CREATE TABLE {s}.{t} (
@@ -195,7 +198,7 @@ class Test_Table_to_CSV_PG:
 
     def test_table_to_csv_check_file_values2_sep(self):
         sep = ';'
-        schema = 'pytest'
+        schema = pg_schema
         db.drop_table(schema, create_table_name)
 
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
@@ -233,7 +236,7 @@ class Test_Table_to_CSV_PG:
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
     def test_table_to_csv_no_schema(self):
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
@@ -263,7 +266,7 @@ class Test_Table_to_CSV_PG:
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
     def test_table_to_csv_check_file_bad_path(self):
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
         # create table
         db.query("""
@@ -278,12 +281,12 @@ class Test_Table_to_CSV_PG:
         assert db.table_exists(create_table_name, schema=schema)
 
         # table to csv
-        with raises(IOError) as exc_info:
+        with raises(OSError) as exc_info:
             db.table_to_csv(create_table_name,
                             schema=schema,
                             output_file=os.path.join(fldr, create_table_name + '.csv')
                             )
-        assert exc_info.type is FileNotFoundError
+        assert exc_info.type is OSError
 
         # clean up
         db.disconnect(quiet=True)
@@ -291,7 +294,7 @@ class Test_Table_to_CSV_PG:
         db.drop_table(schema, create_table_name)
 
     def test_table_to_csv_table_doesnt_exist(self):
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
 
         db.drop_table(table=create_table_name, schema=schema)
@@ -305,7 +308,7 @@ class Test_Table_to_CSV_PG:
         assert True
 
     def test_table_to_csv_no_output(self):
-        schema = 'pytest'
+        schema = pg_schema
 
         # create table
         db.query("""
@@ -334,7 +337,7 @@ class Test_Table_to_CSV_PG:
             os.remove(os.path.join(os.getcwd(), f))
 
     def test_table_to_csv_temp(self):
-        schema = 'pytest'
+        schema = pg_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         table = '_testing_table_to_csv_20200914_'
         # create table
@@ -361,7 +364,7 @@ class Test_Table_to_CSV_PG:
         os.remove(os.path.join(fldr, table + '.csv'))
 
     def test_table_to_csv_check_file_quote_name(self):
-        schema = 'pytest'
+        schema = pg_schema
         table = '"' + create_table_name + '"'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         db.drop_table(schema, table)
@@ -394,8 +397,8 @@ class Test_Table_to_CSV_PG:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
-        helpers.clean_up_schema(db)
-        db.clean_up_new_tables()
+        # helpers.clean_up_schema(db)
+        db.cleanup_new_tables()
 
 
 ############################################
@@ -406,11 +409,11 @@ class Test_Table_to_CSV_PG:
 class Test_Table_to_CSV_MS:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_schema(sql)
-        helpers.set_up_test_table_sql(sql, schema='pytest')
+        helpers.set_up_schema(sql, ms_schema=ms_schema)
+        helpers.set_up_test_table_sql(sql, schema=ms_schema)
 
     def test_table_to_csv_check_file_bad_path(self):
-        schema = 'pytest'
+        schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
         sql.drop_table(schema=schema, table=create_table_name)
 
@@ -431,12 +434,12 @@ class Test_Table_to_CSV_MS:
         assert sql.table_exists(table=create_table_name, schema=schema)
 
         # table to csv
-        with raises(IOError) as exc_info:
+        with raises(OSError) as exc_info:
             sql.table_to_csv(create_table_name,
                              schema=schema,
                              output_file=os.path.join(fldr, create_table_name + '.csv')
                              )
-        assert exc_info.type is FileNotFoundError
+        assert exc_info.type is OSError
 
         # clean up
         sql.disconnect(quiet=True)
@@ -444,7 +447,7 @@ class Test_Table_to_CSV_MS:
         sql.drop_table(schema, create_table_name)
 
     def test_table_to_csv_check_file(self):
-        schema = 'pytest'
+        schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
@@ -485,7 +488,7 @@ class Test_Table_to_CSV_MS:
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
     def test_table_to_csv_check_file_values(self):
-        schema = 'pytest'
+        schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
@@ -532,7 +535,7 @@ class Test_Table_to_CSV_MS:
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
     def test_table_to_csv_check_file_values2(self):
-        schema = 'pytest'
+        schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
@@ -575,7 +578,7 @@ class Test_Table_to_CSV_MS:
 
     def test_table_to_csv_check_file_values_sep(self):
         sep = ';'
-        schema = 'pytest'
+        schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         sql.query("""
                             CREATE TABLE {s}.{t} (
@@ -621,7 +624,7 @@ class Test_Table_to_CSV_MS:
 
     def test_table_to_csv_check_file_values2_sep(self):
         sep = ';'
-        schema = 'pytest'
+        schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
@@ -699,7 +702,7 @@ class Test_Table_to_CSV_MS:
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
     def test_table_to_csv_table_doesnt_exist(self):
-        schema = 'pytest'
+        schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
 
         sql.drop_table(table=create_table_name, schema=schema)
@@ -712,7 +715,7 @@ class Test_Table_to_CSV_MS:
                              )
 
     def test_table_to_csv_no_output(self):
-        schema = 'pytest'
+        schema = ms_schema
 
         # create table
         sql.query("""
@@ -745,7 +748,7 @@ class Test_Table_to_CSV_MS:
             os.remove(os.path.join(os.getcwd(), f))
 
     def test_table_to_csv_check_file_bracket_name(self):
-        schema = 'pytest'
+        schema = ms_schema
         table = '[' + create_table_name + ']'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         sql.drop_table(schema, table)
@@ -810,7 +813,7 @@ class Test_Table_to_CSV_MS:
 
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_test_table_sql(sql, schema='pytest')
-        sql.query("drop table {}.{}".format('pytest', sql.log_table))
-        sql.clean_up_new_tables()
-        helpers.clean_up_schema(sql)
+        helpers.clean_up_test_table_sql(sql, schema=ms_schema)
+        sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
+        sql.cleanup_new_tables()
+        # helpers.clean_up_schema(sql, ms_schema)

@@ -7,11 +7,11 @@ import configparser
 import numpy as np
 import pandas as pd
 from shapely import wkb
+from .Config import write_config
+write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
-
-
 
 POSTGRES_TYPES = ['PG', 'POSTGRESQL', 'POSTGRES']
 SQL_SERVER_TYPES = ['MS', 'SQL', 'MSSQL', 'SQLSERVER']
@@ -90,7 +90,6 @@ def get_unique_table_schema_string(tbl_str, db_type):
     """
     if not tbl_str:
         return None
-
     if db_type.upper() == PG:
         if '"' not in tbl_str:
             # If no "", lower case

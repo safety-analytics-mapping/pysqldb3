@@ -24,11 +24,14 @@ class SqlDriver:
         :param driver_list:
         :return:
         """
+        if len(driver_list) == 1:
+            return driver_list[0]
         x = r'(?!RDA)\s+[0-9]+\s*'
         mx = 0
 
         numbers = [re.findall(x, _) for _ in driver_list]
-
+        if [] in numbers:
+            numbers.remove([])
         for _ in numbers:
             if int(_[0])>mx:
                 mx=int(_[0])
@@ -39,6 +42,8 @@ class SqlDriver:
     def get_drivers():
         odbc_drivers = list()
         native_drivers = list()
+        if 'ODBC Driver' not in pyodbc.drivers():
+            odbc_drivers.append('SQL Server')
         for i in pyodbc.drivers():
             if 'ODBC Driver' in i:
                 odbc_drivers.append(i)
@@ -50,6 +55,10 @@ class SqlDriver:
         odbc_drivers, native_drivers = self.get_drivers()
         self.odbc_driver = self.choose_max(odbc_drivers)
         self.native_driver = self.choose_max(native_drivers)
+
+
+def get_gdal_data_path():
+    return os.environ["GDAL_DATA"]
 
 
 def read_config(confi_path='.\config.cfg'):
@@ -74,8 +83,8 @@ def write_config(confi_path='.\config.cfg'):
     open_config = False
     required_sections = {
         'ODBC Drivers': {'ODBC_DRIVER': '', 'NATIVE_DRIVER': ''},
-        'DEFAULT DATABASE': {'type': '', 'server': '', 'database': ''},
-        'GDAL DATA': {'GDAL_DATA_LOC': ''}
+        'GDAL DATA': {'GDAL_DATA_LOC': ''},
+        'DEFAULT DATABASE': {'type': '', 'server': '', 'database': ''}
     }
     existing_sections = read_config(confi_path)
 
@@ -85,6 +94,8 @@ def write_config(confi_path='.\config.cfg'):
                 odbc = SqlDriver()
                 existing_sections[rec_section]['ODBC_DRIVER']=odbc.odbc_driver
                 existing_sections[rec_section]['NATIVE_DRIVER']=odbc.native_driver
+            elif rec_section == 'GDAL DATA':
+                existing_sections[rec_section]['GDAL_DATA_LOC']=get_gdal_data_path()
             else:
                 print(f'\nMissing section {rec_section} from config file. Plesae edit {confi_path} to add')
                 open_config = True

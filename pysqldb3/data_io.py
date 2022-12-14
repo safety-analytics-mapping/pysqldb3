@@ -1,8 +1,8 @@
 import subprocess
 import shlex
 
-from cmds import *
-from util import *
+from .cmds import *
+from .util import *
 
 
 def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, dest_table=None,
@@ -95,7 +95,7 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
 
 
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
-                  dest_table=None):
+                  dest_table=None, pg_encoding='UTF8'):
     """
     Migrates the result of a query from SQL Server database to PostgreSQL database, and generates spatial tables in
     PG if spatial in MS.
@@ -109,6 +109,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :param temp: flag, defaults to true, for temporary tables
     :param dest_table: destination table name
+    :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
     :return:
     """
     if not dest_schema:
@@ -140,7 +141,8 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
             sql_select=query,
             spatial=spatial,
             table_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            gdal_data=GDAL_DATA_LOC
         )
     else:
         cmd = SQL_TO_PG_QRY_CMD.format(
@@ -158,14 +160,19 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
             sql_select=query,
             spatial=spatial,
             table_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            gdal_data=GDAL_DATA_LOC
         )
 
     if print_cmd:
         print(print_cmd_string([ms.password, pg.password], cmd))
 
+    cmd_env = os.environ.copy()
+    cmd_env['PGCLIENTENCODING'] = pg_encoding
+
     try:
-        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
+                                               env=cmd_env)
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -325,7 +332,8 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
         to_pg_schema=dest_schema,
         from_pg_table=org_table,
         to_pg_name=dest_table,
-        nlt_spatial=nlt_spatial
+        nlt_spatial=nlt_spatial,
+        gdal_data=GDAL_DATA_LOC
     )
 
     if print_cmd:
@@ -337,6 +345,71 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([from_pg.password, to_pg.password], cmd), returncode=1)
+
+    clean_geom_column(to_pg, dest_table, dest_schema)
+
+    to_pg.tables_created.append(dest_schema + "." + dest_table)
+
+    if temp:
+        to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)
+
+
+def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_table=None,
+             spatial=True, temp=True):
+    """
+    Migrates query results  from one PostgreSQL database to another PostgreSQL.
+    :param from_pg: Source database DbConnect object
+    :param to_pg: Destination database DbConnect object
+    :param query: query in SQL
+    :param dest_schema: PostgreSQL schema for destination table (defaults to default schema)
+    :param dest_table: New name for destination table if None will keep original
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param spatial: Flag for spatial table (defaults to True)
+    :param temp: temporary table, defaults to true
+    :return:
+    """
+
+
+    if not dest_schema:
+        dest_schema = to_pg.default_schema
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=to_pg.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    if spatial:
+        nlt_spatial = ' '
+
+    if not spatial:
+        nlt_spatial = '-nlt NONE'
+
+    cmd = PG_TO_PG_QRY_CMD.format(
+        from_pg_host=from_pg.server,
+        from_pg_port=from_pg.port,
+        from_pg_database=from_pg.database,
+        from_pg_user=from_pg.user,
+        from_pg_pass=from_pg.password,
+        to_pg_host=to_pg.server,
+        to_pg_port=to_pg.port,
+        to_pg_database=to_pg.database,
+        to_pg_user=to_pg.user,
+        to_pg_pass=to_pg.password,
+        sql_select=query,
+        to_pg_schema=dest_schema,
+        to_pg_name=dest_table,
+        nlt_spatial=nlt_spatial,
+        gdal_data=GDAL_DATA_LOC
+    )
+
+    if print_cmd:
+        print (print_cmd_string([from_pg.password, to_pg.password], cmd))
+
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print ("Ogr2ogr Output:\n", e.output)
+        print ('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([from_pg.password, to_pg.password], cmd), returncode=1)
 
     clean_geom_column(to_pg, dest_table, dest_schema)

@@ -1,22 +1,24 @@
 import getpass
-import pyodbc
 
+import pymssql
 from tqdm import tqdm
 from typing import Optional, Union
 import openpyxl
 import json
 import plotly.express as px
-
-from query import *
-from shapefile import *
-from data_io import *
-from __init__ import __version__
-
-from Config import write_config
+import configparser
+import os
+from .Config import write_config
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
+
+from .query import *
+from .shapefile import *
+from .data_io import *
+from .__init__ import __version__
+
 
 
 # noinspection PyArgumentList
@@ -124,10 +126,7 @@ class DbConnect:
         """
         if db_type == MS:
             default_schema = self.dfquery('select schema_name()', internal=True)
-            if default_schema.empty or default_schema.iloc[0][0] is None:
-                default_schema = 'dbo'
-            else:
-                default_schema = default_schema.iloc[0][0]
+            default_schema = default_schema.iloc[0][0]#.encode('utf-8')
             return default_schema
         elif db_type == PG:
             return 'public'
@@ -144,6 +143,7 @@ class DbConnect:
         """
         if self.default_connect:
             self.type = config.get('DEFAULT DATABASE', 'type')
+            self.__set_type()
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
 
@@ -186,33 +186,21 @@ class DbConnect:
         Creates connection to sql server db
         :return: None
         """
-        if self.use_native_driver:
-            driver = config.get('ODBC Drivers', 'NATIVE_DRIVER')
-        else:
-            driver = config.get('ODBC Drivers', 'ODBC_DRIVER')
-
-            if self.connection_count == 0:
-                print('Warning:\n\tWithout SQL Server Native Client 10.0 \
-                                   datetime2 will not be interpreted correctly\n')
 
         if self.LDAP:
             self.params = {
-                'DRIVER': driver,
-                'DATABASE': self.database,
-                'SERVER': self.server,
-                'Trusted_Connection': 'yes'
+                'database': self.database,
+                'host': self.server
             }
         else:
             self.params = {
-                'DRIVER': driver,
-                'DATABASE': self.database,
-                'UID': self.user,
-                'PWD': self.password,
-                'SERVER': self.server
-            }
+                'database': self.database,
+                'host': self.server,
+                'user': self.user,
+                'password': self.password            }
 
         try:
-            self.conn = pyodbc.connect(**self.params)
+            self.conn = pymssql.connect(**self.params)
         except Exception as e:
             print(e)
             # Revert to SQL driver and show warning
@@ -222,8 +210,7 @@ class DbConnect:
                     print('Warning:\n\tMissing SQL Server Native Client 10.0 \
                                       datetime2 will not be interpreted correctly\n')
 
-                self.params['DRIVER'] = 'SQL Server'
-                self.conn = pyodbc.connect(**self.params)
+                self.conn = pymssql.connect(**self.params)
 
     def connect(self, quiet=False):
         # type: (DbConnect, bool) -> None
@@ -279,8 +266,9 @@ class DbConnect:
 
         elif self.type == MS:
             try:
-                self.conn.cursor()
-            except pyodbc.ProgrammingError:
+                self.conn._conn.connected
+            except Exception as e:
+                print(e)
                 self.connect(True)
 
     """
@@ -488,7 +476,7 @@ class DbConnect:
         self.check_conn()
         return self.data
 
-    def clean_up_new_tables(self):
+    def cleanup_new_tables(self):
         # type: (DbConnect) -> None
         """
         Drops all newly created tables from this DbConnect object
@@ -903,7 +891,7 @@ class DbConnect:
 
         def contains_long_columns(df2):
             for c in list(df2.columns):
-                if df2[c].dtype in ('object', 'string', 'str'):
+                if df2[c].dtype in ('O','object', 'str'):
                     if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
                         print('Varchar column with length greater than 500 found; allowing max varchar length.')
                         return True
@@ -1102,7 +1090,17 @@ class DbConnect:
                 cols = str(cols).replace("'", "")[1:-1]
             else:
                 # If not input_schema, use what GDAL created
-                cols = '*'
+                # cols = '*'
+                _ = self.get_table_columns(f'stg_{table}', schema=schema)
+                cols = []
+                for c in _:
+                    if len(set(c[0]) - {' ', ':', '.'}) != len(set(c[0])):
+                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_'))
+                    else:
+                        cols.append(c[0])
+                cols = str(cols).replace("'", "")[1:-1]
+
+
 
             if self.table_exists(schema=schema, table=table):
                 # Move into final table from stg
@@ -1723,7 +1721,8 @@ class DbConnect:
         table = table.lower()
 
         shp = Shapefile(dbo=self, path=path, table=table, schema=schema, query=None,
-                        shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,skip_failures=skip_failures)
+                        shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,
+                        skip_failures=skip_failures)
 
         shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
 
