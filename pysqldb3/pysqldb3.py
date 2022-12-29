@@ -915,7 +915,7 @@ class DbConnect:
         # Check for varchar columns > 500 in length
         allow_max = False
         if os.path.getsize(input_file) > 1000000:
-            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15)
+            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep)
             df = data.get_chunk(1000)
 
             # Check for long column iteratively
