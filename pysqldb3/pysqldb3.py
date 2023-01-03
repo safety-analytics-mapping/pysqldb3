@@ -802,7 +802,7 @@ class DbConnect:
             allowed_length = 500
 
         # Parse df for schema
-        for col in df.dtypes.iteritems():
+        for col in df.dtypes.items():
             col_name, col_type = col[0], type_decoder(col[1], varchar_length=allowed_length)
 
             if column_type_overrides and col_name in column_type_overrides.keys():
@@ -915,7 +915,7 @@ class DbConnect:
         # Check for varchar columns > 500 in length
         allow_max = False
         if os.path.getsize(input_file) > 1000000:
-            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15)
+            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep)
             df = data.get_chunk(1000)
 
             # Check for long column iteratively
