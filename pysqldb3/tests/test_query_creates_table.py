@@ -185,15 +185,15 @@ class TestQueryCreatesTablesSql():
         insert into @tbl values (1000, 'Main Street')
         insert into @tbl values (1001, 'Main Street 1')
         insert into @tbl values (1002, 'Main Street 2' )
-                
-        select @ret = street from @tbl where seg = 1000      
-        
+
+        select @ret = street from @tbl where seg = 1000
+
         RETURN @ret
-        
+
         END
-        
+
         select dbo.fnTblData()
-        
+
         declare @v varchar(200)
         set @v = dbo.fnTblData()
         select @v
@@ -205,7 +205,7 @@ class TestQueryCreatesTablesSql():
             create procedure dbo.fnTestTempTbl
             as
             begin
-            select * into #temp1 from fatality.dbo.FARS_Fatal_Other 
+            select * into #temp1 from fatality.dbo.FARS_Fatal_Other
             select * from #temp1
             drop table #temp1
             end
@@ -217,7 +217,7 @@ class TestQueryCreatesTablesSql():
                     create procedure dbo.fnTestTempTbl
                     as
                     begin
-                    select * into temp1 from fatality.dbo.FARS_Fatal_Other 
+                    select * into temp1 from fatality.dbo.FARS_Fatal_Other
                     drop table temp1
                     end
                 """
@@ -376,6 +376,52 @@ class TestQueryCreatesTablesSql():
                         """
         assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[abc test2]',
                                                                             '[riscrashdata].[dbo].[123 test2]']
+
+        def test_multiple_qrys_select_into_dif_parts(self):
+            query_string = """
+                insert into working.safety_projects_segs (id, src, segmentid, mft, dte, conservative)
+
+                select control_id, 'signal', segmentid, mft::int, install_date::date, True
+                from signal_controller;
+
+
+                insert into working.safety_projects_segs (id, src, segmentid, mft, dte, conservative)
+
+                with i as (select control_id, 'signal', masterid, install_date::date from signal_controller)
+                select distinct control_id, 'signal', l.segmentid,l.mft,  install_date::date, False
+                from lion l
+                join i on i.masterid in (l.masteridfrom, masteridto)
+                where mft not in (select distinct mft from working.safety_projects_segs where src='signal') -- if conservative already exists dont add another
+                ;
+
+
+                select src, conservative, count(*) from working.safety_projects_segs group by 1,2;
+                   """
+            assert query.Query.query_creates_table(query_string, 'working', MS) == []
+
+            query_string = """
+                                select * 
+                                ;into 
+                                temp1 from fatality.dbo.FARS_Fatal_Other
+                            """
+            assert query.Query.query_creates_table(query_string, 'dbo', MS) == []
+
+
+    def test_semi_col_in_comment(self):
+        #TODO: the comment parsing isnt working correctly for this
+        query_string = """
+                    select * 
+                    --;
+                    into temp1 from fatality.dbo.FARS_Fatal_Other
+                """
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[temp1]']
+
+        query_string = """
+                            select * 
+                            /*;*/
+                            into temp1 from fatality.dbo.FARS_Fatal_Other
+                        """
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[temp1]']
 
 
 class TestQueryCreatesTablesPgSql():
@@ -778,3 +824,50 @@ class TestQueryCreatesTablesPgSql():
                            );
                            """
         assert query.Query.query_creates_table(query_string, 'public', PG) == []
+
+    def test_multiple_qrys_select_into_dif_parts(self):
+        query_string = """
+            insert into working.safety_projects_segs (id, src, segmentid, mft, dte, conservative)
+
+            select control_id, 'signal', segmentid, mft::int, install_date::date, True
+            from signal_controller;
+
+
+            insert into working.safety_projects_segs (id, src, segmentid, mft, dte, conservative)
+
+            with i as (select control_id, 'signal', masterid, install_date::date from signal_controller)
+            select distinct control_id, 'signal', l.segmentid,l.mft,  install_date::date, False
+            from lion l
+            join i on i.masterid in (l.masteridfrom, masteridto)
+            where mft not in (select distinct mft from working.safety_projects_segs where src='signal') -- if conservative already exists dont add another
+            ;
+
+
+            select src, conservative, count(*) from working.safety_projects_segs group by 1,2;
+               """
+        assert query.Query.query_creates_table(query_string, 'working', PG) == []
+
+        query_string = """
+                                       select * from a
+                                       ;into 
+                                       working.temp1 from fatality.dbo.FARS_Fatal_Other
+                                   """
+        assert query.Query.query_creates_table(query_string, 'working', PG) == []
+
+    def test_semi_col_in_comment(self):
+        # TODO: the comment parsing isnt working correctly for this
+        query_string = """
+                           select * 
+                           --;
+                           into working.temp1 
+                           from fatality.dbo.FARS_Fatal_Other
+                       """
+        assert query.Query.query_creates_table(query_string, 'working', PG) == ['working.temp1']
+
+        query_string = """
+                                   select * 
+                                   /*;*/
+                                   into working.temp1 
+                                   from fatality.dbo.FARS_Fatal_Other
+                               """
+        assert query.Query.query_creates_table(query_string, 'working', PG) == ['working.temp1']
