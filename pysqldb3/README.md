@@ -21,7 +21,8 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 
 
 1. [`DbConnect`](#connect): Connects to database
-
+1. [`disconnect`](#disconnect): Disconnects from database.  
+1. [`check_conn`](#check_conn): Checks and reconnects to connection if not currently connected.
 
 ### DbConnect
 **`pysqldb3.DbConnect.(quiet=False)`**
