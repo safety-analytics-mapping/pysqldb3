@@ -279,7 +279,7 @@ class Query:
 
         # Adds catch for MS [database].[schema].[table]
         select_into = r'(((\$body\$)([^\$]*)(\$body\$;$))|((\$\$)([^\$]*)(\$\$;$)))|(?<!\*)(?<!\*\s)(?<!--)' \
-                      r'(?<!--\s)\s*(select[^\.]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
+                      r'(?<!--\s)\s*(select[^\.;]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
                       r'[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*' \
                       r'[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?)'
         matches = re.findall(select_into, query_string, re.IGNORECASE)
