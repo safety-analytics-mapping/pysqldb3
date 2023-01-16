@@ -68,7 +68,7 @@ Connection closed 2023-01-13 10:07:15
 >>> db.disconnect(quiet = True) #nothing will return
 
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### check_conn
@@ -85,7 +85,7 @@ Checks and reconnects to connection if not currently connected.
 >>> db.check_conn() #nothing will return
 
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### log_temp_table
@@ -102,7 +102,7 @@ Writes tables to temp log to be deleted after expiration date. This method gets 
 >>> db.log_temp_table(schema="working", table="doc_test", owner='****')
 #nothing will return
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### check_logs
@@ -121,7 +121,7 @@ Queries the temp log associated with the user's login and returns a pandas DataF
    tbl_id table_owner table_schema table_name          created_on     expires
 0       1        ****      working   doc_test 2023-01-16 12:44:00  2023-01-23
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### cleanup_new_tables
@@ -162,7 +162,7 @@ Empty DataFrame
 Columns: [tbl_id, table_owner, table_schema, table_name, created_on, expires]
 Index: []
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### blocking_me
@@ -181,7 +181,7 @@ Empty DataFrame
 Columns: [blocked_pid, blocked_user, blocking_pid, blocking_user, blocked_statement, current_statement_in_blocking_process]
 Index: []
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### kill_blocks
@@ -197,7 +197,7 @@ Will kill any queries that are blocking, that the user (defined in the connectio
 >>> db.kill_blocks()
 #nothing will return if there's no block
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### my_tables
@@ -215,7 +215,7 @@ Get a list of tables for which user (defined in the connection) is the owner Pos
                  tablename tableowner
 0  __temp_log_table_****__       ****
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### table_exists
@@ -233,7 +233,7 @@ Checks if table exists in the database
 
 True
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### get_schemas
@@ -250,7 +250,7 @@ Gets a list of schemas available in the database
 
 ['pg_catalog', 'information_schema', 'public', 'topology', 'working', 'staging', 'archive', 'visionzero']
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### query
@@ -332,7 +332,7 @@ LINE 1: ...able working.haos_temp_test_table; select * from working.ha...
         drop table working.haos_temp_test_table; select * from working.haos_temp_test_table
 
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### drop_table
@@ -374,7 +374,7 @@ True
  
 False
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### rename_column
@@ -413,7 +413,7 @@ Renames a column to the new column name on the specified table
    new_column  other_field
 0           1            2
 ```
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### dfquery
@@ -471,7 +471,7 @@ Name: dta, dtype: int64
 
 ```
 
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### print_last_query
@@ -517,7 +517,7 @@ Prints latest query run with basic formatting.
 
 ```
 
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### dataframe_to_table_schema
@@ -557,7 +557,7 @@ Index: []
 
 ```
 
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 ### dataframe_to_table
@@ -604,7 +604,7 @@ Reading data into Database
 
 ```
 
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 #### csv_to_table
@@ -648,7 +648,7 @@ Reading data into Database
 0           0        1     text  2023-01-16 15:13:57.251890-05:00
 ```
 
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 #### xls_to_table
@@ -703,6 +703,137 @@ Reading data into Database
 0        1       0        1     text   2023-01-16
 ```
 
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+#### query_to_csv
+**`DbConnect.query_to_csv(query, strict=True, output_file=None, open_file=False, sep=',', quote_strings=True,
+                     quiet=False)`**
+Exports query results to a csv file. 
+
+###### Parameters:
+ - **`query` str**: SQL query as string type; the query should ultimatley return data (ie. include a `select` statement) 
+ - **`strict` bool, default True**: If true will run sys.exit on failed query attempts
+ - **`output_file` str, default None**: File path for resulting csv file, if not provided the output will write a file to current directory named `data_[YYYMMDD].csv`
+ - **`open_file` bool, default False**:  If true output file will be automatically opened when complete 
+ - **`sep` str, default `,`**: Delimiter for csv; defaults to comma (,) 
+ - **`quote_strings` bool, default True**: Defaults to True (csv.QUOTE_ALL); if False, will csv.QUOTE_MINIMAL
+ - **`quiet` bool, default False'**: If True will override default behavior which outputs query metrics and output location
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db.query_to_csv("select street, segmentid, lboro from lion limit 25;")
+
+- Query run 2023-01-16 15:27:04.686184
+ Query time: Query run in 0 microseconds
+ * Returned 25 rows *
+Writing to C:\Users\hshi\data_202301161527.csv
+
+>>> db.query_to_csv("select street, segmentid, lboro from lion limit 25;", output_file= r'...\hao_sample_data.csv', open_file=True)
+- Query run 2023-01-16 15:30:54.233901
+ Query time: Query run in 0 microseconds
+ * Returned 25 rows *
+Writing to ...\hao_sample_data.csv
+
+#will open the file
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+#### query_to_map
+**`DbConnect.query_to_map(query, value_column, geom_column=None, id_column=None)`**
+
+Generates simple Plotly Choropleth Map from query results. 
+If no geom_column is specified, and the results contain columns named `precinct`, `nta`, `ntacode`, `boro`, `borough`, 
+or `borocode`, it will automatically link to precinct, NTA, or borough, respectively. **This will only work if the database connected to contains the appropriate tables:**
+- districts_police_precincts
+- districts_neighborhood_tabulation_areas
+- districts_boroughs
+
+###### Parameters:
+ - **`query` str**: SQL query as string type; the query should ultimatley return data (ie. include a `select` statement with polygon geometry or must contain appropriate join attrbute) 
+ - **`value_column` str**: The name of column with the value that is being mapped
+ - **`geom_column` str, default None**: the column with the geom that is being mapped;
+            if not filled in, columns must contain `precinct`, `nta`, `ntacode`, `boro`, `borough`, or `borocode`
+            *Must be used in conjunction with an id_column*
+ - **`id_column` str, default False**: The name of the column that contains the ID of the geography being mapped (ex. precinct, nta, boro);
+            if not filled in, columns must contain `precinct`, `nta`, `ntacode`, `boro`, `borough`, or `borocode`
+            *Must be used in conjunction with an geom_column*
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.query_to_map("""
+select 
+    lntacode as nta, 
+    count(*) cnt, 
+    n.geom 
+from lion l 
+join districts_neighborhood_tabulation_areas n 
+    on l.lntacode=n.ntacode 
+group by 
+    lntacode, n.geom
+""", 'cnt', id_column='nta', geom_column='geom')
+
+#will return a website with the map
+```
+Rely on on geom from districts table 
+```
+>>> from ris import pysqldb
+>>> db = pysqldb.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db.query_to_map("select lntacode as nta, count(*) cnt from lion group by lntacode;", 'cnt')
+
+#will return a website with the map
+```
+
+
+![alt text](https://github.com/safety-analytics-mapping/ris/blob/docs/Capture.JPG?raw=true)
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+#### query_to_shp
+**`DbConnect.query_to_shp(self, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+                     print_cmd=False, srid=2263)`**
+
+Generates shapefile output from the data returned from a query. 
+
+###### Parameters:
+ - **`query` str**: SQL query as string type; the query should ultimatley return data (ie. include a `select` statement with polygon geometry or must contain appropriate join attrbute) 
+ - **`shp_name` str, default None**: Output filename to be used for shapefile (should end in .shp)
+ - **`path` str, default None**: Folder path where the output shapefile will be written to, if none provided user input is required
+ - **`cmd` str, default None**: GDAL command to overwrite default behavior 
+ - **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+ - **`print_cmd` str, default None**: Option to print ogr command (without password)
+ - **`srid` int, default 2263**: SRID to manually set output to; defaults to 2263
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.query_to_shp("select street, segmentid, geom from lion where street ='WATER STREET'", path=r'C:\Users\HShi\Documents', shp_name='sample_shp.shp', print_cmd=True)
+
+- Query failed: table "tmp_query_to_shp_hshi_2023_01_16_1544" does not exist
+
+
+- Query run 2023-01-16 15:44:01.916732
+        drop table tmp_query_to_shp_hshi_2023_01_16_1544
+ ogr2ogr --config GDAL_DATA "C:\Program Files (x86)\GDAL\gdal-data" -overwrite -f "ESRI Shapefile" "C:\Users\HShi\Documents\sample_shp.shp"  -a_srs "EPSG:2263" PG:"host=dotdevrhpgsql01 user=hshi dbname=ris password=*********" -sql "SELECT * FROM (select \"street\" , \"segmentid\" , \"geom\" from (select street, segmentid, geom from lion where street ='WATER STREET') q ) x"
+b''
+sample_shp.shp shapefile
+written to: C:\Users\HShi\Documents
+generated from: select \"street\" , \"segmentid\" , \"geom\" from (select street, segmentid, geom from lion where street ='WATER STREET') q
+
+```
+
 [Back to Table of Contents](#pysqldb-public-functions)
 <br>
+
 
