@@ -113,7 +113,6 @@ Queries the temp log associated with the user's login and returns a pandas DataF
 ```
 >>> from pysqldb3 import pysqldb3
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
->>> db.check_logs(schema='working')
 
 >>> db.check_logs(schema="working")
    tbl_id table_owner table_schema table_name          created_on     expires
@@ -121,3 +120,40 @@ Queries the temp log associated with the user's login and returns a pandas DataF
 ```
 [Back to Table of Contents](#pysqldb-public-functions)
 <br>
+
+### cleanup_new_tables
+**`DbConnect.clean_up_new_tables()`**
+Drops all newly created tables from this DbConnect instance (current session).
+###### Parameters:
+ - None
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+
+>>> db.check_logs(schema="working")
+Empty DataFrame
+Columns: [tbl_id, table_owner, table_schema, table_name, created_on, expires]
+Index: []
+
+>>> db.query("create table working.haos_temp_test_table as select 1 as dta")
+- Query run 2023-01-16 13:01:04.224953
+ Query time: Query run in 2091 microseconds
+ * Returned 0 rows *
+ 
+>>> db.check_logs(schema='working')
+   tbl_id table_owner table_schema            table_name          created_on     expires
+0       2        hshi      working  haos_temp_test_table 2023-01-16 13:01:00  2023-01-23
+
+>>> db.cleanup_new_tables()
+Dropped 1 tables
+
+>>> db.check_logs(schema='working')
+Empty DataFrame
+Columns: [tbl_id, table_owner, table_schema, table_name, created_on, expires]
+Index: []
+```
+[Back to Table of Contents](#pysqldb-public-functions)
+<br>
+
