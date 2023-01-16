@@ -157,3 +157,38 @@ Index: []
 [Back to Table of Contents](#pysqldb-public-functions)
 <br>
 
+### blocking_me
+**`DbConnect.blocking_me()`**
+QRuns dfquery to find which queries or users are blocking the user defined in the connection. Postgres Only.
+###### Parameters:
+- None
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.blocking_me()
+
+Empty DataFrame
+Columns: [blocked_pid, blocked_user, blocking_pid, blocking_user, blocked_statement, current_statement_in_blocking_process]
+Index: []
+```
+[Back to Table of Contents](#pysqldb-public-functions)
+<br>
+
+### kill_blocks
+**`DbConnect.kill_blocks()`**
+Will kill any queries that are blocking, that the user (defined in the connection) owns. Postgres Only.
+###### Parameters:
+- None
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.kill_blocks()
+#nothing will return if there's no block
+```
+[Back to Table of Contents](#pysqldb-public-functions)
+<br>
+
