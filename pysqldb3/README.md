@@ -24,8 +24,9 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 1. [`disconnect`](#disconnect): Disconnects from database.  
 1. [`check_conn`](#check_conn): Checks and reconnects to connection if not currently connected.
 
-### DbConnect
-**`pysqldb3.DbConnect.(quiet=False)`**
+## Details 
+### connect
+**`pysqldb3.DbConnect(quiet=False)`**
 Creates database connection instance.  
 ###### Parameters:
  - **`quiet`: bool, default False**: When true, does not print database connection information.
@@ -34,19 +35,15 @@ Creates database connection instance.
 **Sample** 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(quiet=False)
->>> print(db)
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
 
-Additional database connection details required:
-Database type (MS/PG)PG
-Server:dotdevrhpgsql01
-Database name:ris
-User name (ris):hshi
-Password (ris): ********
 
-Database connection (PG) to ris on dotdevrhpgsql01 - user: hshi
+>>> db.connect()
+Database connection (PG) to ris on dotdevrhpgsql01 - user: ****
 Connection established 2023-01-13 09:41:52, /
 - ris version 0.0.3 -
+
+>>> db.connect(quiet = True)) #nothing will return
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
@@ -60,11 +57,13 @@ Disconnects from database. When called this will print database connection infor
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(quiet=False)
-...
+>>> db = db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+
 >>> db.disconnect()
-Database connection (PG) to ris on dotdevrhpgsql01 - user: hshi
+Database connection (PG) to ris on dotdevrhpgsql01 - user: ****
 Connection closed 2023-01-13 10:07:15
+
+>>> db.disconnect(quiet = True) #nothing will return
 
 ```
 [Back to Table of Contents](#pysqldb-public-functions)
@@ -72,17 +71,53 @@ Connection closed 2023-01-13 10:07:15
 
 ### check_conn
 **`DbConnect.check_conn()`**
-Checks and reconnects to connection if not currently connected.
+Checks and reconnects to connection if not currently connected. 
 
 ###### Parameters: 
 - None
 
 **Sample**
 ```
->>> from ris import pysqldb
->>> db = pysqldb.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
->>> db.check_conn()
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.check_conn() #nothing will return
 
+```
+[Back to Table of Contents](#pysqldb-public-functions)
+<br>
+
+### log_temp_table
+**`DbConnect.log_temp_table(schema, table, owner, server=None, database=None, expiration=datetime.datetime.now() + datetime.timedelta(days=7))`**
+Writes tables to temp log to be deleted after expiration date. This method gets called automatically when a table is created by a DbConnect query. 
+###### Parameters:
+ - **`schema`: str**: Database schema name 
+ - **`table`: str**: Table name to log 
+  - **`owner`: str**: User name of table owner
+  - **`server`: str, default None**: Name of server, this is needed for queries that create tables on servers that are different from the DbConnect instance's server connection
+  - **`database`: str, default None**: Name of database, this is needed for queries that create tables on servers that are different from the DbConnect instance's server connection
+  - **`expiration`: datetime, default datetime.datetime.now() + datetime.timedelta(days=7)**: Date where table should be removed from the database
+```
+>>> db.log_temp_table(schema="working", table="doc_test", owner='****')
+#nothing will return
+```
+[Back to Table of Contents](#pysqldb-public-functions)
+<br>
+
+### check_logs
+**`DbConnect.check_logs(schema=None)`**
+Queries the temp log associated with the user's login and returns a pandas DataFrame of results.  
+###### Parameters:
+ - **`schema`: str, default None**: Database schema name 
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.check_logs(schema='working')
+
+>>> db.check_logs(schema="working")
+   tbl_id table_owner table_schema table_name          created_on     expires
+0       1        ****      working   doc_test 2023-01-16 12:44:00  2023-01-23
 ```
 [Back to Table of Contents](#pysqldb-public-functions)
 <br>
