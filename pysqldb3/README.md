@@ -811,7 +811,7 @@ Generates shapefile output from the data returned from a query.
  - **`cmd` str, default None**: GDAL command to overwrite default behavior 
  - **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
  - **`print_cmd` str, default None**: Option to print ogr command (without password)
- - **`srid` int, default 2263**: SRID to manually set output to; defaults to 2263
+ - **`srid` int, default 2263**: SRID to manually set output to
 
 **Sample**
 
@@ -833,7 +833,195 @@ generated from: select \"street\" , \"segmentid\" , \"geom\" from (select street
 
 ```
 
-[Back to Table of Contents](#pysqldb-public-functions)
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+#### table_to_shp
+**`DbConnect.table_to_shp(table, schema=None, strict=True, path=None, shp_name=None, cmd=None,
+                     gdal_data_loc=GDAL_DATA_LOC, print_cmd=False)`**
+
+Generates shapefile output from the data returned from a query. 
+
+###### Parameters:
+ - **`table` str**: SQL query as string type; the query should ultimatley return data (ie. include a `select` statement with polygon geometry or must contain appropriate join attrbute) 
+ - **`schema` str, default None**:  Database schema to use for destination in database (defaults database object's default schema)
+ - **`shp_name` str, default None**: Output filename to be used for shapefile (should end in .shp)
+ - **`strict` bool, default True**: If True will run sys.exit on failed query attempts
+ - **`path` str, default None**: Folder path where the output shapefile will be written to, if none provided user input is required
+ - **`cmd` str, default None**: GDAL command to overwrite default behavior 
+ - **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+ - **`print_cmd` str, default None**: Option to print ogr command (without password)
+ - **`srid` int, default 2263**: SRID to manually set output to
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.query("create table working.sample as select segmentid, number_travel_lanes, corridor_street, carto_display_level, created, geom from lion")
+ 
+ - Query run 2023-01-16 16:04:12.159604
+ Query time: Query run in 1 seconds
+ * Returned 0 rows *
+ 
+>>> db.table_to_shp('sample', schema='working', path=r'C:\Users\HShi\Documents', shp_name='lion_sample_shp.shp')
+ 
+-- Query failed: table "tmp_query_to_shp_hshi_2023_01_16_1605" does not exist
+
+
+- Query run 2023-01-16 16:05:21.866019
+        drop table tmp_query_to_shp_hshi_2023_01_16_1605
+
+            The following columns are of type datetime/timestamp:
+
+            ['created']
+
+            Shapefiles don't support datetime/timestamps with both the date and time. Each column will be split up
+            into colname_dt (of type date) and colname_tm (of type **string/varchar**).
+
+b"Warning 6: Normalized/laundered field name: 'number_travel_lanes' to 'number_tra'\r\nWarning 6: Normalized/laundered field name: 'corridor_street' to 'corridor_s'\r\nWarning 6: Normalized/laundered field name: 'carto_display_level' to 'carto_disp'\r\n"
+lion_sample_shp.shp shapefile
+written to: C:\Users\HShi\Documents
+generated from: select \"segmentid\" , \"number_travel_lanes\" , \"corridor_street\" , \"carto_display_level\" , \"geom\" , cast(\"created\" as date) \"created_dt\", cast(cast(\"created\" as time) as varchar) \"created_tm\"  from (select * from working.sample) q
+
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+#### table_to_csv
+**`DbConnect.table_to_csv(table, schema=None, strict=True, output_file=None, open_file=False, sep=',',
+                     quote_strings=True)`**
+
+Generates shapefile output from the data returned from a query. 
+
+###### Parameters:
+ - **`table` str**: Name of database table to be used  
+ - **`schema` str, default None**:  Database schema to use for destination in database (defaults database object's default schema)
+ - **`strict` bool, default True**: If True will run sys.exit on failed query attempts
+ - **`output_file` str, default None**: String for csv output file location and file name. If none provided defaults to current directory and table name
+ - **`open_file` bool, default False**: Option to automatically open output file when finished; defaults to False
+ - **`sep` str, default ','**: Seperator to use for csv (defaults to `,`) 
+ - **`quote_strings` bool, default True**: PaBoolean flag for adding quote strings to output (defaults to true, QUOTE_ALL)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.query("create table working.hs_sample as select segmentid, number_travel_lanes, corridor_street, carto_display_level, created, geom from lion")
+ 
+ - Query run 2023-01-16 16:14:02.326916
+ Query time: Query run in 1 seconds
+ * Returned 0 rows *
+ 
+>>> db.table_to_csv('hs_sample', schema='working', output_file=r'C:\Users\HShi\Documents\lion_sample_shp.csv')
+
+ - Query run 2021-08-10 10:41:26.242000
+ Query time: Query run in 2000 microseconds
+ * Returned 0 rows *
+Writing to C:\Users\HShi\Documents\lion_sample_shp.csv
+
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+#### shp_to_table
+
+**`DbConnect.shp_to_table(path=None, table=None, schema=None, shp_name=None, cmd=None,
+                     port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
+                     shp_encoding=None, print_cmd=False, days=7)`**
+
+Imports ESRI Shapefile to database, uses GDAL to generate the table.
+
+###### Parameters:
+ - **`path` str, default None**: File path of the shapefile; if None, prompts user input
+ - **`table` str, default None**: Table name to be used in the database; if None will use shapefile's name 
+ - **`schema` str, default None**:  Database schema to use for destination in database (defaults database object's default schema)
+ - **`shp_name` str, default None**: Output filename to be used for shapefile (should end in .shp)
+ - **`cmd` str, default None**: GDAL command to overwrite default behavior 
+ - **`port` str, default None**:  Database port to use, defaults database connection port
+ - **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+ - **`precision` bool, default False**:  Sets precision flag in ogr (defaults to `-lco precision=NO`)
+ - **`private` bool, default False**: Flag for permissions output table in database (Defaults to False - will grant select to public)
+ - **`temp` bool, default True**: Optional flag to make table as not-temporary (defaults to True)
+ - **`shp_encoding` str, default None**: If not None, sets the PG client encoding while uploading the shpfile. Options inlude `LATIN1` or `UTF-8`.
+ - **`print_cmd` str, default None**: Option to print ogr command (without password)
+ - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
+ 
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db.shp_to_table(path=r'C:\Users\HShi\Documents', shp_name='lion_sample_shp.shp', table='lion_sample_import', schema='working')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+- Query run 2023-01-16 16:37:57.418900
+ Query time: Query run in 12907 microseconds
+ * Returned 0 rows *
+
+>>> db.dfquery("select * from working.lion_sample_import limit 3")
+
+      ogc_fid segmentid number_tra  ...  created_dt created_tm                                               geom
+0        1   0294281          2  ...  2022-10-14   10:12:40  0105000020D70800000100000001020000000200000000...
+1        2   0043911          2  ...  2022-10-14   10:12:40  0105000020D70800000100000001020000000200000000...
+2        3   0118892          1  ...  2022-10-14   10:12:40  0105000020D70800000100000001020000000200000080...
+
+[3 rows x 8 columns]
+
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
 <br>
 
 
+
+#### feature_class_to_table
+
+**`DbConnect.feature_class_to_table(path, table, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
+                               private=False, temp=True, fc_encoding=None, print_cmd=False,
+                               days=7)`**
+
+Imports feature class from ESRI file geodatabase, uses GDAL to generate the table.
+
+###### Parameters:
+ - **`path` str**: File path of the geodatabase
+ - **`table` str**: Table name to be used in the database
+ - **`schema` str, default None**:  Database schema to use for destination in database (defaults database object's default schema)
+ - **`shp_name` str, default None**: Output filename to be used for shapefile
+ - **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+ - **`private` bool, default False**: Flag for permissions output table in database (Defaults to False - will grant select to public)
+ - **`temp` bool, default True**: Optional flag to make table as not-temporary (defaults to True)
+ - **`fc_encoding` str, default None**: If not None, sets the PG client encoding while uploading the shpfile. Options inlude `LATIN1` or `UTF-8`.
+ - **`print_cmd` str, default None**: Option to print ogr command (without password)
+ - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
+ - **`srid` int, default 2263**: SRID to manually set output to 
+ 
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db.feature_class_to_table(path=r'E:\RIS\Staff Folders\Seth\sample\file_geodatabase.gdb', shp_name='Pct81', table='sample_fc_import', schema='working')
+
+, table='sample_fc_import', schema='working')
+0...10...20...30...40...50...60...70...80...90...100 - done.
+
+- Query run 2021-08-10 11:22:34.254000
+ Query time: Query run in 2000 microseconds
+ * Returned 0 rows *
+ 
+>>> db.dfquery("select * from working.sample_fc_import limit 3")
+   objectid_1  objectid  loc  ...             x              y                                               geom
+0           1     12495  INT  ...  1.001274e+06  186245.989763  0104000020D70800000100000001010000000045FD8F73...
+1           2     12496  INT  ...  1.001306e+06  186672.914762  0104000020D70800000100000001010000008080F1B8B3...
+2           3     12497  INT  ...  1.001326e+06  186946.733112  0104000020D708000001000000010100000000A8ED4EDB...
+
+[3 rows x 16 columns]
+
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
