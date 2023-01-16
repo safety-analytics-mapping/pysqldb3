@@ -192,3 +192,37 @@ Will kill any queries that are blocking, that the user (defined in the connectio
 [Back to Table of Contents](#pysqldb-public-functions)
 <br>
 
+### my_tables
+**`DbConnect.my_tables(schema='public')`**
+Get a list of tables for which user (defined in the connection) is the owner Postgres Only.
+###### Parameters:
+ - **`schema`: str, default None**: Database schema name
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.my_tables(schema='working')
+                 tablename tableowner
+0  __temp_log_table_****__       ****
+```
+[Back to Table of Contents](#pysqldb-public-functions)
+<br>
+
+### table_exists
+**`DbConnect.table_exists(table, **kwargs)`**
+Checks if table exists in the database
+###### Parameters:
+ - **`table`: str** Table name 
+ - **`schema`: str, default Database's default schema**: Database schema name 
+ 
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db.table_exists('bike_inj', schema='working')
+True
+```
+[Back to Table of Contents](#pysqldb-public-functions)
+<br>
+
