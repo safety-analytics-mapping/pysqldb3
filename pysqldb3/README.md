@@ -89,7 +89,7 @@ Disconnects from database. When called this will print database connection infor
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 
 >>> db.disconnect()
 
