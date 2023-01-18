@@ -23,6 +23,37 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 1. [`DbConnect`](#connect): Connects to database
 1. [`disconnect`](#disconnect): Disconnects from database.  
 1. [`check_conn`](#check_conn): Checks and reconnects to connection if not currently connected.
+1. [`log_temp_table`](#log_temp_table): Writes tables to temp log to be deleted after expiration date.
+1. [`check_logs`](#check_logs): Queries the temp log associated with the user's login and returns a pandas DataFrame of results. 
+1. [`clean_up_new_tables`](#clean_up_new_tables): Drops all newly created tables from this DbConnect instance (current session).
+1. [`blocking_me`](#blocking_me): Queries database to check for queries or users currently blocking the user ()defined in the connection). *Postgres Only.*
+1. [`kill_blocks`](#kill_blocks): Will kill any queries that are blocking, that the user (defined in the connection) owns. *Postgres Only*.
+1. [`my_tables`](#my_tables): Get a list of tables for which user (defined in the connection) is the owner *Postgres Only*.
+1. [`table_exists`](#table_exists): Checks if table exists in the database. 
+1. [`get_schemas`](#get_schemas): Gets a list of schemas available in the database
+1. [`query`](#query): Runs query from input SQL string, calls Query object. 
+1. [`drop_table`](#drop_table):  Drops table from database and removes from the temp log table
+1. [`rename_column`](#rename_column): Renames a column to the new column name on the specified table.
+1. [`dfquery`](#dfquery): Runs from input SQL string, calls Query object with `return_df=True`; returns Pandas DataFrame
+1. [`print_last_query`](#print_last_query): Prints latest query run with basic formatting
+1. [`dataframe_to_table_schema`](#dataframe_to_table_schema): Translates Pandas DataFrame into empty database table.
+1. [`dataframe_to_table`](#dataframe_to_table): Adds data from Pandas DataFrame to existing table
+1. [`csv_to_table`](#csv_to_table): Imports csv file to database. This uses pandas datatypes to generate the table schema.
+1. [`xls_to_table`](#xls_to_table): Imports xls file to database. This uses pandas datatypes to generate the table schema.
+1. [`query_to_csv`](#query_to_csv): Exports query results to a csv file.
+1. [`query_to_map`](#query_to_map): Generates Plotly choropleth map using the query results.
+1. [`query_to_shp`](#query_to_shp): Exports query results to an ESRI Shapefile file.
+1. [`table_to_shp`](#table_to_shp): Exports database table to an ESRI Shapefile file.
+1. [`table_to_csv`](#table_to_csv): Exports database table to a csv file.
+1. [`shp_to_table`](#shp_to_table): Imports ESRI Shapefile to database, uses GDAL to generate the table.
+1. [`feature_class_to_table`](#feature_class_to_table): Imports shape file feature class to database, uses GDAL to generate the table.
+
+
+
+
+
+
+
 
 ## Details 
 ### connect
