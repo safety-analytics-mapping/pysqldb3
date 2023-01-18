@@ -13,8 +13,6 @@ To create a DbConnect object:
     + You can also add your username using `user='my_username'` 
     + You can add your password similarly using `password='mypassword'`
     + Other inputs include LDAP and ports. If you're unsure about these, feel free to ask around. 
-    + default database connection details stored in a configuration file, which is set on initial run. The file 
-    config.cfg is in the same directory as the pysqldb3 library code.
 3. Now, you can query on your database by using `db.query('select * from my_schema.my_table')`
 
 ### 1.2 Functions 
@@ -299,7 +297,7 @@ Runs query from input SQL string, calls Query object.
  - **`timeme` bool, default True**: If False overrides default behavior that automatically prints query durration time
  - **`no_comment` bool, default False**: If True overrides default behavior to automatically generate a comment on any tables created in query (Postgres only)
  - **`comment` str, default ''**: If provided, appends to automatic table generation comment
- - **`lock_table` str, default None**: ??? Table schema and name to be locked in formate `'schema.table'`
+ - **`lock_table` str, default None**: ??? Table schema and name to be locked in format `'schema.table'`
  - **`return_df` bool, default False**: If False overrides default behavior where query results are stored and not returned, if True returns pandas DataFrame
  - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
  - **`internal` Boolean, default False**, flag for internal processes
@@ -873,7 +871,7 @@ generated from: select \"street\" , \"segmentid\" , \"geom\" from (select street
 **`DbConnect.table_to_shp(table, schema=None, strict=True, path=None, shp_name=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False)`**
 
-Generates shapefile output from the data returned from a query. 
+Exports database table to an ESRI Shapefile file. 
 
 ###### Parameters:
  - **`table` str**: SQL query as string type; the query should ultimatley return data (ie. include a `select` statement with polygon geometry or must contain appropriate join attrbute) 
@@ -1023,7 +1021,7 @@ Imports feature class from ESRI file geodatabase, uses GDAL to generate the tabl
  - **`path` str**: File path of the geodatabase
  - **`table` str**: Table name to be used in the database
  - **`schema` str, default None**:  Database schema to use for destination in database (defaults database object's default schema)
- - **`shp_name` str, default None**: Output filename to be used for shapefile
+ - **`shp_name` str, default None**: Input filename to be used for shapefile
  - **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
  - **`private` bool, default False**: Flag for permissions output table in database (Defaults to False - will grant select to public)
  - **`temp` bool, default True**: Optional flag to make table as not-temporary (defaults to True)
