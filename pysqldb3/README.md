@@ -289,6 +289,13 @@ Gets a list of schemas available in the database
               lock_table=None, return_df=False, days=7, internal=False)`**
 
 Runs query from input SQL string, calls Query object.
+
+All run queries will be recorded in the `queries` attribute.
+
+All table created will be recorded in the `tables_created` attribute.
+
+All table dropped will be recorded in th `table_dropped` attribute.
+
 ###### Parameters:
  - **`query` str**: String sql query to be run
  - **`strict` bool, defaut True**: If True will run sys.exit on failed query attempts
@@ -297,7 +304,7 @@ Runs query from input SQL string, calls Query object.
  - **`timeme` bool, default True**: If False overrides default behavior that automatically prints query durration time
  - **`no_comment` bool, default False**: If True overrides default behavior to automatically generate a comment on any tables created in query (Postgres only)
  - **`comment` str, default ''**: If provided, appends to automatic table generation comment
- - **`lock_table` str, default None**: ??? Table schema and name to be locked in format `'schema.table'`
+ - **`lock_table` str, default None**: ??? Table schema and name to be locked in format `'schema.table'`, obtained to be used for creating exclusive locks 
  - **`return_df` bool, default False**: If False overrides default behavior where query results are stored and not returned, if True returns pandas DataFrame
  - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
  - **`internal` Boolean, default False**, flag for internal processes
@@ -468,8 +475,8 @@ This is a wrapper for query, to return a pandas DataFram. This runs query from i
 
 Use query to set up sample table and dfquery to explore results in pandas.
 ```
->>> from ris import pysqldb
->>> db = pysqldb.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query("""
     drop table if exists working.haos_temp_test_table; 
     create table working.haos_temp_test_table as select 1 as dta, 2 as other_field;
@@ -1021,7 +1028,7 @@ Imports feature class from ESRI file geodatabase, uses GDAL to generate the tabl
  - **`path` str**: File path of the geodatabase
  - **`table` str**: Table name to be used in the database
  - **`schema` str, default None**:  Database schema to use for destination in database (defaults database object's default schema)
- - **`shp_name` str, default None**: Input filename to be used for shapefile
+ - **`shp_name` str, default None**: Feature_class name to be used for shapefile
  - **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
  - **`private` bool, default False**: Flag for permissions output table in database (Defaults to False - will grant select to public)
  - **`temp` bool, default True**: Optional flag to make table as not-temporary (defaults to True)
