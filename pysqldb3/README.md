@@ -66,12 +66,12 @@ Creates database connection instance.
 **Sample** 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 
 
 >>> db.connect()
 
-Database connection (PG) to ris on dotdevrhpgsql01 - user: ****
+Database connection (PG) to ris on dotdevrhpgsql01 - user: user_name
 Connection established 2023-01-13 09:41:52, /
 - ris version 0.0.3 -
 
@@ -89,11 +89,11 @@ Disconnects from database. When called this will print database connection infor
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 
 >>> db.disconnect()
 
-Database connection (PG) to ris on dotdevrhpgsql01 - user: ****
+Database connection (PG) to ris on dotdevrhpgsql01 - user: user_name
 Connection closed 2023-01-13 10:07:15
 
 >>> db.disconnect(quiet = True) #nothing will return
@@ -112,7 +112,7 @@ Checks and reconnects to connection if not currently connected.
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.check_conn() #nothing will return
 
 ```
@@ -130,7 +130,7 @@ Writes tables to temp log to be deleted after expiration date. This method gets 
   - **`database`: str, default None**: Name of database, this is needed for queries that create tables on servers that are different from the DbConnect instance's server connection
   - **`expiration`: datetime, default datetime.datetime.now() + datetime.timedelta(days=7)**: Date where table should be removed from the database
 ```
->>> db.log_temp_table(schema="working", table="doc_test", owner='****')
+>>> db.log_temp_table(schema="working", table="doc_test", owner='user_name')
 #nothing will return
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
@@ -145,12 +145,12 @@ Queries the temp log associated with the user's login and returns a pandas DataF
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 
 >>> db.check_logs(schema="working")
 
    tbl_id table_owner table_schema table_name          created_on     expires
-0       1        ****      working   doc_test 2023-01-16 12:44:00  2023-01-23
+0       1   user_name      working   doc_test 2023-01-16 12:44:00  2023-01-23
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
@@ -164,7 +164,7 @@ Drops all newly created tables from this DbConnect instance (current session).
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 
 >>> db.check_logs(schema="working")
 
@@ -181,7 +181,7 @@ Index: []
 >>> db.check_logs(schema='working')
 
    tbl_id table_owner table_schema            table_name          created_on     expires
-0       2        hshi      working  haos_temp_test_table 2023-01-16 13:01:00  2023-01-23
+0       2   user_name      working  haos_temp_test_table 2023-01-16 13:01:00  2023-01-23
 
 >>> db.cleanup_new_tables()
 
@@ -205,7 +205,7 @@ QRuns dfquery to find which queries or users are blocking the user defined in th
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.blocking_me()
 
 Empty DataFrame
@@ -224,7 +224,7 @@ Will kill any queries that are blocking, that the user (defined in the connectio
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.kill_blocks()
 #nothing will return if there's no block
 ```
@@ -240,11 +240,11 @@ Get a list of tables for which user (defined in the connection) is the owner Pos
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.my_tables(schema='working')
 
-                 tablename tableowner
-0  __temp_log_table_****__       ****
+                       tablename     tableowner
+0  __temp_log_table_user_name__       user_name
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
@@ -259,7 +259,7 @@ Checks if table exists in the database
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.table_exists('bike_inj', schema='working')
 
 True
@@ -276,7 +276,7 @@ Gets a list of schemas available in the database
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.get_schemas()
 
 ['pg_catalog', 'information_schema', 'public', 'topology', 'working', 'staging', 'archive', 'visionzero']
@@ -307,7 +307,7 @@ Runs query from input SQL string, calls Query object.
 Create a table using query and verify that the table was recorded in the `tables_created` attribute
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 
 >>> db.query("create table working.haos_temp_test_table as select 1 as dta, 2 as other_field")
 
@@ -382,7 +382,7 @@ Drops table if it exists from database and removes from the temp log table. If a
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query("drop table if exists working.haos_temp_test_table;")
 
 - Query run 2023-01-16 14:07:24.284742
@@ -420,7 +420,7 @@ Renames a column to the new column name on the specified table
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query("drop table if exists working.haos_temp_test_table;")
 
 - Query run 2023-01-16 14:47:18.821074
@@ -469,7 +469,7 @@ This is a wrapper for query, to return a pandas DataFram. This runs query from i
 Use query to set up sample table and dfquery to explore results in pandas.
 ```
 >>> from ris import pysqldb
->>> db = pysqldb.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query("""
     drop table if exists working.haos_temp_test_table; 
     create table working.haos_temp_test_table as select 1 as dta, 2 as other_field;
@@ -515,7 +515,7 @@ Prints latest query run with basic formatting.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query("""
     select n.nodeid, street
     from node n
@@ -574,7 +574,7 @@ Returns table schema that was created from DataFrame.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> df = db.dfquery("select 1 as int_col, 'text' as text_col, now() as timstamp_col;")
  
 >>> db.dataframe_to_table_schema(df, 'haos_temp_test_table', schema='working', overwrite=True)
@@ -616,7 +616,7 @@ and then inserts the dataframe's data into it.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> df = db.dfquery("select 1 as int_col, 'text' as text_col, now() as timstamp_col;")
  
 >>> db.dataframe_to_table(df, 'haos_temp_test_table', schema='working', overwrite=True)
@@ -661,7 +661,7 @@ Imports csv file to database. This uses pandas datatypes to generate the table s
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> df = db.dfquery("select 1 as int_col, 'text' as text_col, now() as timstamp_col;")
 >>> df.to_csv('haos_sample_file.csv')
 >>> db.csv_to_table('haos_sample_file.csv', schema='working')
@@ -703,7 +703,7 @@ Imports xls file to database. This uses pandas datatypes to generate the table s
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> df = db.dfquery("select 1 as int_col, 'text' as text_col, now()::date as timstamp_col;")
 >>> df.to_excel('haos_sample_file.xlsx')
 >>> db.xls_to_table('haos_sample_file.xlsx', schema='working')
@@ -755,7 +755,7 @@ Exports query results to a csv file.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query_to_csv("select street, segmentid, lboro from lion limit 25;")
 
 - Query run 2023-01-16 15:27:04.686184
@@ -799,7 +799,7 @@ or `borocode`, it will automatically link to precinct, NTA, or borough, respecti
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query_to_map("""
 select 
     lntacode as nta, 
@@ -816,8 +816,8 @@ group by
 ```
 Rely on on geom from districts table 
 ```
->>> from ris import pysqldb
->>> db = pysqldb.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query_to_map("select lntacode as nta, count(*) cnt from lion group by lntacode;", 'cnt')
 
 #will return a website with the map
@@ -848,7 +848,7 @@ Generates shapefile output from the data returned from a query.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query_to_shp("select street, segmentid, geom from lion where street ='WATER STREET'", path=r'C:\Users\HShi\Documents', shp_name='sample_shp.shp', print_cmd=True)
 
 - Query failed: table "tmp_query_to_shp_hshi_2023_01_16_1544" does not exist
@@ -888,7 +888,7 @@ Generates shapefile output from the data returned from a query.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query("create table working.sample as select segmentid, number_travel_lanes, corridor_street, carto_display_level, created, geom from lion")
  
  - Query run 2023-01-16 16:04:12.159604
@@ -939,7 +939,7 @@ Generates shapefile output from the data returned from a query.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='****', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.query("create table working.hs_sample as select segmentid, number_travel_lanes, corridor_street, carto_display_level, created, geom from lion")
  
  - Query run 2023-01-16 16:14:02.326916
@@ -985,7 +985,7 @@ Imports ESRI Shapefile to database, uses GDAL to generate the table.
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.shp_to_table(path=r'C:\Users\HShi\Documents', shp_name='lion_sample_shp.shp', table='lion_sample_import', schema='working')
 
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
@@ -1034,7 +1034,7 @@ Imports feature class from ESRI file geodatabase, uses GDAL to generate the tabl
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='shostetter', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db.feature_class_to_table(path=r'E:\RIS\Staff Folders\Seth\sample\file_geodatabase.gdb', shp_name='Pct81', table='sample_fc_import', schema='working')
 
 , table='sample_fc_import', schema='working')
