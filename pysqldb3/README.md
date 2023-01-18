@@ -6,13 +6,15 @@ Pysqldb contains DbConnect, a class built off of pymssql/psycopg2 that makes it 
 To create a DbConnect object:
 1. Import 
    `from pysqldb3 import pysqldb3`
-2. `db = pysqldb.DbConnect(user=None, password=None, ldap=False, type=None, server=None, database=None, port=5432,
+2. `db = pysqldb3.DbConnect(user=None, password=None, ldap=False, type=None, server=None, database=None, port=5432,
                  allow_temp_tables=False, use_native_driver=True, default=False, quiet=False))` 
     + Replace server_name and db_name with the actual values. 
     + You must specify the type, either `PG` (Postgres) or `MS` (SQL Server). 
     + You can also add your username using `user='my_username'` 
     + You can add your password similarly using `password='mypassword'`
     + Other inputs include LDAP and ports. If you're unsure about these, feel free to ask around. 
+    + default database connection details stored in a configuration file, which is set on initial run. The file 
+    config.cfg is in the same directory as the pysqldb3 library code.
 3. Now, you can query on your database by using `db.query('select * from my_schema.my_table')`
 
 ### 1.2 Functions 
@@ -198,7 +200,7 @@ Index: []
 
 ### blocking_me
 **`DbConnect.blocking_me()`**
-QRuns dfquery to find which queries or users are blocking the user defined in the connection. Postgres Only.
+Runs dfquery to find which queries or users are blocking the user defined in the connection. Postgres Only.
 ###### Parameters:
 - None
 
