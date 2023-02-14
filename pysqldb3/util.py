@@ -235,7 +235,7 @@ def clean_cell(x):
             print('Decoding input string as utf-8 failed; trying as Latin1 ')
 
             try:
-                x = bytes(x, 'utf-8')#.decode('latin1')
+                x = bytes(x, 'utf-8').decode('latin1')
             except Exception as e:
                 print(e)
                 print('Decoding input string as Latin1 failed; leaving as str ')
