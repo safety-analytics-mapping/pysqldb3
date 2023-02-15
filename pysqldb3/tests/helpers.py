@@ -6,6 +6,7 @@ import zipfile
 import configparser
 from xlrd import open_workbook
 from xlutils.copy import copy
+from zipfile import ZipFile
 from ..Config import write_config
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests','') + "\\config.cfg")
 
@@ -229,12 +230,23 @@ def set_up_shapefile():
     os.system(cmd.replace('\n', ' '))
     print ('Sample shapefile ready...')
 
+    # Add shpfile to zip for testing
+    with ZipFile(os.path.join(DIR, 'test.zip'), 'w') as z:
+        for ext in ('shp', 'dbf', 'shx', 'prj'):
+            _fle = os.path.join(DIR,f'test.{ext}')
+
+            if os.path.isfile(os.path.join(DIR,f'test.{ext}')):
+                filePath = os.path.join(DIR, f'test.{ext}')
+                z.write(filePath, os.path.basename(filePath))
+    print('Sample zipped shapefile ready...')
+
 
 def clean_up_shapefile():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-    shp = "test.shp"
-    for ext in ('shp', 'dbf', 'shx'):
-        os.remove(f'{fldr}\\test_data\\test.{ext}')
+    for ext in ('shp', 'dbf', 'shx', 'prj', 'zip'):
+        _fle = f'{fldr}\\test_data\\test.{ext}'
+        if os.path.isfile(_fle):
+            os.remove(_fle)
 
     print ('Deleting any existing shp')
     # Delete_management(os.path.join(fldr, shp))
