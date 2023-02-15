@@ -157,7 +157,7 @@ class Shapefile:
                 if 'pkey' not in index_name and 'PK' not in index_name:
                     self.dbo.query('DROP INDEX {t}.{i}'.format(t=self.table, i=index_name), strict=False, internal=True)
 
-    def read_shp(self, precision=False, private=False, shp_encoding=None, print_cmd=False):
+    def read_shp(self, precision=False, private=False, shp_encoding=None, print_cmd=False, zip=False):
         """
         Reads a shapefile in as a table
 
@@ -165,6 +165,7 @@ class Shapefile:
         :param private:
         :param shp_encoding: encoding of data within Shapefile
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
+        :param zip: Optional flag needed if reading from a zipped file; defaults to False
         :return:
         """
         port = self.port
@@ -190,6 +191,13 @@ class Shapefile:
             print('Deleting existing table {s}.{t}'.format(s=self.schema, t=self.table))
             self.dbo.drop_table(schema=self.schema, table=self.table)
 
+        if zip:
+            path  = '/vsizip/'+self.path
+            full_path = path
+        else:
+            path = self.path
+            full_path = os.path.join(path, self.shp_name)
+
         if self.dbo.type == 'PG':
             cmd = READ_SHP_CMD_PG.format(
                 gdal_data=self.gdal_data_loc,
@@ -198,7 +206,7 @@ class Shapefile:
                 dbname=self.dbo.database,
                 user=self.dbo.user,
                 password=self.dbo.password,
-                shp=os.path.join(self.path, self.shp_name).lower(),
+                shp=full_path.lower(),
                 schema=self.schema,
                 tbl_name=self.table,
                 perc=precision,
@@ -211,7 +219,7 @@ class Shapefile:
                     srid=self.srid,
                     host=self.dbo.server,
                     dbname=self.dbo.database,
-                    shp=os.path.join(self.path, self.shp_name).lower(),
+                    shp=full_path.lower(),
                     schema=self.schema,
                     tbl_name=self.table,
                     perc=precision,
@@ -227,7 +235,7 @@ class Shapefile:
                     dbname=self.dbo.database,
                     user=self.dbo.user,
                     password=self.dbo.password,
-                    shp=os.path.join(self.path, self.shp_name).lower(),
+                    shp=full_path.lower(),
                     schema=self.schema,
                     tbl_name=self.table,
                     perc=precision,
