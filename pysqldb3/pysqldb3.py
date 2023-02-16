@@ -1706,11 +1706,10 @@ class DbConnect:
         """.format(schema_table)
 
         self.check_conn()
-        qry = Query(self, query, strict=strict, iterate=True, no_comment=True, temp=False)
 
         print('Writing to %s' % output_file)
-
-        qry.iterable_query_to_csv(output=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep)
+        self.query_to_csv(query, output_file=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep,
+                          strict=strict)
 
         if not self.allow_temp_tables:
             self.disconnect(True)

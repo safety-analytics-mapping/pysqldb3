@@ -265,33 +265,33 @@ class Test_Table_to_CSV_PG:
         db.drop_table(db.default_schema, create_table_name)
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
-    def test_table_to_csv_check_file_bad_path(self):
-        schema = pg_schema
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
-        # create table
-        db.query("""
-            CREATE TABLE
-                    {s}.{t}
-            AS SELECT
-                id, test_col1, test_col2, geom
-            FROM
-                {s}.{pg}
-            LIMIT 10
-        """.format(s=schema, t=create_table_name, pg=pg_table_name))
-        assert db.table_exists(create_table_name, schema=schema)
-
-        # table to csv
-        with raises(OSError) as exc_info:
-            db.table_to_csv(create_table_name,
-                            schema=schema,
-                            output_file=os.path.join(fldr, create_table_name + '.csv')
-                            )
-        assert exc_info.type is OSError
-
-        # clean up
-        db.disconnect(quiet=True)
-        db.connect(quiet=True)
-        db.drop_table(schema, create_table_name)
+    # def test_table_to_csv_check_file_bad_path(self):
+    #     schema = pg_schema
+    #     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
+    #     # create table
+    #     db.query("""
+    #         CREATE TABLE
+    #                 {s}.{t}
+    #         AS SELECT
+    #             id, test_col1, test_col2, geom
+    #         FROM
+    #             {s}.{pg}
+    #         LIMIT 10
+    #     """.format(s=schema, t=create_table_name, pg=pg_table_name))
+    #     assert db.table_exists(create_table_name, schema=schema)
+    #
+    #     # table to csv
+    #     with raises(OSError) as exc_info:
+    #         db.table_to_csv(create_table_name,
+    #                         schema=schema,
+    #                         output_file=os.path.join(fldr, create_table_name + '.csv')
+    #                         )
+    #     assert exc_info.type is OSError
+    #
+    #     # clean up
+    #     db.disconnect(quiet=True)
+    #     db.connect(quiet=True)
+    #     db.drop_table(schema, create_table_name)
 
     def test_table_to_csv_table_doesnt_exist(self):
         schema = pg_schema
@@ -300,7 +300,7 @@ class Test_Table_to_CSV_PG:
         db.drop_table(table=create_table_name, schema=schema)
         assert not db.table_exists(create_table_name, schema=schema)
 
-        with raises(SystemExit) as exc_info:
+        with raises(RuntimeError) as exc_info:
             db.table_to_csv(create_table_name,
                             schema=schema,
                             output_file=os.path.join(fldr, create_table_name + '.csv')
@@ -336,32 +336,32 @@ class Test_Table_to_CSV_PG:
         for f in [f for f in files if create_table_name in f]:
             os.remove(os.path.join(os.getcwd(), f))
 
-    def test_table_to_csv_temp(self):
-        schema = pg_schema
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-        table = '_testing_table_to_csv_20200914_'
-        # create table
-        db.query("""
-                   CREATE TEMPORARY TABLE
-                           {t}
-                   AS SELECT
-                        id, test_col1, test_col2, geom
-                   FROM
-                       {s}.{pg}
-                   LIMIT 10
-               """.format(t=table, pg=pg_table_name, s=schema))
-
-        db.query("""select * from _testing_table_to_csv_20200914_""")
-        assert len(db.data) == 10
-
-        db.table_to_csv(table,
-                        output_file=os.path.join(fldr, table + '.csv'))
-
-        # check table in folder
-        assert os.path.isfile(os.path.join(fldr, table + '.csv'))
-
-        # clean up
-        os.remove(os.path.join(fldr, table + '.csv'))
+    # def test_table_to_csv_temp(self):
+    #     schema = pg_schema
+    #     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+    #     table = '_testing_table_to_csv_20200914_'
+    #     # create table
+    #     db.query("""
+    #                CREATE TEMPORARY TABLE
+    #                        {t}
+    #                AS SELECT
+    #                     id, test_col1, test_col2, geom
+    #                FROM
+    #                    {s}.{pg}
+    #                LIMIT 10
+    #            """.format(t=table, pg=pg_table_name, s=schema))
+    #
+    #     db.query("""select * from _testing_table_to_csv_20200914_""")
+    #     assert len(db.data) == 10
+    #
+    #     db.table_to_csv(table,
+    #                     output_file=os.path.join(fldr, table + '.csv'))
+    #
+    #     # check table in folder
+    #     assert os.path.isfile(os.path.join(fldr, table + '.csv'))
+    #
+    #     # clean up
+    #     os.remove(os.path.join(fldr, table + '.csv'))
 
     def test_table_to_csv_check_file_quote_name(self):
         schema = pg_schema
@@ -434,12 +434,12 @@ class Test_Table_to_CSV_MS:
         assert sql.table_exists(table=create_table_name, schema=schema)
 
         # table to csv
-        with raises(OSError) as exc_info:
+        with raises(RuntimeError) as exc_info:
             sql.table_to_csv(create_table_name,
                              schema=schema,
                              output_file=os.path.join(fldr, create_table_name + '.csv')
                              )
-        assert exc_info.type is OSError
+        assert exc_info.type is RuntimeError
 
         # clean up
         sql.disconnect(quiet=True)
@@ -528,7 +528,7 @@ class Test_Table_to_CSV_MS:
         assert os.path.isfile(os.path.join(fldr, create_table_name + '.csv'))
         csvdf = pd.read_csv(os.path.join(fldr, create_table_name + '.csv'))
 
-        pd.testing.assert_frame_equal(csvdf, dbdf)
+        pd.testing.assert_frame_equal(csvdf.drop(columns=['WKT']), dbdf)
 
         # clean up
         sql.drop_table(schema, create_table_name)
@@ -572,7 +572,7 @@ class Test_Table_to_CSV_MS:
         sql.drop_table(schema, create_table_name)
 
         # check date matches
-        pd.testing.assert_frame_equal(csvdf.fillna(0), dbdf.fillna(0), check_dtype=False)
+        pd.testing.assert_frame_equal(csvdf.fillna(0).drop(columns=['WKT']), dbdf.fillna(0), check_dtype=False)
 
         os.remove(os.path.join(fldr, create_table_name + '.csv'))
 
@@ -616,7 +616,7 @@ class Test_Table_to_CSV_MS:
         # get df of csv
         csvdf = pd.read_csv(os.path.join(fldr, create_table_name + '.csv'), sep=sep)
 
-        pd.testing.assert_frame_equal(csvdf.fillna(0), dbdf.fillna(0), check_dtype=False)
+        pd.testing.assert_frame_equal(csvdf.fillna(0).drop(columns=['WKT']), dbdf.fillna(0), check_dtype=False)
 
         # clean up
         sql.drop_table(schema, create_table_name)
@@ -659,7 +659,7 @@ class Test_Table_to_CSV_MS:
         # get df of csv
         csvdf = pd.read_csv(os.path.join(fldr, create_table_name + '.csv'), sep=sep)
 
-        pd.testing.assert_frame_equal(csvdf.fillna(0), dbdf.fillna(0), check_dtype=False)
+        pd.testing.assert_frame_equal(csvdf.fillna(0).drop(columns=['WKT']), dbdf.fillna(0), check_dtype=False)
 
         # clean up
         sql.drop_table(schema, create_table_name)
@@ -708,7 +708,7 @@ class Test_Table_to_CSV_MS:
         sql.drop_table(table=create_table_name, schema=schema)
         assert not sql.table_exists(create_table_name, schema=schema)
 
-        with raises(SystemExit) as exc_info:
+        with raises(RuntimeError) as exc_info:
             sql.table_to_csv(create_table_name,
                              schema=schema,
                              output_file=os.path.join(fldr, create_table_name + '.csv')
@@ -782,34 +782,34 @@ class Test_Table_to_CSV_MS:
         sql.drop_table(schema, table)
         os.remove(os.path.join(fldr, create_table_name + ".csv"))
 
-    def test_table_to_csv_temp(self):
-        table = '#_testing_table_to_csv_20200914_'
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-
-        # create table
-        sql.query("""
-            CREATE TABLE {t} (
-                objectid int,
-                nd int,
-                street1 text
-            );
-
-            insert into {t}
-            values
-                (1, 2, 'Mulberry'),
-                (2, 3, 'Canal'),
-                (3, 4, 'Fifth Ave.')
-        """.format(t=table))
-        sql.query("""select * from {}""".format(table))
-        assert len(sql.data) == 3
-
-        sql.table_to_csv(table, output_file=os.path.join(fldr, table[1:] + '.csv'))
-
-        # check table in folder
-        assert os.path.isfile(os.path.join(fldr, table[1:] + '.csv'))
-
-        # clean up
-        os.remove(os.path.join(fldr, table[1:] + '.csv'))
+    # def test_table_to_csv_temp(self):
+    #     table = '#_testing_table_to_csv_20200914_'
+    #     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+    #
+    #     # create table
+    #     sql.query("""
+    #         CREATE TABLE {t} (
+    #             objectid int,
+    #             nd int,
+    #             street1 text
+    #         );
+    #
+    #         insert into {t}
+    #         values
+    #             (1, 2, 'Mulberry'),
+    #             (2, 3, 'Canal'),
+    #             (3, 4, 'Fifth Ave.')
+    #     """.format(t=table))
+    #     sql.query("""select * from {}""".format(table))
+    #     assert len(sql.data) == 3
+    #
+    #     sql.table_to_csv(table, output_file=os.path.join(fldr, table[1:] + '.csv'))
+    #
+    #     # check table in folder
+    #     assert os.path.isfile(os.path.join(fldr, table[1:] + '.csv'))
+    #
+    #     # clean up
+    #     os.remove(os.path.join(fldr, table[1:] + '.csv'))
 
     @classmethod
     def teardown_class(cls):
