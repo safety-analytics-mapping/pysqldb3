@@ -581,7 +581,7 @@ class Query:
             :param size: Integer for the size of the chunks (defaults to 100,000)
             :return: Generator for data in 100,000 record chunks (list of lists)
             """
-            n = len(self.data) / size
+            n = int(len(self.data) / size)
             for i in range(0, n):
                 yield self.data[i::n], i
 
