@@ -26,6 +26,20 @@ UID={user}; database={db}; PWD={password}"
 -overwrite
 """.replace('\n', ' ')
 
+WRITE_CSV_CMD_PG = """
+ogr2ogr -overwrite -f "CSV" "{output_file}"
+PG:"host={host} user={username} dbname={db} password={password}" -sql "{pg_sql_select}"
+-lco SEPARATOR={separator} -lco STRING_QUOTING={string_quote} -lco GEOMETRY=AS_WKT -nln none 
+""".replace('\n', ' ')
+
+WRITE_CSV_CMD_MS = """
+ogr2ogr -overwrite -f "CSV" "{output_file}"
+"MSSQL:server={host};database={db};UID={username};PWD={password}" -sql "{ms_sql_select}" 
+--config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO --config MSSQLSPATIAL_LIST_ALL_TABLES YES
+-lco SEPARATOR={separator} -lco STRING_QUOTING={string_quote} -lco GEOMETRY=AS_WKT -nln none 
+""".replace('\n', ' ')
+
+
 """
 Shapefiles 
 """

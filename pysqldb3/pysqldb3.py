@@ -1321,17 +1321,23 @@ class DbConnect:
         if remove_file:
             os.remove(input_file)
 
-    def query_to_csv(self, query, strict=True, output_file=None, open_file=False, sep=',', quote_strings=True,
-                     quiet=False):
+    def query_to_csv(self, query, output_file=None, strict=True, open_file=False, sep=',', quote_strings=True,
+                     quiet=False, overwrite=False):
         """
         Exports query results to a csv file.
         :param query: SQL query as string type
-        :param strict: If true will run sys.exit on failed query attempts
         :param output_file: File path for resulting csv file
+        :param strict: If true will run sys.exit on failed query attempts
         :param open_file: If true will auto open the output csv file when done
-        :param sep: Delimiter for csv; defaults to comma (,)
-        :param quote_strings: Defaults to True (csv.QUOTE_ALL); if False, will csv.QUOTE_MINIMAL
+        :param sep: Delimiter for csv; defaults to comma (,) -- see below
+        :param quote_strings: Defaults to True; will always quote; if False, will quote as needed
         :param quiet: if true, does not output query metrics or output location
+        :param overwrite: if True, will overwrite csv output file if already exists
+        Separator must be one of the following:
+                ',' (comma)
+                ';' (semicolon)
+                '\t' (tab)
+                ' ' (space)
         :return:
         """
         # If no output specified, defaults to a generic data csv name with the date
@@ -1340,12 +1346,83 @@ class DbConnect:
                                        'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
 
         self.check_conn()
-        qry = Query(self, query, strict=strict, timeme=(not quiet))
+
+        # If just a filename, add to cwd. If dir specified but does not exist, create dir
+        if not os.path.exists(os.path.dirname(output_file)) and os.path.dirname(output_file):
+            os.makedirs(os.path.dirname(output_file))
+        elif not os.path.exists(os.path.dirname(output_file)) and not os.path.dirname(output_file):
+            output_file = os.path.join(os.getcwd(), output_file)
+
+        if os.path.isfile(output_file) and not overwrite:
+            raise RuntimeError(
+                """ File already exists and overwrite was not allowed. Set overwrite=True or delete the file. """)
+        elif os.path.isfile(output_file) and overwrite:
+            os.remove(output_file)
 
         if not quiet:
             print('Writing to %s' % output_file)
 
-        qry.query_to_csv(output=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep)
+        if sep == ',':
+            OGR_SEPARATOR = 'COMMA'
+        elif sep == ';':
+            OGR_SEPARATOR = 'SEMICOLON'
+        elif sep == '\t':
+            OGR_SEPARATOR = 'TAB'
+        elif sep == ' ':
+            OGR_SEPARATOR = 'SPACE'
+        else:
+            raise RuntimeError(""" 
+                Separator must be one of the following:
+
+                ',' (comma) 
+                ';' (semicolon)
+                '\t' (tab)
+                ' ' (space)
+
+            """)
+
+        if quote_strings:
+            OGR_QUOTE_STRINGS = 'IF_AMBIGUOUS'
+        else:
+            OGR_QUOTE_STRINGS = 'IF_NEEDED'
+
+        if self.type == PG:
+            cmd = WRITE_CSV_CMD_PG.format(
+                output_file=output_file,
+                host=self.server,
+                username=self.user,
+                db=self.database,
+                password=self.password,
+                pg_sql_select=query,
+                separator=OGR_SEPARATOR,
+                string_quote=OGR_QUOTE_STRINGS
+            )
+
+        elif self.type == MS:
+            cmd = WRITE_CSV_CMD_MS.format(
+                output_file=output_file,
+                host=self.server,
+                username=self.user,
+                db=self.database,
+                password=self.password,
+                ms_sql_select=query,
+                separator=OGR_SEPARATOR,
+                string_quote=OGR_QUOTE_STRINGS
+            )
+
+        try:
+            ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            print(ogr_response)
+        except subprocess.CalledProcessError as e:
+            print("Ogr2ogr Output:\n", e.output)
+
+            if strict:
+                raise RuntimeError('Query_to_csv failed.')
+            else:
+                return False
+
+        if open_file:
+            os.startfile(output_file)
 
     def query_to_map(self, query, value_column, geom_column=None, id_column=None):
         """
@@ -1629,11 +1706,10 @@ class DbConnect:
         """.format(schema_table)
 
         self.check_conn()
-        qry = Query(self, query, strict=strict, iterate=True, no_comment=True, temp=False)
 
         print('Writing to %s' % output_file)
-
-        qry.iterable_query_to_csv(output=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep)
+        self.query_to_csv(query, output_file=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep,
+                          strict=strict)
 
         if not self.allow_temp_tables:
             self.disconnect(True)
