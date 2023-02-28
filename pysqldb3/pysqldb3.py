@@ -127,6 +127,8 @@ class DbConnect:
         if db_type == MS:
             default_schema = self.dfquery('select schema_name()', internal=True)
             default_schema = default_schema.iloc[0][0]#.encode('utf-8')
+            if not default_schema: # fall back for missing default schema in some databases
+                default_schema = 'dbo'
             return default_schema
         elif db_type == PG:
             return 'public'

@@ -19,7 +19,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         database=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
-                        password=config.get('SQL_DB', 'DB_PASSWORD'), ldap=True)
+                        password=config.get('SQL_DB', 'DB_PASSWORD'))
 
 
 sql_test_schema = config.get('SQL_DB', 'WORKING_SCHEMA')
