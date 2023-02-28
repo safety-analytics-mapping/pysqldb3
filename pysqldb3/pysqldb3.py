@@ -1716,7 +1716,7 @@ class DbConnect:
 
     def shp_to_table(self, path=None, table=None, schema=None, shp_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
-                     shp_encoding=None, print_cmd=False, days=7):
+                     shp_encoding=None, print_cmd=False, days=7, zip=False):
         """
         Imports shape file to database. This uses GDAL to generate the table.
         :param path: File path of the shapefile
@@ -1734,6 +1734,7 @@ class DbConnect:
         Options inlude LATIN1, UTF-8.
         :param print_cmd: Defaults to False; if True prints the cmd
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param zip: Flag to use if importing from a sipped file (defaults to False)
         :return:
         """
         if not schema:
@@ -1759,7 +1760,7 @@ class DbConnect:
         shp = Shapefile(dbo=self, path=path, table=table, schema=schema, shp_name=shp_name,
                         cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
 
-        shp.read_shp(precision, private, shp_encoding, print_cmd)
+        shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
