@@ -23,7 +23,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 create_table_name = 'sample_acs_test_csv_to_table_{}'.format(db.user)
-
+pg_schema = 'working'
+sql_schema = sql_schema
 
 class TestCsvToTablePG:
     @classmethod
@@ -36,10 +37,10 @@ class TestCsvToTablePG:
         db.query('drop table if exists working.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        db.csv_to_table(input_file=fp, table=create_table_name, schema='working')
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema)
 
         # Check to see if table is in database
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from working.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -50,17 +51,17 @@ class TestCsvToTablePG:
         pd.testing.assert_frame_equal(db_df, csv_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     def test_csv_to_table_column_override(self):
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\csv_override_ex.csv"
         test_df = pd.DataFrame([{'a': 1, 'b': 2, 'c': 3, 'd': 'text'}, {'a': 4, 'b': 5, 'c': 6, 'd': 'another'}])
         test_df.to_csv(fp)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema='working', column_type_overrides={'a': 'varchar'})
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, column_type_overrides={'a': 'varchar'})
 
         # Check to see if table is in database
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from working.{}".format(create_table_name))
 
         # Modify to make column types altered
@@ -81,7 +82,7 @@ class TestCsvToTablePG:
         )
 
         # Cleanup
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
         os.remove(fp)
 
     def test_csv_to_table_separator(self):
@@ -91,12 +92,12 @@ class TestCsvToTablePG:
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test2.csv"
         db.csv_to_table(
             input_file=fp,
-            table=create_table_name, schema='working',
+            table=create_table_name, schema=pg_schema,
             sep="|"
         )
 
         # Check to see if table is in database
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from working.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -107,7 +108,7 @@ class TestCsvToTablePG:
         pd.testing.assert_frame_equal(db_df, csv_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     # what if the table has no header?
     def test_csv_to_table_no_header(self):
@@ -117,10 +118,10 @@ class TestCsvToTablePG:
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test3.csv"
         db.csv_to_table(
             input_file=fp,
-            table=create_table_name, schema='working', sep="|")
+            table=create_table_name, schema=pg_schema, sep="|")
 
         # did it enter the db correctly?
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from working.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -133,19 +134,19 @@ class TestCsvToTablePG:
         pd.testing.assert_frame_equal(db_df, csv_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     def test_csv_to_table_overwrite(self):
         # Make a table to fill the eventual table location and confirm it exists
         db.query('create table working.{} as select 10'.format(create_table_name))
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
 
         # csv_to_table
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        db.csv_to_table(input_file=fp, table=create_table_name, schema='working', overwrite=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, overwrite=True)
 
         # Check to see if table is in database
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from working.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -156,7 +157,7 @@ class TestCsvToTablePG:
         pd.testing.assert_frame_equal(db_df, csv_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     def test_csv_to_table_long_column(self):
         # csv_to_table
@@ -165,10 +166,10 @@ class TestCsvToTablePG:
         base_string = 'text'*150
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv"
         db.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema='working', long_varchar_check=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
 
         # Check to see if table is in database
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from working.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -179,7 +180,7 @@ class TestCsvToTablePG:
         pd.testing.assert_frame_equal(db_df, csv_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     # Temp test is in logging tests
 
@@ -199,11 +200,11 @@ class TestBulkCSVToTablePG:
         db.query('drop table if exists working.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        input_schema = db.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema='working')
-        db._bulk_csv_to_table(input_file=fp, table=create_table_name, schema='working', table_schema=input_schema)
+        input_schema = db.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema=pg_schema)
+        db._bulk_csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, table_schema=input_schema)
 
         # Check to see if table is in database
-        assert db.table_exists(table=create_table_name, schema='working')
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from working.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -214,7 +215,7 @@ class TestBulkCSVToTablePG:
         pd.testing.assert_frame_equal(db_df, csv_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     def test_bulk_csv_to_table_default_schema(self):
         # bulk_csv_to_table
@@ -240,16 +241,16 @@ class TestBulkCSVToTablePG:
 
     def test_bulk_csv_to_table_long_column(self):
         # csv_to_table
-        if sql.table_exists(schema='dbo', table=create_table_name):
-            sql.drop_table(schema='dbo', table=create_table_name)
+        if db.table_exists(schema=pg_schema, table=create_table_name):
+            db.drop_table(schema=pg_schema, table=create_table_name)
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv"
         pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema='dbo', long_varchar_check=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
-        sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        sql_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
 
         # Get csv df via pd.read_csv
         csv_df = pd.read_csv(fp)
@@ -259,7 +260,7 @@ class TestBulkCSVToTablePG:
         pd.testing.assert_frame_equal(sql_df[['long_column']], csv_df[['long_column']])
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     def test_bulk_csv_to_table_input_schema(self):
         # Test input schema
@@ -279,14 +280,14 @@ class TestCsvToTableMS:
 
     def test_csv_to_table_basic(self):
         # csv_to_table
-        if sql.table_exists(schema='dbo', table=create_table_name):
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
             sql.query('drop table dbo.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema='dbo')
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema)
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
         sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -297,19 +298,19 @@ class TestCsvToTableMS:
         pd.testing.assert_frame_equal(sql_df, csv_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     def test_csv_to_table_column_override(self):
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\csv_override_ex.csv"
         test_df = pd.DataFrame([{'a': 1, 'b': 2, 'c': 3, 'd': 'text'}, {'a': 4, 'b': 5, 'c': 6, 'd': 'another'}])
         test_df.to_csv(fp)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema='dbo',
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema,
                          column_type_overrides={'a': 'numeric'})
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
 
         # Assert df column types match override
         pd.testing.assert_frame_equal(pd.DataFrame(
@@ -323,23 +324,23 @@ class TestCsvToTableMS:
                                       )
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
         os.remove(fp)
 
     def test_csv_to_table_separator(self):
         # csv_to_table
-        if sql.table_exists(schema='dbo', table=create_table_name):
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
             sql.query('drop table dbo.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test2.csv"
         sql.csv_to_table(
             input_file=fp,
-            table=create_table_name, schema='dbo',
+            table=create_table_name, schema=sql_schema,
             sep="|"
         )
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
         sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -350,21 +351,21 @@ class TestCsvToTableMS:
         pd.testing.assert_frame_equal(sql_df, csv_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     # what if the table has no header?
     def test_csv_to_table_no_header(self):
         # csv_to_table
-        if sql.table_exists(schema='dbo', table=create_table_name):
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
             sql.query('drop table dbo.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test3.csv"
         sql.csv_to_table(
             input_file=fp,
-            table=create_table_name, schema='dbo', sep="|")
+            table=create_table_name, schema=sql_schema, sep="|")
 
         # did it enter the db correctly?
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
         sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -377,10 +378,10 @@ class TestCsvToTableMS:
         pd.testing.assert_frame_equal(sql_df, csv_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     def test_csv_to_table_overwrite(self):
-        if sql.table_exists(schema='dbo', table=create_table_name):
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
             sql.query('drop table dbo.{}'.format(create_table_name))
 
         # Make a table to fill the eventual table location and confirm it exists
@@ -390,14 +391,14 @@ class TestCsvToTableMS:
         insert into dbo.{} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
         insert into dbo.{} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
         """.format(create_table_name, create_table_name, create_table_name))
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
 
         # csv_to_table
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema='dbo', overwrite=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, overwrite=True)
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
         sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -410,22 +411,22 @@ class TestCsvToTableMS:
         pd.testing.assert_frame_equal(sql_df, csv_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     # Temp test is in logging tests
 
     def test_csv_to_table_long_column(self):
         # csv_to_table
-        if sql.table_exists(schema='dbo', table=create_table_name):
-            sql.drop_table(schema='dbo', table=create_table_name)
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
+            sql.drop_table(schema=sql_schema, table=create_table_name)
 
         base_string = 'text'*150
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv"
         sql.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema='dbo', long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
         sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -436,7 +437,7 @@ class TestCsvToTableMS:
         pd.testing.assert_frame_equal(sql_df, csv_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -450,15 +451,15 @@ class TestBulkCSVToTableMS:
 
     def test_bulk_csv_to_table_basic(self):
         # bulk_csv_to_table
-        if sql.drop_table(schema='dbo', table=create_table_name):
+        if sql.drop_table(schema=sql_schema, table=create_table_name):
             sql.query('drop table dbo.{}'.format(create_table_name))
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
-        input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema='dbo')
-        sql._bulk_csv_to_table(input_file=fp, table=create_table_name, schema='dbo', table_schema=input_schema)
+        input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema=sql_schema)
+        sql._bulk_csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, table_schema=input_schema)
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
         sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -469,7 +470,7 @@ class TestBulkCSVToTableMS:
         pd.testing.assert_frame_equal(sql_df, csv_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     def test_bulk_csv_to_table_default_schema(self):
         # bulk_csv_to_table
@@ -497,15 +498,15 @@ class TestBulkCSVToTableMS:
 
     def test_bulk_csv_to_table_long_column(self):
         # csv_to_table
-        if sql.table_exists(schema='dbo', table=create_table_name):
-            sql.drop_table(schema='dbo', table=create_table_name)
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
+            sql.drop_table(schema=sql_schema, table=create_table_name)
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv"
         pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema='dbo', long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
 
         # Check to see if table is in database
-        assert sql.table_exists(table=create_table_name, schema='dbo')
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
         sql_df = sql.dfquery("select * from dbo.{}".format(create_table_name))
 
         # Get csv df via pd.read_csv
@@ -516,7 +517,7 @@ class TestBulkCSVToTableMS:
         pd.testing.assert_frame_equal(sql_df[['long_column']], csv_df[['long_column']])
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=create_table_name)
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     def test_bulk_csv_to_table_input_schema(self):
         # Test input schema
