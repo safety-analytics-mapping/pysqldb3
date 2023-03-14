@@ -1168,7 +1168,7 @@ class DbConnect:
         return True
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
-                     column_type_overrides=None, days=7):
+                     column_type_overrides=None, days=7, **kwargs):
         """
         Imports xls/x file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -1248,7 +1248,7 @@ class DbConnect:
 
                     df = pd.DataFrame(sheet_data[1:], columns=cols)
                 elif extension == 'xls':
-                    df = pd.read_excel(input_file, sheet_name=sheet_name)
+                    df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
 
                 # Replace with .xlsx of just the desired sheet
                 input_file = "C:\\Users\\{}\\Documents".format(getpass.getuser()) + "\\" + \
@@ -1275,7 +1275,6 @@ class DbConnect:
                     multi_sheet = len(ef.sheet_names) > 1
 
         # Try bulk input
-        if not multi_sheet and extension == 'xlsx' and not column_type_overrides:
             # Bulk input
             success = self._bulk_xlsx_to_table(input_file=input_file, schema=schema, table="stg_{}".format(table))
 
@@ -1324,7 +1323,7 @@ class DbConnect:
                 df = pd.DataFrame(sheet_data[1:], columns=cols)
 
             else:
-                df = pd.read_excel(input_file, sheet_name=sheet_name)
+                df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
 
             # Call dataframe_to_table fn
             self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
