@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import zipfile
 import configparser
+import csv
 from xlrd import open_workbook
 from xlutils.copy import copy
 from zipfile import ZipFile
@@ -30,6 +31,17 @@ def set_up_test_csv():
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
+
+    # add csv with extra header line
+    data2 = [
+        ['header to skip', 'header to skip', 'header to skip'],
+        ['real_header1', 'real header2', 'real header 3'],
+        [1,2,3]
+    ]
+    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data2:
+            w.writerow(row)
 
 
 def set_up_test_table_sql(sql, schema='dbo'):

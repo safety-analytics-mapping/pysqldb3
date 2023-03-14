@@ -874,7 +874,7 @@ class DbConnect:
         print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema, t=table))
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     long_varchar_check=False, column_type_overrides=None, days=7):
+                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -888,6 +888,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
         :return:
         """
 
@@ -928,7 +929,7 @@ class DbConnect:
 
                 df = data.get_chunk(1000)
         else:
-            df = pd.read_csv(input_file, sep=sep)
+            df = pd.read_csv(input_file, sep=sep, **kwargs)
             allow_max = long_varchar_check and contains_long_columns(df)
 
         if 'ogc_fid' in df.columns:
