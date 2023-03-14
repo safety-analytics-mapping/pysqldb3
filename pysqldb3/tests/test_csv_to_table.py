@@ -24,7 +24,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 create_table_name = 'sample_acs_test_csv_to_table_{}'.format(db.user)
 pg_schema = 'working'
-sql_schema = sql_schema
+sql_schema = 'dbo'
 
 class TestCsvToTablePG:
     @classmethod
