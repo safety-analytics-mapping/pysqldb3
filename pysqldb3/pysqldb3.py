@@ -918,7 +918,7 @@ class DbConnect:
         # Check for varchar columns > 500 in length
         allow_max = False
         if os.path.getsize(input_file) > 1000000:
-            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep)
+            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep, **kwargs)
             df = data.get_chunk(1000)
 
             # Check for long column iteratively
@@ -944,8 +944,17 @@ class DbConnect:
         # For larger files use GDAL to import
         if df.shape[0] > 999:
             try:
-                success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
+                temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+
+
+                with pd.read_csv(input_file, chunksize=10 ** 15, **kwargs) as reader:
+                    for chunk in reader:
+                        chunk.to_csv(temp_file, mode='a', index=False, header=True)
+
+
+                success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
                                                   table_schema=table_schema, days=days)
+                os.remove(temp_file)
 
                 if not success:
                     raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
@@ -976,6 +985,7 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
+
         return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
 

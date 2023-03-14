@@ -36,9 +36,20 @@ def set_up_test_csv():
     data2 = [
         ['header to skip', 'header to skip', 'header to skip'],
         ['real_header1', 'real header2', 'real header 3'],
-        [1,2,3]
+        [1, 2, 3],
+        [9, 9, 9]
     ]
+
     with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data2:
+            w.writerow(row)
+
+    # create bulk csv with extra header to skip
+    for i in range(1000):
+        data2.append([1, 2, 3])
+
+    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test5.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data2:
             w.writerow(row)

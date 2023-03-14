@@ -15,11 +15,11 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
-# sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-#                         server=config.get('SQL_DB', 'SERVER'),
-#                         database=config.get('SQL_DB', 'DB_NAME'),
-#                         user=config.get('SQL_DB', 'DB_USER'),
-#                         password=config.get('SQL_DB', 'DB_PASSWORD'))
+sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                        server=config.get('SQL_DB', 'SERVER'),
+                        database=config.get('SQL_DB', 'DB_NAME'),
+                        user=config.get('SQL_DB', 'DB_USER'),
+                        password=config.get('SQL_DB', 'DB_PASSWORD'))
 
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 create_table_name = 'sample_acs_test_csv_to_table_{}'.format(db.user)
@@ -59,14 +59,14 @@ class TestCsvToTablePG:
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv"
         db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema,
-                        skiprows=1)
+                        skiprows=1, skipfooter=1)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
         db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
 
         # Get csv df via pd.read_csv
-        csv_df = pd.read_csv(fp, skiprows=1)
+        csv_df = pd.read_csv(fp, skiprows=1, skipfooter=1)
         csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
 
         # Assert df equality, including dtypes and columns
@@ -84,7 +84,7 @@ class TestCsvToTablePG:
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
-        db_df = db.dfquery("select * from {}.{}".format(create_table_name))
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
 
         # Modify to make column types altered
         altered_column_type_df = pd.DataFrame([{'a': '1.0', 'b': 2, 'c': 3, 'd': 'text'}, {'a': '4.0', 'b': 5, 'c': 6, 'd': 'another'}])
@@ -239,6 +239,25 @@ class TestBulkCSVToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
 
+    def test_bulk_csv_to_table_basic_kwargs(self):
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test5.csv"
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema,
+                        skiprows=1)
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp, skiprows=1)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
     def test_bulk_csv_to_table_default_schema(self):
         # bulk_csv_to_table
         db.query('drop table if exists {}'.format(create_table_name))
@@ -328,14 +347,14 @@ class TestCsvToTableMS:
 
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv"
         sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema,
-                        skiprows=1)
+                        skiprows=1, skipfooter=1)
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
         db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
 
         # Get csv df via pd.read_csv
-        csv_df = pd.read_csv(fp, skiprows=1)
+        csv_df = pd.read_csv(fp, skiprows=1, skipfooter=1)
         csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
 
         # Assert df equality, including dtypes and columns
@@ -515,6 +534,25 @@ class TestBulkCSVToTableMS:
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_bulk_csv_to_table_basic_kwargs(self):
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test5.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema,
+                        skiprows=1)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp, skiprows=1)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df, csv_df)
 
     def test_bulk_csv_to_table_default_schema(self):
         # bulk_csv_to_table
