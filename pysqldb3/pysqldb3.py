@@ -1183,6 +1183,7 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
+
         # Add default schema
         if not schema:
             schema = self.default_schema
@@ -1206,132 +1207,36 @@ class DbConnect:
             print('{}.{} already exists. Use overwrite=True to replace.'.format(schema, table))
             return
 
-        extension = os.path.basename(input_file).split('.')[-1]
-        success = False
+        ef = pd.ExcelFile(input_file)
+        multi_sheet = len(ef.sheet_names) > 1
 
-        # Determine if multiple sheets; if so, cannot be used with ogr2ogr/must be changed
-        if extension == 'xlsx':
-            wb = openpyxl.load_workbook(input_file)
-            multi_sheet = len(wb.sheetnames) > 1
-        elif extension == 'xls':
-            ef = pd.ExcelFile(input_file)
-            multi_sheet = len(ef.sheet_names) > 1
-        else:
-            print('This function is for .xlsx and .xls files')
-            return
-
-        # Remember original input_file
-        old_input_file = str(input_file)
-        old_extension = str(extension)
-        remove_file = False
-
-        # Read in memory and attempt to convert to single-sheet xlsx
-        if (extension == 'xls' or multi_sheet) and not column_type_overrides:
-            try:
-                if extension == 'xlsx':
-                    # Grab sheet
-                    if sheet_name:
-                        if type(sheet_name) == int and str(sheet_name) not in wb.sheetnames:
-                            sheet_data = list(wb[wb.sheetnames[sheet_name]].values)
-                        else:
-                            sheet_data = list(wb[str(sheet_name)].values)
-                    elif not sheet_name:
-                        sheet_data = list(wb.worksheets[0].values)
-
-                    # Match previous styles
-                    cols = []
-                    for c in sheet_data[0]:
-                        if type(c) == str:
-                            cols.append(c.strip().replace(' ', '_').replace('.', '_'))
-                        else:
-                            cols.append(c)
-
-                    df = pd.DataFrame(sheet_data[1:], columns=cols)
-                elif extension == 'xls':
-                    df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
-
-                # Replace with .xlsx of just the desired sheet
-                input_file = "C:\\Users\\{}\\Documents".format(getpass.getuser()) + "\\" + \
-                             os.path.basename(input_file).split('.')[0] + "_{}.xlsx".format(sheet_name)
-                df.to_excel(input_file, index=False, header=True)
-
-                remove_file = True
-                extension = 'xlsx'
-                multi_sheet = False
-            except Exception as e:
-                print("""
-                    Attempt to convert to single-sheet xlsx file failed. 
-                    """)
-                print(e)
-
-                # Restore to original values if conversion fails
-                input_file = old_input_file
-                extension = old_extension
-                remove_file = False
-
-                if extension == 'xlsx':
-                    multi_sheet = len(wb.sheetnames) > 1
-                elif extension == 'xls':
-                    multi_sheet = len(ef.sheet_names) > 1
-
-        # Try bulk input
-            # Bulk input
-            success = self._bulk_xlsx_to_table(input_file=input_file, schema=schema, table="stg_{}".format(table))
-
-            # Overwrite if applicable and successful
-            if success and overwrite:
-                self.drop_table(schema=schema, table=table)
-
-            # Move from stg to live
-            if success:
-                self.query("""
-                select * 
-                into {schema}.{table}
-                from {schema}.{stg_table}
-                """.format(schema=schema, table=table, stg_table="stg_{}".format(table)), days=days)
-
-                # Drop stg table
-                self.drop_table(schema=schema, table="stg_{}".format(table))
-
-        # Warn why will not work for xls if bulk wasn't called
-        if multi_sheet or extension != 'xlsx':
+        if multi_sheet:
             print("""
+                Only the specified sheet (or 1st if not specified will be imported
+            """)
+        # if not too big use pandas
+
+
+        try:
+            df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
+
+            # Match previous styles
+            cols = []
+            for c in df.columns:
+                cols.append(c.strip().replace(' ', '_').replace('.', '_'))
+            df.columns= cols
+
+            if 'ogc_fid' in df.columns:
+                df = df.drop('ogc_fid', 1)
+            self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
+                                    column_type_overrides=column_type_overrides, days=days)
+        except Exception as e:
+
+           print("""
             Only large, single-sheet xlsx (and csv) files can be loaded quickly via ogr/gdal. 
             Consider manually converting the file to csv or xlsx.
-            """)
-
-        if not success:
-            # Uses the first sheet if no inputted sheet name
-            if extension == 'xlsx':
-                # Grab sheet
-                if sheet_name:
-                    if type(sheet_name) == int and str(sheet_name) not in wb.sheetnames:
-                        sheet_data = list(wb[wb.sheetnames[sheet_name]].values)
-                    else:
-                        sheet_data = list(wb[str(sheet_name)].values)
-                elif not sheet_name:
-                    sheet_data = list(wb.worksheets[0].values)
-
-                # Match previous styles
-                cols = []
-                for c in sheet_data[0]:
-                    if type(c) == str:
-                        cols.append(c.strip().replace(' ', '_').replace('.', '_'))
-                    else:
-                        cols.append(c)
-
-                df = pd.DataFrame(sheet_data[1:], columns=cols)
-
-            else:
-                df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
-
-            # Call dataframe_to_table fn
-            self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
-                                    column_type_overrides=column_type_overrides, days=days)
-
-        # Try to remove new file if applicable.
-        if remove_file:
-            os.remove(input_file)
+           """)
+           print(e)
 
     def query_to_csv(self, query, output_file=None, strict=True, open_file=False, sep=',', quote_strings=True,
                      quiet=False, overwrite=False):
