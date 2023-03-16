@@ -5,6 +5,7 @@ import requests
 import zipfile
 import configparser
 import csv
+import openpyxl
 from xlrd import open_workbook
 from xlutils.copy import copy
 from zipfile import ZipFile
@@ -317,7 +318,7 @@ def set_up_xls():
     if os.path.isfile(xls_file1):
         clean_up_file(xls_file1)
 
-    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2, 2:3}, 'b': {0: 3, 1: 4, 2:5}, 'Unnamed: 0': {0: 0, 1: 1, 2:6}})
     test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
     print ('%s created\n' % os.path.basename(xls_file1))
 
@@ -341,3 +342,22 @@ def set_up_xls():
         row = 0
     w.save(xls_file2)
     print ('%s created\n' % os.path.basename(xls_file2))
+
+
+    # set up xls files for kwargs testing
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    c1 = sheet.cell(row=1, column=1)
+    c1.value = "skip me"
+    for c in range(1,4):
+        cell = sheet.cell(row=2, column=c)
+        cell.value = f'header {c}'
+        cell2 = sheet.cell(row=3, column=c)
+        cell2.value = c
+        cell3 = sheet.cell(row=3, column=c)
+        cell3.value = c+1
+
+    wb.save(DIR + "\\xls_kwargs_test.xls")
+    _df = pd.read_excel(DIR + "\\xls_kwargs_test.xls")
+    _df.to_excel(DIR + "\\xls_kwargs_test.xlsx", index=False)
+
