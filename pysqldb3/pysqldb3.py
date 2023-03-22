@@ -1228,15 +1228,37 @@ class DbConnect:
 
             if 'ogc_fid' in df.columns:
                 df = df.drop('ogc_fid', 1)
-            self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
-                                    column_type_overrides=column_type_overrides, days=days)
-        except Exception as e:
 
-           print("""
-            Only large, single-sheet xlsx (and csv) files can be loaded quickly via ogr/gdal. 
-            Consider manually converting the file to csv or xlsx.
-           """)
-           print(e)
+            if df.shape[0] > 100:
+                try:
+                    table_schema = self.dataframe_to_table_schema(df, table,
+                                                                  schema=schema,
+                                                                  overwrite=overwrite,
+                                                                  temp=temp,
+                                                                  column_type_overrides=column_type_overrides,
+                                                                  days=days)
+                    temp_file = os.path.dirname(
+                        input_file) + '\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+                    df.to_csv(temp_file, index=False, header=True)
+
+                    success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
+                                                      table_schema=table_schema, days=days)
+                    os.remove(temp_file)
+
+                    if not success:
+                        raise AssertionError('Bulk file loading failed.'.format(schema, table))
+
+                except SystemExit:
+                    raise AssertionError('Bulk file loading failed.'.format(schema, table))
+                except Exception as e:
+                    print(e)
+                    raise AssertionError('Bulk file loading failed.'.format(schema, table))
+            else:
+                self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
+                                        column_type_overrides=column_type_overrides, days=days)
+        except Exception as e:
+            print(e)
+
 
     def query_to_csv(self, query, output_file=None, strict=True, open_file=False, sep=',', quote_strings=True,
                      quiet=False, overwrite=False):
