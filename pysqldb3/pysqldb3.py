@@ -947,7 +947,7 @@ class DbConnect:
                 temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
 
 
-                with pd.read_csv(input_file, chunksize=10 ** 15, **kwargs) as reader:
+                with pd.read_csv(input_file, chunksize=10 ** 15, sep=sep, **kwargs) as reader:
                     for chunk in reader:
                         chunk.to_csv(temp_file, mode='a', index=False, header=True)
 
