@@ -20,17 +20,19 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 #### pysqldb3 public functions:
 
 
-1. [`DbConnect`](#connect): Connects to database
+1. [`connect`](#connect): Connects to database
 1. [`disconnect`](#disconnect): Disconnects from database.  
 1. [`check_conn`](#check_conn): Checks and reconnects to connection if not currently connected.
 1. [`log_temp_table`](#log_temp_table): Writes tables to temp log to be deleted after expiration date.
 1. [`check_logs`](#check_logs): Queries the temp log associated with the user's login and returns a pandas DataFrame of results. 
+1. [`check_table_in_log`](#check_table_in_log):  Checks if the table is logged for deletion and date of deletion
 1. [`clean_up_new_tables`](#clean_up_new_tables): Drops all newly created tables from this DbConnect instance (current session).
 1. [`blocking_me`](#blocking_me): Queries database to check for queries or users currently blocking the user ()defined in the connection). *Postgres Only.*
 1. [`kill_blocks`](#kill_blocks): Will kill any queries that are blocking, that the user (defined in the connection) owns. *Postgres Only*.
 1. [`my_tables`](#my_tables): Get a list of tables for which user (defined in the connection) is the owner *Postgres Only*.
 1. [`table_exists`](#table_exists): Checks if table exists in the database. 
 1. [`get_schemas`](#get_schemas): Gets a list of schemas available in the database
+1. [`get_table_columns`](#get_table_columns): Gets a list of columns and their datatypes for a specified table.   
 1. [`query`](#query): Runs query from input SQL string, calls Query object. 
 1. [`drop_table`](#drop_table):  Drops table from database and removes from the temp log table
 1. [`rename_column`](#rename_column): Renames a column to the new column name on the specified table.
@@ -154,6 +156,26 @@ Queries the temp log associated with the user's login and returns a pandas DataF
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
+
+### check_table_in_log
+**`DbConnect.check_table_in_log(table_name, schema=None)`**
+Checks if the table is logged for deletion and date of deletion, returns a list of results.  
+###### Parameters:
+ - **`table_name`: str, name of table to check
+ - **`schema`: str, default None**: Database schema name 
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+
+>>> db.check_table_in_log('doc_test',schema = 'working')
+
+[(1,'user_name','working','doc_test',datetime.datetime(2023, 1, 16, 12, 44),datetime.date(2023, 1, 23))]
+```
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
 
 ### cleanup_new_tables
 **`DbConnect.clean_up_new_tables()`**
@@ -283,6 +305,34 @@ Gets a list of schemas available in the database
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
+
+### get_table_columns
+**`DbConnect.get_table_columns()`**
+Gets a list of columns and their data types in a speficied table
+##### Parameters:
+ - **`table` str**: Name of table to be analyzed 
+ - **`schema` str, defaut None**: If not provided will assume database's default schema
+ - **`full` bool, defaut Fale**: If True results will include all columns from information_schema.columns table otherwise will be limited to name and data type
+
+ 
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.get_table_columns('node')
+
+[('ogc_fid', 'integer'),
+ ('nodeid', 'numeric'),
+ ('vintersect', 'character varying'),
+ ('version', 'character varying'),
+ ('created', 'timestamp with time zone'),
+ ('masterid', 'integer'),
+ ('is_int', 'boolean'),
+ ('manual_fix', 'boolean'),
+ ('is_cntrln_int', 'boolean'),
+ ('geom', 'USER-DEFINED')]
+
+```
 
 ### query
 **`DbConnect.query(query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
