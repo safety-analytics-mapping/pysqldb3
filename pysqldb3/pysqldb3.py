@@ -1108,7 +1108,7 @@ class DbConnect:
                 cols = []
                 for c in _:
                     if len(set(c[0]) - {' ', ':', '.'}) != len(set(c[0])):
-                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_'))
+                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_').replace('\n', '_'))
                     else:
                         cols.append(c[0])
                 cols = str(cols).replace("'", "")[1:-1]
@@ -1223,7 +1223,7 @@ class DbConnect:
             # Match previous styles
             cols = []
             for c in df.columns:
-                cols.append(c.strip().replace(' ', '_').replace('.', '_'))
+                cols.append(c.strip().replace(' ', '_').replace('.', '_').replace(':', '_').replace('\n', '_'))
             df.columns= cols
 
             if 'ogc_fid' in df.columns:
@@ -1243,7 +1243,10 @@ class DbConnect:
 
                     success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
                                                       table_schema=table_schema, days=days)
-                    os.remove(temp_file)
+                    try:
+                        os.remove(temp_file)
+                    except Exception as e:
+                        print(f'Could not remove temp file\n{e}')
 
                     if not success:
                         raise AssertionError('Bulk file loading failed.'.format(schema, table))
