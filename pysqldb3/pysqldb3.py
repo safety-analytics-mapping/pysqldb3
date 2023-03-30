@@ -807,6 +807,10 @@ class DbConnect:
         for col in df.dtypes.items():
             col_name, col_type = col[0], type_decoder(col[1], varchar_length=allowed_length)
 
+            # autodetect date and force to text (common error)
+            if 'date' in col_name.lower() and col_type in ('int', 'bigint', 'float'):
+                col_type = 'varchar(500)'
+
             if column_type_overrides and col_name in column_type_overrides.keys():
                 input_schema.append([clean_column(col_name), column_type_overrides[col_name]])
             else:
@@ -1097,6 +1101,14 @@ class DbConnect:
 
                 # Cast all fields to new type to move from stg to final table
                 # take staging field name from stg table
+                # def __double_cast_for_ints(i, column_name, column_type):
+                #     if column_type == 'bigint':
+                #         return 'CAST(CAST("' + column_names[i] + '"as float) as bigint)'
+                #     else:
+                #         return 'CAST("' + column_names[i] + '" as ' + column_type + ')'
+                #
+                # cols = [__double_cast_for_ints(i, col_name, col_type) for i, (col_name, col_type) in
+                #         enumerate(table_schema)]
                 cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
                         enumerate(table_schema)]
                 # cols = [c.encode('utf-8') for c in cols]
