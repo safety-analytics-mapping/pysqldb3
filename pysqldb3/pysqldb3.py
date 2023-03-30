@@ -1320,13 +1320,15 @@ class DbConnect:
                 ';' (semicolon)
                 '\t' (tab)
                 ' ' (space)
-
             """)
 
         if quote_strings:
             OGR_QUOTE_STRINGS = 'IF_AMBIGUOUS'
         else:
             OGR_QUOTE_STRINGS = 'IF_NEEDED'
+
+        # escape double quote columns
+        query = query.replace('"', '\\"')
 
         if self.type == PG:
             cmd = WRITE_CSV_CMD_PG.format(
