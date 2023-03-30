@@ -1008,6 +1008,19 @@ class DbConnect:
         """
         return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=header, days=days)
+    @staticmethod
+    def __double_cast_for_ints(i, column_names, column_type):
+        """
+        This will create the cast statements for insert query which is used by _bulk_file_to_table
+        :param i: index position
+        :param column_names: column name list
+        :param column_type: column datatype
+        :return: castting string for insert query
+        """
+        if column_type == 'bigint':
+            return 'CAST(CAST("' + column_names[i] + '"as float) as bigint)'
+        else:
+            return 'CAST("' + column_names[i] + '" as ' + column_type + ')'
 
     def _bulk_file_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False,
                             excel_header=True, days=7):
@@ -1101,13 +1114,9 @@ class DbConnect:
 
                 # Cast all fields to new type to move from stg to final table
                 # take staging field name from stg table
-                def __double_cast_for_ints(i, column_name, column_type):
-                    if column_type == 'bigint':
-                        return 'CAST(CAST("' + column_names[i] + '"as float) as bigint)'
-                    else:
-                        return 'CAST("' + column_names[i] + '" as ' + column_type + ')'
 
-                cols = [__double_cast_for_ints(i, col_name, col_type) for i, (col_name, col_type) in
+
+                cols = [self.__double_cast_for_ints(i, column_names, col_type) for i, (col_name, col_type) in
                         enumerate(table_schema)]
                 # cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
                 #         enumerate(table_schema)]
