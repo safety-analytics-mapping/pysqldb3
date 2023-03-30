@@ -1101,16 +1101,16 @@ class DbConnect:
 
                 # Cast all fields to new type to move from stg to final table
                 # take staging field name from stg table
-                # def __double_cast_for_ints(i, column_name, column_type):
-                #     if column_type == 'bigint':
-                #         return 'CAST(CAST("' + column_names[i] + '"as float) as bigint)'
-                #     else:
-                #         return 'CAST("' + column_names[i] + '" as ' + column_type + ')'
-                #
-                # cols = [__double_cast_for_ints(i, col_name, col_type) for i, (col_name, col_type) in
-                #         enumerate(table_schema)]
-                cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
+                def __double_cast_for_ints(i, column_name, column_type):
+                    if column_type == 'bigint':
+                        return 'CAST(CAST("' + column_names[i] + '"as float) as bigint)'
+                    else:
+                        return 'CAST("' + column_names[i] + '" as ' + column_type + ')'
+
+                cols = [__double_cast_for_ints(i, col_name, col_type) for i, (col_name, col_type) in
                         enumerate(table_schema)]
+                # cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
+                #         enumerate(table_schema)]
                 # cols = [c.encode('utf-8') for c in cols]
                 cols = str(cols).replace("'", "")[1:-1]
             else:
