@@ -221,7 +221,7 @@ def clean_cell(x):
     if pd.isnull(x):
         return "None"
     elif type(x) == int:
-        return str(float(x))
+        return str(int(x))
     elif type(x) == decimal.Decimal:
         return str(float(x))
     elif type(x) == str:
