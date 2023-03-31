@@ -9,6 +9,7 @@ import plotly.express as px
 import configparser
 import os
 from .Config import write_config
+import pyarrow.csv as pyarrowcsv
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -1015,15 +1016,6 @@ class DbConnect:
         :return:
         """
 
-        def contains_long_columns(df2):
-            for c in list(df2.columns):
-                if df2[c].dtype in ('O','object', 'str'):
-                    if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
-                        print('Varchar column with length greater than 500 found; allowing max varchar length.')
-                        return True
-
-            return False
-
         if not schema:
             schema = self.default_schema
 
@@ -1037,65 +1029,90 @@ class DbConnect:
             print('Must set overwrite=True; table already exists.')
             return
 
-        # Use pandas to get existing data and schema
-        # Check for varchar columns > 500 in length
+        # Use pyarrow to get existing data and schema
+        data = pyarrowcsv.read_csv(input_file, parse_options=pyarrowcsv.ParseOptions(delimiter=sep),
+                                   read_options=pyarrowcsv.ReadOptions(**kwargs))
+        if '' in [col.name for col in data.schema]:
+            data = data.rename_columns([(lambda x: 'unnamed' if x == '' else x)(col.name) for col in data.schema])
+
         allow_max = False
-        if os.path.getsize(input_file) > 1000000:
-            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep, **kwargs)
-            df = data.get_chunk(1000)
 
-            # Check for long column iteratively
-            while df is not None and long_varchar_check:
-                if contains_long_columns(df):
-                    allow_max = True
-                    break
+        if 'ogc_fid' in [i.name for i in data.schema]:
+            data = data.drop(['ogc_fid'])
 
-                df = data.get_chunk(1000)
-        else:
-            df = pd.read_csv(input_file, sep=sep, **kwargs)
-            allow_max = long_varchar_check and contains_long_columns(df)
+        table_schema = self.dataframe_to_table_schema_pyarrow(data, table, overwrite=overwrite, schema=schema,
+                                                              temp=temp,
+                                                              allow_max_varchar=allow_max,
+                                                              column_type_overrides=column_type_overrides,
+                                                              days=days)
+        # Default to bulk importer
 
-        if 'ogc_fid' in df.columns:
-            df = df.drop('ogc_fid', 1)
+        try:
+            success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
+                                              table_schema=table_schema, days=days)
 
-        # Calls dataframe_to_table_schema fn
-        table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
-                                                      allow_max_varchar=allow_max,
-                                                      column_type_overrides=column_type_overrides,
-                                                      days=days)
+            if not success:
+                raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
 
-        # For larger files use GDAL to import
-        if df.shape[0] > 999:
-            try:
-                temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
-
-
-                with pd.read_csv(input_file, chunksize=10 ** 15, sep=sep, **kwargs) as reader:
-                    for chunk in reader:
-                        chunk.to_csv(temp_file, mode='a', index=False, header=True)
-
-
-                success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
-                                                  table_schema=table_schema, days=days)
-                os.remove(temp_file)
-
-                if not success:
-                    raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
-
-            except SystemExit:
-                raise AssertionError(
-                    'Bulk CSV loading failed.'.format(schema, table)
-                )
-            except Exception as e:
-                print(e)
-                raise AssertionError(
-                    'Bulk CSV loading failed.'.format(schema, table)
-                )
-
-        else:
+        except Exception as e:
+            print(e)
+            # fall back to pandas dataframe to table
             # Calls dataframe_to_table fn
-            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
+            self.dataframe_to_table(data.to_pandas(), table, table_schema=table_schema, overwrite=overwrite,
+                                    schema=schema,
                                     temp=temp, days=days)
+
+    def dataframe_to_table_schema_pyarrow(self, data, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
+                                          column_type_overrides=None, days=7):
+
+        """
+        Translates Pandas DataFrame into empty database table.
+        :param df: Pandas DataFrame to be added to database
+        :param table: Table name to be used in database
+        :param schema: Database schema to use for destination in database (defaults database object's default schema)
+        :param overwrite: If table exists in database will overwrite if True (defaults to False)
+        :param temp: Optional flag to make table as not-temporary (defaults to True)
+        :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
+        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+                raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+                detection.
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :return: Table schema that was created from DataFrame
+        """
+        if not schema:
+            schema = self.default_schema
+
+        input_schema = list()
+
+        if allow_max_varchar:
+            allowed_length = VARCHAR_MAX[self.type]
+        else:
+            allowed_length = 500
+
+        # Parse df for schema
+        for col in data.schema:
+            col_name, col_type = col.name, type_decoder_pyarrow(col.type, varchar_length=allowed_length)
+
+
+            if column_type_overrides and col_name in column_type_overrides.keys():
+                input_schema.append([clean_column(col_name), column_type_overrides[col_name]])
+            else:
+                input_schema.append([clean_column(col_name), col_type])
+
+        if overwrite:
+            self.drop_table(schema=schema, table=table, cascade=False)
+
+        # Create table in database
+        qry = """
+                CREATE TABLE {s}.{t} (
+                {cols}
+                )
+        """.format(s=schema, t=table,
+                   cols=str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", ""))
+
+        self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
+        return input_schema
+
 
     def _bulk_csv_to_table_pyarrow(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
         """

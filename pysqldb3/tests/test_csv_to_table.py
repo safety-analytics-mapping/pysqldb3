@@ -53,6 +53,27 @@ class TestCsvToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
 
+    def test_csv_to_table_basic_pyarrow(self):
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
+        db.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema)
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
     def test_csv_to_table_basic_auto_date(self):
         data = {'id': {0: 1, 1: 2, 2: 3, 3: 4, 4: 5},
                 'year': {0: 1981, 1: 2009, 2: 1954, 3: 1993, 4: 1973},
@@ -149,6 +170,28 @@ class TestCsvToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
 
+    def test_csv_to_table_basic_skip_rows_pyarrow(self):
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv"
+        db.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema,
+                        skip_rows=1)
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp, skiprows=1)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
     def test_csv_to_table_column_override(self):
         db.drop_table(schema=pg_schema, table=create_table_name)
         fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\csv_override_ex.csv"
@@ -168,6 +211,43 @@ class TestCsvToTablePG:
 
         # Assert df column types match override
         pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'character varying'}, {"column_name": 'b', "data_type": 'bigint'},{"column_name": 'c', "data_type": 'bigint'}, {"column_name": 'd', "data_type": 'character varying'}]),
+                                      db.dfquery("""
+
+                                            select distinct column_name, data_type
+                                            from information_schema.columns
+                                            where table_name = '{}' and lower(column_name) not like '%unnamed%';
+
+                                      """.format(create_table_name))
+        )
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+        os.remove(fp)
+
+    def test_csv_to_table_column_override_pyarrow(self):
+        db.drop_table(schema=pg_schema, table=create_table_name)
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\csv_override_ex.csv"
+        test_df = pd.DataFrame([{'a': 1, 'b': 2, 'c': 3, 'd': 'text'}, {'a': 4, 'b': 5, 'c': 6, 'd': 'another'}])
+        test_df.to_csv(fp)
+        db.csv_to_table_pyarrow(
+            input_file=fp, table=create_table_name, schema=pg_schema, column_type_overrides={'a': 'varchar'})
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Modify to make column types altered
+        altered_column_type_df = pd.DataFrame(
+            [{'a': '1', 'b': 2, 'c': 3, 'd': 'text'}, {'a': '4', 'b': 5, 'c': 6, 'd': 'another'}])
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df[['a', 'b', 'c', 'd']], altered_column_type_df)
+
+        # Assert df column types match override
+        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'character varying'},
+                                                    {"column_name": 'b', "data_type": 'bigint'},
+                                                    {"column_name": 'c', "data_type": 'bigint'},
+                                                    {"column_name": 'd', "data_type": 'character varying'}]),
                                       db.dfquery("""
 
                                             select distinct column_name, data_type
@@ -415,6 +495,27 @@ class TestCsvToTableMS:
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
 
+    def test_csv_to_table_basic_pyarrow(self):
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv"
+        sql.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=sql_schema)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
     def test_csv_to_table_basic_auto_date(self):
         data = {'id': {0: 1, 1: 2, 2: 3, 3: 4, 4: 5},
                 'year': {0: 1981, 1: 2009, 2: 1954, 3: 1993, 4: 1973},
@@ -510,6 +611,28 @@ class TestCsvToTableMS:
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
 
+    def test_csv_to_table_basic_skip_rows_pyarrow(self):
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv"
+        sql.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=sql_schema,
+                        skip_rows=1)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp, skiprows=1)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
     def test_csv_to_table_column_override(self):
         sql.drop_table(schema=sql_schema, table=create_table_name)
 
@@ -532,6 +655,41 @@ class TestCsvToTableMS:
                                             where table_name = '{}' and lower(column_name) not like '%unnamed%';
                                       """.format(create_table_name))
                                       )
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+        os.remove(fp)
+
+    def test_csv_to_table_column_override_pyarrow(self):
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\csv_override_ex.csv"
+        test_df = pd.DataFrame([{'a': 1, 'b': 2, 'c': 3, 'd': 'text'}, {'a': 4, 'b': 5, 'c': 6, 'd': 'another'}])
+        test_df.to_csv(fp)
+        sql.csv_to_table_pyarrow(
+            input_file=fp, table=create_table_name, schema=sql_schema, column_type_overrides={'a': 'varchar'})
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Modify to make column types altered
+        altered_column_type_df = pd.DataFrame(
+            [{'a': '1', 'b': 2, 'c': 3, 'd': 'text'}, {'a': '4', 'b': 5, 'c': 6, 'd': 'another'}])
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df[['a', 'b', 'c', 'd']], altered_column_type_df)
+
+        # Assert df column types match override
+        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'varchar'},
+                                                    {"column_name": 'b', "data_type": 'bigint'},
+                                                    {"column_name": 'c', "data_type": 'bigint'},
+                                                    {"column_name": 'd', "data_type": 'varchar'}]),
+                                      sql.dfquery("""
+                                              select distinct column_name, data_type
+                                              from information_schema.columns
+                                              where table_name = '{}' and lower(column_name) not like '%unnamed%';
+                                        """.format(create_table_name))
+    )
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)

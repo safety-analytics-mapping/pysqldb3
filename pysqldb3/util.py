@@ -3,6 +3,7 @@ import decimal
 import re
 import os
 import configparser
+import pyarrow
 
 import numpy as np
 import pandas as pd
@@ -210,6 +211,27 @@ def type_decoder(typ, varchar_length=500):
     else:
         return 'varchar ({})'.format(varchar_length)
 
+def type_decoder_pyarrow(typ, varchar_length=500):
+    """
+    Lazy type decoding from pandas to SQL. There are problems assoicated with NaN values for numeric types when
+    stored as Object dtypes.
+
+    This does not try to optimize for smallest size datatype.
+
+    :param typ: Numpy dtype for column
+    :param varchar_length: Length for varchar columns
+    :return: String representing data type
+    """
+    if typ in (pyarrow.int8(), pyarrow.int16(), pyarrow.int32(), pyarrow.int64()):
+        return 'bigint'
+    if typ in (pyarrow.float16(), pyarrow.float32(), pyarrow.float64()):
+        return 'float'
+    elif pyarrow.types.is_timestamp(typ):
+        return 'timestamp'
+    elif pyarrow.types.is_date(typ):
+        return 'date'
+    else:
+        return 'varchar ({})'.format(varchar_length)
 
 def clean_cell(x):
     """
