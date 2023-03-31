@@ -993,6 +993,129 @@ class DbConnect:
         return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
 
+    def csv_to_table_pyarrow(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
+                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
+        """
+        Imports csv file to database. This uses pyarrow datatypes to generate the table schema.
+
+        ** This is an alternative route for importing - faster and better type inference, but not as fully featured as pandas **
+
+        :param input_file: File path to csv file; if None, prompts user input
+        :param overwrite: If table exists in database, will overwrite; defaults to False
+        :param schema: Schema of table; if None, defaults to db's default schema
+        :param table: Name for final database table; defaults to filename in path
+        :param temp: Boolean for temporary table; defaults to True
+        :param sep: Separator for csv file, defaults to comma (,)
+        :param long_varchar_check: Boolean to allow unlimited/max varchar columns; defaults to False
+        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+        raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+        detection. **Will not override a custom table_schema, if inputted**
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
+        :return:
+        """
+
+        def contains_long_columns(df2):
+            for c in list(df2.columns):
+                if df2[c].dtype in ('O','object', 'str'):
+                    if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
+                        print('Varchar column with length greater than 500 found; allowing max varchar length.')
+                        return True
+
+            return False
+
+        if not schema:
+            schema = self.default_schema
+
+        if not input_file:
+            input_file = file_loc('file')
+
+        if not table:
+            table = os.path.basename(input_file).split('.')[0]
+
+        if not overwrite and self.table_exists(schema=schema, table=table):
+            print('Must set overwrite=True; table already exists.')
+            return
+
+        # Use pandas to get existing data and schema
+        # Check for varchar columns > 500 in length
+        allow_max = False
+        if os.path.getsize(input_file) > 1000000:
+            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep, **kwargs)
+            df = data.get_chunk(1000)
+
+            # Check for long column iteratively
+            while df is not None and long_varchar_check:
+                if contains_long_columns(df):
+                    allow_max = True
+                    break
+
+                df = data.get_chunk(1000)
+        else:
+            df = pd.read_csv(input_file, sep=sep, **kwargs)
+            allow_max = long_varchar_check and contains_long_columns(df)
+
+        if 'ogc_fid' in df.columns:
+            df = df.drop('ogc_fid', 1)
+
+        # Calls dataframe_to_table_schema fn
+        table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
+                                                      allow_max_varchar=allow_max,
+                                                      column_type_overrides=column_type_overrides,
+                                                      days=days)
+
+        # For larger files use GDAL to import
+        if df.shape[0] > 999:
+            try:
+                temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+
+
+                with pd.read_csv(input_file, chunksize=10 ** 15, sep=sep, **kwargs) as reader:
+                    for chunk in reader:
+                        chunk.to_csv(temp_file, mode='a', index=False, header=True)
+
+
+                success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
+                                                  table_schema=table_schema, days=days)
+                os.remove(temp_file)
+
+                if not success:
+                    raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
+
+            except SystemExit:
+                raise AssertionError(
+                    'Bulk CSV loading failed.'.format(schema, table)
+                )
+            except Exception as e:
+                print(e)
+                raise AssertionError(
+                    'Bulk CSV loading failed.'.format(schema, table)
+                )
+
+        else:
+            # Calls dataframe_to_table fn
+            self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
+                                    temp=temp, days=days)
+
+    def _bulk_csv_to_table_pyarrow(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
+        """
+        Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.
+
+        ** This is an alternative route for importing - faster and better type inference, but not as fully featured as pandas **
+
+        
+        :param input_file: Source CSV filepath
+        :param schema: Schema to write to; defaults to db's default schema
+        :param table: Destination table name to write data to; defaults to user/date defined
+        :param table_schema:
+        :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :return:
+        """
+
+        return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
+                                        table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
+
     def _bulk_xlsx_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False,
                             header=True, days=7):
         """
