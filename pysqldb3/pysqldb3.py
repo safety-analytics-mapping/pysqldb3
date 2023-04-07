@@ -469,7 +469,7 @@ class DbConnect:
         """
         :param table_name: name of table to check
         :param schema: schema to check; defaults to the default_schema
-        :return: df
+        :return: list
         """
         if not schema:
             schema = self.default_schema
