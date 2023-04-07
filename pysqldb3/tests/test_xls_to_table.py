@@ -1,5 +1,5 @@
 import os
-
+from . import helpers
 import configparser
 import pandas as pd
 import time
@@ -22,24 +22,30 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
 
 xls_table_name = 'sample_test_xls_to_table_{}'.format(db.user)
+pg_schema='working'
+sql_schema='dbo'
 
 
 class TestXlsToTablePG:
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_xls()
+
     def test_xls_to_table_basic(self):
         # xls_to_table
-        db.query('drop table if exists working.{}'.format(xls_table_name))
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls.xls"
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
+        fp = helpers.DIR +"\\test_xls.xls"
 
         db.xls_to_table(
             input_file=fp,
             table=xls_table_name,
-            schema='working'
+            schema=pg_schema
         )
 
         # Check to see if table is in database
-        assert db.table_exists(table=xls_table_name, schema='working')
-        db.query("alter table working.{} drop column if exists ogc_fid".format(xls_table_name))
-        db_df = db.dfquery("select * from working.{}".format(xls_table_name))
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
+        db.query("alter table {}.{} drop column if exists ogc_fid".format(pg_schema, xls_table_name))
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
         xls_df = pd.read_excel(fp).rename(columns={"Unnamed: 0": "unnamed__0"})
@@ -49,51 +55,79 @@ class TestXlsToTablePG:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema=pg_schema, table=xls_table_name)
+
+    def test_xls_to_table_basic_kwargs(self):
+        # xls_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
+        fp = helpers.DIR +"\\test_xls.xls"
+
+        db.xls_to_table(
+            input_file=fp,
+            table=xls_table_name,
+            schema=pg_schema,
+            skipfooter=1
+        )
+
+        # Check to see if table is in database
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
+        db.query("alter table {}.{} drop column if exists ogc_fid".format(pg_schema, xls_table_name))
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
+
+        # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
+        xls_df = pd.read_excel(fp, skipfooter=1).rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df.columns = [c.lower().strip().replace(' ', '_').replace('.', '_').replace(':', '_') for c in xls_df.columns]
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(db_df, xls_df)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=xls_table_name)
 
     def test_xls_to_table_override(self):
         # xls_to_table
-        db.query('drop table if exists working.{}'.format(xls_table_name))
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls.xls"
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
+        fp = helpers.DIR +"\\test_xls.xls"
 
         # Try first without column override; confirm will cast as bigint
         db.xls_to_table(
             input_file=fp,
             table=xls_table_name,
-            schema='working'
+            schema=pg_schema
         )
 
         # Check to see if table is in database
-        assert db.table_exists(table=xls_table_name, schema='working')
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
 
         # Assert df column types match without override
         pd.testing.assert_frame_equal(
             pd.DataFrame(
-                [{"column_name": 'a', "data_type": 'integer'}, {"column_name": 'b', "data_type": 'integer'}]),
+                [{"column_name": 'a', "data_type": 'bigint'},
+                 {"column_name": 'b', "data_type": 'bigint'}]),
 
             db.dfquery("""
 
                         select distinct column_name, data_type
                         from information_schema.columns
-                        where table_name = '{}' 
+                        where table_name = '{}'
                         and table_schema = '{}'
-                        and lower(column_name) not like '%unnamed%' 
+                        and lower(column_name) not like '%unnamed%'
                         and lower(column_name) not like '%ogc_fid%';
 
-                    """.format(xls_table_name, 'working'))
+                    """.format(xls_table_name, pg_schema))
         )
 
         # Now test with override
         db.xls_to_table(
             input_file=fp,
             table=xls_table_name,
-            schema='working',
+            schema=pg_schema,
             column_type_overrides={'b': 'varchar'},
             overwrite=True
         )
 
         # Check to see if table is in database
-        assert db.table_exists(table=xls_table_name, schema='working')
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
 
         # Assert df column types match override
         pd.testing.assert_frame_equal(pd.DataFrame(
@@ -105,32 +139,32 @@ class TestXlsToTablePG:
                 from information_schema.columns
                 where table_name = '{}'
                 and table_schema = '{}'
-                and lower(column_name) not like '%unnamed%' 
+                and lower(column_name) not like '%unnamed%'
                 and lower(column_name) not like '%ogc_fid%';
 
-            """.format(xls_table_name, 'working'))
+            """.format(xls_table_name, pg_schema))
         )
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema=pg_schema, table=xls_table_name)
 
     def test_xls_to_table_sheet(self):
         # xls_to_table
-        db.query('drop table if exists working.{}'.format(xls_table_name))
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
 
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls_with_sheet.xls"
+        fp = helpers.DIR +"\\test_xls_with_sheet.xls"
 
         db.xls_to_table(
             input_file=fp,
             table=xls_table_name,
-            schema='working',
+            schema=pg_schema,
             sheet_name='AnotherSheet'
         )
 
         # Check to see if table is in database
-        assert db.table_exists(table=xls_table_name, schema='working')
-        db.query("alter table working.{} drop column if exists ogc_fid".format(xls_table_name))
-        db_df = db.dfquery("select * from working.{}".format(xls_table_name))
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
+        db.query("alter table {}.{} drop column if exists ogc_fid".format(pg_schema, xls_table_name))
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
         xls_df = pd.read_excel(fp, sheet_name='AnotherSheet').rename(columns={"Unnamed: 0": "unnamed__0",
@@ -140,25 +174,25 @@ class TestXlsToTablePG:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema=pg_schema, table=xls_table_name)
 
     def test_xls_to_table_sheet_int(self):
         # xls_to_table
-        db.query('drop table if exists working.{}'.format(xls_table_name))
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
 
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls_with_sheet.xls"
+        fp = helpers.DIR +"\\test_xls_with_sheet.xls"
 
         db.xls_to_table(
             input_file=fp,
             table=xls_table_name,
-            schema='working',
+            schema=pg_schema,
             sheet_name=1
         )
 
         # Check to see if table is in database
-        assert db.table_exists(table=xls_table_name, schema='working')
-        db.query("alter table working.{} drop column if exists ogc_fid".format(xls_table_name))
-        db_df = db.dfquery("select * from working.{}".format(xls_table_name))
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
+        db.query("alter table {}.{} drop column if exists ogc_fid".format(pg_schema, xls_table_name))
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
 
 
         # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
@@ -169,7 +203,7 @@ class TestXlsToTablePG:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema=pg_schema, table=xls_table_name)
 
     def test_xls_to_table_schema(self):
         return
@@ -183,14 +217,14 @@ class TestXlsToTablePG:
 class TestBulkXLSToTablePG:
     @classmethod
     def setup_class(cls):
-        return
+        helpers.set_up_xls()
 
     def test_bulk_xls_to_table_basic(self):
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\Test.xlsx"
+        fp = helpers.DIR +"\\Test.xlsx"
 
         # bulk_xls_to_table
-        if db.table_exists(schema='working', table=xls_table_name):
-            db.query('drop table working.{}'.format(xls_table_name))
+        if db.table_exists(schema=pg_schema, table=xls_table_name):
+            db.query('drop table {}.{}'.format(pg_schema, xls_table_name))
 
         # Make large XLSX file
         data = []
@@ -200,12 +234,12 @@ class TestBulkXLSToTablePG:
         pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
 
         # Try via bulk loader
-        db._bulk_xlsx_to_table(input_file=fp, table=xls_table_name, schema='working')
+        db._bulk_xlsx_to_table(input_file=fp, table=xls_table_name, schema=pg_schema)
 
         # Check to see if table is in database
         # This example is linked to the mssql default server bug
-        assert db.table_exists(schema='working', table=xls_table_name)
-        sql_df = db.dfquery("select * from working.{}".format(xls_table_name))
+        assert db.table_exists(schema=pg_schema, table=xls_table_name)
+        sql_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
 
         # Raw df from data above
         raw_df = pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2'])
@@ -214,11 +248,43 @@ class TestBulkXLSToTablePG:
         pd.testing.assert_frame_equal(sql_df.drop(['ogc_fid'], axis=1), raw_df, check_column_type=False)
 
         # Cleanup
-        db.drop_table(schema='working', table=xls_table_name)
+        db.drop_table(schema=pg_schema, table=xls_table_name)
+        os.remove(fp)
+
+    def test_bulk_xls_to_table_basic_kwargs(self):
+        fp = helpers.DIR +"\\Test.xlsx"
+
+        # bulk_xls_to_table
+        if db.table_exists(schema=pg_schema, table=xls_table_name):
+            db.query('drop table {}.{}'.format(pg_schema, xls_table_name))
+
+        # Make large XLSX file
+        data = []
+        for i in range(0, 10):
+            data.append((i, i + 1))
+
+        pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
+
+        # this should go through the bulk loader
+        db.xls_to_table(input_file=fp, table=xls_table_name, schema=pg_schema, skipfooter=1)
+
+        # Check to see if table is in database
+        # This example is linked to the mssql default server bug
+        assert db.table_exists(schema=pg_schema, table=xls_table_name)
+        sql_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
+
+        # Raw df from data above
+        raw_df = pd.DataFrame(data[:-1], columns=['ogr_ex_col_1', 'ogr_ex_col_2'])
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(sql_df, raw_df, check_column_type=False)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=xls_table_name)
         os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\Test.xlsx"
+        fp = helpers.DIR +"\\Test.xlsx"
 
         # bulk_xls_to_table
         if db.table_exists(table=xls_table_name):
@@ -249,7 +315,7 @@ class TestBulkXLSToTablePG:
         os.remove(fp)
 
     def test_bulk_xls_to_table_multisheet(self):
-        fp_xlsx = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\Test.xlsx"
+        fp_xlsx = helpers.DIR +"\\Test.xlsx"
         writer = pd.ExcelWriter(fp_xlsx)
 
         db.query('drop table if exists {}.{}'.format(db.default_schema, xls_table_name))
@@ -286,28 +352,32 @@ class TestBulkXLSToTablePG:
 
     @classmethod
     def teardown_class(cls):
-        sql.cleanup_new_tables()
+        db.cleanup_new_tables()
 
 
 class TestXlsToTableMS:
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_xls()
+
     def test_xls_to_table_basic(self):
         # Define table name and cleanup
-        if sql.table_exists(table=xls_table_name, schema='dbo'):
-            sql.query('drop table dbo.{}'.format(xls_table_name))
+        if sql.table_exists(table=xls_table_name, schema=sql_schema):
+            sql.query('drop table {}.{}'.format(sql_schema, xls_table_name))
 
-        if sql.table_exists(table='stg_' + xls_table_name, schema='dbo'):
-            sql.query('drop table dbo.{}'.format('stg_' + xls_table_name))
+        if sql.table_exists(table='stg_' + xls_table_name, schema=sql_schema):
+            sql.query('drop table {}.{}'.format(sql_schema, 'stg_' + xls_table_name))
 
         # xls_to_table
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls.xls"
+        fp = helpers.DIR +"\\test_xls.xls"
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name, schema='dbo'
+            table=xls_table_name, schema=sql_schema
         )
 
         # Check to see if table is in database
-        assert sql.table_exists(table=xls_table_name, schema='dbo')
-        sql_df = sql.dfquery("select * from dbo.{}".format(xls_table_name))
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
+        sql_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
         if 'ogr_fid' in sql_df.columns:
             sql_df = sql_df.drop(columns=['ogr_fid'])
 
@@ -318,33 +388,62 @@ class TestXlsToTableMS:
         pd.testing.assert_frame_equal(sql_df, xls_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
+
+    def test_xls_to_table_basic_kwargs(self):
+        # xls_to_table
+        sql.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
+        fp = helpers.DIR +"\\xls_kwargs_test.xls"
+
+        sql.xls_to_table(
+            input_file=fp,
+            table=xls_table_name,
+            schema=sql_schema,
+            skipfooter=1
+        )
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
+        sql.query("alter table {}.{} drop column if exists ogc_fid".format(sql_schema, xls_table_name))
+        sql_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
+        if 'ogr_fid' in sql_df.columns:
+            sql_df = sql_df.drop(columns=['ogr_fid'])
+
+        # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
+        xls_df = pd.read_excel(fp, skipfooter=1).rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df.columns = [c.lower().strip().replace(' ', '_').replace('.', '_').replace(':', '_') for c in xls_df.columns]
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(sql_df, xls_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
     def test_xls_to_table_override(self):
         # xls_to_table
-        sql.drop_table(schema='dbo', table=xls_table_name)
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls.xls"
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
+        fp = helpers.DIR + "\\test_xls.xls"
 
         # Try first without column override; confirm will cast as bigint
         sql.xls_to_table(
             input_file=fp,
             table=xls_table_name,
-            schema='dbo'
+            schema=sql_schema
         )
 
         # Check to see if table is in database
-        assert sql.table_exists(table=xls_table_name, schema='dbo')
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
 
         # Assert df column types match without override
         pd.testing.assert_frame_equal(pd.DataFrame(
-            [{"column_name": 'a', "data_type": 'int'}, {"column_name": 'b', "data_type": 'int'}]),
+            [{"column_name": 'a', "data_type": 'bigint'}, {"column_name": 'b', "data_type": 'bigint'}]),
 
             sql.dfquery("""
 
                         select distinct column_name, data_type
                         from information_schema.columns
-                        where table_name = '{}' 
-                        and lower(column_name) not like '%unnamed%' 
+                        where table_name = '{}'
+                        and lower(column_name) not like '%unnamed%'
                         and lower(column_name) not like '%ogr_fid%';
 
                     """.format(xls_table_name))
@@ -354,13 +453,13 @@ class TestXlsToTableMS:
         sql.xls_to_table(
             input_file=fp,
             table=xls_table_name,
-            schema='dbo',
+            schema=sql_schema,
             column_type_overrides={'b': 'varchar'},
             overwrite=True
         )
 
         # Check to see if table is in database
-        assert sql.table_exists(table=xls_table_name, schema='dbo')
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
 
         # Assert df column types match override
         pd.testing.assert_frame_equal(pd.DataFrame(
@@ -370,30 +469,30 @@ class TestXlsToTableMS:
 
                 select distinct column_name, data_type
                 from information_schema.columns
-                where table_name = '{}' and lower(column_name) not like '%unnamed%' 
+                where table_name = '{}' and lower(column_name) not like '%unnamed%'
                 and lower(column_name) not like '%ogr_fid%';
 
             """.format(xls_table_name))
         )
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
     def test_xls_to_table_zsheet(self):
         # xls_to_table
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls_with_sheet.xls"
+        fp = helpers.DIR +"\\test_xls_with_sheet.xls"
 
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name, schema='dbo',
+            table=xls_table_name, schema=sql_schema,
             sheet_name='AnotherSheet'
         )
 
         # Check to see if table is in database
-        assert sql.table_exists(table=xls_table_name, schema='dbo')
-        db_df = sql.dfquery("select * from dbo.{}".format(xls_table_name))
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
         if 'ogr_fid' in db_df.columns:
             db_df = db_df.drop(columns=['ogr_fid'])
 
@@ -405,23 +504,23 @@ class TestXlsToTableMS:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
     def test_xls_to_table_sheet_int(self):
         # xls_to_table
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test_xls_with_sheet.xls"
+        fp = helpers.DIR +"\\test_xls_with_sheet.xls"
 
         sql.xls_to_table(
             input_file=fp,
-            table=xls_table_name, schema='dbo',
+            table=xls_table_name, schema=sql_schema,
             sheet_name=1
         )
 
         # Check to see if table is in database
-        assert sql.table_exists(table=xls_table_name, schema='dbo')
-        db_df = sql.dfquery("select * from dbo.{}".format(xls_table_name))
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
         if 'ogr_fid' in db_df.columns:
             db_df = db_df.drop(columns=['ogr_fid'])
 
@@ -433,7 +532,7 @@ class TestXlsToTableMS:
         pd.testing.assert_frame_equal(db_df, xls_df)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
     def test_xls_to_table_schema(self):
         return
@@ -447,13 +546,13 @@ class TestXlsToTableMS:
 class TestBulkXLSToTableMS:
     @classmethod
     def setup_class(cls):
-        return
+        helpers.set_up_xls()
 
     def test_bulk_xls_to_table_basic(self):
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\Test.xlsx"
+        fp = helpers.DIR +"\\Test.xlsx"
 
-        if sql.table_exists(schema='dbo', table=xls_table_name):
-            sql.query('drop table dbo.{}'.format(xls_table_name))
+        if sql.table_exists(schema=sql_schema, table=xls_table_name):
+            sql.query('drop table {}.{}'.format(sql_schema, xls_table_name))
 
         # Make large XLSX file
         data = []
@@ -463,12 +562,12 @@ class TestBulkXLSToTableMS:
         pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
 
         # Try via bulk loader
-        sql._bulk_xlsx_to_table(input_file=fp, table=xls_table_name, schema='dbo')
+        sql._bulk_xlsx_to_table(input_file=fp, table=xls_table_name, schema=sql_schema)
 
         # Check to see if table is in database
         # This example is linked to the mssql default server bug
-        assert sql.table_exists(schema='dbo', table=xls_table_name)
-        sql_df = sql.dfquery("select * from dbo.{}".format(xls_table_name))
+        assert sql.table_exists(schema=sql_schema, table=xls_table_name)
+        sql_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
 
         # Get raw df from above
         raw_df = pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2'])
@@ -477,11 +576,43 @@ class TestBulkXLSToTableMS:
         pd.testing.assert_frame_equal(sql_df.drop(['ogr_fid'], axis=1), raw_df, check_column_type=False)
 
         # Cleanup
-        sql.drop_table(schema='dbo', table=xls_table_name)
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
+        os.remove(fp)
+
+    def test_bulk_xls_to_table_basic_kwargs(self):
+        fp = helpers.DIR +"\\Test.xlsx"
+
+        # bulk_xls_to_table
+        if sql.table_exists(schema=pg_schema, table=xls_table_name):
+            sql.query('drop table {}.{}'.format(sql_schema, xls_table_name))
+
+        # Make large XLSX file
+        data = []
+        for i in range(0, 10):
+            data.append((i, i + 1))
+
+        pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
+
+        # this should go through the bulk loader
+        sql.xls_to_table(input_file=fp, table=xls_table_name, schema=sql_schema, skipfooter=1)
+
+        # Check to see if table is in database
+        # This example is linked to the mssql default server bug
+        assert sql.table_exists(schema=sql_schema, table=xls_table_name)
+        sql_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
+
+        # Raw df from data above
+        raw_df = pd.DataFrame(data[:-1], columns=['ogr_ex_col_1', 'ogr_ex_col_2'])
+
+        # Assert df equality, including dtypes and columns
+        pd.testing.assert_frame_equal(sql_df, raw_df, check_column_type=False)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
         os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
-        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\Test.xlsx"
+        fp = helpers.DIR +"\\Test.xlsx"
 
         # bulk_xls_to_table
         if sql.table_exists(table=xls_table_name):
@@ -519,8 +650,8 @@ class TestBulkXLSToTableMS:
                                 user=config.get('SQL_DB', 'DB_USER'),
                                 password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-        fp_xlsx = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\Test.xlsx"
-        fp_xls = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\Test2.xls"
+        fp_xlsx = helpers.DIR +"\\Test.xlsx"
+        fp_xls = helpers.DIR +"\\Test2.xls"
 
         if sql.table_exists(schema=sql.default_schema, table=xls_table_name):
             sql.query('drop table {}.{}'.format(sql.default_schema, xls_table_name))
@@ -558,8 +689,8 @@ class TestBulkXLSToTableMS:
         assert sql.table_exists(table=xls_table_name + "_2")
 
         # Df Equality
-        df1 = sql.dfquery("select * from {}".format(xls_table_name))
-        df2 = sql.dfquery("select * from {}".format(xls_table_name + "_2"))
+        df1 = sql.dfquery("select * from {} order by unnamed__0".format(xls_table_name))
+        df2 = sql.dfquery("select * from {} order by unnamed__0".format(xls_table_name + "_2"))
         commons_cols = set(df1.columns) - (set(df1.columns) - set(df2.columns))
         pd.testing.assert_frame_equal(df1[commons_cols], df2[commons_cols])
 
@@ -576,7 +707,7 @@ class TestBulkXLSToTableMS:
                                 user=config.get('SQL_DB', 'DB_USER'),
                                 password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-        fp_xlsx = os.path.dirname(os.path.abspath(__file__)) + "\\Test.xlsx"
+        fp_xlsx = helpers.DIR +"\\Test.xlsx"
         writer = pd.ExcelWriter(fp_xlsx)
 
         if sql.table_exists(schema=sql.default_schema, table=xls_table_name):

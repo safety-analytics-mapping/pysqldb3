@@ -9,6 +9,7 @@ import plotly.express as px
 import configparser
 import os
 from .Config import write_config
+import pyarrow.csv as pyarrowcsv
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -807,6 +808,10 @@ class DbConnect:
         for col in df.dtypes.items():
             col_name, col_type = col[0], type_decoder(col[1], varchar_length=allowed_length)
 
+            # autodetect date and force to text (common error)
+            if 'date' in col_name.lower() and col_type in ('int', 'bigint', 'float'):
+                col_type = 'varchar(500)'
+
             if column_type_overrides and col_name in column_type_overrides.keys():
                 input_schema.append([clean_column(col_name), column_type_overrides[col_name]])
             else:
@@ -874,7 +879,7 @@ class DbConnect:
         print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema, t=table))
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     long_varchar_check=False, column_type_overrides=None, days=7):
+                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -888,6 +893,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
         :return:
         """
 
@@ -917,7 +923,7 @@ class DbConnect:
         # Check for varchar columns > 500 in length
         allow_max = False
         if os.path.getsize(input_file) > 1000000:
-            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep)
+            data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep, **kwargs)
             df = data.get_chunk(1000)
 
             # Check for long column iteratively
@@ -928,7 +934,7 @@ class DbConnect:
 
                 df = data.get_chunk(1000)
         else:
-            df = pd.read_csv(input_file, sep=sep)
+            df = pd.read_csv(input_file, sep=sep, **kwargs)
             allow_max = long_varchar_check and contains_long_columns(df)
 
         if 'ogc_fid' in df.columns:
@@ -943,8 +949,17 @@ class DbConnect:
         # For larger files use GDAL to import
         if df.shape[0] > 999:
             try:
-                success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
+                temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+
+
+                with pd.read_csv(input_file, chunksize=10 ** 15, sep=sep, **kwargs) as reader:
+                    for chunk in reader:
+                        chunk.to_csv(temp_file, mode='a', index=False, header=True)
+
+
+                success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
                                                   table_schema=table_schema, days=days)
+                os.remove(temp_file)
 
                 if not success:
                     raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
@@ -975,6 +990,146 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
+
+        return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
+                                        table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
+
+    def csv_to_table_pyarrow(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
+                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
+        """
+        Imports csv file to database. This uses pyarrow datatypes to generate the table schema.
+
+        ** This is an alternative route for importing - faster and better type inference, but not as fully featured as pandas **
+
+        :param input_file: File path to csv file; if None, prompts user input
+        :param overwrite: If table exists in database, will overwrite; defaults to False
+        :param schema: Schema of table; if None, defaults to db's default schema
+        :param table: Name for final database table; defaults to filename in path
+        :param temp: Boolean for temporary table; defaults to True
+        :param sep: Separator for csv file, defaults to comma (,)
+        :param long_varchar_check: Boolean to allow unlimited/max varchar columns; defaults to False
+        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+        raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+        detection. **Will not override a custom table_schema, if inputted**
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
+        :return:
+        """
+
+        if not schema:
+            schema = self.default_schema
+
+        if not input_file:
+            input_file = file_loc('file')
+
+        if not table:
+            table = os.path.basename(input_file).split('.')[0]
+
+        if not overwrite and self.table_exists(schema=schema, table=table):
+            print('Must set overwrite=True; table already exists.')
+            return
+
+        # Use pyarrow to get existing data and schema
+        data = pyarrowcsv.read_csv(input_file, parse_options=pyarrowcsv.ParseOptions(delimiter=sep),
+                                   read_options=pyarrowcsv.ReadOptions(**kwargs))
+        if '' in [col.name for col in data.schema]:
+            data = data.rename_columns([(lambda x: 'unnamed' if x == '' else x)(col.name) for col in data.schema])
+
+        allow_max = False
+
+        if 'ogc_fid' in [i.name for i in data.schema]:
+            data = data.drop(['ogc_fid'])
+
+        table_schema = self.dataframe_to_table_schema_pyarrow(data, table, overwrite=overwrite, schema=schema,
+                                                              temp=temp,
+                                                              allow_max_varchar=allow_max,
+                                                              column_type_overrides=column_type_overrides,
+                                                              days=days)
+        # Default to bulk importer
+
+        try:
+            success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
+                                              table_schema=table_schema, days=days)
+
+            if not success:
+                raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
+
+        except Exception as e:
+            print(e)
+            # fall back to pandas dataframe to table
+            # Calls dataframe_to_table fn
+            self.dataframe_to_table(data.to_pandas(), table, table_schema=table_schema, overwrite=overwrite,
+                                    schema=schema,
+                                    temp=temp, days=days)
+
+    def dataframe_to_table_schema_pyarrow(self, data, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
+                                          column_type_overrides=None, days=7):
+
+        """
+        Translates Pandas DataFrame into empty database table.
+        :param df: Pandas DataFrame to be added to database
+        :param table: Table name to be used in database
+        :param schema: Database schema to use for destination in database (defaults database object's default schema)
+        :param overwrite: If table exists in database will overwrite if True (defaults to False)
+        :param temp: Optional flag to make table as not-temporary (defaults to True)
+        :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
+        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+                raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
+                detection.
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :return: Table schema that was created from DataFrame
+        """
+        if not schema:
+            schema = self.default_schema
+
+        input_schema = list()
+
+        if allow_max_varchar:
+            allowed_length = VARCHAR_MAX[self.type]
+        else:
+            allowed_length = 500
+
+        # Parse df for schema
+        for col in data.schema:
+            col_name, col_type = col.name, type_decoder_pyarrow(col.type, varchar_length=allowed_length)
+
+
+            if column_type_overrides and col_name in column_type_overrides.keys():
+                input_schema.append([clean_column(col_name), column_type_overrides[col_name]])
+            else:
+                input_schema.append([clean_column(col_name), col_type])
+
+        if overwrite:
+            self.drop_table(schema=schema, table=table, cascade=False)
+
+        # Create table in database
+        qry = """
+                CREATE TABLE {s}.{t} (
+                {cols}
+                )
+        """.format(s=schema, t=table,
+                   cols=str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", ""))
+
+        self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
+        return input_schema
+
+
+    def _bulk_csv_to_table_pyarrow(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
+        """
+        Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.
+
+        ** This is an alternative route for importing - faster and better type inference, but not as fully featured as pandas **
+
+        
+        :param input_file: Source CSV filepath
+        :param schema: Schema to write to; defaults to db's default schema
+        :param table: Destination table name to write data to; defaults to user/date defined
+        :param table_schema:
+        :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :return:
+        """
+
         return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
 
@@ -993,6 +1148,19 @@ class DbConnect:
         """
         return self._bulk_file_to_table(input_file=input_file, schema=schema, table=table,
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=header, days=days)
+    @staticmethod
+    def __double_cast_for_ints(i, column_names, column_type):
+        """
+        This will create the cast statements for insert query which is used by _bulk_file_to_table
+        :param i: index position
+        :param column_names: column name list
+        :param column_type: column datatype
+        :return: castting string for insert query
+        """
+        if column_type == 'bigint':
+            return 'CAST(CAST("' + column_names[i] + '"as float) as bigint)'
+        else:
+            return 'CAST("' + column_names[i] + '" as ' + column_type + ')'
 
     def _bulk_file_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False,
                             excel_header=True, days=7):
@@ -1086,8 +1254,12 @@ class DbConnect:
 
                 # Cast all fields to new type to move from stg to final table
                 # take staging field name from stg table
-                cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
+
+
+                cols = [self.__double_cast_for_ints(i, column_names, col_type) for i, (col_name, col_type) in
                         enumerate(table_schema)]
+                # cols = ['CAST("' + column_names[i] + '" as ' + col_type + ')' for i, (col_name, col_type) in
+                #         enumerate(table_schema)]
                 # cols = [c.encode('utf-8') for c in cols]
                 cols = str(cols).replace("'", "")[1:-1]
             else:
@@ -1097,7 +1269,7 @@ class DbConnect:
                 cols = []
                 for c in _:
                     if len(set(c[0]) - {' ', ':', '.'}) != len(set(c[0])):
-                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_'))
+                        cols.append('"'+c[0]+'"'+' as '+c[0].strip().replace(' ', '_').replace('.', '_').replace(':', '_').replace('\n', '_'))
                     else:
                         cols.append(c[0])
                 cols = str(cols).replace("'", "")[1:-1]
@@ -1157,7 +1329,7 @@ class DbConnect:
         return True
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
-                     column_type_overrides=None, days=7):
+                     column_type_overrides=None, days=7, **kwargs):
         """
         Imports xls/x file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -1172,6 +1344,7 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
         """
+
         # Add default schema
         if not schema:
             schema = self.default_schema
@@ -1195,133 +1368,61 @@ class DbConnect:
             print('{}.{} already exists. Use overwrite=True to replace.'.format(schema, table))
             return
 
-        extension = os.path.basename(input_file).split('.')[-1]
-        success = False
+        ef = pd.ExcelFile(input_file)
+        multi_sheet = len(ef.sheet_names) > 1
 
-        # Determine if multiple sheets; if so, cannot be used with ogr2ogr/must be changed
-        if extension == 'xlsx':
-            wb = openpyxl.load_workbook(input_file)
-            multi_sheet = len(wb.sheetnames) > 1
-        elif extension == 'xls':
-            ef = pd.ExcelFile(input_file)
-            multi_sheet = len(ef.sheet_names) > 1
-        else:
-            print('This function is for .xlsx and .xls files')
-            return
-
-        # Remember original input_file
-        old_input_file = str(input_file)
-        old_extension = str(extension)
-        remove_file = False
-
-        # Read in memory and attempt to convert to single-sheet xlsx
-        if (extension == 'xls' or multi_sheet) and not column_type_overrides:
-            try:
-                if extension == 'xlsx':
-                    # Grab sheet
-                    if sheet_name:
-                        if type(sheet_name) == int and str(sheet_name) not in wb.sheetnames:
-                            sheet_data = list(wb[wb.sheetnames[sheet_name]].values)
-                        else:
-                            sheet_data = list(wb[str(sheet_name)].values)
-                    elif not sheet_name:
-                        sheet_data = list(wb.worksheets[0].values)
-
-                    # Match previous styles
-                    cols = []
-                    for c in sheet_data[0]:
-                        if type(c) == str:
-                            cols.append(c.strip().replace(' ', '_').replace('.', '_'))
-                        else:
-                            cols.append(c)
-
-                    df = pd.DataFrame(sheet_data[1:], columns=cols)
-                elif extension == 'xls':
-                    df = pd.read_excel(input_file, sheet_name=sheet_name)
-
-                # Replace with .xlsx of just the desired sheet
-                input_file = "C:\\Users\\{}\\Documents".format(getpass.getuser()) + "\\" + \
-                             os.path.basename(input_file).split('.')[0] + "_{}.xlsx".format(sheet_name)
-                df.to_excel(input_file, index=False, header=True)
-
-                remove_file = True
-                extension = 'xlsx'
-                multi_sheet = False
-            except Exception as e:
-                print("""
-                    Attempt to convert to single-sheet xlsx file failed. 
-                    """)
-                print(e)
-
-                # Restore to original values if conversion fails
-                input_file = old_input_file
-                extension = old_extension
-                remove_file = False
-
-                if extension == 'xlsx':
-                    multi_sheet = len(wb.sheetnames) > 1
-                elif extension == 'xls':
-                    multi_sheet = len(ef.sheet_names) > 1
-
-        # Try bulk input
-        if not multi_sheet and extension == 'xlsx' and not column_type_overrides:
-            # Bulk input
-            success = self._bulk_xlsx_to_table(input_file=input_file, schema=schema, table="stg_{}".format(table))
-
-            # Overwrite if applicable and successful
-            if success and overwrite:
-                self.drop_table(schema=schema, table=table)
-
-            # Move from stg to live
-            if success:
-                self.query("""
-                select * 
-                into {schema}.{table}
-                from {schema}.{stg_table}
-                """.format(schema=schema, table=table, stg_table="stg_{}".format(table)), days=days)
-
-                # Drop stg table
-                self.drop_table(schema=schema, table="stg_{}".format(table))
-
-        # Warn why will not work for xls if bulk wasn't called
-        if multi_sheet or extension != 'xlsx':
+        if multi_sheet:
             print("""
-            Only large, single-sheet xlsx (and csv) files can be loaded quickly via ogr/gdal. 
-            Consider manually converting the file to csv or xlsx.
+                Only the specified sheet (or 1st if not specified will be imported
             """)
+        # if not too big use pandas
 
-        if not success:
-            # Uses the first sheet if no inputted sheet name
-            if extension == 'xlsx':
-                # Grab sheet
-                if sheet_name:
-                    if type(sheet_name) == int and str(sheet_name) not in wb.sheetnames:
-                        sheet_data = list(wb[wb.sheetnames[sheet_name]].values)
-                    else:
-                        sheet_data = list(wb[str(sheet_name)].values)
-                elif not sheet_name:
-                    sheet_data = list(wb.worksheets[0].values)
 
-                # Match previous styles
-                cols = []
-                for c in sheet_data[0]:
-                    if type(c) == str:
-                        cols.append(c.strip().replace(' ', '_').replace('.', '_'))
-                    else:
-                        cols.append(c)
+        try:
+            df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
 
-                df = pd.DataFrame(sheet_data[1:], columns=cols)
+            # Match previous styles
+            cols = []
+            for c in df.columns:
+                cols.append(c.strip().replace(' ', '_').replace('.', '_').replace(':', '_').replace('\n', '_'))
+            df.columns= cols
 
+            if 'ogc_fid' in df.columns:
+                df = df.drop('ogc_fid', 1)
+
+            if df.shape[0] > 100:
+                try:
+                    table_schema = self.dataframe_to_table_schema(df, table,
+                                                                  schema=schema,
+                                                                  overwrite=overwrite,
+                                                                  temp=temp,
+                                                                  column_type_overrides=column_type_overrides,
+                                                                  days=days)
+                    temp_file = os.path.dirname(
+                        input_file) + '\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
+                    df.to_csv(temp_file, index=False, header=True)
+
+                    success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
+                                                      table_schema=table_schema, days=days)
+                    try:
+                        os.remove(temp_file)
+                    except Exception as e:
+                        print(f'Could not remove temp file\n{e}')
+
+                    if not success:
+                        raise AssertionError('Bulk file loading failed.'.format(schema, table))
+
+                except SystemExit:
+                    raise AssertionError('Bulk file loading failed.'.format(schema, table))
+                except Exception as e:
+                    print(e)
+                    raise AssertionError('Bulk file loading failed.'.format(schema, table))
             else:
-                df = pd.read_excel(input_file, sheet_name=sheet_name)
+                self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
+                                        column_type_overrides=column_type_overrides, days=days)
+        except Exception as e:
+            print(e)
 
-            # Call dataframe_to_table fn
-            self.dataframe_to_table(df, table, overwrite=overwrite, schema=schema, temp=temp,
-                                    column_type_overrides=column_type_overrides, days=days)
-
-        # Try to remove new file if applicable.
-        if remove_file:
-            os.remove(input_file)
 
     def query_to_csv(self, query, output_file=None, strict=True, open_file=False, sep=',', quote_strings=True,
                      quiet=False, overwrite=False):
@@ -1380,13 +1481,15 @@ class DbConnect:
                 ';' (semicolon)
                 '\t' (tab)
                 ' ' (space)
-
             """)
 
         if quote_strings:
             OGR_QUOTE_STRINGS = 'IF_AMBIGUOUS'
         else:
             OGR_QUOTE_STRINGS = 'IF_NEEDED'
+
+        # escape double quote columns
+        query = query.replace('"', '\\"')
 
         if self.type == PG:
             cmd = WRITE_CSV_CMD_PG.format(

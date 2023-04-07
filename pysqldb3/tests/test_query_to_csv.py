@@ -65,6 +65,34 @@ class TestQueryToCSVPG:
         db.drop_table(schema='working', table=test_csv_name)
         os.remove(output)
 
+    def test_query_to_csv_basic_spec_char_columns(self):
+        output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
+        db.drop_table(schema='working', table=test_csv_name)
+
+        # Setup table
+        db.query("""
+            create table working.{} ("col 1" varchar, "col 2" varchar, "col 3" varchar);
+
+            insert into working.{} values ('a', 'b', 'c');
+        """.format(test_csv_name, test_csv_name))
+
+        # Query_to_csv
+        db.query_to_csv(query='select "col 1", "col 2", "col 3" from working.{}'.format(test_csv_name),
+                        output_file=output)
+
+        # Get result from query_to_csv as df
+        result_df = pd.read_csv(output)
+
+        # Get result from dfquery
+        query_df = db.dfquery('select "col 1", "col 2", "col 3" from working.{}'.format(test_csv_name))
+
+        # Assert equality
+        pd.testing.assert_frame_equal(result_df, query_df)
+
+        # Cleanup
+        db.drop_table(schema='working', table=test_csv_name)
+        os.remove(output)
+
     def test_query_to_csv_special_char(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
         db.drop_table(schema='working', table=test_csv_name)
@@ -248,6 +276,34 @@ class TestQueryToCSVMS:
 
         # Get result from dfquery
         query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
+
+        # Assert equality
+        pd.testing.assert_frame_equal(result_df.drop(columns=['WKT']), query_df)
+
+        # Cleanup
+        sql.drop_table(schema='dbo', table=test_csv_name)
+        os.remove(output)
+
+    def test_query_to_csv_basic_spec_char_columns(self):
+        output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
+        sql.drop_table(schema='dbo', table=test_csv_name)
+
+        # Setup table
+        sql.query("""
+            create table dbo.{} ([col 1] varchar, [col 2] varchar, [col 3] varchar);
+
+            insert into dbo.{} values ('a', 'b', 'c');
+        """.format(test_csv_name, test_csv_name))
+
+        # Query_to_csv
+        sql.query_to_csv(query='select [col 1], [col 2], [col 3] from dbo.{}'.format(test_csv_name),
+                         output_file=output)
+
+        # Get result from query_to_csv as df
+        result_df = pd.read_csv(output)
+
+        # Get result from dfquery
+        query_df = sql.dfquery('select [col 1], [col 2], [col 3] from dbo.{}'.format(test_csv_name))
 
         # Assert equality
         pd.testing.assert_frame_equal(result_df.drop(columns=['WKT']), query_df)
