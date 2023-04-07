@@ -18,7 +18,8 @@ setup(name='pysqldb3',
           'fuzzywuzzy',
           'tqdm',
           'configparser',
-          'shapely'
+          'shapely',
+          'pyarrow'
       ]
       )
 
