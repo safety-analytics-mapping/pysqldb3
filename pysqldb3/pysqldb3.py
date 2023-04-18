@@ -1,5 +1,5 @@
 import getpass
-
+import pyodbc
 import pymssql
 from tqdm import tqdm
 from typing import Optional, Union
@@ -118,6 +118,9 @@ class DbConnect:
         if self.type and type(self.type) == str and self.type.upper() in SQL_SERVER_TYPES:
             self.type = MS
 
+        if self.type and type(self.type) == str and self.type.upper() in AZURE_SERVER_TYPES:
+            self.type = AZ
+
     def __get_default_schema(self, db_type):
         # type: (str) -> str
         """
@@ -151,6 +154,9 @@ class DbConnect:
             self.database = config.get('DEFAULT DATABASE', 'database')
 
         # Only prompts user if missing necessary information
+        if self.type == AZ:
+            # TODO find a better place for this
+            self.LDAP = True
         if ((self.LDAP and not all((self.database, self.server))) or
                 (not self.LDAP and (not all((self.user, self.password, self.database, self.server))))):
 
@@ -214,6 +220,35 @@ class DbConnect:
                                       datetime2 will not be interpreted correctly\n')
 
                 self.conn = pymssql.connect(**self.params)
+    def __connect_az(self):
+        # type: (DbConnect) -> None
+        """
+        Creates connection to sql server db
+        :return: None
+        """
+
+        self.LDAP = True
+
+        self.params = {
+            'database': self.database,
+            'SERVER': self.server,
+            'PORT' : '1433;DATABASE = '+self.database,
+            'UID': self.user+'@dot.nyc.gov',
+            'AUTHENTICATION' : 'ActiveDirectoryInteractive'
+
+        }
+        try:
+            self.conn = pyodbc.connect(**self.params)
+        except Exception as e:
+            print(e)
+            # Revert to SQL driver and show warning
+            if self.use_native_driver:
+                # Native client is required for correct handling of datetime2 types in SQL
+                if self.connection_count == 0:
+                    print('Warning:\n\tMissing SQL Server Native Client 10.0 \
+                                      datetime2 will not be interpreted correctly\n')
+
+                self.conn = pymssql.connect(**self.params)
 
     def connect(self, quiet=False):
         # type: (DbConnect, bool) -> None
@@ -235,6 +270,9 @@ class DbConnect:
 
         if self.type == MS:
             self.__connect_ms()
+
+        if self.type == AZ:
+            self.__connect_az()
 
         # Add successful connection
         self.connection_count += 1
@@ -352,6 +390,9 @@ class DbConnect:
             self.query("SELECT schema_name FROM information_schema.schemata", timeme=False, internal=True)
         elif self.type == MS:
             self.query(MS_SCHEMA_FOR_LOG_CLEANUP_QUERY, internal=True)
+        elif self.type == AZ:
+            # todo: revist this, but for now its read only so should be ok 
+            return None
 
         for sch in self.__get_most_recent_query_data(internal=True):
             if self.table_exists(self.log_table, schema=sch[0], internal=True):

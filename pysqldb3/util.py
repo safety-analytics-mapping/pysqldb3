@@ -16,6 +16,7 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 POSTGRES_TYPES = ['PG', 'POSTGRESQL', 'POSTGRES']
 SQL_SERVER_TYPES = ['MS', 'SQL', 'MSSQL', 'SQLSERVER']
+AZURE_SERVER_TYPES = ['AZ', 'AZURE', 'SYNAPSE']
 TEMP_LOG_TABLE = '__temp_log_table_{}__'
 
 GDAL_DATA_LOC = config.get('GDAL DATA', 'GDAL_DATA_LOC')
@@ -27,6 +28,7 @@ UNICODE_REPLACEMENTS = {
 }
 MS = "MS"
 PG = "PG"
+AZ = 'AZURE'
 
 VARCHAR_MAX = {
     MS: 8000,
@@ -111,6 +113,11 @@ def get_unique_table_schema_string(tbl_str, db_type):
 
         # If no "", still remove []
         return tbl_str.replace('[', '').replace(']', '')
+
+    if db_type.upper() == AZ:
+        return tbl_str.lower()
+
+
 
 
 def get_query_table_schema_name(tbl_str, db_type):
