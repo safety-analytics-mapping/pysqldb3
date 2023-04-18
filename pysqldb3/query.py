@@ -251,7 +251,7 @@ class Query:
         Note: cannot use pd.read_sql() because the structure will necessitate running query twice
         :return: Pandas DataFrame of the results of the query
         """
-        if self.dbo.type == MS:
+        if self.dbo.type in (MS, AZ):
             self.data = [tuple(i) for i in self.data]
             df = pd.DataFrame(self.data, columns=self.data_columns)
         else:

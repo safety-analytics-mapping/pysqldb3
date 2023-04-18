@@ -25,5 +25,4 @@ def test():
                                 database='SIRTA',
                                 user=test_config.get('PG_DB', 'DB_USER')
                                 )
-
     assert True

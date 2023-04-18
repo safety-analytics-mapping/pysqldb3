@@ -51,6 +51,7 @@ class DbConnect:
         if self.LDAP and not self.user:
             self.user = getpass.getuser()
         self.type = type
+        self.__set_type()
         self.server = get_unique_table_schema_string(server, self.type)
         self.database = database
         self.port = port
@@ -234,7 +235,8 @@ class DbConnect:
             'SERVER': self.server,
             'PORT' : '1433;DATABASE = '+self.database,
             'UID': self.user+'@dot.nyc.gov',
-            'AUTHENTICATION' : 'ActiveDirectoryInteractive'
+            'AUTHENTICATION' : 'ActiveDirectoryInteractive',
+            'driver' :'{ODBC Driver 17 for SQL Server}'
 
         }
         try:
@@ -391,7 +393,7 @@ class DbConnect:
         elif self.type == MS:
             self.query(MS_SCHEMA_FOR_LOG_CLEANUP_QUERY, internal=True)
         elif self.type == AZ:
-            # todo: revist this, but for now its read only so should be ok 
+            # todo: revist this, but for now its read only so should be ok
             return None
 
         for sch in self.__get_most_recent_query_data(internal=True):
@@ -574,8 +576,8 @@ class DbConnect:
         :param schema: Schema to look in (defaults to public)
         :return: Pandas DataFrame of the table list
         """
-        if self.type == MS:
-            print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
+        if self.type in (MS, AZ):
+            print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
             return
 
         return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
