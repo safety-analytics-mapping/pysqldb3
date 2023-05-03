@@ -28,7 +28,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 azure = pysqldb.DbConnect(type=config.get('AZ_DB', 'TYPE'),
                           server=config.get('AZ_DB', 'SERVER'),
                           database=config.get('AZ_DB', 'DB_NAME'),
-                          user=config.get('AZ_DB', 'DB_USER')
+                          user=config.get('AZ_DB', 'DB_USER'),
+                          allow_temp_tables=True
                           )
 
 test_query_table = 'test_query_table_{}'.format(db.user)
