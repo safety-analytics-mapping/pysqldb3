@@ -1910,7 +1910,7 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
 
-        self.tables_created.append(table)
+        self.tables_created.append(f"{schema}.{table}")
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
