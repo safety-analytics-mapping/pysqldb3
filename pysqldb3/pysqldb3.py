@@ -1844,9 +1844,13 @@ class DbConnect:
             output_file = os.path.join(os.getcwd(), table + '.csv')
 
         if schema:
-            schema_table = '{}.{}'.format(schema, table)
+            if self.type == PG:
+                schema_table = '{}."{}"'.format(schema, table)
+            if self.type in (MS, AZ):
+                schema_table = '{}.[{}]'.format(schema, table)
         else:
             schema_table = '{}'.format(table)
+
 
         query = """
         select *
