@@ -158,21 +158,22 @@ class DbConnect:
         if self.type == AZ:
             # TODO find a better place for this
             self.LDAP = True
-        if ((self.LDAP and not all((self.database, self.server))) or
+        if ( (self.LDAP and not all((self.database, self.server))) or
                 (not self.LDAP and (not all((self.user, self.password, self.database, self.server))))):
 
             print('\nAdditional database connection details required:')
 
             # Prompts user input for each missing parameter
             if not self.type:
-                self.type = input('Database type (MS/PG)').upper()
+                self.type = input('Database type (MS/PG/AZ)').upper()
+                self.__set_type()
             if not self.server:
                 self.server = input('Server:')
             if not self.database:
                 self.database = input('Database name:')
             if not self.user and not self.LDAP:
                 self.user = input('User name ({}):'.format(self.database.lower()))
-            if not self.password and not self.LDAP:
+            if not self.password and not self.LDAP and self.type !=AZ:
                 self.password = getpass.getpass('Password ({})'.format(self.database.lower()))
 
     def __connect_pg(self):
@@ -312,6 +313,9 @@ class DbConnect:
                 self.conn._conn.connected
             except Exception as e:
                 print(e)
+                self.connect(True)
+        else:
+            if self.conn.closed:
                 self.connect(True)
 
     """
@@ -759,11 +763,11 @@ class DbConnect:
         else:
             db = ''
         if self.type == PG:
-            self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema, table, c),
+            self.query('DROP TABLE IF EXISTS {}."{}" {}'.format(schema, table, c),
                        timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
             if self.table_exists(schema=schema, table=table):
-                self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
+                self.query('DROP TABLE {}{}{}.[{}] {}'.format(ser, db, schema, table, c),
                            timeme=False, strict=strict, internal=internal)
             else:
                 dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table))
@@ -1844,9 +1848,13 @@ class DbConnect:
             output_file = os.path.join(os.getcwd(), table + '.csv')
 
         if schema:
-            schema_table = '{}.{}'.format(schema, table)
+            if self.type == PG:
+                schema_table = '{}."{}"'.format(schema, table)
+            if self.type in (MS, AZ):
+                schema_table = '{}.[{}]'.format(schema, table)
         else:
             schema_table = '{}'.format(table)
+
 
         query = """
         select *
@@ -1855,7 +1863,6 @@ class DbConnect:
 
         self.check_conn()
 
-        print('Writing to %s' % output_file)
         self.query_to_csv(query, output_file=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep,
                           strict=strict)
 
