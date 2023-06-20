@@ -165,7 +165,7 @@ class DbConnect:
 
             # Prompts user input for each missing parameter
             if not self.type:
-                self.type = input('Database type (MS/PG)').upper()
+                self.type = input('Database type (MS/PG/AZ)').upper()
             if not self.server:
                 self.server = input('Server:')
             if not self.database:
@@ -308,6 +308,12 @@ class DbConnect:
             self.connect(True)
 
         elif self.type == MS:
+            try:
+                self.conn._conn.connected
+            except Exception as e:
+                print(e)
+                self.connect(True)
+        elif self.type == AZ:
             try:
                 self.conn._conn.connected
             except Exception as e:

@@ -134,7 +134,7 @@ class Query:
         Runs SQL query via steps below.
         :return: None
         """
-
+        self.dbo.check_conn()
         self.query_start = datetime.datetime.now()
 
         # 1. Get connection cursor
