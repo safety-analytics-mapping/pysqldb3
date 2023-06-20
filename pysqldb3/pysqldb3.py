@@ -165,14 +165,14 @@ class DbConnect:
 
             # Prompts user input for each missing parameter
             if not self.type:
-                self.type = input('Database type (MS/PG)').upper()
+                self.type = input('Database type (MS/PG/AZ)').upper()
             if not self.server:
                 self.server = input('Server:')
             if not self.database:
                 self.database = input('Database name:')
             if not self.user and not self.LDAP:
                 self.user = input('User name ({}):'.format(self.database.lower()))
-            if not self.password and not self.LDAP:
+            if not self.password and not self.LDAP and self.type !=AZ:
                 self.password = getpass.getpass('Password ({})'.format(self.database.lower()))
 
     def __connect_pg(self):
