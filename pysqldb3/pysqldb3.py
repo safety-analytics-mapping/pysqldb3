@@ -158,7 +158,7 @@ class DbConnect:
         if self.type == AZ:
             # TODO find a better place for this
             self.LDAP = True
-        if ((self.LDAP and not all((self.database, self.server))) or
+        if ( (self.LDAP and not all((self.database, self.server))) or
                 (not self.LDAP and (not all((self.user, self.password, self.database, self.server))))):
 
             print('\nAdditional database connection details required:')
@@ -312,6 +312,9 @@ class DbConnect:
                 self.conn._conn.connected
             except Exception as e:
                 print(e)
+                self.connect(True)
+        else:
+            if self.conn.closed:
                 self.connect(True)
 
     """
