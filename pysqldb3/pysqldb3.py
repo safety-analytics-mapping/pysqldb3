@@ -759,11 +759,11 @@ class DbConnect:
         else:
             db = ''
         if self.type == PG:
-            self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema, table, c),
+            self.query('DROP TABLE IF EXISTS {}."{}" {}'.format(schema, table, c),
                        timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
             if self.table_exists(schema=schema, table=table):
-                self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
+                self.query('DROP TABLE {}{}{}.[{}] {}'.format(ser, db, schema, table, c),
                            timeme=False, strict=strict, internal=internal)
             else:
                 dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table))
@@ -1859,7 +1859,6 @@ class DbConnect:
 
         self.check_conn()
 
-        print('Writing to %s' % output_file)
         self.query_to_csv(query, output_file=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep,
                           strict=strict)
 
