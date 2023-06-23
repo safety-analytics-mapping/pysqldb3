@@ -763,12 +763,20 @@ class DbConnect:
         else:
             db = ''
         if self.type == PG:
-            self.query('DROP TABLE IF EXISTS {}."{}" {}'.format(schema, table, c),
-                       timeme=False, strict=strict, internal=internal)
+            if '"' not in table:
+                self.query('DROP TABLE IF EXISTS {}."{}" {}'.format(schema, table, c),
+                           timeme=False, strict=strict, internal=internal)
+            else:
+                self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema, table, c),
+                           timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
             if self.table_exists(schema=schema, table=table):
-                self.query('DROP TABLE {}{}{}.[{}] {}'.format(ser, db, schema, table, c),
-                           timeme=False, strict=strict, internal=internal)
+                if '[' not in table:
+                    self.query('DROP TABLE {}{}{}.[{}] {}'.format(ser, db, schema, table, c),
+                               timeme=False, strict=strict, internal=internal)
+                else:
+                    self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
+                               timeme=False, strict=strict, internal=internal)
             else:
                 dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table))
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
