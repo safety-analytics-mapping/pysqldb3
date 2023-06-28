@@ -419,9 +419,9 @@ class TestQueryCreatesTablesSql():
         query_string = """
                             select * 
                             /*;*/
-                            into temp1 from fatality.dbo.FARS_Fatal_Other
+                            into temp2 from fatality.dbo.FARS_Fatal_Other
                         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[temp1]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[temp2]']
 
 
 class TestQueryCreatesTablesPgSql():
