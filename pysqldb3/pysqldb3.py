@@ -1857,9 +1857,15 @@ class DbConnect:
 
         if schema:
             if self.type == PG:
-                schema_table = '{}."{}"'.format(schema, table)
+                if '"' not in table:
+                    schema_table = '{}."{}"'.format(schema, table)
+                else:
+                    schema_table = '{}.{}'.format(schema, table)
             if self.type in (MS, AZ):
-                schema_table = '{}.[{}]'.format(schema, table)
+                if '[' not in table:
+                    schema_table = '{}.[{}]'.format(schema, table)
+                else:
+                    schema_table = '{}.{}'.format(schema, table)
         else:
             schema_table = '{}'.format(table)
 
