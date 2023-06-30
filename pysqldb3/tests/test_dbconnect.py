@@ -21,6 +21,12 @@ sql = pysqldb.DbConnect(type=test_config.get('SQL_DB', 'TYPE'),
 db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSWORD'),
                        user=test_config.get('PG_DB', 'DB_USER'))
 
+azure = pysqldb.DbConnect(type=test_config.get('AZ_DB', 'TYPE'),
+                          server=test_config.get('AZ_DB', 'SERVER'),
+                          database=test_config.get('AZ_DB', 'DB_NAME'),
+                          user=test_config.get('AZ_DB', 'DB_USER')
+                          )
+
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 sql_table_name = 'sql_test_table_{}'.format(sql.user)
 table_for_testing = 'table_for_testing_{}'.format(db.user)
@@ -65,6 +71,10 @@ class TestMisc:
 
         # Assert same values
         assert set(schemas) == set(query_schema_df['schema_name'])
+
+    def test_get_schemas_az(self):
+        # not possible in azure
+        assert True
 
     def test_my_tables_pg_basic(self):
         db.drop_table(schema='working', table=table_for_testing)
@@ -151,6 +161,11 @@ class TestMisc:
     def test_my_tables_ms(self):
         # My_tables does not do anything for Sql Server - should return nothing and print an error statement
         returned = sql.my_tables()
+        assert returned is None
+
+    def test_my_tables_az(self):
+        # My_tables does not do anything for Sql Server - should return nothing and print an error statement
+        returned = azure.my_tables()
         assert returned is None
 
     def test_rename_column_pg(self):

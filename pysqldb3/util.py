@@ -3,6 +3,7 @@ import decimal
 import re
 import os
 import configparser
+import pyarrow
 
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 POSTGRES_TYPES = ['PG', 'POSTGRESQL', 'POSTGRES']
 SQL_SERVER_TYPES = ['MS', 'SQL', 'MSSQL', 'SQLSERVER']
+AZURE_SERVER_TYPES = ['AZ', 'AZURE', 'SYNAPSE']
 TEMP_LOG_TABLE = '__temp_log_table_{}__'
 
 GDAL_DATA_LOC = config.get('GDAL DATA', 'GDAL_DATA_LOC')
@@ -26,6 +28,7 @@ UNICODE_REPLACEMENTS = {
 }
 MS = "MS"
 PG = "PG"
+AZ = 'AZURE'
 
 VARCHAR_MAX = {
     MS: 8000,
@@ -110,6 +113,11 @@ def get_unique_table_schema_string(tbl_str, db_type):
 
         # If no "", still remove []
         return tbl_str.replace('[', '').replace(']', '')
+
+    if db_type.upper() == AZ:
+        return tbl_str.lower()
+
+
 
 
 def get_query_table_schema_name(tbl_str, db_type):
@@ -210,6 +218,27 @@ def type_decoder(typ, varchar_length=500):
     else:
         return 'varchar ({})'.format(varchar_length)
 
+def type_decoder_pyarrow(typ, varchar_length=500):
+    """
+    Lazy type decoding from pandas to SQL. There are problems assoicated with NaN values for numeric types when
+    stored as Object dtypes.
+
+    This does not try to optimize for smallest size datatype.
+
+    :param typ: Numpy dtype for column
+    :param varchar_length: Length for varchar columns
+    :return: String representing data type
+    """
+    if typ in (pyarrow.int8(), pyarrow.int16(), pyarrow.int32(), pyarrow.int64()):
+        return 'bigint'
+    if typ in (pyarrow.float16(), pyarrow.float32(), pyarrow.float64()):
+        return 'float'
+    elif pyarrow.types.is_timestamp(typ):
+        return 'timestamp'
+    elif pyarrow.types.is_date(typ):
+        return 'date'
+    else:
+        return 'varchar ({})'.format(varchar_length)
 
 def clean_cell(x):
     """
@@ -221,7 +250,7 @@ def clean_cell(x):
     if pd.isnull(x):
         return "None"
     elif type(x) == int:
-        return str(float(x))
+        return str(int(x))
     elif type(x) == decimal.Decimal:
         return str(float(x))
     elif type(x) == str:
@@ -229,13 +258,13 @@ def clean_cell(x):
 
         # Try to first decode as utf-8; otherwise, try as latin1
         try:
-            x = x.decode('utf-8')
+            x = bytes(x, 'utf-8').decode('utf-8')
         except Exception as e:
             print(e)
             print('Decoding input string as utf-8 failed; trying as Latin1 ')
 
             try:
-                x = x.decode('latin1')
+                x = bytes(x, 'utf-8').decode('latin1')
             except Exception as e:
                 print(e)
                 print('Decoding input string as Latin1 failed; leaving as str ')

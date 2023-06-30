@@ -251,7 +251,7 @@ class Query:
         Note: cannot use pd.read_sql() because the structure will necessitate running query twice
         :return: Pandas DataFrame of the results of the query
         """
-        if self.dbo.type == MS:
+        if self.dbo.type in (MS, AZ):
             self.data = [tuple(i) for i in self.data]
             df = pd.DataFrame(self.data, columns=self.data_columns)
         else:
@@ -264,6 +264,24 @@ class Query:
         Checks if query generates new tables
         :return: list of sets of {schema.table}
         """
+        # remove lines after '--'
+        new_query_string = list()
+        for ln in query_string.split('\n'):
+            comment_line = ln.find('--')
+            if comment_line>0:
+                ln = ln[:comment_line]
+            else:
+                ln
+            new_query_string.append(ln)
+        query_string =' '.join(new_query_string)
+
+        # remove multiline comments
+        comments = r'((/\*)+?[\w\W]+?(\*/)+)'
+        matches = re.findall(comments, query_string, re.IGNORECASE)
+        for m in matches:
+            query_string =''.join(query_string.split(m[0]))
+
+
         # remove mulitple spaces
         _ = query_string.split()
         query_string = ' '.join(_)
@@ -279,7 +297,7 @@ class Query:
 
         # Adds catch for MS [database].[schema].[table]
         select_into = r'(((\$body\$)([^\$]*)(\$body\$;$))|((\$\$)([^\$]*)(\$\$;$)))|(?<!\*)(?<!\*\s)(?<!--)' \
-                      r'(?<!--\s)\s*(select[^\.]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
+                      r'(?<!--\s)\s*(select[^\.;]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
                       r'[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*' \
                       r'[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?)'
         matches = re.findall(select_into, query_string, re.IGNORECASE)
@@ -468,175 +486,6 @@ class Query:
                     cmnt=self.comment
                 )
                 self.dbo.query(q, strict=False, timeme=False, internal=True)
-
-    def iterable_query_to_csv(self, output, open_file, quote_strings, sep):
-        """
-        Writes results of the iterable query to a csv file; iterating over cursor results.
-        This is different from chunked_write_csv in that the cursor only obtains 20k records at a time, meaning
-        it works if the data itself is too big to even load at once.
-        :param output:
-        :param open_file:
-        :param quote_strings:
-        :param sep:
-        :return:
-        """
-        self.has_data = True
-        cur = self.current_cur
-
-        batch = []
-        i = 0
-        first_iteration = True
-
-        # Iterate over server-side cursor
-        for row in cur:
-            if i == 0:
-                self.data_description = cur.description
-                self.data_columns = [desc[0] for desc in self.data_description]
-
-            # Get data
-            batch.append(row)
-            i = i + 1
-
-            # After each iteration, dump data to csv
-            if i % 20000 == 0:
-
-                # Make and clean df, as per usual
-                self.data = batch
-                df = self.dfquery()
-                df.columns = self.data_columns
-                df = convert_geom_col(df)
-                df = df.dropna(how='all')
-
-                # Include header with first iteration
-                if first_iteration:
-                    # Write out 1st chunk
-                    if quote_strings:
-                        df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, sep=sep)
-                    else:
-                        df.to_csv(output, index=False, sep=sep)
-
-                    first_iteration = False
-                else:
-                    # Otherwise, append to existing csv
-                    if quote_strings:
-                        df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, sep=sep, mode='a', header=False)
-                    else:
-                        df.to_csv(output, index=False, sep=sep, mode='a', header=False)
-
-                # Safeguard for memory issues
-                del df
-                del batch
-                self.data = None
-
-                i = 0
-                batch = []
-
-        # For remaining rows...
-        self.data = batch
-        df = self.dfquery()
-        df.columns = self.data_columns
-        df = clean_df_before_output(df)
-        df = df.dropna(how='all')
-
-        if first_iteration:
-            # Write out 1st chunk
-            if quote_strings:
-                df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, sep=sep)
-            else:
-                df.to_csv(output, index=False, sep=sep)
-        else:
-            # Otherwise, append to existing csv
-            if quote_strings:
-                df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, sep=sep, mode='a', header=False)
-            else:
-                df.to_csv(output, index=False, sep=sep, mode='a', header=False)
-
-        del df
-        del batch
-        self.data = None
-
-        # Close connections
-        self.__safe_commit()
-        self.dbo.conn.close()
-
-        if open_file:
-            os.startfile(output)
-
-    def __chunked_write_csv(self, output, open_file=False, quote_strings=True, sep=','):
-        """
-        Writes results of the query to a csv file.
-        Performs the same operations as query_to_csv, but brakes data into chunks
-        to deal with memory errors for large files.
-        :param output: String for csv output file location (defaults to current directory)
-        :param open_file: Boolean flag to auto open output file
-        :param quote_strings: Boolean flag for adding quote strings to output (defaults to True, QUOTE_ALL)
-        :param sep: Separator for csv (defaults to ',')
-        :return:
-        """
-
-        def chunks(size=100000):
-            # Break data into chunks
-            """
-            Breaks large datasets into smaller subsets
-            :param size: Integer for the size of the chunks (defaults to 100,000)
-            :return: Generator for data in 100,000 record chunks (list of lists)
-            """
-            n = len(self.data) / size
-            for i in range(0, n):
-                yield self.data[i::n], i
-
-        print('Large file...Writing %i rows of data...' % len(self.data))
-
-        # write to csv
-        _ = chunks()
-        for (chunk, pos) in _:
-            # convert to data frame
-            if self.dbo.type == MS:
-                self.data = [tuple(i) for i in self.data]
-                df = pd.DataFrame(self.data, columns=self.data_columns)
-            else:
-                df = pd.DataFrame(chunk, columns=self.data_columns)
-            # Only write header for 1st chunk
-            if pos == 0:
-                # Write out 1st chunk
-                if quote_strings:
-                    df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, sep=sep)
-                else:
-                    df.to_csv(output, index=False, sep=sep)
-            else:
-                if quote_strings:
-                    df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, sep=sep, mode='a', header=False)
-                else:
-                    df.to_csv(output, index=False, sep=sep, mode='a', header=False)
-
-        if open_file:
-            os.startfile(output)
-
-    def query_to_csv(self, output=None, open_file=False, quote_strings=True, sep=','):
-        """
-        Writes results of the query to a csv file
-        :param output: String for csv output file location (defaults to current directory)
-        :param open_file: Boolean flag to auto open output file
-        :param quote_strings: Boolean flag for adding quote strings to output (defaults to true, QUOTE_ALL)
-        :param sep: Separator for csv (defaults to ',')
-        :return:
-        """
-        if not output:
-            output = os.path.join(os.getcwd(), 'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
-
-        if len(self.data) > 100000:
-            self.__chunked_write_csv(output=output, open_file=open_file, quote_strings=quote_strings, sep=sep)
-        else:
-            df = self.dfquery()
-            df = clean_df_before_output(df)
-
-            if quote_strings:
-                df.to_csv(output, index=False, quoting=csv.QUOTE_ALL, sep=sep, encoding='utf8')
-            else:
-                df.to_csv(output, index=False, sep=sep, encoding='utf8')
-
-            if open_file:
-                os.startfile(output)
 
     @staticmethod
     def query_to_shp(dbo, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,

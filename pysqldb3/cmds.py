@@ -26,6 +26,20 @@ UID={user}; database={db}; PWD={password}"
 -overwrite
 """.replace('\n', ' ')
 
+WRITE_CSV_CMD_PG = """
+ogr2ogr -overwrite -f "CSV" "{output_file}"
+PG:"host={host} user={username} dbname={db} password={password}" -sql "{pg_sql_select}"
+-lco SEPARATOR={separator} -lco STRING_QUOTING={string_quote} -lco GEOMETRY=AS_WKT -nln none 
+""".replace('\n', ' ')
+
+WRITE_CSV_CMD_MS = """
+ogr2ogr -overwrite -f "CSV" "{output_file}"
+"MSSQL:server={host};database={db};UID={username};PWD={password}" -sql "{ms_sql_select}" 
+--config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO --config MSSQLSPATIAL_LIST_ALL_TABLES YES
+-lco SEPARATOR={separator} -lco STRING_QUOTING={string_quote} -lco GEOMETRY=AS_WKT -nln none 
+""".replace('\n', ' ')
+
+
 """
 Shapefiles 
 """
@@ -117,7 +131,7 @@ UID={ms_user};PWD={ms_pass}" {ms_schema}.{ms_table} -lco OVERWRITE=yes
 PG_TO_PG_CMD = r"""
 ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "PostgreSQL" PG:"host={to_pg_host} port={to_pg_port} 
 dbname={to_pg_database} user={to_pg_user} password={to_pg_pass}" PG:"host={from_pg_host} port={from_pg_port} 
-dbname={from_pg_database}  user={from_pg_user} password={from_pg_pass}" {from_pg_schema}.{from_pg_table} 
+dbname={from_pg_database}  user={from_pg_user} password={from_pg_pass}" {from_pg_schema}."{from_pg_table}" 
 -lco OVERWRITE=yes -nln {to_pg_schema}.{to_pg_name} {nlt_spatial} -progress
 """.replace('\n', ' ')
 

@@ -4,8 +4,11 @@ import pandas as pd
 import requests
 import zipfile
 import configparser
+import csv
+import openpyxl
 from xlrd import open_workbook
 from xlutils.copy import copy
+from zipfile import ZipFile
 from ..Config import write_config
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests','') + "\\config.cfg")
 
@@ -29,6 +32,28 @@ def set_up_test_csv():
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
     df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
+
+    # add csv with extra header line
+    data2 = [
+        ['header to skip', 'header to skip', 'header to skip'],
+        ['real_header1', 'real header2', 'real header 3'],
+        [1, 2, 3],
+        [9, 9, 9]
+    ]
+
+    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data2:
+            w.writerow(row)
+
+    # create bulk csv with extra header to skip
+    for i in range(1000):
+        data2.append([1, 2, 3])
+
+    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test5.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data2:
+            w.writerow(row)
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
@@ -229,12 +254,23 @@ def set_up_shapefile():
     os.system(cmd.replace('\n', ' '))
     print ('Sample shapefile ready...')
 
+    # Add shpfile to zip for testing
+    with ZipFile(os.path.join(DIR, 'test.zip'), 'w') as z:
+        for ext in ('shp', 'dbf', 'shx', 'prj'):
+            _fle = os.path.join(DIR,f'test.{ext}')
+
+            if os.path.isfile(os.path.join(DIR,f'test.{ext}')):
+                filePath = os.path.join(DIR, f'test.{ext}')
+                z.write(filePath, os.path.basename(filePath))
+    print('Sample zipped shapefile ready...')
+
 
 def clean_up_shapefile():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-    shp = "test.shp"
-    for ext in ('shp', 'dbf', 'shx'):
-        os.remove(f'{fldr}\\test_data\\test.{ext}')
+    for ext in ('shp', 'dbf', 'shx', 'prj', 'zip'):
+        _fle = f'{fldr}\\test_data\\test.{ext}'
+        if os.path.isfile(_fle):
+            os.remove(_fle)
 
     print ('Deleting any existing shp')
     # Delete_management(os.path.join(fldr, shp))
@@ -282,7 +318,7 @@ def set_up_xls():
     if os.path.isfile(xls_file1):
         clean_up_file(xls_file1)
 
-    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
+    test_df1 = pd.DataFrame({'a': {0: 1, 1: 2, 2:3}, 'b': {0: 3, 1: 4, 2:5}, 'Unnamed: 0': {0: 0, 1: 1, 2:6}})
     test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
     print ('%s created\n' % os.path.basename(xls_file1))
 
@@ -306,3 +342,22 @@ def set_up_xls():
         row = 0
     w.save(xls_file2)
     print ('%s created\n' % os.path.basename(xls_file2))
+
+
+    # set up xls files for kwargs testing
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    c1 = sheet.cell(row=1, column=1)
+    c1.value = "skip me"
+    for c in range(1,4):
+        cell = sheet.cell(row=2, column=c)
+        cell.value = f'header {c}'
+        cell2 = sheet.cell(row=3, column=c)
+        cell2.value = c
+        cell3 = sheet.cell(row=3, column=c)
+        cell3.value = c+1
+
+    wb.save(DIR + "\\xls_kwargs_test.xls")
+    _df = pd.read_excel(DIR + "\\xls_kwargs_test.xls")
+    _df.to_excel(DIR + "\\xls_kwargs_test.xlsx", index=False)
+

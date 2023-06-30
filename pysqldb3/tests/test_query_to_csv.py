@@ -65,6 +65,34 @@ class TestQueryToCSVPG:
         db.drop_table(schema='working', table=test_csv_name)
         os.remove(output)
 
+    def test_query_to_csv_basic_spec_char_columns(self):
+        output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
+        db.drop_table(schema='working', table=test_csv_name)
+
+        # Setup table
+        db.query("""
+            create table working.{} ("col 1" varchar, "col 2" varchar, "col 3" varchar);
+
+            insert into working.{} values ('a', 'b', 'c');
+        """.format(test_csv_name, test_csv_name))
+
+        # Query_to_csv
+        db.query_to_csv(query='select "col 1", "col 2", "col 3" from working.{}'.format(test_csv_name),
+                        output_file=output)
+
+        # Get result from query_to_csv as df
+        result_df = pd.read_csv(output)
+
+        # Get result from dfquery
+        query_df = db.dfquery('select "col 1", "col 2", "col 3" from working.{}'.format(test_csv_name))
+
+        # Assert equality
+        pd.testing.assert_frame_equal(result_df, query_df)
+
+        # Cleanup
+        db.drop_table(schema='working', table=test_csv_name)
+        os.remove(output)
+
     def test_query_to_csv_special_char(self):
         output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
         db.drop_table(schema='working', table=test_csv_name)
@@ -79,6 +107,8 @@ class TestQueryToCSVPG:
         # Query_to_csv
         db.query_to_csv(query='select * from working.{}'.format(test_csv_name),
                         output_file=output)
+
+        os.remove(output)
 
     def test_query_to_csv_query_first(self):
         """
@@ -152,7 +182,7 @@ class TestQueryToCSVPG:
     def test_query_to_csv_strict(self):
         try:
             db.query_to_csv(query='select * from junktable', strict=True)
-        except SystemExit:
+        except RuntimeError:
             return
 
         """
@@ -248,7 +278,35 @@ class TestQueryToCSVMS:
         query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
 
         # Assert equality
-        pd.testing.assert_frame_equal(result_df, query_df)
+        pd.testing.assert_frame_equal(result_df.drop(columns=['WKT']), query_df)
+
+        # Cleanup
+        sql.drop_table(schema='dbo', table=test_csv_name)
+        os.remove(output)
+
+    def test_query_to_csv_basic_spec_char_columns(self):
+        output = os.path.dirname(os.path.abspath(__file__)) + 'test_query_to_csv.csv'
+        sql.drop_table(schema='dbo', table=test_csv_name)
+
+        # Setup table
+        sql.query("""
+            create table dbo.{} ([col 1] varchar, [col 2] varchar, [col 3] varchar);
+
+            insert into dbo.{} values ('a', 'b', 'c');
+        """.format(test_csv_name, test_csv_name))
+
+        # Query_to_csv
+        sql.query_to_csv(query='select [col 1], [col 2], [col 3] from dbo.{}'.format(test_csv_name),
+                         output_file=output)
+
+        # Get result from query_to_csv as df
+        result_df = pd.read_csv(output)
+
+        # Get result from dfquery
+        query_df = sql.dfquery('select [col 1], [col 2], [col 3] from dbo.{}'.format(test_csv_name))
+
+        # Assert equality
+        pd.testing.assert_frame_equal(result_df.drop(columns=['WKT']), query_df)
 
         # Cleanup
         sql.drop_table(schema='dbo', table=test_csv_name)
@@ -275,7 +333,7 @@ class TestQueryToCSVMS:
         query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
 
         # Assert equality
-        pd.testing.assert_frame_equal(result_df, query_df)
+        pd.testing.assert_frame_equal(result_df.drop(columns=['WKT']), query_df)
 
         # Cleanup
         sql.drop_table(schema='dbo', table=test_csv_name)
@@ -284,7 +342,7 @@ class TestQueryToCSVMS:
     def test_query_to_csv_strict(self):
         try:
             sql.query_to_csv(query='select * from junktable', strict=True)
-        except SystemExit:
+        except RuntimeError:
             return
 
         """
@@ -315,7 +373,7 @@ class TestQueryToCSVMS:
         query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
 
         # Assert equality
-        pd.testing.assert_frame_equal(result_df, query_df)
+        pd.testing.assert_frame_equal(result_df.drop(columns=['WKT']), query_df)
 
         # Cleanup
         sql.drop_table(schema='dbo', table=test_csv_name)
@@ -329,7 +387,7 @@ class TestQueryToCSVMS:
         sql.query("""
             create table dbo.{} (col1 text, col2 varchar, col3 varchar);
 
-            insert into dbo.{} values ('a, ', 'b', 'c');
+            insert into dbo.{} values ('a,', 'b', 'c');
         """.format(test_csv_name, test_csv_name))
 
         # Query_to_csv
@@ -338,13 +396,13 @@ class TestQueryToCSVMS:
                          quote_strings=False)
 
         # Get result from query_to_csv as df
-        result_df = pd.read_csv(output)
+        result_df = pd.read_csv(output, skipinitialspace=False)
 
         # Get result from dfquery
         query_df = sql.dfquery('select * from dbo.{}'.format(test_csv_name))
 
         # Assert equality
-        pd.testing.assert_frame_equal(result_df, query_df)
+        pd.testing.assert_frame_equal(result_df.drop(columns=['WKT']), query_df)
 
         # Assert the first column contains quotes as it was quoted in QUOTE_MINIMAL due to the comma, while the others do not raw_csv_with_quotes
         raw_csv_with_quotes = pd.read_csv(output, quoting=csv.QUOTE_NONE)
