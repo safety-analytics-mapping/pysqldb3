@@ -251,7 +251,7 @@ class Query:
         Note: cannot use pd.read_sql() because the structure will necessitate running query twice
         :return: Pandas DataFrame of the results of the query
         """
-        if self.dbo.type == MS:
+        if self.dbo.type in (MS, AZ):
             self.data = [tuple(i) for i in self.data]
             df = pd.DataFrame(self.data, columns=self.data_columns)
         else:
@@ -264,6 +264,24 @@ class Query:
         Checks if query generates new tables
         :return: list of sets of {schema.table}
         """
+        # remove lines after '--'
+        new_query_string = list()
+        for ln in query_string.split('\n'):
+            comment_line = ln.find('--')
+            if comment_line>0:
+                ln = ln[:comment_line]
+            else:
+                ln
+            new_query_string.append(ln)
+        query_string =' '.join(new_query_string)
+
+        # remove multiline comments
+        comments = r'((/\*)+?[\w\W]+?(\*/)+)'
+        matches = re.findall(comments, query_string, re.IGNORECASE)
+        for m in matches:
+            query_string =''.join(query_string.split(m[0]))
+
+
         # remove mulitple spaces
         _ = query_string.split()
         query_string = ' '.join(_)

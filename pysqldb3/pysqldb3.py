@@ -1,5 +1,5 @@
 import getpass
-
+import pyodbc
 import pymssql
 from tqdm import tqdm
 from typing import Optional, Union
@@ -51,6 +51,7 @@ class DbConnect:
         if self.LDAP and not self.user:
             self.user = getpass.getuser()
         self.type = type
+        self.__set_type()
         self.server = get_unique_table_schema_string(server, self.type)
         self.database = database
         self.port = port
@@ -118,6 +119,9 @@ class DbConnect:
         if self.type and type(self.type) == str and self.type.upper() in SQL_SERVER_TYPES:
             self.type = MS
 
+        if self.type and type(self.type) == str and self.type.upper() in AZURE_SERVER_TYPES:
+            self.type = AZ
+
     def __get_default_schema(self, db_type):
         # type: (str) -> str
         """
@@ -151,21 +155,25 @@ class DbConnect:
             self.database = config.get('DEFAULT DATABASE', 'database')
 
         # Only prompts user if missing necessary information
-        if ((self.LDAP and not all((self.database, self.server))) or
+        if self.type == AZ:
+            # TODO find a better place for this
+            self.LDAP = True
+        if ( (self.LDAP and not all((self.database, self.server))) or
                 (not self.LDAP and (not all((self.user, self.password, self.database, self.server))))):
 
             print('\nAdditional database connection details required:')
 
             # Prompts user input for each missing parameter
             if not self.type:
-                self.type = input('Database type (MS/PG)').upper()
+                self.type = input('Database type (MS/PG/AZ)').upper()
+                self.__set_type()
             if not self.server:
                 self.server = input('Server:')
             if not self.database:
                 self.database = input('Database name:')
             if not self.user and not self.LDAP:
                 self.user = input('User name ({}):'.format(self.database.lower()))
-            if not self.password and not self.LDAP:
+            if not self.password and not self.LDAP and self.type !=AZ:
                 self.password = getpass.getpass('Password ({})'.format(self.database.lower()))
 
     def __connect_pg(self):
@@ -214,6 +222,36 @@ class DbConnect:
                                       datetime2 will not be interpreted correctly\n')
 
                 self.conn = pymssql.connect(**self.params)
+    def __connect_az(self):
+        # type: (DbConnect) -> None
+        """
+        Creates connection to sql server db
+        :return: None
+        """
+
+        self.LDAP = True
+
+        self.params = {
+            'database': self.database,
+            'SERVER': self.server,
+            'PORT' : '1433;DATABASE = '+self.database,
+            'UID': self.user+'@dot.nyc.gov',
+            'AUTHENTICATION' : 'ActiveDirectoryInteractive',
+            'driver' :'{ODBC Driver 17 for SQL Server}'
+
+        }
+        try:
+            self.conn = pyodbc.connect(**self.params)
+        except Exception as e:
+            print(e)
+            # Revert to SQL driver and show warning
+            if self.use_native_driver:
+                # Native client is required for correct handling of datetime2 types in SQL
+                if self.connection_count == 0:
+                    print('Warning:\n\tMissing SQL Server Native Client 10.0 \
+                                      datetime2 will not be interpreted correctly\n')
+
+                self.conn = pymssql.connect(**self.params)
 
     def connect(self, quiet=False):
         # type: (DbConnect, bool) -> None
@@ -235,6 +273,9 @@ class DbConnect:
 
         if self.type == MS:
             self.__connect_ms()
+
+        if self.type == AZ:
+            self.__connect_az()
 
         # Add successful connection
         self.connection_count += 1
@@ -272,6 +313,9 @@ class DbConnect:
                 self.conn._conn.connected
             except Exception as e:
                 print(e)
+                self.connect(True)
+        else:
+            if self.conn.closed:
                 self.connect(True)
 
     """
@@ -352,6 +396,9 @@ class DbConnect:
             self.query("SELECT schema_name FROM information_schema.schemata", timeme=False, internal=True)
         elif self.type == MS:
             self.query(MS_SCHEMA_FOR_LOG_CLEANUP_QUERY, internal=True)
+        elif self.type == AZ:
+            # todo: revist this, but for now its read only so should be ok
+            return None
 
         for sch in self.__get_most_recent_query_data(internal=True):
             if self.table_exists(self.log_table, schema=sch[0], internal=True):
@@ -533,8 +580,8 @@ class DbConnect:
         :param schema: Schema to look in (defaults to public)
         :return: Pandas DataFrame of the table list
         """
-        if self.type == MS:
-            print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
+        if self.type in (MS, AZ):
+            print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
             return
 
         return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
@@ -716,12 +763,20 @@ class DbConnect:
         else:
             db = ''
         if self.type == PG:
-            self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema, table, c),
-                       timeme=False, strict=strict, internal=internal)
+            if '"' not in table:
+                self.query('DROP TABLE IF EXISTS {}."{}" {}'.format(schema, table, c),
+                           timeme=False, strict=strict, internal=internal)
+            else:
+                self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema, table, c),
+                           timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
             if self.table_exists(schema=schema, table=table):
-                self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
-                           timeme=False, strict=strict, internal=internal)
+                if '[' not in table:
+                    self.query('DROP TABLE {}{}{}.[{}] {}'.format(ser, db, schema, table, c),
+                               timeme=False, strict=strict, internal=internal)
+                else:
+                    self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
+                               timeme=False, strict=strict, internal=internal)
             else:
                 dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table))
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
@@ -1801,9 +1856,19 @@ class DbConnect:
             output_file = os.path.join(os.getcwd(), table + '.csv')
 
         if schema:
-            schema_table = '{}.{}'.format(schema, table)
+            if self.type == PG:
+                if '"' not in table:
+                    schema_table = '{}."{}"'.format(schema, table)
+                else:
+                    schema_table = '{}.{}'.format(schema, table)
+            if self.type in (MS, AZ):
+                if '[' not in table:
+                    schema_table = '{}.[{}]'.format(schema, table)
+                else:
+                    schema_table = '{}.{}'.format(schema, table)
         else:
             schema_table = '{}'.format(table)
+
 
         query = """
         select *
@@ -1812,7 +1877,6 @@ class DbConnect:
 
         self.check_conn()
 
-        print('Writing to %s' % output_file)
         self.query_to_csv(query, output_file=output_file, open_file=open_file, quote_strings=quote_strings, sep=sep,
                           strict=strict)
 
@@ -1866,6 +1930,8 @@ class DbConnect:
                         cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
+
+        self.tables_created.append(f"{schema}.{table}")
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)

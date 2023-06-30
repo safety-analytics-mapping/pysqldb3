@@ -272,10 +272,12 @@ class Shapefile:
             ), timeme=False, internal=True)
 
         if not private:
-            self.dbo.query('grant select on {s}."{t}" to public;'.format(
-                s=self.schema,
-                t=self.table), timeme=False, internal=True)
-
+            try:
+                self.dbo.query('grant select on {s}."{t}" to public;'.format(
+                    s=self.schema, t=self.table),
+                    timeme=False, internal=True, strict=True)
+            except:
+                pass
         self.rename_geom()
 
     def read_feature_class(self, private=False, print_cmd=False, fc_encoding=None):
@@ -357,10 +359,13 @@ class Shapefile:
             ), timeme=False, internal=True)
 
         if not private:
-            self.dbo.query('grant select on {s}."{t}" to public;'.format(
-                s=self.schema,
-                t=self.table), timeme=False, internal=True)
-
+            # some SQL DBs we dont have grant permssions on
+            try:
+                self.dbo.query('grant select on {s}."{t}" to public;'.format(
+                    s=self.schema, t=self.table),
+                    timeme=False, internal=True, strict=True)
+            except:
+                pass
         self.rename_geom()
 
     def rename_geom(self):

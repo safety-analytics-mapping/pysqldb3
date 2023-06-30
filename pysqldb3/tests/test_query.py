@@ -3,6 +3,7 @@ Joint testing script for DbConnect and Query classes
 """
 import os
 from collections.abc import Iterable
+from decimal import Decimal
 
 import configparser
 import pandas as pd
@@ -23,6 +24,13 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         database=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
+
+azure = pysqldb.DbConnect(type=config.get('AZ_DB', 'TYPE'),
+                          server=config.get('AZ_DB', 'SERVER'),
+                          database=config.get('AZ_DB', 'DB_NAME'),
+                          user=config.get('AZ_DB', 'DB_USER'),
+                          allow_temp_tables=True
+                          )
 
 test_query_table = 'test_query_table_{}'.format(db.user)
 
@@ -131,6 +139,15 @@ class TestQuery:
     def test_successful_query_ms(self):
         # Unclear of logic right now
         return
+
+    def test_successful_query_azure(self):
+        azure.query("select nodeid, version, is_int from [CLION].[dbo].[node] where nodeid = 14")
+        for pos, i in enumerate(azure.data[0]):
+            if pos == 1:
+                assert i == '21c'
+            else:
+                assert int(i) in (14, 1)
+        # assert azure.data == [(Decimal('14'), '21c', Decimal('1'))]
 
     def test_dbconnect_state_create_pg(self):
         db.drop_table(table=test_query_table, schema='working')
@@ -427,3 +444,10 @@ class TestDfQuery:
     def test_output_df_special_char_ms(self):
         # TODO: fill out with special char fix
         assert True
+
+    def test_successful_dfquery_azure(self):
+        db_df = azure.dfquery("select cast(nodeid as float) nodeid, version, cast(is_int as float) is_int from [CLION].[dbo].[node] where nodeid = 14")
+        df = pd.DataFrame({'nodeid': [14.0], 'version':['21c'], 'is_int':[1.0]})
+        print(db_df)
+        print(df)
+        pd.testing.assert_frame_equal(db_df, df, check_column_type=False)

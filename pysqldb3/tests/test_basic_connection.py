@@ -19,3 +19,10 @@ def test():
                             password=test_config.get('SQL_DB', 'DB_PASSWORD'))
 
     assert True
+
+    azure = pysqldb.DbConnect(type='azure',
+                                server= 'rg-azu-e2-dot-synapse-dev-ws-ondemand.sql.azuresynapse.net',
+                                database='SIRTA',
+                                user=test_config.get('PG_DB', 'DB_USER')
+                                )
+    assert True
