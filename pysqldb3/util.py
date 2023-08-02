@@ -62,7 +62,7 @@ def clean_geom_column(db, table, schema):
     db.query("""SELECT COLUMN_NAME 
                 FROM information_schema.COLUMNS 
                 WHERE data_type='USER-DEFINED' 
-                and TABLE_NAME='{t}'
+                and lower(TABLE_NAME)=lower('{t}')
                 and table_schema = '{s}'
             """.format(t=table, s=schema), timeme=False, internal=True)
 
