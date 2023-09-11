@@ -10,7 +10,6 @@ import configparser
 import os
 from .Config import write_config
 import pyarrow.csv as pyarrowcsv
-import numpy as np
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -920,7 +919,7 @@ class DbConnect:
 
         for _, row in tqdm(df.iterrows()):
             # Clean up empty cells and prime for input into db
-            row = row.replace({np.nan: None})
+            row = row.replace({pd.np.nan: None})
             row_values = ",".join([clean_cell(i) for i in row.values])
             row_values = row_values.replace('None', 'NULL')
 
