@@ -10,7 +10,7 @@ import configparser
 import os
 from .Config import write_config
 import pyarrow.csv as pyarrowcsv
-import numpy
+import numpy as np
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
