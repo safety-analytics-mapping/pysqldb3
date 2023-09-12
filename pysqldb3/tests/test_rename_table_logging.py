@@ -23,7 +23,7 @@ pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
 
 class Test_rename_ms():
     def test_rename_no_log_exists(self):
-        tbl = '__test__'
+        tbl = f'__test__{pg.user}'
         rename = '%s_rename_' % tbl
         ms.drop_table(ms.default_schema, '{t}'.format(t=tbl))
         # set up
@@ -42,9 +42,9 @@ class Test_rename_ms():
 
 
     def test_rename_log_exists(self):
-        tbl = '__test__' # table to be logged
+        tbl = f'__test__{pg.user}' # table to be logged
         rename = '%s_rename_' % tbl # renamed table to be logged
-        tbl2 = '__test2__' # table not to be logged
+        tbl2 = f'__test2__{pg.user}' # table not to be logged
         rename2 = '%s_rename_' % tbl2 # renamed table not to be logged
 
         # create temp table
@@ -81,7 +81,7 @@ class Test_rename_ms():
 
 class Test_rename_pg():
     def test_rename_no_log_exists(self):
-        tbl = '__test__'
+        tbl = f'__test__{pg.user}'
         rename = '%s_rename_' % tbl
         pg.drop_table(pg.default_schema, '{t}'.format(t=tbl))
         # set up
@@ -100,9 +100,9 @@ class Test_rename_pg():
 
 
     def test_rename_log_exists(self):
-        tbl = '__test__' # table to be logged
+        tbl = f'__test__{pg.user}' # table to be logged
         rename = '%s_rename_' % tbl # renamed table to be logged
-        tbl2 = '__test2__' # table not to be logged
+        tbl2 = f'__test2__{pg.user}' # table not to be logged
         rename2 = '%s_rename_' % tbl2 # renamed table not to be logged
 
         # create temp table
@@ -125,7 +125,7 @@ class Test_rename_pg():
         assert pg.table_exists(rename, schema=pg.default_schema)
         assert pg.table_exists(rename2, schema=pg.default_schema)
 
-        # make sure temp rename is in th elog and non-temp rename is not
+        # make sure temp rename is in the log and non-temp rename is not
         pg.query("select table_name from {}.{}".format(pg.default_schema, pg.log_table))
         assert rename in pg.data[0]
         assert not rename2 in pg.data[0]
