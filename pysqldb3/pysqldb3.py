@@ -208,7 +208,8 @@ class DbConnect:
                 'database': self.database,
                 'host': self.server,
                 'user': self.user,
-                'password': self.password            }
+                'password': self.password,
+                'tds_version': r'7.0'}
 
         try:
             self.conn = pymssql.connect(**self.params)
@@ -1563,6 +1564,7 @@ class DbConnect:
                 output_file=output_file,
                 host=self.server,
                 username=self.user,
+                tds_version=r'7.0', # cindy add 09272023
                 db=self.database,
                 password=self.password,
                 ms_sql_select=query,
