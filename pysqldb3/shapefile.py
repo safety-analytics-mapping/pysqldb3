@@ -367,6 +367,7 @@ class Shapefile:
             except:
                 pass
         self.rename_geom()
+        self.dbo.tables_created.append(self.schema + "." + self.table)
 
     def rename_geom(self):
         """
