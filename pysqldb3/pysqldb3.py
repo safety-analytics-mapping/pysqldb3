@@ -73,6 +73,7 @@ class DbConnect:
         self.last_query = None
         self.default_schema = None
         self.connection_count = 0
+        self.tds_version = r'7.0' # cindy added
         self.__set_type()
 
         # Connect and clean logs
@@ -209,7 +210,7 @@ class DbConnect:
                 'host': self.server,
                 'user': self.user,
                 'password': self.password,
-                'tds_version': r'7.0'}
+                'tds_version': self.tds_version}
 
         try:
             self.conn = pymssql.connect(**self.params)
@@ -1564,7 +1565,6 @@ class DbConnect:
                 output_file=output_file,
                 host=self.server,
                 username=self.user,
-                tds_version=r'7.0', # cindy add 09272023
                 db=self.database,
                 password=self.password,
                 ms_sql_select=query,
