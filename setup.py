@@ -4,7 +4,7 @@ from distutils.core import setup
 # version = pkg_resources.require("ris")[0].version
 
 setup(name='pysqldb3',
-      version='0.1.1',
+      version='0.1.2a',
       packages=['pysqldb3'],
       description='Basic modules used by RIS',
       install_requires=[
