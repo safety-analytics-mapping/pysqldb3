@@ -301,21 +301,21 @@ class TestSqlToPgQry:
         assert not db.table_exists(table='tst_sql_to_pg_qry_table', schema = 'working')
         
         data_io.sql_to_pg_qry(sql, db, query="""-- comments within the query
-                                                select TOP (10) OFTCode, OnStreetName, FromStreetName, SegmentID, Shape -- geom
-                                                from [STREETASSESSMENT].[dbo].[StreetRating_Latest]
-                                                WHERE ManualRating = 1
-                                                ORDER BY OFTCode, SegmentID
+                                               SELECT TOP (10) [NodeID],
+                                                            -- include segment
+                                                                [SegmentID_1],
+                                                                CAST(geometry::Point([X_COORD], [Y_COORD], 2236) AS VARCHAR) ugeom -- geom here                 
+                                                FROM [LionRB2].[LionRB2].[tbl_OFT_Intersection]
                                                 -- end here""",
                             dest_table='tst_sql_to_pg_qry_spatial_table',
                             dest_schema = 'working')
         
         data_io.sql_to_pg_qry(sql, db, query="""-- comments within the query
-                                                select TOP (10) OFTCode, OnStreetName, FromStreetName, SegmentID
-                                                from [STREETASSESSMENT].[dbo].[StreetRating_Latest] -- source table
-                                                -- middle comment
-                                                WHERE ManualRating = 1
-                                                ORDER BY OFTCode, SegmentID
-                                                -- end here""",
+                                               SELECT TOP (10) [NodeID],
+                                                            -- include segment
+                                                                [SegmentID_1]
+                                                FROM [LionRB2].[LionRB2].[tbl_OFT_Intersection]
+""",
                             dest_table='tst_sql_to_pg_qry_table',
                             dest_schema = 'working',
                             spatial=True)
@@ -344,12 +344,12 @@ class TestSqlToPgQry:
         
         print(not_spatial_df)
     
-        joined_df = spatial_df.merge(not_spatial_df, on='segmentid')
+        joined_df = spatial_df.merge(not_spatial_df, on='segmentid_1')
     
         print(joined_df)
     
-        assert len(spatial_df) == len(not_spatial_df) # and len(joined_df) == len(
-            # joined_df[joined_df['Shape'] != joined_df['Shape_y']])
+        assert len(spatial_df) == len(not_spatial_df) and len(joined_df) == len(
+             joined_df[joined_df['geom_x'] != joined_df['geom_y']])
     
         db.drop_table(schema='working', table='tst_sql_to_pg_qry_table')
         db.drop_table(schema='working', table='tst_sql_to_pg_qry_spatial_table')
