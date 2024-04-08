@@ -29,6 +29,8 @@ test_sql_to_pg_table = 'tst_sql_to_pg_table_{}'.format(db.user)
 test_pg_to_pg_tbl = 'tst_pg_to_pg_tbl_{}'.format(db.user)
 test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 
+schema = 'working'
+sql_schema = 'dbo'
 
 # class TestPgToSql:
 #     @classmethod
@@ -47,10 +49,10 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #         """.format(test_pg_to_sql_table, test_pg_to_sql_table, pg_table_name))
 #
 #         # Assert created correctly
-#         assert db.table_exists(table=test_pg_to_sql_table, schema='working')
+#         assert db.table_exists(table=test_pg_to_sql_table, schema=schema)
 #
 #         # Assert not in sql yet
-#         org_schema = 'working'
+#         org_schema = schema
 #         org_table = test_pg_to_sql_table
 #
 #         assert not sql.table_exists(table=test_pg_to_sql_table)
@@ -86,7 +88,7 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #
 #         # Cleanup
 #         sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
-#         db.drop_table(table=test_pg_to_sql_table, schema='working')
+#         db.drop_table(table=test_pg_to_sql_table, schema=schema)
 #
 #     def test_pg_to_sql_naming(self):
 #         dest_name = 'another_tst_name_{}'.format(db.user)
@@ -103,7 +105,7 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #         """.format(test_pg_to_sql_table, test_pg_to_sql_table, pg_table_name))
 #
 #         # Assert table created correctly
-#         assert db.table_exists(table=test_pg_to_sql_table, schema='working')
+#         assert db.table_exists(table=test_pg_to_sql_table, schema=schema)
 #
 #         # Assert not in sql yet
 #         sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
@@ -111,7 +113,7 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #         assert not sql.table_exists(table=dest_name)
 #
 #         # Move to sql from pg
-#         data_io.pg_to_sql(db, sql, org_schema='working', org_table=test_pg_to_sql_table, dest_table=dest_name,
+#         data_io.pg_to_sql(db, sql, org_schema=schema, org_table=test_pg_to_sql_table, dest_table=dest_name,
 #                           print_cmd=True)
 #
 #         # Assert created properly in sql with names
@@ -141,10 +143,10 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #
 #         # Cleanup
 #         sql.drop_table(schema=sql.default_schema, table=dest_name)
-#         db.drop_table(table=test_pg_to_sql_table, schema='working')
+#         db.drop_table(table=test_pg_to_sql_table, schema=schema)
 #
 #     def test_pg_to_sql_spatial_table(self):
-#         org_schema = 'working'
+#         org_schema = schema
 #         org_table = test_pg_to_sql_table
 #
 #         dest_name = test_pg_to_sql_table
@@ -163,7 +165,7 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #         """.format(test_pg_to_sql_table, test_pg_to_sql_table, pg_table_name))
 #
 #         # Assert table made correctly
-#         assert db.table_exists(table=test_pg_to_sql_table, schema='working')
+#         assert db.table_exists(table=test_pg_to_sql_table, schema=schema)
 #
 #         # Assert neither table in SQL Server yet
 #         assert not sql.table_exists(table=dest_name)
@@ -228,7 +230,7 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #         # Cleanup
 #         sql.drop_table(schema=sql.default_schema, table=dest_name_not_spatial)
 #         sql.drop_table(schema=sql.default_schema, table=dest_name)
-#         db.drop_table(table=test_pg_to_sql_table, schema='working')
+#         db.drop_table(table=test_pg_to_sql_table, schema=schema)
 #
 #     def test_pg_to_sql_error(self):
 #         return
@@ -242,43 +244,81 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 #
 #
 class TestSqlToPgQry:
+
     def test_sql_to_pg_qry_basic_table(self):
         # Assert pg table doesn't exist
-        db.drop_table(schema='working', table=test_sql_to_pg_qry_table)
+        db.drop_table(schema=schema, table=test_sql_to_pg_qry_table)
         assert not db.table_exists(table=test_sql_to_pg_qry_table)
 
-        # Add test_table
-        # sql.drop_table(schema='dbo', table=test_sql_to_pg_qry_table)
-        # sql.query("""
-        # create table dbo.{} (test_col1 int, test_col2 int);
-        # insert into dbo.{} VALUES(1, 2);
-        # insert into dbo.{} VALUES(3, 4);
-        # """.format(test_sql_to_pg_qry_table, test_sql_to_pg_qry_table, test_sql_to_pg_qry_table))
-
         # sql_to_pg_qry
-        data_io.sql_to_pg_qry(sql, db, query="""-- comments within the query
-                                                select OFTCode, OnStreetName, FromStreetName, SegmentID
-                                                -- test
-                                                from [STREETASSESSMENT].[dbo].[StreetRating_Latest]
-                                                WHERE ManualRating = 1
-                                                ORDER BY OFTCode, SegmentID
-                                                -- end here""",
-                              dest_table=test_sql_to_pg_qry_table,
-                              dest_schema = 'working', print_cmd=True)
+        data_io.sql_to_pg_qry(sql, db, query=f"""
+                                            drop table if exists ##{test_sql_to_pg_qry_table};
+                                            create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);
+                                            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (1, 2);
+                                            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (3, 4);
+                                             
+                                            select * from ##{test_sql_to_pg_qry_table};
+                                            """,
+                              dest_table=test_sql_to_pg_qry_table, 
+                              dest_schema = schema, print_cmd=True)
 
         # Assert sql to pg query was successful (table exists)
-        assert db.table_exists(table=test_sql_to_pg_qry_table, schema = 'working')
+        assert db.table_exists(table=test_sql_to_pg_qry_table, schema = schema)
 
         # Assert df equality
-        sql_df = sql.dfquery("""
-        select OFTCode, OnStreetName, FromStreetName, SegmentID from [STREETASSESSMENT].[dbo].[StreetRating_Latest]
-        WHERE ManualRating = 1
-        order by OFTCode, SegmentID
+        sql_df = sql.dfquery(f"""
+        select * from ##{test_sql_to_pg_qry_table}
+         order by test_col1
         """).infer_objects().replace('\s+', '', regex=True)
 
-        pg_df = db.dfquery("""
-        select * from working.{}
-        order by OFTCode, SegmentID
+        pg_df = db.dfquery(f"""
+        select * from {schema}.{test_sql_to_pg_qry_table}
+        order by test_col1
+        """).infer_objects().replace('\s+', '', regex=True)
+
+        sql_df.columns = [c.lower() for c in list(sql_df.columns)]
+
+        # Assert
+        pd.testing.assert_frame_equal(sql_df, pg_df.drop(['geom', 'ogc_fid'], axis = 1),
+                                    check_dtype=False,
+                                      check_column_type=False)
+
+        # Cleanup
+        db.drop_table(schema=schema, table=test_sql_to_pg_qry_table)
+        sql.query(f"""drop table if exists ##{test_sql_to_pg_qry_table};""") # run query for global temp table
+
+    def test_sql_to_pg_qry_basic_with_comments_table(self):
+        # Assert pg table doesn't exist
+        db.drop_table(schema=schema, table=test_sql_to_pg_qry_table)
+        assert not db.table_exists(table=test_sql_to_pg_qry_table)
+
+        # sql_to_pg_qry
+        data_io.sql_to_pg_qry(sql, db, query=f"""
+                                            -- comments within the query
+                                            create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);
+                                                /* add in some
+                                                other comments here */
+                                                -- add in another comment
+                                            insert into ##{test_sql_to_pg_qry_table} VALUES(1, 2); -- add more rows
+                                                -- insert space --
+                                            insert into ##{test_sql_to_pg_qry_table} VALUES(3, 4); 
+                                            select * from ##{test_sql_to_pg_qry_table};
+                                                -- end here""",
+                              dest_table=test_sql_to_pg_qry_table,
+                              dest_schema = schema, print_cmd=True)
+
+        # Assert sql to pg query was successful (table exists)
+        assert db.table_exists(table=test_sql_to_pg_qry_table, schema = schema)
+
+        # Assert df equality
+        sql_df = sql.dfquery(f"""
+        select * from ##{test_sql_to_pg_qry_table}
+         order by test_col1
+        """).infer_objects().replace('\s+', '', regex=True)
+
+        pg_df = db.dfquery(f"""
+        select * from {schema}.{test_sql_to_pg_qry_table}
+        order by test_col1
         """.format(test_sql_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
 
         sql_df.columns = [c.lower() for c in list(sql_df.columns)]
@@ -289,55 +329,54 @@ class TestSqlToPgQry:
                                       check_column_type=False)
 
         # Cleanup
-        db.drop_table(schema='working', table=test_sql_to_pg_qry_table)
-        # sql.drop_table(schema='dbo', table=test_pg_to_pg_qry_table)
-
+        db.drop_table(schema=schema, table=test_sql_to_pg_qry_table)
+        sql.query(f"""drop table if exists ##{test_sql_to_pg_qry_table}""") # run query for global temp table
 
     def test_sql_to_pg_qry_spatial(self):
-        db.drop_table(schema='working', table='tst_sql_to_pg_qry_table')
-        db.drop_table(schema='working', table='tst_sql_to_pg_qry_spatial_table')
+        db.drop_table(schema=schema, table='tst_sql_to_pg_qry_table')
+        db.drop_table(schema=schema, table='tst_sql_to_pg_qry_spatial_table')
     
-        assert not db.table_exists(table='tst_sql_to_pg_qry_spatial_table', schema = 'working')
-        assert not db.table_exists(table='tst_sql_to_pg_qry_table', schema = 'working')
+        assert not db.table_exists(table='tst_sql_to_pg_qry_spatial_table', schema = schema)
+        assert not db.table_exists(table='tst_sql_to_pg_qry_table', schema = schema)
         
         data_io.sql_to_pg_qry(sql, db, query="""-- comments within the query
                                                SELECT TOP (10) [NodeID],
                                                             -- include segment
                                                                 [SegmentID_1],
-                                                                CAST(geometry::Point([X_COORD], [Y_COORD], 2236) AS VARCHAR) ugeom -- geom here                 
+                                                        CAST(geometry::Point([X_COORD], [Y_COORD], 2236) AS VARCHAR) ugeom -- geom here                 
                                                 FROM [LionRB2].[LionRB2].[tbl_OFT_Intersection]
                                                 -- end here""",
                             dest_table='tst_sql_to_pg_qry_spatial_table',
-                            dest_schema = 'working')
+                            dest_schema = schema)
         
         data_io.sql_to_pg_qry(sql, db, query="""-- comments within the query
-                                               SELECT TOP (10) [NodeID],
+                                               SELECT TOP (10)  [NodeID],
                                                             -- include segment
                                                                 [SegmentID_1]
                                                 FROM [LionRB2].[LionRB2].[tbl_OFT_Intersection]
-""",
+                                            """,
                             dest_table='tst_sql_to_pg_qry_table',
-                            dest_schema = 'working',
+                            dest_schema = schema,
                             spatial=True)
         
-        assert db.table_exists(table='tst_sql_to_pg_qry_table', schema = 'working')
-        assert len(db.dfquery('select * from working.tst_sql_to_pg_qry_table')) == 10
+        assert db.table_exists(table='tst_sql_to_pg_qry_table', schema = schema)
+        assert len(db.dfquery(f'select * from {schema}.tst_sql_to_pg_qry_table')) == 10
         
-        assert db.table_exists(table='tst_sql_to_pg_qry_spatial_table', schema = 'working')
-        assert len(db.dfquery('select * from working.tst_sql_to_pg_qry_spatial_table')) == 10
+        assert db.table_exists(table='tst_sql_to_pg_qry_spatial_table', schema = schema)
+        assert len(db.dfquery(f'select * from {schema}.tst_sql_to_pg_qry_spatial_table')) == 10
         
-        spatial_df = db.dfquery("""
+        spatial_df = db.dfquery(f"""
         select *
-        from working.tst_sql_to_pg_qry_spatial_table
+        from {schema}.{test_sql_to_pg_qry_table}
             --SELECT column_name, data_type FROM information_schema.columns WHERE
             --table_name = ''
         """)
         
         print(spatial_df)
         
-        not_spatial_df = db.dfquery("""
+        not_spatial_df = db.dfquery(f"""
                 select *
-                from working.tst_sql_to_pg_qry_table
+                from {schema}.{test_sql_to_pg_qry_table}
             --SELECT column_name, data_type FROM information_schema.columns WHERE
             --table_name = ''
         """)
@@ -351,42 +390,41 @@ class TestSqlToPgQry:
         assert len(spatial_df) == len(not_spatial_df) and len(joined_df) == len(
              joined_df[joined_df['geom_x'] != joined_df['geom_y']])
     
-        db.drop_table(schema='working', table='tst_sql_to_pg_qry_table')
-        db.drop_table(schema='working', table='tst_sql_to_pg_qry_spatial_table')
+        db.drop_table(schema=schema, table='tst_sql_to_pg_qry_table')
+        db.drop_table(schema=schema, table='tst_sql_to_pg_qry_spatial_table')
 
     def test_sql_to_pg_qry_dest_schema(self):
         # Assert doesn't exist already
-        db.drop_table(schema='working', table=test_sql_to_pg_qry_table)
-        assert not db.table_exists(schema='working', table=test_sql_to_pg_qry_table)
+        db.drop_table(schema=schema, table=test_sql_to_pg_qry_table)
+        assert not db.table_exists(schema=schema, table=test_sql_to_pg_qry_table)
 
         # sql_to_pg_qry
-        data_io.sql_to_pg_qry(sql, db, query="""
+        data_io.sql_to_pg_qry(sql, db, query=f"""
                                                 -- comments within the query
-                                                select TOP (2) OFTCode, OnStreetName, FromStreetName, SegmentID
-                                                from [STREETASSESSMENT].[dbo].[StreetRating_Latest] -- source table
+                                                create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);       
                                                 -- middle comment
-                                                WHERE ManualRating = 1
-                                                ORDER BY OFTCode, SegmentID
+                                                insert into ##{test_sql_to_pg_qry_table} VALUES(1, 2);
+                                                 insert into ##{test_sql_to_pg_qry_table} VALUES(3, 4);
+                                                select * from  ##{test_sql_to_pg_qry_table};
                                                 -- end here
                               """,
-                              dest_table=test_sql_to_pg_qry_table, dest_schema='working', print_cmd=True)
+                              dest_table=test_sql_to_pg_qry_table,
+                              dest_schema=schema, print_cmd=True)
 
         # Assert sql_to_pg_qry successful and correct length
-        assert db.table_exists(schema='working', table=test_sql_to_pg_qry_table)
-        assert len(db.dfquery('select * from working.{}'.format(test_sql_to_pg_qry_table))) == 2
+        assert db.table_exists(schema=schema, table=test_sql_to_pg_qry_table)
+        assert len(db.dfquery(f'select * from {schema}.{test_sql_to_pg_qry_table}')) == 2
 
         # Assert df equality
-        sql_df = sql.dfquery("""
-            select TOP (2) OFTCode, OnStreetName, FromStreetName, SegmentID
-            from [STREETASSESSMENT].[dbo].[StreetRating_Latest]
-            WHERE ManualRating = 1
-            ORDER BY OFTCode, SegmentID
+        sql_df = sql.dfquery(f"""
+            select * from ##{test_sql_to_pg_qry_table}
+            order by test_col1
         """).infer_objects().replace('\s+', '', regex=True)
 
-        pg_df = db.dfquery("""
-        select * from working.{}
-        order by OFTCode, SegmentID
-        """.format(test_sql_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+        pg_df = db.dfquery(f"""
+        select * from {schema}.{test_sql_to_pg_qry_table}
+#         order by test_col1
+        """).infer_objects().replace('\s+', '', regex=True)
 
         sql_df.columns = [c.lower() for c in list(sql_df.columns)]
 
@@ -395,7 +433,8 @@ class TestSqlToPgQry:
                                       check_dtype=False)
 
         # Cleanup
-        db.drop_table(schema='working', table=test_sql_to_pg_qry_table)
+        db.drop_table(schema=schema, table=test_sql_to_pg_qry_table)
+        sql.query(f"""drop table if exists ##{test_sql_to_pg_qry_table}""") # run query for global temp table
 
     def test_sql_to_pg_qry_no_dest_table_input(self):
         return
@@ -415,12 +454,12 @@ class TestSqlToPgQry:
 
 # class TestSqlToPg:
 #     def test_sql_to_pg_basic_table(self):
-#         db.drop_table(test_sql_to_pg_table, schema = 'working')
+#         db.drop_table(test_sql_to_pg_table, schema = schema)
 #         # Assert table doesn't exist in pg
-#         assert not db.table_exists(table=test_sql_to_pg_table, schema = 'working')
+#         assert not db.table_exists(table=test_sql_to_pg_table, schema = schema)
 
 #         # Add test_table
-#         sql.drop_table(schema='dbo', table=test_sql_to_pg_table)
+#         sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
 #         sql.query("""
 #          create table dbo.{} (test_col1 int, test_col2 int);
 #          insert into dbo.{} VALUES(1, 2);
@@ -428,8 +467,8 @@ class TestSqlToPgQry:
 #          """.format(test_sql_to_pg_table, test_sql_to_pg_table, test_sql_to_pg_table))
 #
 #         # Sql_to_pg
-#         data_io.sql_to_pg(sql, db, org_table=test_sql_to_pg_table, org_schema='dbo', dest_table=test_sql_to_pg_table,
-#                           dest_schema = 'working', print_cmd=True)
+#         data_io.sql_to_pg(sql, db, org_table=test_sql_to_pg_table, org_schema=sql_schema, dest_table=test_sql_to_pg_table,
+#                           dest_schema = schema, print_cmd=True)
 #
 #         # Assert sql_to_pg was successful; table exists in pg
 #         assert db.table_exists(table=test_sql_to_pg_table)
@@ -450,25 +489,25 @@ class TestSqlToPgQry:
 #                                       check_dtype=False, check_column_type=False)
 #
 #         # Cleanup
-#         db.drop_table(schema='working', table=test_sql_to_pg_table)
-#         sql.drop_table(schema='dbo', table=test_sql_to_pg_table)
+#         db.drop_table(schema=schema, table=test_sql_to_pg_table)
+#         sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
 #
 #     def test_sql_to_pg_dest_schema_name(self):
 #         # Assert table doesn't exist in pg
 #         db.drop_table('working', test_sql_to_pg_table)
-#         assert not db.table_exists(schema='working', table=test_sql_to_pg_table)
+#         assert not db.table_exists(schema=schema, table=test_sql_to_pg_table)
 #
 #         # Add test_table
-#         sql.drop_table(schema='dbo', table=test_sql_to_pg_table)
+#         sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
 #         sql.query("""
 #          """.format(test_sql_to_pg_table, test_sql_to_pg_table, test_sql_to_pg_table))
 #
 #         # Sql_to_pg
-#         data_io.sql_to_pg(sql, db, org_table=test_sql_to_pg_table, org_schema='dbo', dest_table=test_sql_to_pg_table,
-#                           dest_schema='working', print_cmd=True)
+#         data_io.sql_to_pg(sql, db, org_table=test_sql_to_pg_table, org_schema=sql_schema, dest_table=test_sql_to_pg_table,
+#                           dest_schema=schema, print_cmd=True)
 #
 #         # Assert sql_to_pg was successful; table exists in pg
-#         assert db.table_exists(schema='working', table=test_sql_to_pg_table)
+#         assert db.table_exists(schema=schema, table=test_sql_to_pg_table)
 #
 #         # Assert df equality
 #         sql_df = sql.dfquery("""
@@ -487,8 +526,8 @@ class TestSqlToPgQry:
 #                                       check_column_type=False)
 #
 #         # Cleanup
-#         db.drop_table(schema='working', table=test_sql_to_pg_table)
-#         sql.drop_table(schema='dbo', table=test_sql_to_pg_table)
+#         db.drop_table(schema=schema, table=test_sql_to_pg_table)
+#         sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
 #
 #     def test_sql_to_pg_org_schema_name(self):
 #         # TODO: test with non-DBO table
@@ -521,41 +560,39 @@ class TestPgToPg:
                                 user=config.get('SECOND_PG_DB', 'DB_USER'),
                                 password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 
-        db.drop_table(schema='working', table=test_pg_to_pg_tbl)
-        ris.drop_table(schema='working', table=test_pg_to_pg_tbl)
+        db.drop_table(schema=schema, table=test_pg_to_pg_tbl)
+        ris.drop_table(schema=schema, table=test_pg_to_pg_tbl)
 
         # Create table
-        db.query("""
-                 -- comments here --
-            create table working.{} as 
+        db.query(f"""
+            create table {schema}.{test_pg_to_pg_tbl} as 
             select * 
-                 -- comments everywhere --
-            from working.{} 
+            from {schema}.{pg_table_name} 
             limit 10 
-        """.format(test_pg_to_pg_tbl, pg_table_name))
+        """)
 
         # Assert tables don't already exist in destination
-        assert db.table_exists(schema='working', table=test_pg_to_pg_tbl)
-        assert not ris.table_exists(schema='working', table=test_pg_to_pg_tbl)
+        assert db.table_exists(schema=schema, table=test_pg_to_pg_tbl)
+        assert not ris.table_exists(schema=schema, table=test_pg_to_pg_tbl)
 
         # pg_to_pg
-        data_io.pg_to_pg(db, ris, org_schema='working', org_table=test_pg_to_pg_tbl, dest_schema='working',
+        data_io.pg_to_pg(db, ris, org_schema=schema, org_table=test_pg_to_pg_tbl, dest_schema=schema,
                          print_cmd=True)
 
         # Assert pg_to_pg successful
-        assert db.table_exists(schema='working', table=test_pg_to_pg_tbl)
-        assert ris.table_exists(schema='working', table=test_pg_to_pg_tbl)
+        assert db.table_exists(schema=schema, table=test_pg_to_pg_tbl)
+        assert ris.table_exists(schema=schema, table=test_pg_to_pg_tbl)
 
         # Assert db equality
-        risdf = ris.dfquery("""
+        risdf = ris.dfquery(f"""
               select * 
-              from working.{}
-          """.format(test_pg_to_pg_tbl)).infer_objects()
+              from {schema}.{test_pg_to_pg_tbl}
+          """).infer_objects()
 
-        dbdf = db.dfquery("""
+        dbdf = db.dfquery(f"""
               select * 
-              from working.{}
-          """.format(test_pg_to_pg_tbl)).infer_objects()
+              from {schema}.{test_pg_to_pg_tbl}
+          """).infer_objects()
 
         # Assert
         pd.testing.assert_frame_equal(risdf.drop(['geom', 'ogc_fid'], axis=1), dbdf.drop(['geom'], axis=1),
@@ -563,8 +600,8 @@ class TestPgToPg:
                                       )
 
         # Cleanup
-        db.drop_table(schema='working', table=test_pg_to_pg_tbl)
-        ris.drop_table(schema='working', table=test_pg_to_pg_tbl)
+        db.drop_table(schema=schema, table=test_pg_to_pg_tbl)
+        ris.drop_table(schema=schema, table=test_pg_to_pg_tbl)
 
     def test_pg_to_pg_basic_name_table(self):
         # Must have RIS DB info in db_config.cfg [SECOND_PG_DB] section
@@ -574,49 +611,49 @@ class TestPgToPg:
                                 user=config.get('SECOND_PG_DB', 'DB_USER'),
                                 password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 
-        db.drop_table(schema='working', table=test_pg_to_pg_tbl)
+        db.drop_table(schema=schema, table=test_pg_to_pg_tbl)
 
         test_pg_to_pg_tbl_other = test_pg_to_pg_tbl + '_another_name'
-        ris.drop_table(schema='working', table=test_pg_to_pg_tbl_other)
+        ris.drop_table(schema=schema, table=test_pg_to_pg_tbl_other)
 
         # Create table for testing in ris
-        db.query("""
-            create table working.{} as 
+        db.query(f"""
+            create table {schema}.{test_pg_to_pg_tbl} as 
             select * 
-            from working.{} 
+            from {schema}.{pg_table_name} 
             limit 10 
-        """.format(test_pg_to_pg_tbl, pg_table_name))
+        """)
 
         # Assert final table doesn't already exist
-        assert not ris.table_exists(schema='working', table=test_pg_to_pg_tbl_other)
-        assert db.table_exists(schema='working', table=test_pg_to_pg_tbl)
+        assert not ris.table_exists(schema=schema, table=test_pg_to_pg_tbl_other)
+        assert db.table_exists(schema=schema, table=test_pg_to_pg_tbl)
 
         # pg_to_pg
-        data_io.pg_to_pg(db, ris, org_schema='working', org_table=test_pg_to_pg_tbl,
-                         dest_schema='working', dest_table=test_pg_to_pg_tbl_other, print_cmd=True)
+        data_io.pg_to_pg(db, ris, org_schema=schema, org_table=test_pg_to_pg_tbl,
+                         dest_schema=schema, dest_table=test_pg_to_pg_tbl_other, print_cmd=True)
 
         # Assert pg_to_pg was successful
-        assert db.table_exists(schema='working', table=test_pg_to_pg_tbl)
-        assert ris.table_exists(schema='working', table=test_pg_to_pg_tbl_other)
+        assert db.table_exists(schema=schema, table=test_pg_to_pg_tbl)
+        assert ris.table_exists(schema=schema, table=test_pg_to_pg_tbl_other)
 
         # Assert db equality
-        risdf = ris.dfquery("""
+        risdf = ris.dfquery(f"""
             select * 
-            from working.{}
-        """.format(test_pg_to_pg_tbl_other)).infer_objects()
+            from {schema}.{test_pg_to_pg_tbl_other}
+        """).infer_objects()
 
-        dbdf = db.dfquery("""
+        dbdf = db.dfquery(f"""
             select * 
-            from working.{}
-        """.format(test_pg_to_pg_tbl)).infer_objects()
+            from {schema}.{test_pg_to_pg_tbl}
+        """).infer_objects()
 
         # Assert
         pd.testing.assert_frame_equal(risdf.drop(['geom', 'ogc_fid'], axis=1), dbdf.drop(['geom'], axis=1),
                                       check_exact=False)
 
         # Cleanup
-        ris.drop_table(schema='working', table=test_pg_to_pg_tbl_other)
-        db.drop_table(schema='working', table=test_pg_to_pg_tbl)
+        ris.drop_table(schema=schema, table=test_pg_to_pg_tbl_other)
+        db.drop_table(schema=schema, table=test_pg_to_pg_tbl)
 
         # Note: temporary functionality will be tested separately!
         # Still to test: LDAP, print_cmd
@@ -637,41 +674,38 @@ class TestPgToPgQry:
                                 password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 
         # Assert pg table doesn't exist
-        db.drop_table(schema='working', table=test_pg_to_pg_qry_table)
-        assert not db.table_exists(table=test_pg_to_pg_qry_table, schema = 'working')
+        db.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        assert not db.table_exists(table=test_pg_to_pg_qry_table, schema = schema)
 
         # Add test_table
-        org_pg.drop_table(schema='working', table=test_pg_to_pg_qry_table)
-        org_pg.query("""
-        create table working.{0} (test_col1 int, test_col2 int);
-        insert into working.{0} VALUES(1, 2);
-        insert into working.{0} VALUES(3, 4);
-        """.format(test_pg_to_pg_qry_table))
+        org_pg.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.query(f"""
+                        create table {schema}.{test_pg_to_pg_qry_table} (test_col1 int, test_col2 int);
+                        insert into {schema}.{test_pg_to_pg_qry_table} VALUES(1, 2);
+                        insert into {schema}.{test_pg_to_pg_qry_table} VALUES(3, 4);
+        """)
 
         # sql_to_pg_qry
-        data_io.pg_to_pg_qry(org_pg, db, query="""
-                             -- beginning of query
-                             select *
-                             -- middle of query
-                             from working.{}
-                             -- end of query
-                             """.format(test_pg_to_pg_qry_table),
-                              dest_table=test_pg_to_pg_qry_table,
-                              dest_schema = 'working', print_cmd=True, spatial=False)
+        data_io.pg_to_pg_qry(org_pg, db, query=
+                             f"""
+                             select * from {schema}.{test_pg_to_pg_qry_table}
+                             """,
+                            dest_table=test_pg_to_pg_qry_table,
+                            dest_schema = schema, print_cmd=True, spatial=False)
 
         # Assert sql to pg query was successful (table exists)
-        assert db.table_exists(table=test_pg_to_pg_qry_table, schema = 'working')
+        assert db.table_exists(table=test_pg_to_pg_qry_table, schema = schema)
 
         # Assert df equality
-        org_pg_df = org_pg.dfquery("""
-        select * from working.{}
+        org_pg_df = org_pg.dfquery(f"""
+        select * from {schema}.{test_pg_to_pg_qry_table}
         order by test_col1
-        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+        """).infer_objects().replace('\s+', '', regex=True)
 
-        pg_df = db.dfquery("""
-        select * from working.{}
+        pg_df = db.dfquery(f"""
+        select * from {schema}.{test_pg_to_pg_qry_table}
         order by test_col1
-        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+        """).infer_objects().replace('\s+', '', regex=True)
 
         org_pg_df.columns = [c.lower() for c in list(org_pg_df.columns)]
 
@@ -680,8 +714,62 @@ class TestPgToPgQry:
                                       check_column_type=False)
 
         # Cleanup
-        db.drop_table(schema='working', table=test_pg_to_pg_qry_table)
-        org_pg.drop_table(schema='working', table=test_pg_to_pg_qry_table)
+        db.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+
+    def test_pg_to_pg_qry_basic_with_comments_table(self):
+        org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
+                                server=config.get('SECOND_PG_DB', 'SERVER'),
+                                database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                                user=config.get('SECOND_PG_DB', 'DB_USER'),
+                                password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
+
+        # Assert pg table doesn't exist
+        db.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        assert not db.table_exists(table=test_pg_to_pg_qry_table, schema = schema)
+
+        # Add test_table
+        org_pg.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.query(f"""
+        create table {schema}.{test_pg_to_pg_qry_table} (test_col1 int, test_col2 int);
+        insert into {schema}.{test_pg_to_pg_qry_table} VALUES(1, 2);
+        insert into {schema}.{test_pg_to_pg_qry_table} VALUES(3, 4);
+        """)
+
+        # sql_to_pg_qry
+        data_io.pg_to_pg_qry(org_pg, db, query=f"""
+                             -- beginning of query
+                             select *
+                             -- middle of query
+                             from {schema}.{test_pg_to_pg_qry_table}
+                             -- end of query
+                             """,
+                              dest_table=test_pg_to_pg_qry_table,
+                              dest_schema = schema, print_cmd=True, spatial=False)
+
+        # Assert sql to pg query was successful (table exists)
+        assert db.table_exists(table=test_pg_to_pg_qry_table, schema = schema)
+
+        # Assert df equality
+        org_pg_df = org_pg.dfquery(f"""
+        select * from {schema}.{test_pg_to_pg_qry_table}
+        order by test_col1
+        """).infer_objects().replace('\s+', '', regex=True)
+
+        pg_df = db.dfquery(f"""
+        select * from {schema}.{test_pg_to_pg_qry_table}
+        order by test_col1
+        """).infer_objects().replace('\s+', '', regex=True)
+
+        org_pg_df.columns = [c.lower() for c in list(org_pg_df.columns)]
+
+        # Assert
+        pd.testing.assert_frame_equal(org_pg_df, pg_df.drop(['ogc_fid'], axis=1), check_dtype=False,
+                                      check_column_type=False)
+
+        # Cleanup
+        db.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
 
     def test_pg_to_pg_qry_dest_schema(self):
         org_pg = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
@@ -691,37 +779,36 @@ class TestPgToPgQry:
                                    password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
 
         # Assert doesn't exist already
-        db.drop_table(schema='working', table=test_pg_to_pg_qry_table)
-        assert not db.table_exists(schema='working', table=test_pg_to_pg_qry_table)
+        db.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        assert not db.table_exists(schema=schema, table=test_pg_to_pg_qry_table)
 
         # Add test_table
-        org_pg.drop_table(schema='working', table=test_pg_to_pg_qry_table)
-        org_pg.query("""
-        create table working.{0} (test_col1 int, test_col2 int);
-        insert into working.{0} VALUES(1, 2);
-        insert into working.{0} VALUES(3, 4);
-        """.format(test_pg_to_pg_qry_table))
+        org_pg.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.query(f"""
+        create table {schema}.{test_pg_to_pg_qry_table} (test_col1 int, test_col2 int);
+        insert into {schema}.{test_pg_to_pg_qry_table} VALUES(1, 2);
+        insert into {schema}.{test_pg_to_pg_qry_table} VALUES(3, 4);
+        """)
 
         # sql_to_pg_qry
-        data_io.pg_to_pg_qry(org_pg, db, query="""select * 
-                                                -- testing
-                                                from working.{}""".format(test_pg_to_pg_qry_table),
-                              dest_table=test_pg_to_pg_qry_table, dest_schema='working', print_cmd=True)
+        data_io.pg_to_pg_qry(org_pg, db, query=f"""select *
+                                                from {schema}.{test_pg_to_pg_qry_table}""",
+                              dest_table=test_pg_to_pg_qry_table, dest_schema=schema, print_cmd=True)
 
         # Assert sql_to_pg_qry successful and correct length
-        assert db.table_exists(schema='working', table=test_pg_to_pg_qry_table)
-        assert len(db.dfquery('select * from working.{}'.format(test_pg_to_pg_qry_table))) == 2
+        assert db.table_exists(schema=schema, table=test_pg_to_pg_qry_table)
+        assert len(db.dfquery(f'select * from {schema}.{test_pg_to_pg_qry_table}')) == 2
 
         # Assert df equality
-        org_pg_df = org_pg.dfquery("""
-        select * from working.{}
+        org_pg_df = org_pg.dfquery(f"""
+        select * from {schema}.{test_pg_to_pg_qry_table}
         order by test_col1
-        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+        """).infer_objects().replace('\s+', '', regex=True)
 
-        pg_df = db.dfquery("""
-        select * from working.{}
+        pg_df = db.dfquery(f"""
+        select * from {schema}.{test_pg_to_pg_qry_table}
         order by test_col1
-        """.format(test_pg_to_pg_qry_table)).infer_objects().replace('\s+', '', regex=True)
+        """).infer_objects().replace('\s+', '', regex=True)
 
         org_pg_df.columns = [c.lower() for c in list(org_pg_df.columns)]
 
@@ -730,8 +817,8 @@ class TestPgToPgQry:
                                       check_dtype=False)
 
         # Cleanup
-        db.drop_table(schema='working', table=test_pg_to_pg_qry_table)
-        org_pg.drop_table(schema = 'working', table = test_pg_to_pg_qry_table)
+        db.drop_table(schema=schema, table=test_pg_to_pg_qry_table)
+        org_pg.drop_table(schema = schema, table = test_pg_to_pg_qry_table)
 
 
     def test_sql_to_pg_qry_no_dest_table_input(self):
