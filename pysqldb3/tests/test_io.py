@@ -24,13 +24,6 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-sql2 = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB', 'TYPE'),
-                        server=config.get('SECOND_SQL_DB', 'SERVER'),
-                        database=config.get('SECOND_SQL_DB', 'DB_NAME'),
-                        user=config.get('SECOND_SQL_DB', 'DB_USER'),
-                        password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'),
-                        allow_temp_tables=True)
-
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 test_pg_to_sql_table ='tst_pg_to_sql_tbl_{}'.format(db.user)
 test_sql_to_pg_qry_table = 'tst_sql_to_pg_qry_table_{}'.format(db.user)
@@ -344,30 +337,31 @@ class TestSqlToPgQry:
         assert not db.table_exists(table=test_sql_to_pg_qry_spatial_table, schema = pg_schema)
         assert not db.table_exists(table=test_sql_to_pg_qry_table, schema = pg_schema)
         
-        data_io.sql_to_pg_qry(sql2, db, query="""-- comments within the query
-                                               SELECT DISTINCT TOP (10) [NodeID],
-                                                            -- include segment
-                                                        CAST(geometry::Point([X_COORD], [Y_COORD], 2236) AS VARCHAR) ugeom -- geom here                 
-                                                FROM [LionRB2].[LionRB2].[tbl_OFT_Intersection]
+        sql.query(f"""create table ##{test_sql_to_pg_qry_spatial_table} (test_col1 int, test_col2 int, test_geom geometry);
+                        insert into ##{test_sql_to_pg_qry_spatial_table} (test_col1, test_col2, test_geom) VALUES (1, 2, CAST(geometry::Point(700890, 123456, 2236) AS VARCHAR));
+                        insert into ##{test_sql_to_pg_qry_spatial_table} (test_col1, test_col2, test_geom) VALUES (3, 4, CAST(geometry::Point(912763, 119434, 2236) AS VARCHAR));
+                        """)
+
+        data_io.sql_to_pg_qry(sql, db, query=f"""
+                                               SELECT * --comments within the query
+                                                FROM ##{test_sql_to_pg_qry_spatial_table} -- geom here                
                                                 -- end here""",
                               dest_table= test_sql_to_pg_qry_spatial_table,
                               dest_schema = pg_schema)
         
-        data_io.sql_to_pg_qry(sql2, db, query="""-- comments within the query
-                                               SELECT DISTINCT TOP (10)  [NodeID],
-                                                            -- use nodeid as the unique key
-                                        CAST(geometry::Point([X_COORD], [Y_COORD], 2236) AS VARCHAR) ugeom -- ugeom here      
-                                                FROM [LionRB2].[LionRB2].[tbl_OFT_Intersection]
+        data_io.sql_to_pg_qry(sql, db, query=f"""-- comments within the query
+                                               SELECT * FROM ##{test_sql_to_pg_qry_table}-- use nodeid as the unique key
+                                                -- includes geom    
                                             """,
                               dest_table=test_sql_to_pg_qry_table,
                               dest_schema = pg_schema,
                               spatial=True)
         
         assert db.table_exists(table=test_sql_to_pg_qry_table, schema = pg_schema)
-        assert len(db.dfquery(f'select * from {pg_schema}.{test_sql_to_pg_qry_table}')) == 10
+        assert len(db.dfquery(f'select * from {pg_schema}.{test_sql_to_pg_qry_table}')) == 2
         
         assert db.table_exists(table=test_sql_to_pg_qry_spatial_table, schema = pg_schema)
-        assert len(db.dfquery(f'select * from {pg_schema}.{test_sql_to_pg_qry_spatial_table}')) == 10
+        assert len(db.dfquery(f'select * from {pg_schema}.{test_sql_to_pg_qry_spatial_table}')) == 2
         
         spatial_df = db.dfquery(f"""
         select *
@@ -383,7 +377,7 @@ class TestSqlToPgQry:
         
         print(not_spatial_df)
     
-        joined_df = spatial_df.merge(not_spatial_df, on='nodeid')
+        joined_df = spatial_df.merge(not_spatial_df, on='test_col1')
     
         print(joined_df)
     
@@ -392,6 +386,7 @@ class TestSqlToPgQry:
     
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_spatial_table)
+        sql.query(f"""DROP TABLE IF EXISTS ##{test_sql_to_pg_qry_spatial_table}""")
 
     def test_sql_to_pg_qry_dest_schema(self):
         # Assert doesn't exist already
