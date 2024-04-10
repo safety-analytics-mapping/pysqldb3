@@ -125,6 +125,11 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
         spatial = 'MSSQL'
         nlt_spatial = '-nlt NONE'
 
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', '', query)
+
     if LDAP:
         cmd = SQL_TO_PG_LDAP_QRY_CMD.format(
             ms_pass='',
@@ -382,6 +387,11 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
 
     if not spatial:
         nlt_spatial = '-nlt NONE'
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', '', query)
 
     cmd = PG_TO_PG_QRY_CMD.format(
         from_pg_host=from_pg.server,
