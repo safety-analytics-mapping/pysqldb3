@@ -864,6 +864,11 @@ class DbConnect:
         for col in df.dtypes.items():
             col_name, col_type = col[0], type_decoder(col[1], varchar_length=allowed_length)
 
+            # check if column is empty - if so force string
+            s = df[col_name].value_counts()
+            if s.empty:
+                col_type = 'varchar ({})'.format(allowed_length)
+
             # autodetect date and force to text (common error)
             if 'date' in col_name.lower() and col_type in ('int', 'bigint', 'float'):
                 col_type = 'varchar(500)'
