@@ -520,6 +520,30 @@ class TestCsvToTableMS:
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
 
+    def test_csv_to_table_basic_blank_col(self):
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test6.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        # assert null column in db is varchar
+        assert [_ for _ in sql.get_table_columns(create_table_name, schema=sql_schema) if _[0]=='col3'][0][1] == 'varchar'
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
     def test_csv_to_table_basic_pyarrow(self):
         # csv_to_table
         sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
