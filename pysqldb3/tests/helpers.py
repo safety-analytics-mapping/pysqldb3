@@ -51,12 +51,13 @@ def set_up_test_csv():
 
     # bulk csv with empty column
     data3 = [
-        ["id",  "col1", "col3"],
-        [1,2,None],
-        [2, 3,None]
+        ["id",  "col1", "col3", 'col2'],
+        [1,2,None,100],
+        [2, 3,None, 9],
+        [35,36,None, 37]
     ]
     for i in range(1000):
-        data3.append([2+i, 2, None])
+        data3.append([2+i, 2, None, 0])
 
     with open(DIR+"\\test7.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')

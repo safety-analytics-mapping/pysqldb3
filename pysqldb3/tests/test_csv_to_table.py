@@ -418,6 +418,32 @@ class TestBulkCSVToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
 
+    def test_bulk_csv_to_table_basic_blank_col(self):
+        # bulk_csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test7.csv"
+        input_schema = db.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema=pg_schema)
+        db._bulk_csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, table_schema=input_schema)
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        # assert null column in db is varchar
+        assert [_ for _ in db.get_table_columns(create_table_name, schema=pg_schema) if _[0] == 'col3'][0][
+                   1] == 'character varying'
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
     def test_bulk_csv_to_table_basic_kwargs(self):
         # csv_to_table
         db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
@@ -885,6 +911,32 @@ class TestBulkCSVToTableMS:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(sql_df, csv_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_bulk_csv_to_table_basic_blank_col(self):
+        # bulk_csv_to_table
+        db.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
+
+        fp = os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test7.csv"
+        input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema=sql_schema)
+        sql._bulk_csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, table_schema=input_schema)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]  # TODO: look into this difference
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        # assert null column in db is varchar
+        assert [_ for _ in sql.get_table_columns(create_table_name, schema=sql_schema) if _[0] == 'col3'][0][
+                   1] == 'varchar'
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)

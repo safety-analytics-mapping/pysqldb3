@@ -1303,6 +1303,16 @@ class DbConnect:
 
                 column_names = self.queries[-1].data_columns
 
+                # check for null columns
+                for c in column_names:
+                    self.query("select count(case when {c} is not null then 1 else null end) nnulls from {s}.stg_{t}".format(s=schema, t=table, c=c),
+                               strict=False, timeme=False, internal=True)
+                    if self.internal_data[0][0] > 0:
+                        self.query(
+                            "alter table {s}.stg_{t} alter {c} type varchar".format(
+                                s=schema, t=table, c=c),
+                            strict=False, timeme=False, internal=True)
+
                 # Drop ogc_fid
                 if "ogc_fid" in column_names and "ogc_fid" not in [col_name for i, (col_name, col_type) in
                                                                    enumerate(table_schema)]:
