@@ -1305,11 +1305,12 @@ class DbConnect:
 
                 # check for null columns
                 for c in column_names:
-                    self.query("select count(case when {c} is not null then 1 else null end) nnulls from {s}.stg_{t}".format(s=schema, t=table, c=c),
+                    self.query('select count(case when "{c}" is not null then 1 else null end) nnulls from {s}.stg_{t}'.
+                               format(s=schema, t=table, c=c),
                                strict=False, timeme=False, internal=True)
                     if self.internal_data[0][0] > 0:
                         self.query(
-                            "alter table {s}.stg_{t} alter {c} type varchar".format(
+                            'alter table {s}.stg_{t} alter "{c}" type varchar'.format(
                                 s=schema, t=table, c=c),
                             strict=False, timeme=False, internal=True)
 
