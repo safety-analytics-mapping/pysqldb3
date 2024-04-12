@@ -1409,10 +1409,18 @@ class DbConnect:
         # get numeric types - 'bigint' 'double precision'
         numeric_cols = [_[0] for _ in columns if _[1] in ('bigint', 'double precision')]
 
+        # need to unclean columns since stg_ hasnt been cleaned yet
+        stg_columns = {}
+        for c in self.get_table_columns('stg_'+table, schema=schema):
+            # clean: unclean
+            stg_columns[clean_column(c[0])] = c[0]
+        # update in memory schema - used in casting into final table
+        table_schema2 = []
+        updated = []
         # try to cast field if fails convert to string
         for column in numeric_cols:
             try:
-                self.query(f'select cast("{column}" as float) from {schema}.stg_{table}',
+                self.query(f'select cast("{stg_columns[column]}" as float) from {schema}.stg_{table}',
                            strict=False, timeme=False, internal=True, no_print_out=True)
             except Exception as e:
                 pass
@@ -1420,21 +1428,21 @@ class DbConnect:
             if not self.internal_data:
                 if self.type == 'PG':
                     self.query(f"""
-                        alter table {schema}.{table} alter "{column}" type varchar 
-                        using {column}::varchar
+                        alter table {schema}.{table} alter "{stg_columns[column]}" type varchar 
+                        using "{stg_columns[column]}"::varchar
                     """)
                 else:
                     self.query(f"""
-                        alter table {schema}.{table} alter "{column}" type varchar 
+                        alter table {schema}.{table} alter "{stg_columns[column]}" type varchar 
                     """)
-                # update in memory schema - used in casting into final table
-                table_schema2 = []
-                for c in table_schema:
-                    if not c[0] == column:
-                        table_schema2.append(c)
-                    else:
-                        table_schema2.append([column, 'varchar (500)'])
-                return table_schema2
+                updated.append(column)
+
+        for c in table_schema:
+            if not c[0] == updated:
+                table_schema2.append(c)
+            else:
+                table_schema2.append([column, 'varchar (500)'])
+        return table_schema2
 
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
