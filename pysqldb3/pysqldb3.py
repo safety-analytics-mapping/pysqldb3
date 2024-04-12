@@ -686,7 +686,7 @@ class DbConnect:
         return self.__get_most_recent_query_data(internal=True)
 
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
-              lock_table=None, return_df=False, days=7, internal=False):
+              lock_table=None, return_df=False, days=7, internal=False, no_print_out=False):
         # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[None, pd.DataFrame]
         """
         Runs Query object from input SQL string and adds query to queries
@@ -711,7 +711,7 @@ class DbConnect:
                   'Any inputted comments will not be recorded.')
 
         qry = Query(self, query, strict=strict, permission=permission, temp=temp, timeme=timeme,
-                    no_comment=no_comment, comment=comment, lock_table=lock_table, internal=internal)
+                    no_comment=no_comment, comment=comment, lock_table=lock_table, internal=internal, no_print_out=no_print_out)
 
         if not self.allow_temp_tables:
             self.disconnect(True)
@@ -1308,11 +1308,15 @@ class DbConnect:
                     self.query('select count(case when "{c}" is not null then 1 else null end) nnulls from {s}.stg_{t}'.
                                format(s=schema, t=table, c=c),
                                strict=False, timeme=False, internal=True)
-                    if self.internal_data[0][0] > 0:
+                    if self.internal_data[0][0] == 0:
                         self.query(
-                            'alter table {s}.stg_{t} alter "{c}" type varchar'.format(
+                            'alter table {s}.{t} alter "{c}" type varchar'.format(
                                 s=schema, t=table, c=c),
                             strict=False, timeme=False, internal=True)
+
+                # fix datatype issues
+                table_schema = self.__sparse_data_types(schema, table, table_schema)
+
 
                 # Drop ogc_fid
                 if "ogc_fid" in column_names and "ogc_fid" not in [col_name for i, (col_name, col_type) in
@@ -1399,6 +1403,39 @@ class DbConnect:
             return False
 
         return True
+
+    def __sparse_data_types(self, schema, table, table_schema):
+        columns = self.get_table_columns(table, schema=schema)
+        # get numeric types - 'bigint' 'double precision'
+        numeric_cols = [_[0] for _ in columns if _[1] in ('bigint', 'double precision')]
+
+        # try to cast field if fails convert to string
+        for column in numeric_cols:
+            try:
+                self.query(f'select cast("{column}" as float) from {schema}.stg_{table}',
+                           strict=False, timeme=False, internal=True, no_print_out=True)
+            except Exception as e:
+                pass
+            # check if no data then query failed and there is a non-numberic data type
+            if not self.internal_data:
+                if self.type == 'PG':
+                    self.query(f"""
+                        alter table {schema}.{table} alter "{column}" type varchar 
+                        using {column}::varchar
+                    """)
+                else:
+                    self.query(f"""
+                        alter table {schema}.{table} alter "{column}" type varchar 
+                    """)
+                # update in memory schema - used in casting into final table
+                table_schema2 = []
+                for c in table_schema:
+                    if not c[0] == column:
+                        table_schema2.append(c)
+                    else:
+                        table_schema2.append([column, 'varchar (500)'])
+                return table_schema2
+
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
                      column_type_overrides=None, days=7, **kwargs):

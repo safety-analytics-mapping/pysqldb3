@@ -59,9 +59,24 @@ def set_up_test_csv():
     for i in range(1000):
         data3.append([2+i, 2, None, 0])
 
-    with open(DIR+"\\test7.csv", 'w', newline='') as csvfile:
+    # bulk csv with sparse column - int column with 1 text value
+    data4 = [
+        ["id", "col1", "col3", 'col2'],
+        [1, 2, None, 100],
+        [2, 3, None, 9],
+        [35, 36, None, 37]
+    ]
+    for i in range(100000):
+        data4.append([2 + i, 2, None, 0])
+        i+=1
+    data4.append([2 + i, 'U', None, 0])
+    for j in range(1000):
+        data4.append([2 + i, 2, None, 0])
+        i += 1
+
+    with open(DIR+"\\test8.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
-        for row in data3:
+        for row in data4:
             w.writerow(row)
 
     with open(DIR+"\\test4.csv", 'w', newline='') as csvfile:
