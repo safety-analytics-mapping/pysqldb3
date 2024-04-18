@@ -601,6 +601,11 @@ class TestPgToPg:
                                       check_exact=False
                                       )
 
+        # Assert that the permissions is in PUBLIC
+        assert ris.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_tbl}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
         ris.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
@@ -652,6 +657,11 @@ class TestPgToPg:
         # Assert
         pd.testing.assert_frame_equal(risdf.drop(['geom', 'ogc_fid'], axis=1), dbdf.drop(['geom'], axis=1),
                                       check_exact=False)
+
+        # Assert that the permissions is in PUBLIC
+        assert ris.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_tbl_other}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # Cleanup
         ris.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl_other)

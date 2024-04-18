@@ -1,5 +1,6 @@
 import subprocess
 import shlex
+import pysqldb3
 
 from .cmds import *
 from .util import *
@@ -346,6 +347,7 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
 
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
