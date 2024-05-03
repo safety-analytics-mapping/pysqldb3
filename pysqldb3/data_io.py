@@ -1,5 +1,6 @@
 import subprocess
 import shlex
+import pysqldb3
 
 from .cmds import *
 from .util import *
@@ -95,7 +96,7 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
 
 
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
-                  dest_table=None, pg_encoding='UTF8'):
+                  dest_table=None, pg_encoding='UTF8', permission = True):
     """
     Migrates the result of a query from SQL Server database to PostgreSQL database, and generates spatial tables in
     PG if spatial in MS.
@@ -110,6 +111,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     :param temp: flag, defaults to true, for temporary tables
     :param dest_table: destination table name
     :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
+    :param permission: set permission to Public on destination table
     :return:
     """
     if not dest_schema:
@@ -178,6 +180,8 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
+        if permission == True:
+            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;") 
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -193,7 +197,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
 
 
 def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, print_cmd=False,
-              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8'):
+              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True):
     """
     Migrates tables from SQL Server to PostgreSQL, generates spatial tables in PG if spatial in MS.
 
@@ -209,6 +213,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     :param temp: flag, defaults to true, for temporary tables
     :param gdal_data_loc: location of GDAL data
     :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
+    :param permission: set permission to Public on destination table
     :return:
     """
     if not org_schema:
@@ -279,6 +284,8 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
+        if permission == True:
+            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;") 
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -294,7 +301,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
 
 
 def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
-             spatial=True, temp=True):
+             spatial=True, temp=True, permission = True):
     """
     Migrates tables from one PostgreSQL database to another PostgreSQL.
     :param from_pg: Source database DbConnect object
@@ -306,6 +313,7 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :param spatial: Flag for spatial table (defaults to True)
     :param temp: temporary table, defaults to true
+    :param permission: set permission to Public on destination table
     :return:
     """
     if not org_schema:
@@ -346,6 +354,10 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
 
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        
+        if permission == True:
+            to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
+        
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -361,7 +373,7 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
 
 
 def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_table=None,
-             spatial=True, temp=True):
+             spatial=True, temp=True, permission = True):
     """
     Migrates query results  from one PostgreSQL database to another PostgreSQL.
     :param from_pg: Source database DbConnect object
@@ -372,6 +384,7 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :param spatial: Flag for spatial table (defaults to True)
     :param temp: temporary table, defaults to true
+    :param permission: set permission to Public on destination table
     :return:
     """
 
@@ -416,6 +429,10 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
 
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        
+        if permission:
+            to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
+        
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print ("Ogr2ogr Output:\n", e.output)

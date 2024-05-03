@@ -285,6 +285,10 @@ class TestSqlToPgQry:
         pd.testing.assert_frame_equal(sql_df, pg_df.drop(['geom', 'ogc_fid'], axis = 1),
                                     check_dtype=False,
                                       check_column_type=False)
+        
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
@@ -328,6 +332,10 @@ class TestSqlToPgQry:
         pd.testing.assert_frame_equal(sql_df, pg_df.drop(['geom', 'ogc_fid'], axis = 1),
                                     check_dtype=False,
                                       check_column_type=False)
+        
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
@@ -389,6 +397,10 @@ class TestSqlToPgQry:
     
         assert len(spatial_df) == len(not_spatial_df) and len(joined_df) == len(
              joined_df[joined_df['geom_x'] != joined_df['geom_y']])
+        
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_spatial_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
     
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_spatial_table)
@@ -430,6 +442,10 @@ class TestSqlToPgQry:
         # Assert
         pd.testing.assert_frame_equal(sql_df, pg_df.drop(['ogc_fid', 'geom'], axis = 1), check_column_type=False,
                                       check_dtype=False)
+        
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
@@ -487,6 +503,10 @@ class TestSqlToPg:
         pd.testing.assert_frame_equal(sql_df, pg_df.drop(['geom', 'ogc_fid'], axis=1),
                                       check_dtype=False, check_column_type=False)
 
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_table)
         sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
@@ -526,6 +546,10 @@ class TestSqlToPg:
         pd.testing.assert_frame_equal(sql_df, pg_df.drop(['geom', 'ogc_fid'], axis=1),
                                       check_dtype=False,
                                       check_column_type=False)
+        
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_table)
@@ -601,6 +625,11 @@ class TestPgToPg:
                                       check_exact=False
                                       )
 
+        # Assert that the permissions is in PUBLIC
+        assert ris.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_tbl}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
         ris.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
@@ -653,6 +682,10 @@ class TestPgToPg:
         pd.testing.assert_frame_equal(risdf.drop(['geom', 'ogc_fid'], axis=1), dbdf.drop(['geom'], axis=1),
                                       check_exact=False)
 
+        # Assert that the permissions is in PUBLIC
+        assert ris.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_tbl_other}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
         # Cleanup
         ris.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl_other)
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
@@ -715,6 +748,10 @@ class TestPgToPgQry:
         pd.testing.assert_frame_equal(org_pg_df, pg_df.drop(['ogc_fid'], axis=1), check_dtype=False,
                                       check_column_type=False)
 
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
         org_pg.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
@@ -769,6 +806,10 @@ class TestPgToPgQry:
         pd.testing.assert_frame_equal(org_pg_df, pg_df.drop(['ogc_fid'], axis=1), check_dtype=False,
                                       check_column_type=False)
 
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
         org_pg.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
@@ -817,6 +858,10 @@ class TestPgToPgQry:
         # Assert
         pd.testing.assert_frame_equal(org_pg_df, pg_df.drop(['ogc_fid'], axis=1), check_column_type=False,
                                       check_dtype=False)
+        
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants 
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
