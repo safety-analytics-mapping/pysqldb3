@@ -30,8 +30,9 @@ class DbConnect:
     """
 
     def __init__(self, user=None, password=None, ldap=False, type=None, server=None, database=None, port=5432,
-                 allow_temp_tables=False, use_native_driver=True, default=False, quiet=False):
-        # type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool) -> None
+                 allow_temp_tables=False, use_native_driver=True, default=False, quiet=False,
+                 inherits_from=None):
+        # type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool, object) -> None
         """
         :params:
         user (string): default None
@@ -44,6 +45,8 @@ class DbConnect:
         use_native_driver (bool): defaults to False
         default (bool): defaults to False; connects to ris db automatically
         quiet (bool): automatically performs all tasks quietly; defaults to False
+        inherits_from (pysqldb3.DbConnect object): will take any input variable from other database connection
+            not explicitly provided to self
         """
         # Explicitly in __init__ fn call
         self.user = user
@@ -60,6 +63,7 @@ class DbConnect:
         self.use_native_driver = use_native_driver
         self.default_connect = default
         self.quiet = quiet
+        self.inherits_from = inherits_from
 
         # Other initialized variables
         self.params = dict()
@@ -143,6 +147,23 @@ class DbConnect:
     Public and private helper functions for connecting, disconnecting
     """
 
+    def __inherit_credentials(self):
+        if not self.user:
+            self.user = self.inherits_from.user
+            # if inheriting user get pass too else assume differnet pass too
+            self.password = self.inherits_from.password
+        if not self.LDAP:
+            self.LDAP = self.inherits_from.LDAP
+        if not self.type:
+            self.type = self.inherits_from.type
+            self.__set_type()
+        if not self.server:
+            self.server = self.inherits_from.server
+        if not self.database:
+            self.database = self.inherits_from.database
+        if not self.port:
+            self.port = self.inherits_from.port
+
     def __get_credentials(self):
         # type: (DbConnect) -> None
         """
@@ -154,6 +175,9 @@ class DbConnect:
             self.__set_type()
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
+
+        if self.inherits_from:
+            self.__inherit_credentials()
 
         # Only prompts user if missing necessary information
         if self.type == AZ:
