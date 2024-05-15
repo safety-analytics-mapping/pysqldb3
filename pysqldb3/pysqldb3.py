@@ -233,20 +233,23 @@ class DbConnect:
                 'database': self.database,
                 'host': self.server,
                 'user': self.user,
-                'password': self.password            }
+                'password': self.password
+            }
 
         try:
             self.conn = pymssql.connect(**self.params)
         except Exception as e:
             print(e)
             # Revert to SQL driver and show warning
-            if self.use_native_driver:
-                # Native client is required for correct handling of datetime2 types in SQL
-                if self.connection_count == 0:
-                    print('Warning:\n\tMissing SQL Server Native Client 10.0 \
-                                      datetime2 will not be interpreted correctly\n')
 
-                self.conn = pymssql.connect(**self.params)
+            # deprecated
+            # if self.use_native_driver:
+            #     # Native client is required for correct handling of datetime2 types in SQL
+            #     if self.connection_count == 0:
+            #         print('Warning:\n\tMissing SQL Server Native Client 10.0 \
+            #                           datetime2 will not be interpreted correctly\n')
+            #
+            #     self.conn = pymssql.connect(**self.params)
     def __connect_az(self):
         # type: (DbConnect) -> None
         """
@@ -735,7 +738,8 @@ class DbConnect:
                   'Any inputted comments will not be recorded.')
 
         qry = Query(self, query, strict=strict, permission=permission, temp=temp, timeme=timeme,
-                    no_comment=no_comment, comment=comment, lock_table=lock_table, internal=internal, no_print_out=no_print_out)
+                    no_comment=no_comment, comment=comment, lock_table=lock_table, internal=internal,
+                    no_print_out=no_print_out)
 
         if not self.allow_temp_tables:
             self.disconnect(True)
