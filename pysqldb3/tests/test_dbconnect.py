@@ -948,9 +948,27 @@ class TestInheritence:
 
         assert True
 
+    def test_pg_connect_all_but_type(self):
+        # this connection would fail
+        # third_pwd = test_config.get('THIRD_SQL_DB', 'DB_PASSWORD')
+        # db3 = pysqldb.DbConnect(inherits_from=db, password=third_pwd)
+        # assert db3.database==db.database
+
+        assert True
+
+    def test_pg_connect_all_but_pwd(self):
+        # this connection would fail
+        # third_type = test_config.get('THIRD_SQL_DB', 'TYPE')
+        # db3 = pysqldb.DbConnect(inherits_from=db, type=third_pwd)
+        # assert db3.database==db.database
+
+        assert True
+
     def test_sql_connect_all_but_user_pwd(self):
         second_user = test_config.get('SECOND_SQL_DB', 'DB_USER')
         second_pwd = test_config.get('SECOND_SQL_DB', 'DB_PASSWORD')
         db2 = pysqldb.DbConnect(inherits_from=sql, user=second_user, password=second_pwd)
         assert db2.database==sql.database
         db2.user!=sql.user
+
+
