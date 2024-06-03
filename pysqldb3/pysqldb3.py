@@ -151,6 +151,7 @@ class DbConnect:
         if not self.user:
             self.user = self.inherits_from.user
             # if inheriting user get pass too else assume differnet pass too
+        if not self.password:
             self.password = self.inherits_from.password
         if not self.LDAP:
             self.LDAP = self.inherits_from.LDAP
