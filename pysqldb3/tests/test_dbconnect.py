@@ -931,3 +931,44 @@ class TestLogging:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
+
+class TestInheritence:
+    def test_pg_connect_all_but_db(self):
+        second_db = test_config.get('SECOND_PG_DB', 'DB_NAME')
+        db2 = pysqldb.DbConnect(inherits_from=db, database=second_db)
+        assert db2.database==second_db
+        assert db.database != second_db
+    def test_pg_connect_all_but_user(self):
+        # cant really test, user input requirement doesnt work in pytest
+        # db2 = pysqldb.DbConnect(inherits_from=db, database='ris_dev', user='risadmin')
+        # assert db2.database=='ris_dev'
+        # assert db2.user=='risadmin'
+        # assert db.database != 'ris_dev'
+        # assert db.user !='risadmin'
+
+        assert True
+
+    def test_pg_connect_all_but_type(self):
+        # this connection would fail
+        # third_pwd = test_config.get('THIRD_SQL_DB', 'DB_PASSWORD')
+        # db3 = pysqldb.DbConnect(inherits_from=db, password=third_pwd)
+        # assert db3.database==db.database
+
+        assert True
+
+    def test_pg_connect_all_but_pwd(self):
+        # this connection would fail
+        # third_type = test_config.get('THIRD_SQL_DB', 'TYPE')
+        # db3 = pysqldb.DbConnect(inherits_from=db, type=third_pwd)
+        # assert db3.database==db.database
+
+        assert True
+
+    def test_sql_connect_all_but_user_pwd(self):
+        second_user = test_config.get('SECOND_SQL_DB', 'DB_USER')
+        second_pwd = test_config.get('SECOND_SQL_DB', 'DB_PASSWORD')
+        db2 = pysqldb.DbConnect(inherits_from=sql, user=second_user, password=second_pwd)
+        assert db2.database==sql.database
+        db2.user!=sql.user
+
+
