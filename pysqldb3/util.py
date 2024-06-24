@@ -75,6 +75,10 @@ def clean_geom_column(db, table, schema):
             c = 'shape'
             db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
                      timeme=False, internal=True)
+        elif db.internal_data[-1][0] == 'Shape':
+            c = 'Shape'
+            db.query('ALTER TABLE {s}.{t} RENAME COLUMN "{c}" to geom'.format(c=c, t=table, s=schema),
+                     timeme=False, internal=True)
 
 
 def get_unique_table_schema_string(tbl_str, db_type):
