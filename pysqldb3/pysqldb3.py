@@ -54,6 +54,7 @@ class DbConnect:
         self.LDAP = ldap
         if self.LDAP and not self.user:
             self.user = getpass.getuser()
+        self.inherits_from = inherits_from
         self.type = type
         self.__set_type()
         self.server = get_unique_table_schema_string(server, self.type)
@@ -126,6 +127,11 @@ class DbConnect:
 
         if self.type and type(self.type) == str and self.type.upper() in AZURE_SERVER_TYPES:
             self.type = AZ
+
+        if not self.type and self.inherits_from:
+            self.type = self.inherits_from.type
+            self.__set_type()
+
 
     def __get_default_schema(self, db_type):
         # type: (str) -> str
