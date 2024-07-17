@@ -20,7 +20,7 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 #### pysqldb3 public functions:
 
 
-1. [`connect`](#connect): Connects to database
+1. [`DbConnect`](#connect): Connects to database
 1. [`disconnect`](#disconnect): Disconnects from database.  
 1. [`check_conn`](#check_conn): Checks and reconnects to connection if not currently connected.
 1. [`log_temp_table`](#log_temp_table): Writes tables to temp log to be deleted after expiration date.
@@ -58,26 +58,37 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 
 
 ## Details 
-### connect
-**`pysqldb3.DbConnect(quiet=False)`**
+### DbConnect
+**`pysqldb3.DbConnect(user=None, password=None, ldap=False, type=None, server=None, database=None, port=5432,
+                 allow_temp_tables=False, use_native_driver=True, default=False, quiet=False,
+                 inherits_from=None)`**
 Creates database connection instance.  
 ###### Parameters:
+ - **`user`: string**: Username needed for database connection. When left blank will generate promt for user to enter
+ - **`password`: string**: Password needed for database connection. When left blank will generate promt for user to enter
+ - **`ldap`: bool, default False**: When true will use windows login for database connection
+ - **`type`: string**: Database type (MS, PG, AZ), needed for database connection. When left blank will generate promt for user to enter
+ - **`server`: string**: Server/host path, needed for database connection. When left blank will generate promt for user to enter
+ - **`database`: string**: Database name, needed for database connection. When left blank will generate promt for user to enter
+ - **`port`: int default 5432**: Database port, needed for database connection.
+ - **`allow_temp_tables`: bool default False**: When true, allows for continued connection to database, which is needed for createing and accessing temp tables with different queries
+ - **`default`: bool default False**: When true, database connection parameters are taken from config and not needed to be passed. Does not include username/password.
  - **`quiet`: bool, default False**: When true, does not print database connection information.
+ - **`inherits_from`: object**: Uses another pysqldb3.DbConnect instance to reuse any database connection parameters not explicity passed
  
  
 **Sample** 
 ```
 >>> from pysqldb3 import pysqldb3
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
-
-
->>> db.connect()
-
 Database connection (PG) to ris on dotdevrhpgsql01 - user: user_name
 Connection established 2023-01-13 09:41:52, /
 - ris version 0.0.3 -
 
->>> db.connect(quiet = True)) #nothing will return
+>>> db2.connect(inherits_from = db, user='new_user', password='new_password'))
+Database connection (PG) to ris on dotdevrhpgsql01 - user: new_user
+Connection established 2023-01-13 09:42:52, /
+- ris version 0.0.3 -
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>

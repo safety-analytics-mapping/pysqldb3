@@ -26,12 +26,12 @@ def set_up_test_csv():
             'neighborhood': {0: 'Corona', 1: 'Kensington', 2: 'Morris Heights', 3: 'Bayside', 4: 'Inwood'},
             'sale date': {0: '1/1/2015', 1: '2/25/2012', 2: '7/9/2018', 3: '12/2/2021', 4: '11/13/1995'}}
     df = pd.DataFrame(data)
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv", index=False)
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test2.csv", index=False, sep='|')
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test3.csv", index=False, header=False)
+    df.to_csv(DIR+"\\test.csv", index=False)
+    df.to_csv(DIR+"\\test2.csv", index=False, sep='|')
+    df.to_csv(DIR+"\\test3.csv", index=False, header=False)
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
+    df.to_csv(DIR+"\\varchar.csv", index=False, header=False)
 
     # add csv with extra header line
     data2 = [
@@ -41,7 +41,45 @@ def set_up_test_csv():
         [9, 9, 9]
     ]
 
-    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv", 'w', newline='') as csvfile:
+    # simple csv with empty column
+    df = pd.DataFrame({"id": {1: 1, 2: 2, 3: 3},
+                       "col1": {1: 'a', 2: 'b'},
+                       "col3": {1: None, 2: None},
+                       "col2": {1: 35, 2: 0},
+                       })
+    df.to_csv(DIR + "\\test6.csv", index=False)
+
+    # bulk csv with empty column
+    data3 = [
+        ["id",  "col1", "col3", 'col2'],
+        [1,2,None,100],
+        [2, 3,None, 9],
+        [35,36,None, 37]
+    ]
+    for i in range(1000):
+        data3.append([2+i, 2, None, 0])
+
+    # bulk csv with sparse column - int column with 1 text value
+    data4 = [
+        ["id", "col1", "col3", 'col2'],
+        [1, 2, None, 100],
+        [2, 3, None, 9],
+        [35, 36, None, 37]
+    ]
+    for i in range(100000):
+        data4.append([2 + i, 2, None, 0])
+        i+=1
+    data4.append([2 + i, 'U', None, 0])
+    for j in range(1000):
+        data4.append([2 + i, 2, None, 0])
+        i += 1
+
+    with open(DIR+"\\test8.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data4:
+            w.writerow(row)
+
+    with open(DIR+"\\test4.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data2:
             w.writerow(row)
@@ -50,7 +88,7 @@ def set_up_test_csv():
     for i in range(1000):
         data2.append([1, 2, 3])
 
-    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test5.csv", 'w', newline='') as csvfile:
+    with open(DIR+"\\test5.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data2:
             w.writerow(row)

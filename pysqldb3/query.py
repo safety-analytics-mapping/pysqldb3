@@ -31,7 +31,7 @@ class Query:
             qt=qt)
 
     def __init__(self, dbo, query_string, strict=True, permission=True, temp=True, comment='', no_comment=False,
-                 timeme=True, iterate=False, lock_table=None, internal=False):
+                 timeme=True, iterate=False, lock_table=None, internal=False, no_print_out=False):
         """
         :param dbo: DbConnect object
         :param query_string: String/unicode sql query to be run
@@ -55,6 +55,7 @@ class Query:
         self.timeme = timeme
         self.iterate = iterate
         self.lock_table = lock_table
+        self.no_print_out = no_print_out
 
         # Other initialized variables
         self.query_start = datetime.datetime.now()
@@ -97,16 +98,19 @@ class Query:
             self.dbo.conn.commit()
         except Exception as e:
             self.dbo.conn.rollback()
-            print("- ERROR: Query could not be committed. Query rolled back.")
+            if not self.no_print_out:
+                print("- ERROR: Query could not be committed. Query rolled back.")
             raise e
 
     def __perform_lock_routine(self, cur):
         if self.lock_table:
             try:
-                print("- Trying to obtain exclusive lock on table {}.".format(self.lock_table))
+                if not self.no_print_out:
+                    print("- Trying to obtain exclusive lock on table {}.".format(self.lock_table))
                 cur.execute("LOCK TABLE {} IN ACCESS EXCLUSIVE MODE NOWAIT".format(self.lock_table))
             except psycopg2.errors.LockNotAvailable as a:
-                print("- Failed to obtain exclusive lock on table {}. Try again.".format(self.lock_table))
+                if not self.no_print_out:
+                    print("- Failed to obtain exclusive lock on table {}. Try again.".format(self.lock_table))
                 raise a
 
     def __query_data(self, cur):
@@ -158,19 +162,23 @@ class Query:
             # 4.2.1 If failure, return failure reason and time
             if self.dbo.type == MS:
                 if 'encode' in str(e).lower() or 'ascii' in str(e).lower():
-                    print("- Query failed: use a Unicode string (u'string') to perform queries with special characters."
+                    if not self.no_print_out:
+                        print("- Query failed: use a Unicode string (u'string') to perform queries with special characters."
                           "\n\t {}  \n\t".format(e))
                 else:
                     err = str(e).split("[SQL Server]")
                     if len(err)>1:
-                        print("- Query failed: " + err[1][:-2] + "\n\t")
+                        if not self.no_print_out:
+                            print("- Query failed: " + err[1][:-2] + "\n\t")
                     else:
-                        print("- Query failed: " + err[0] + "\n\t")
+                        if not self.no_print_out:
+                            print("- Query failed: " + err[0] + "\n\t")
 
             if self.dbo.type == PG:
-                print("- Query failed: " + str(e) + '\n\t')
-
-            print('- Query run {dt}\n\t{q}'.format(
+                if not self.no_print_out:
+                    print("- Query failed: " + str(e) + '\n\t')
+            if not self.no_print_out:
+                print('- Query run {dt}\n\t{q}'.format(
                 dt=datetime.datetime.now(),
                 q=self.query_string))
 

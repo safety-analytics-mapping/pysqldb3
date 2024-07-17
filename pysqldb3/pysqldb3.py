@@ -30,8 +30,9 @@ class DbConnect:
     """
 
     def __init__(self, user=None, password=None, ldap=False, type=None, server=None, database=None, port=5432,
-                 allow_temp_tables=False, use_native_driver=True, default=False, quiet=False):
-        # type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool) -> None
+                 allow_temp_tables=False, use_native_driver=True, default=False, quiet=False,
+                 inherits_from=None):
+        # type: (DbConnect, str, str, bool, str, str, str, int, bool, bool, bool, bool, object) -> None
         """
         :params:
         user (string): default None
@@ -44,6 +45,8 @@ class DbConnect:
         use_native_driver (bool): defaults to False
         default (bool): defaults to False; connects to ris db automatically
         quiet (bool): automatically performs all tasks quietly; defaults to False
+        inherits_from (pysqldb3.DbConnect object): will take any input variable from other database connection
+            not explicitly provided to self
         """
         # Explicitly in __init__ fn call
         self.user = user
@@ -61,6 +64,7 @@ class DbConnect:
         self.use_native_driver = use_native_driver
         self.default_connect = default
         self.quiet = quiet
+        self.inherits_from = inherits_from
 
         # Other initialized variables
         self.params = dict()
@@ -149,6 +153,24 @@ class DbConnect:
     Public and private helper functions for connecting, disconnecting
     """
 
+    def __inherit_credentials(self):
+        if not self.user:
+            self.user = self.inherits_from.user
+            # if inheriting user get pass too else assume differnet pass too
+        if not self.password:
+            self.password = self.inherits_from.password
+        if not self.LDAP:
+            self.LDAP = self.inherits_from.LDAP
+        if not self.type:
+            self.type = self.inherits_from.type
+            self.__set_type()
+        if not self.server:
+            self.server = self.inherits_from.server
+        if not self.database:
+            self.database = self.inherits_from.database
+        if not self.port:
+            self.port = self.inherits_from.port
+
     def __get_credentials(self):
         # type: (DbConnect) -> None
         """
@@ -160,6 +182,9 @@ class DbConnect:
             self.__set_type()
             self.server = config.get('DEFAULT DATABASE', 'server')
             self.database = config.get('DEFAULT DATABASE', 'database')
+
+        if self.inherits_from:
+            self.__inherit_credentials()
 
         # Only prompts user if missing necessary information
         if self.type == AZ:
@@ -215,20 +240,23 @@ class DbConnect:
                 'database': self.database,
                 'host': self.server,
                 'user': self.user,
-                'password': self.password            }
+                'password': self.password
+            }
 
         try:
             self.conn = pymssql.connect(**self.params)
         except Exception as e:
             print(e)
             # Revert to SQL driver and show warning
-            if self.use_native_driver:
-                # Native client is required for correct handling of datetime2 types in SQL
-                if self.connection_count == 0:
-                    print('Warning:\n\tMissing SQL Server Native Client 10.0 \
-                                      datetime2 will not be interpreted correctly\n')
 
-                self.conn = pymssql.connect(**self.params)
+            # deprecated
+            # if self.use_native_driver:
+            #     # Native client is required for correct handling of datetime2 types in SQL
+            #     if self.connection_count == 0:
+            #         print('Warning:\n\tMissing SQL Server Native Client 10.0 \
+            #                           datetime2 will not be interpreted correctly\n')
+            #
+            #     self.conn = pymssql.connect(**self.params)
     def __connect_az(self):
         # type: (DbConnect) -> None
         """
@@ -692,7 +720,7 @@ class DbConnect:
         return self.__get_most_recent_query_data(internal=True)
 
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
-              lock_table=None, return_df=False, days=7, internal=False):
+              lock_table=None, return_df=False, days=7, internal=False, no_print_out=False):
         # type: (str, bool, bool, bool, bool, bool, str, str, bool, int, bool) -> Optional[None, pd.DataFrame]
         """
         Runs Query object from input SQL string and adds query to queries
@@ -717,7 +745,8 @@ class DbConnect:
                   'Any inputted comments will not be recorded.')
 
         qry = Query(self, query, strict=strict, permission=permission, temp=temp, timeme=timeme,
-                    no_comment=no_comment, comment=comment, lock_table=lock_table, internal=internal)
+                    no_comment=no_comment, comment=comment, lock_table=lock_table, internal=internal,
+                    no_print_out=no_print_out)
 
         if not self.allow_temp_tables:
             self.disconnect(True)
@@ -869,6 +898,11 @@ class DbConnect:
         # Parse df for schema
         for col in df.dtypes.items():
             col_name, col_type = col[0], type_decoder(col[1], varchar_length=allowed_length)
+
+            # check if column is empty - if so force string
+            s = df[col_name].value_counts()
+            if s.empty:
+                col_type = 'varchar ({})'.format(allowed_length)
 
             # autodetect date and force to text (common error)
             if 'date' in col_name.lower() and col_type in ('int', 'bigint', 'float'):
@@ -1304,6 +1338,21 @@ class DbConnect:
 
                 column_names = self.queries[-1].data_columns
 
+                # check for null columns
+                for c in column_names:
+                    self.query('select count(case when "{c}" is not null then 1 else null end) nnulls from {s}.stg_{t}'.
+                               format(s=schema, t=table, c=c),
+                               strict=False, timeme=False, internal=True)
+                    if self.internal_data[0][0] == 0:
+                        self.query(
+                            'alter table {s}.{t} alter "{c}" type varchar'.format(
+                                s=schema, t=table, c=c),
+                            strict=False, timeme=False, internal=True)
+
+                # fix datatype issues
+                table_schema = self.__sparse_data_types(schema, table, table_schema)
+
+
                 # Drop ogc_fid
                 if "ogc_fid" in column_names and "ogc_fid" not in [col_name for i, (col_name, col_type) in
                                                                    enumerate(table_schema)]:
@@ -1389,6 +1438,47 @@ class DbConnect:
             return False
 
         return True
+
+    def __sparse_data_types(self, schema, table, table_schema):
+        columns = self.get_table_columns(table, schema=schema)
+        # get numeric types - 'bigint' 'double precision'
+        numeric_cols = [_[0] for _ in columns if _[1] in ('bigint', 'double precision')]
+
+        # need to unclean columns since stg_ hasnt been cleaned yet
+        stg_columns = {}
+        for c in self.get_table_columns('stg_'+table, schema=schema):
+            # clean: unclean
+            stg_columns[clean_column(c[0])] = c[0]
+        # update in memory schema - used in casting into final table
+        table_schema2 = []
+        updated = []
+        # try to cast field if fails convert to string
+        for column in numeric_cols:
+            try:
+                self.query(f'select cast("{stg_columns[column]}" as float) from {schema}.stg_{table}',
+                           strict=False, timeme=False, internal=True, no_print_out=True)
+            except Exception as e:
+                pass
+            # check if no data then query failed and there is a non-numberic data type
+            if not self.internal_data:
+                if self.type == 'PG':
+                    self.query(f"""
+                        alter table {schema}.{table} alter "{stg_columns[column]}" type varchar 
+                        using "{stg_columns[column]}"::varchar
+                    """)
+                else:
+                    self.query(f"""
+                        alter table {schema}.{table} alter "{stg_columns[column]}" type varchar 
+                    """)
+                updated.append(column)
+
+        for c in table_schema:
+            if not c[0] == updated:
+                table_schema2.append(c)
+            else:
+                table_schema2.append([column, 'varchar (500)'])
+        return table_schema2
+
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
                      column_type_overrides=None, days=7, **kwargs):
