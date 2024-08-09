@@ -77,6 +77,44 @@ ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs
 """.replace('\n', ' ')
 
 """
+Geopackage
+"""
+
+WRITE_GPKG_CMD_PG = r"""
+ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "GPKG" "{export_path}\{gpkg_name}" -a_srs "EPSG:{srid}"
+PG:"host={host} user={username} dbname={db} password={password}" -sql "{pg_sql_select}"
+""".replace('\n', ' ')
+
+WRITE_GPKG_CMD_MS = r"""
+ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "GPKG" "{export_path}\{gpkg_name}" -a_srs "EPSG:{srid}"
+"MSSQL:server={host};database={db};UID={username};PWD={password}" -sql "{ms_sql_select}"
+""".replace('\n', ' ')
+
+READ_GPKG_CMD_PG = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -lco OVERWRITE=YES -overwrite -a_srs 
+"EPSG:{srid}" -progress -f "PostgreSQL" PG:"host={host} port={port} dbname={dbname} 
+user={user} password={password}" "{gpkg_name}" -nln {schema}.{tbl_name} {perc}
+""".replace('\n', ' ')
+
+READ_GPKG_CMD_MS = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -lco OVERWRITE=YES -overwrite -a_srs 
+"EPSG:{srid}" -progress -f MSSQLSpatial "MSSQL:server={host};database={dbname};UID={user};PWD={password}"
+ "{gpkg_name}" -nln {schema}.{tbl_name} {perc} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
+""".replace('\n', ' ')
+
+READ_GPKG_FEATURE_CMD = r"""
+ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
+"EPSG:{srid}" -f "PostgreSQL" PG:"host={host} user={user} dbname={dbname} 
+password={password}" "{gdb}" "{feature}" -nln {sch}.{tbl_name} -progress 
+""".replace('\n', ' ')
+
+READ_GPKG_FEATURE_CMD_MS = r"""
+ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
+"EPSG:{srid}" -f MSSQLSpatial "MSSQL:server={ms_server};database={ms_db};UID={ms_user};PWD={ms_pass}"
+ "{gdb}" "{feature}" -nln {schema}.{tbl_name} -progress --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO {sf}
+""".replace('\n', ' ')
+
+WRITE_GPKG_CMD_SHP = r"ogr2ogr -f GPKG {gpkg_name}.gpkg {shp_name_dir}"
+
+"""
 Db to Db IO 
 """
 
