@@ -11,7 +11,7 @@ class Geopackage:
         pass
 
     def __init__(self, dbo=None, path=None, table=None, schema=None, query=None, gpkg_name=None, cmd=None,
-                 srid='2263', port=5432, gdal_data_loc=GDAL_DATA_LOC, skip_failures=''):
+                 srid='2263', port=5432, gdal_data_loc=GDAL_DATA_LOC, skip_failures='', shp_name = None):
         self.dbo = dbo
         self.path = path
         self.table = table
@@ -23,6 +23,7 @@ class Geopackage:
         self.port = port
         self.gdal_data_loc = gdal_data_loc
         self.skip_failures=skip_failures
+        self.shp_name = shp_name
 
         # Use default schema from db object
         if not self.schema:
@@ -43,6 +44,8 @@ class Geopackage:
 
     def write_gpkg(self, print_cmd=False):
         """
+        Converts a SQL or Postgresql query to a geopackage output.
+
         :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
         :return:
         """
@@ -124,6 +127,74 @@ class Geopackage:
                 t=self.name_extension(self.gpkg_name),
                 p=self.path,
                 q=self.query))
+            
+    def shp_to_gpkg(self, shp_name=None, gpkg_name=None, print_cmd=False):
+        
+        """
+        Converts a Shapefile to a Geopackage file
+        :param gpkg_name: filename for geopackage (should end in .gpkg)
+        :param shp_name: filename for shape file (should end in .shp)
+        :param print_cmd: Print command line query
+        """
+        
+        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
+        assert shp_name[-4:] == '.shp', "The input file should end with .shp . Please check your input."
+
+        # same function as shape file
+        self.path, shp_name = parse_shp_path(self.path, shp_name)
+
+        if not self.path:
+            self.path = file_loc('folder')
+
+        self.cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = gpkg_name,
+                                                shp_name = shp_name,
+                                                export_path=self.path)
+        
+        if print_cmd:
+            print(print_cmd_string([self.dbo.password], self.cmd))
+
+        try:
+            ogr_response = subprocess.check_output(shlex.split(self.cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            print(ogr_response)
+        except subprocess.CalledProcessError as e:
+            print("Ogr2ogr Output:\n", e.output)
+            print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], self.cmd), returncode=1)
+
+        return
+
+    def gpkg_to_shp(self, export_path = None, gpkg_name=None, print_cmd=False):
+        
+        """
+        Converts a Geopackage to a Shapefile
+        :param gpkg_name: filename for geopackage (should end in .gpkg)
+        :param export_path: The folder directory to place the shapefiles output.
+                            You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.
+        :param print_cmd: Print command line query
+        """
+        
+        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
+
+        self.path, gpkg = parse_gpkg_path(self.path, self.gpkg_name)
+
+        if not self.path:
+            self.path = file_loc('folder')
+
+        self.cmd = WRITE_GPKG_CMD_SHP.format(   gpkg_name = gpkg_name,
+                                                export_path=self.path)
+
+        if print_cmd:
+            print(print_cmd_string([self.dbo.password], self.cmd))
+
+        try:
+            ogr_response = subprocess.check_output(shlex.split(self.cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            print(ogr_response)
+        except subprocess.CalledProcessError as e:
+            print("Ogr2ogr Output:\n", e.output)
+            print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], self.cmd), returncode=1)
+        
+        return
 
     def table_exists(self):
         """
@@ -159,7 +230,7 @@ class Geopackage:
 
     def read_gpkg(self, precision=False, private=True, gpkg_encoding=None, print_cmd=False, zip=False):
         """
-        Reads a geopackage in as a table
+        Reads a geopackage into SQL or Postgresql as a table
 
         :param precision:
         :param private:

@@ -693,24 +693,62 @@ class TestWritegpkgMS:
         assert dist_df.iloc[0]['distance'] == 0
 
         # Clean up
-        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
         sql.query(f"drop table if exists {ms_schema}.{test_reuploaded_table_name}")
+        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
 
         os.remove(os.path.join(fp, gpkg_name))
 
-# def test_convert_gpkg_to_shp_file(self):
+    def test_convert_gpkg_to_shp_file(self):
 
-#     fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-#     gpkg_name = 'gpkg_to_shp.gpkg'
-#     shp_name = 'gpkg_to_shp'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        gpkg_name = 'gpkg_to_shp.gpkg'
 
-#     # remove shape file
+        # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
 
+        # write a query
+        sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name};
+                create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
+                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+                """)
 
-# def test_convert_shp_to_gpkg_file(self):
-#     fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-#     gpkg_name = 'shp_to_gpkg.gpkg'
-#     shp_name = 'shp_to_gpkg'
+        # write geopackage file
+        s = Geopackage(dbo=sql, path = fp, gpkg_name=gpkg_name, table= test_write_gpkg_table_name, schema=ms_schema)
+        s.write_gpkg(print_cmd=True)
 
-#     # remove gpkg output
-#     os.remove(os.path.join(fp, gpkg_name))
+        # Check table in folder
+        assert os.path.isfile(os.path.join(fp, gpkg_name))
+        
+        # run function to convert geopackage to shape file
+        s.gpkg_to_shp(gpkg_name = gpkg_name, print_cmd = True)
+
+        # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
+        assert os.path.isfile(os.path.join(fp, 'SELECT.shp'))
+
+        # remove geopackage
+        os.remove(os.path.join(fp, gpkg_name))
+
+    def test_convert_shp_to_gpkg_file(self):
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        gpkg_name = 'gpkg_to_shp.gpkg'
+        shp_name = 'SELECT.shp'
+
+        # Check table in folder
+        assert os.path.isfile(os.path.join(fp, shp_name))
+
+        # run function to convert Shapefile to GPKG
+        s = Geopackage(dbo=sql, path=fp, shp_name = shp_name, gpkg_name=gpkg_name)
+        s.shp_to_gpkg(shp_name = shp_name, gpkg_name = gpkg_name, print_cmd = True)
+
+        # assert that the output file exists and that it matches the geopackage
+        assert os.path.isfile(os.path.join(fp, gpkg_name))
+
+        # remove shape file
+        for ext in ('.dbf', '.prj', '.shx', '.shp'):
+                try:
+                    os.remove(os.path.join(fp, shp_name.replace('.shp', ext)))
+                except Exception as e:
+                    print(e)
+
+        # remove gpkg output
+        os.remove(os.path.join(fp, gpkg_name))

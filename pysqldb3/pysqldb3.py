@@ -2235,37 +2235,7 @@ class DbConnect:
         return self.query_to_gpkg(f"select * from {schema}.{table}",
                                  path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                                  print_cmd=print_cmd, srid=srid)
-    
-    def shp_to_gpkg(self, path=None, shp_name=None, gpkg_name=None, gdal_data_loc=GDAL_DATA_LOC,
-                     print_cmd=False, srid=2263):
-        
-        """
-        Converts a Shapefile to Geopackage
-        :param path: folder path for output geopackage
-        :param gpkg_name: filename for geopackage (should end in .gpkg)
-        :param shp_name: filename for shape file (should end in .shp)
-        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
-        :param print_cmd: Boolean flag to print the OGR command
-        :param srid: SRID to manually set output to; defaults to 2263
-        """
-        
-        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
-        assert shp_name[-4:] == '.shp', "The input file should end with .shp . Please check your input."
 
-        path, shp = parse_shp_path(path, shp_name)
-        if not shp_name:
-            shp_name = shp
-
-        if not all([path, shp_name]):
-            filename = file_loc('file', 'Missing file info - Opening search dialog...')
-            shp_name = os.path.basename(filename)
-            path = os.path.dirname(filename)
-
-        gpkg_output = Geopackage(dbo=self, path=path, shp_name=shp_name, cmd= WRITE_GPKG_CMD_SHP)
-
-        
-        return
-    
     def gpkg_to_table(self, path=None, table=None, schema=None, gpkg_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7, zip=False):
