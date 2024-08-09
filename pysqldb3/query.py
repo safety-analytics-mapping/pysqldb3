@@ -4,6 +4,7 @@ import sys
 import psycopg2
 
 from .shapefile import *
+from .geopackage import *
 from .util import parse_table_string
 
 
@@ -530,3 +531,29 @@ class Query:
         """
         for _ in query_string.split('\n'):
             print(_)
+
+    @staticmethod
+    def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
+                     srid=2263):
+        """
+        Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
+        :param dbo:
+        :param query:
+        :param path:
+        :param gpkg_name:
+        :param cmd:
+        :param gdal_data_loc:
+        :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
+        :param srid: sets SRID
+        :return:
+        """
+
+        gpkg = Geopackage(dbo=dbo,
+                        path=path,
+                        query=query,
+                        gpkg_name=gpkg_name,
+                        cmd=cmd,
+                        gdal_data_loc=gdal_data_loc,
+                        srid=srid)
+
+        gpkg.write_gpkg(print_cmd)

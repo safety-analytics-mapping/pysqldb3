@@ -18,6 +18,7 @@ config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 from .query import *
 from .shapefile import *
+from .geopackage import *
 from .data_io import *
 from .__init__ import __version__
 
@@ -136,7 +137,7 @@ class DbConnect:
         """
         if db_type == MS:
             default_schema = self.dfquery('select schema_name()', internal=True)
-            default_schema = default_schema.iloc[0][0]#.encode('utf-8')
+            default_schema = default_schema.iloc[0, 0]#.encode('utf-8')
             if not default_schema: # fall back for missing default schema in some databases
                 default_schema = 'dbo'
             return default_schema
@@ -2067,3 +2068,251 @@ class DbConnect:
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
+
+
+    def query_to_gpkg(self, query, path=None, gpkg_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+                     print_cmd=False, srid=2263):
+        """
+        Exports query results to a geopackage (.gpkg) file.
+        :param query: SQL query as string type
+        :param path: folder path for output gpkg
+        :param gpkg_name: filename for shape (should end in .gpkg)
+        :param cmd: GDAL command to overwrite default
+        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
+        :param print_cmd: boolean to print ogr command (without password)
+        :param srid: SRID to manually set output to; defaults to 2263
+        :return:
+        """
+        # Temporarily sets temp flag to True
+        original_temp_flag = self.allow_temp_tables
+        self.allow_temp_tables = True
+
+        # Makes a temp table name
+        tmp_table_name = "tmp_query_to_gpkg_{}_{}".format(self.user,
+                                                         str(datetime.datetime.now())[:16].replace('-', '_').replace(
+                                                             ' ', '_').replace(':', ''))
+
+        # Create temp table to get column types
+        try:
+            # Drop the temp table
+            if self.type == PG:
+                self.query("drop table {}".format(tmp_table_name), internal=True, strict=False)
+            elif self.type == MS:
+                self.query("drop table #{}".format(tmp_table_name), internal=True, strict=False)
+        except Exception as e:
+            print(e)
+            pass
+
+        if self.type == PG:
+            self.query(u"""    
+            create temp table {} as     
+            select * 
+            from ({}) q 
+            limit 10
+            """.format(tmp_table_name, query), internal=True)
+        elif self.type == MS:
+            self.query(u"""        
+            select top 10 * 
+            into #{}
+            from ({}) q 
+            """.format(tmp_table_name, query), internal=True)
+
+        # Extract column names, including datetime/timestamp types, from results
+        if self.type == PG:
+            col_df = self.dfquery("""
+            SELECT *
+            FROM
+            INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = '{}'
+            """.format(tmp_table_name), internal=True)
+
+            cols = ['\\"' + c + '\\"' for c in list(col_df['column_name'])]
+            dt_col_names = ['\\"' + c + '\\"' for c in list(
+                col_df[col_df['data_type'].str.contains('datetime') | col_df['data_type'].str.contains('timestamp')][
+                    'column_name'])]
+
+        elif self.type == MS:
+            col_df = self.dfquery("""
+            SELECT
+                [column] = c.name,
+                [type] = t.name, 
+                c.max_length, 
+                c.precision, 
+                c.scale, 
+                c.is_nullable
+            FROM
+                tempdb.sys.columns AS c
+            LEFT JOIN
+                tempdb.sys.types AS t
+            ON
+                c.system_type_id = t.system_type_id
+                AND
+                t.system_type_id = t.user_type_id
+            WHERE
+                [object_id] = OBJECT_ID(N'tempdb.dbo.#{}');
+            """.format(tmp_table_name), internal=True)
+
+            cols = ['[' + c + ']' for c in list(col_df['column'])]
+            dt_col_names = ['[' + c + ']' for c in list(
+                col_df[col_df['type'].str.contains('datetime') | col_df['type'].str.contains('timestamp')]['column'])]
+
+        # Make string of columns to be returned by select statement
+        return_cols = ' , '.join([c for c in cols if c not in dt_col_names])
+
+        # If there are datetime/timestamp columns:
+        if len(dt_col_names) > 0:
+            if self.type == PG:
+                print_cols = str([str(c[2:-2]) for c in dt_col_names])
+
+            if self.type == MS:
+                print_cols = str([str(c[1:-1]) for c in dt_col_names])
+
+            # print("""
+            # The following columns are of type datetime/timestamp: \n
+            # {}
+            
+            # Geopackages don't support datetime/timestamps with both the date and time. Each column will be split up
+            # into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
+            # """.format(print_cols))
+
+            # Add the date and time (casted as a string) to the output
+            for col_name in dt_col_names:
+                if self.type == PG:
+                    shortened_col = col_name[2:-2][:7]
+                    return_cols += ' , cast(\\"{col}\\" as date) \\"{short_col}_dt\\", ' \
+                                   'cast(cast(\\"{col}\\" as time) as varchar) \\"{short_col}_tm\\" '.format(
+                                    col=col_name[2:-2], short_col=shortened_col)
+                elif self.type == MS:
+                    shortened_col = col_name[1:-1][:7]
+                    return_cols += " , cast([{col}] as date) [{short_col}_dt], cast(cast([{col}] as time) as varchar)" \
+                                   " [{short_col}_tm] ".format(
+                                    col=col_name[1:-1], short_col=shortened_col)
+
+        # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
+        new_query = u"select {} from ({}) q ".format(return_cols, query)
+        Query.query_to_gpkg(self, new_query, path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+                           print_cmd=print_cmd, srid=srid)
+
+        # Drop the temp table
+        if self.type == PG:
+            self.query("drop table {}".format(tmp_table_name), internal=True)
+        elif self.type == MS:
+            self.query("drop table #{}".format(tmp_table_name), internal=True)
+
+        # Reset the temp flag
+        self.last_query = new_query
+        self.allow_temp_tables = original_temp_flag
+
+    def table_to_gpkg(self, table, schema=None, strict=True, path=None, gpkg_name=None, cmd=None,
+                     gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
+        """
+        Exports table to a geopackage file. Generates query to query_to_gpkg.
+        :param table: Database table name as string type
+        :param schema: Database table's schema (defults to db default schema)
+        :param strict: If True, will run sys.exit on failed query attempts; defaults to True
+        :param path: folder path for output geopackage
+        :param geopackage_name: filename for geopackage (should end in .gpkg)
+        :param cmd: GDAL command to overwrite default
+        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
+        :param print_cmd: Boolean flag to print the OGR command
+        :param srid: SRID to manually set output to; defaults to 2263
+        :return:
+        """
+        if not schema:
+            schema = self.default_schema
+
+        # check the file extension
+        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
+
+        path, gpkg_name = parse_gpkg_path(path, gpkg_name)
+
+        return self.query_to_gpkg(f"select * from {schema}.{table}",
+                                 path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+                                 print_cmd=print_cmd, srid=srid)
+    
+    def shp_to_gpkg(self, path=None, shp_name=None, gpkg_name=None, gdal_data_loc=GDAL_DATA_LOC,
+                     print_cmd=False, srid=2263):
+        
+        """
+        Converts a Shapefile to Geopackage
+        :param path: folder path for output geopackage
+        :param gpkg_name: filename for geopackage (should end in .gpkg)
+        :param shp_name: filename for shape file (should end in .shp)
+        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
+        :param print_cmd: Boolean flag to print the OGR command
+        :param srid: SRID to manually set output to; defaults to 2263
+        """
+        
+        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
+        assert shp_name[-4:] == '.shp', "The input file should end with .shp . Please check your input."
+
+        path, shp = parse_shp_path(path, shp_name)
+        if not shp_name:
+            shp_name = shp
+
+        if not all([path, shp_name]):
+            filename = file_loc('file', 'Missing file info - Opening search dialog...')
+            shp_name = os.path.basename(filename)
+            path = os.path.dirname(filename)
+
+        gpkg_output = Geopackage(dbo=self, path=path, shp_name=shp_name, cmd= WRITE_GPKG_CMD_SHP)
+
+        
+        return
+    
+    def gpkg_to_table(self, path=None, table=None, schema=None, gpkg_name=None, cmd=None,
+                     srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
+                     gpkg_encoding=None, print_cmd=False, days=7, zip=False):
+        """
+        Imports shape file to database. This uses GDAL to generate the table.
+        :param path: File path of the shapefile
+        :param table: Table name to use in the database
+        :param schema: Schema to use in the database (defaults to db's default schema)
+        :param gpkg_name: Geopackage name (ends in .gpkg)
+        :param cmd: Optional ogr2ogr command to overwrite default
+        :param srid:  SRID to use (defaults to 2263)
+        :param port:
+        :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
+        :param precision:  Sets precision flag in ogr (defaults to -lco precision=NO)
+        :param private: Flag for permissions in database (Defaults to False - will only grant select to public)
+        :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
+        :param gpkg_encoding: Defaults to None; if not None, sets the PG client encoding while uploading the gpkgfile.
+        Options inlude LATIN1, UTF-8.
+        :param print_cmd: Defaults to False; if True prints the cmd
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param zip: Flag to use if importing from a sipped file (defaults to False)
+        :return:
+        """
+
+        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
+
+        if not schema:
+            schema = self.default_schema
+
+        if not port:
+            port = self.port
+
+        path, gpkg = parse_gpkg_path(path, gpkg_name)
+        if not gpkg_name:
+            gpkg_name = gpkg
+
+        if not all([path, gpkg_name]):
+            filename = file_loc('file', 'Missing file info - Opening search dialog...')
+            gpkg_name = os.path.basename(filename)
+            path = os.path.dirname(filename)
+
+        if not table:
+            table = gpkg_name.replace('.gpkg', '').lower()
+
+        table = table.lower()
+
+        gpkg = Geopackage(dbo=self, path=path, table=table, schema=schema, gpkg_name=gpkg_name,
+                        cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
+
+        gpkg.read_gpkg(precision, private, gpkg_encoding, print_cmd, zip=zip)
+
+        self.tables_created.append(f"{schema}.{table}")
+
+        if temp:
+            self.__run_table_logging([schema + "." + table], days=days)
+  

@@ -399,3 +399,27 @@ def set_up_xls():
     _df = pd.read_excel(DIR + "\\xls_kwargs_test.xls")
     _df.to_excel(DIR + "\\xls_kwargs_test.xlsx", index=False)
 
+
+def set_up_geopackage():
+    data = {
+        'gid': {0: 1, 1: 2},
+        'WKT': {0: 'POINT(-73.88782477721676 40.75343453961836)', 1: 'POINT(-73.88747073046778 40.75149365677327)'},
+        'some_value': {0: 'test1', 1: 'test2'}
+    }
+    df = pd.DataFrame(data)
+    df.to_csv(os.path.join(DIR, "sample.csv"), index=False)
+    fle = os.path.join(DIR, "sample.csv")
+
+    cmd = f'''ogr2ogr -f "GPKG" {DIR}\\testgpkg.gpkg -dialect sqlite -sql 
+    "SELECT gid, GeomFromText(WKT, 4326) as geom, some_value FROM sample" {fle}'''
+    os.system(cmd.replace('\n', ' '))
+    print ('Sample geopackage ready...')
+
+def clean_up_geopackage():
+    fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+    for ext in ('gpkg'):
+        _fle = f'{fldr}\\test_data\\testgpkg.{ext}'
+        if os.path.isfile(_fle):
+            os.remove(_fle)
+
+    print ('Deleting any existing gpkg')
