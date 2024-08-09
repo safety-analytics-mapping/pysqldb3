@@ -2235,7 +2235,6 @@ class DbConnect:
         return self.query_to_gpkg(f"select * from {schema}.{table}",
                                  path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                                  print_cmd=print_cmd, srid=srid)
-
     def gpkg_to_table(self, path=None, table=None, schema=None, gpkg_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7, zip=False):
