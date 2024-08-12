@@ -533,7 +533,7 @@ class Query:
             print(_)
 
     @staticmethod
-    def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
+    def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, tbl_name=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
                      srid=2263):
         """
         Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
@@ -542,6 +542,7 @@ class Query:
         :param path:
         :param gpkg_name:
         :param cmd:
+        :param tbl_name:
         :param gdal_data_loc:
         :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
         :param srid: sets SRID
@@ -556,4 +557,5 @@ class Query:
                         gdal_data_loc=gdal_data_loc,
                         srid=srid)
 
-        gpkg.write_gpkg(print_cmd)
+        gpkg.write_gpkg(tbl_name = tbl_name, print_cmd= print_cmd)
+

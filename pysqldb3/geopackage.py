@@ -42,10 +42,11 @@ class Geopackage:
         else:
             return name + '.gpkg'
 
-    def write_gpkg(self, print_cmd=False):
+    def write_gpkg(self, tbl_name = None, print_cmd=False):
         """
         Converts a SQL or Postgresql query to a geopackage output.
 
+        :param tbl_name: Name of the table in the Geopackage output (it will default to 'SELECT' as the table name otherwise)
         :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
         :return:
         """
@@ -74,6 +75,9 @@ class Geopackage:
         if not self.path:
             self.path = file_loc('folder')
 
+        if not self.table:
+            self.table = tbl_name
+
         if not self.cmd:
             if self.dbo.type == 'PG':
                 self.cmd = WRITE_GPKG_CMD_PG.format(export_path=self.path,
@@ -83,6 +87,7 @@ class Geopackage:
                                                    db=self.dbo.database,
                                                    password=self.dbo.password,
                                                    pg_sql_select=qry,
+                                                   tbl_name = self.table,
                                                    srid=self.srid,
                                                    gdal_data=self.gdal_data_loc)
             elif self.dbo.type == 'MS':
@@ -93,6 +98,7 @@ class Geopackage:
                         host=self.dbo.server,
                         db=self.dbo.database,
                         ms_sql_select=qry,
+                        tbl_name = self.table,
                         srid=self.srid,
                         gdal_data=self.gdal_data_loc
                     )
@@ -104,6 +110,7 @@ class Geopackage:
                                                        db=self.dbo.database,
                                                        password=self.dbo.password,
                                                        ms_sql_select=qry,
+                                                       tbl_name = self.table,
                                                        srid=self.srid,
                                                        gdal_data=self.gdal_data_loc)
 
@@ -128,7 +135,7 @@ class Geopackage:
                 p=self.path,
                 q=self.query))
             
-    def shp_to_gpkg(self, shp_name=None, gpkg_name=None, print_cmd=False):
+    def shp_to_gpkg(self, shp_name=None, gpkg_name=None, tbl_name=None, print_cmd=False):
         
         """
         Converts a Shapefile to a Geopackage file
@@ -148,6 +155,7 @@ class Geopackage:
 
         self.cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = gpkg_name,
                                                 shp_name = shp_name,
+                                                tbl_name = self.table,
                                                 export_path=self.path)
         
         if print_cmd:
@@ -170,6 +178,8 @@ class Geopackage:
         :param gpkg_name: filename for geopackage (should end in .gpkg)
         :param export_path: The folder directory to place the shapefiles output.
                             You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.
+        :param tbl_name: Name of the first table in the geopackage whose name will be transferred to the Shapefile.
+                         If there are more than 1 table, the subsequent names will default.
         :param print_cmd: Print command line query
         """
         

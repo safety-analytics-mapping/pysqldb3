@@ -2076,7 +2076,7 @@ class DbConnect:
             self.__run_table_logging([schema + "." + table], days=days)
 
 
-    def query_to_gpkg(self, query, path=None, gpkg_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_gpkg(self, query, path=None, gpkg_name=None, cmd=None, tbl_name = None, gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
         Exports query results to a geopackage (.gpkg) file.
@@ -2084,6 +2084,7 @@ class DbConnect:
         :param path: folder path for output gpkg
         :param gpkg_name: filename for shape (should end in .gpkg)
         :param cmd: GDAL command to overwrite default
+        :param tbl_name: Name of table in the Geopackage output
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: boolean to print ogr command (without password)
         :param srid: SRID to manually set output to; defaults to 2263
@@ -2110,18 +2111,18 @@ class DbConnect:
             pass
 
         if self.type == PG:
-            self.query(u"""    
-            create temp table {} as     
+            self.query(f"""    
+            create temp table {tmp_table_name} as     
             select * 
-            from ({}) q 
+            from ({query}) q 
             limit 10
-            """.format(tmp_table_name, query), internal=True)
+            """, internal=True)
         elif self.type == MS:
-            self.query(u"""        
+            self.query(f"""        
             select top 10 * 
-            into #{}
-            from ({}) q 
-            """.format(tmp_table_name, query), internal=True)
+            into #{tmp_table_name}
+            from ({query}) q 
+            """, internal=True)
 
         # Extract column names, including datetime/timestamp types, from results
         if self.type == PG:
@@ -2138,7 +2139,7 @@ class DbConnect:
                     'column_name'])]
 
         elif self.type == MS:
-            col_df = self.dfquery("""
+            col_df = self.dfquery(f"""
             SELECT
                 [column] = c.name,
                 [type] = t.name, 
@@ -2155,8 +2156,8 @@ class DbConnect:
                 AND
                 t.system_type_id = t.user_type_id
             WHERE
-                [object_id] = OBJECT_ID(N'tempdb.dbo.#{}');
-            """.format(tmp_table_name), internal=True)
+                [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}');
+            """, internal=True)
 
             cols = ['[' + c + ']' for c in list(col_df['column'])]
             dt_col_names = ['[' + c + ']' for c in list(
@@ -2172,14 +2173,6 @@ class DbConnect:
 
             if self.type == MS:
                 print_cols = str([str(c[1:-1]) for c in dt_col_names])
-
-            # print("""
-            # The following columns are of type datetime/timestamp: \n
-            # {}
-            
-            # Geopackages don't support datetime/timestamps with both the date and time. Each column will be split up
-            # into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
-            # """.format(print_cols))
 
             # Add the date and time (casted as a string) to the output
             for col_name in dt_col_names:
@@ -2197,19 +2190,19 @@ class DbConnect:
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         new_query = u"select {} from ({}) q ".format(return_cols, query)
         Query.query_to_gpkg(self, new_query, path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
-                           print_cmd=print_cmd, srid=srid)
+                            tbl_name = tbl_name, print_cmd=print_cmd, srid=srid)
 
         # Drop the temp table
         if self.type == PG:
-            self.query("drop table {}".format(tmp_table_name), internal=True)
+            self.query(f"drop table {tmp_table_name}", internal=True)
         elif self.type == MS:
-            self.query("drop table #{}".format(tmp_table_name), internal=True)
+            self.query(f"drop table #{tmp_table_name}", internal=True)
 
         # Reset the temp flag
         self.last_query = new_query
         self.allow_temp_tables = original_temp_flag
 
-    def table_to_gpkg(self, table, schema=None, strict=True, path=None, gpkg_name=None, cmd=None,
+    def table_to_gpkg(self, table, schema=None, strict=True, path=None, gpkg_name=None, tbl_name = None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports table to a geopackage file. Generates query to query_to_gpkg.
@@ -2218,6 +2211,7 @@ class DbConnect:
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
         :param path: folder path for output geopackage
         :param geopackage_name: filename for geopackage (should end in .gpkg)
+        :param tbl_name: Name of the table within the Geopackage output
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: Boolean flag to print the OGR command
@@ -2227,14 +2221,16 @@ class DbConnect:
         if not schema:
             schema = self.default_schema
 
+
         # check the file extension
         assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
 
         path, gpkg_name = parse_gpkg_path(path, gpkg_name)
 
         return self.query_to_gpkg(f"select * from {schema}.{table}",
-                                 path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+                                 path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc, tbl_name = tbl_name,
                                  print_cmd=print_cmd, srid=srid)
+    
     def gpkg_to_table(self, path=None, table=None, schema=None, gpkg_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7, zip=False):

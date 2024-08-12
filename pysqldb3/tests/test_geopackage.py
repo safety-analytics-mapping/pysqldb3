@@ -1,6 +1,8 @@
 import os
 import configparser
 import pandas as pd
+import subprocess
+import shlex
 
 from .. import pysqldb3 as pysqldb
 from ..geopackage import Geopackage
@@ -661,7 +663,7 @@ class TestWritegpkgMS:
         # Write gpkg
         s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name,
                       query=f"""select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1""")
-        s.write_gpkg(print_cmd=True)
+        s.write_gpkg(tbl_name = test_write_gpkg_table_name, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, gpkg_name))
@@ -723,7 +725,16 @@ class TestWritegpkgMS:
         s.gpkg_to_shp(gpkg_name = gpkg_name, print_cmd = True)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
-        assert os.path.isfile(os.path.join(fp, 'SELECT.shp'))
+        assert os.path.isfile(os.path.join(fp, test_write_gpkg_table_name + '.shp'))
+
+        # check that the shapefile and gpkg have the same output
+        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo {test_write_gpkg_table_name + ".shp"} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
+        
+        assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg) and 'test_col1 (Integer) = 1' in str(ogr_response_shp), "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
 
         # remove geopackage
         os.remove(os.path.join(fp, gpkg_name))
@@ -731,17 +742,26 @@ class TestWritegpkgMS:
     def test_convert_shp_to_gpkg_file(self):
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         gpkg_name = 'gpkg_to_shp.gpkg'
-        shp_name = 'SELECT.shp'
+        shp_name = f'{test_write_gpkg_table_name}.shp'
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # run function to convert Shapefile to GPKG
-        s = Geopackage(dbo=sql, path=fp, shp_name = shp_name, gpkg_name=gpkg_name)
+        s = Geopackage(dbo=sql, path=fp, shp_name = shp_name, table = test_write_gpkg_table_name, gpkg_name=gpkg_name)
         s.shp_to_gpkg(shp_name = shp_name, gpkg_name = gpkg_name, print_cmd = True)
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(fp, gpkg_name))
+
+        # assert that the data is the same
+        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo {shp_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
+        
+        assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg) and 'test_col1 (Integer) = 1' in str(ogr_response_shp), "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
 
         # remove shape file
         for ext in ('.dbf', '.prj', '.shx', '.shp'):
