@@ -100,18 +100,6 @@ READ_GPKG_CMD_MS = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_
  "{gpkg_name}" -nln {schema}.{tbl_name} {perc} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
 """.replace('\n', ' ')
 
-READ_GPKG_FEATURE_CMD = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
-"EPSG:{srid}" -f "PostgreSQL" PG:"host={host} user={user} dbname={dbname} 
-password={password}" "{gdb}" "{feature}" -nln {schema}.{tbl_name} -progress 
-""".replace('\n', ' ')
-
-READ_GPKG_FEATURE_CMD_MS = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
-"EPSG:{srid}" -f MSSQLSpatial "MSSQL:server={ms_server};database={ms_db};UID={ms_user};PWD={ms_pass}"
- "{gdb}" "{feature}" -nln {schema}.{tbl_name} -progress --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO {sf}
-""".replace('\n', ' ')
-
 WRITE_SHP_CMD_GPKG = r'ogr2ogr -f GPKG {gpkg_name} "{export_path}\{shp_name}" -nln {tbl_name}'
 
 WRITE_GPKG_CMD_SHP = r'ogr2ogr -f "ESRI Shapefile" "{export_path}" {gpkg_name}'
