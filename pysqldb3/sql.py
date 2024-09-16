@@ -127,6 +127,17 @@ ORDER BY
     tablename
 """
 
+PG_SCHEMA_TABLES_QUERY = r"""
+SELECT
+    tablename, tableowner
+FROM
+    pg_catalog.pg_tables
+WHERE
+    schemaname ='{s}'
+ORDER BY 
+    tablename
+"""
+
 PG_TABLE_EXISTS_QUERY = r"""
 SELECT EXISTS (
 SELECT 1

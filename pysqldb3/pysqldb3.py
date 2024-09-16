@@ -587,6 +587,19 @@ class DbConnect:
 
         return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
 
+    def schema_tables(self, schema='public'):
+        # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
+        """
+        Get a list of tables in a specified schema (PG only).
+        :param schema: Schema to look in (defaults to public)
+        :return: Pandas DataFrame of the table list
+        """
+        if self.type in (MS, AZ):
+            print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
+            return
+
+        return self.dfquery(PG_SCHEMA_TABLES_QUERY.format(s=schema))
+
     def table_exists(self, table, **kwargs):
         # type: (DbConnect, str, **str) -> bool
         """
