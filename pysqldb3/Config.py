@@ -88,8 +88,10 @@ def write_config(confi_path='.\config.cfg'):
     }
     existing_sections = read_config(confi_path)
 
+    missing = False
     for rec_section in required_sections.keys():
         if rec_section not in existing_sections.keys():
+            missing = True
             if rec_section == 'ODBC Drivers':
                 odbc = SqlDriver()
                 existing_sections[rec_section]['ODBC_DRIVER']=odbc.odbc_driver
@@ -101,11 +103,12 @@ def write_config(confi_path='.\config.cfg'):
                 open_config = True
                 existing_sections[rec_section]=required_sections[rec_section]
 
-    with open(confi_path, 'w') as f:
-        for section in existing_sections.keys():
-            f.write(f'\n[{section}]\n')
-            for k in existing_sections[section].keys():
-                f.write(f'{k}={existing_sections[section][k]}\n')
+    if missing:
+        with open(confi_path, 'w') as f:
+            for section in existing_sections.keys():
+                f.write(f'\n[{section}]\n')
+                for k in existing_sections[section].keys():
+                    f.write(f'{k}={existing_sections[section][k]}\n')
     if open_config:
         os.startfile(confi_path)
     return existing_sections
