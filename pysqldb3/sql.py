@@ -115,6 +115,15 @@ WHERE NOT blocked_locks.GRANTED
 and blocking_activity.usename = '%s'
 """
 
+PG_PYSQLDB_USERS_QUERY = r"""
+SELECT DISTINCT 
+	tableowner
+FROM
+    pg_catalog.pg_tables
+WHERE
+    schemaname ='{s}'
+"""
+
 PG_MY_TABLES_QUERY = r"""
 SELECT
     tablename, tableowner
@@ -125,6 +134,23 @@ WHERE
     AND tableowner='{u}'
 ORDER BY 
     tablename
+"""
+
+PG_USER_TABLES_QUERY = r"""
+{b}
+SELECT
+    t.tablename, t.tableowner, u.created_on, u.expires
+FROM
+    pg_catalog.pg_tables t
+LEFT OUTER JOIN 
+	user_tables u
+USING
+	(tablename, tableowner)
+WHERE
+    t.schemaname ='{s}'
+ORDER BY 
+    t.tableowner, t.tablename
+	
 """
 
 PG_TABLE_EXISTS_QUERY = r"""

@@ -621,6 +621,29 @@ class DbConnect:
 
         return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
 
+    def schema_tables(self, schema='public'):
+        # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
+        """
+        Get a list of tables for which you are the owner (PG only).
+        :param schema: Schema to look in (defaults to public)
+        :return: Pandas DataFrame of the table list
+        """
+        if self.type in (MS, AZ):
+            print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
+            return
+
+        self.query(PG_PYSQLDB_USERS_QUERY.format(s=schema), internal=True)
+        base = f"""
+        with user_tables as (
+        """
+        for user in self.internal_data:
+            base += f"""
+            select table_owner tableowner, table_name tablename, created_on, expires from {schema}.__temp_log_table_{user[0]}__
+            union
+            """
+        base = base[:-19] + ")"
+        return self.dfquery(PG_USER_TABLES_QUERY.format(b=base, s=schema))
+
     def table_exists(self, table, **kwargs):
         # type: (DbConnect, str, **str) -> bool
         """
