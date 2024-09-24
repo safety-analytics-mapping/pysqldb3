@@ -91,6 +91,23 @@ class TestMisc:
 
         db.drop_table(table=table_for_testing, schema='working')
 
+    def test_schema_tables_pg_basic(self):
+        db.drop_table(schema='working', table=table_for_testing)
+        schema_tables_df = db.schema_tables(schema='working')
+        number_of_my_tables = len(schema_tables_df)
+
+        assert schema_tables_df.tableowner.nunique() > 1
+
+        db.query('create table working.{} as select * from working.{} limit 10'.format(table_for_testing, pg_table_name))
+
+        new_schema_tables_df = db.schema_tables(schema='working')
+        new_number_of_schema_tables = len(new_schema_tables_df)
+
+        # Assert new table is in my tables
+        assert number_of_my_tables == new_number_of_schema_tables - 1
+
+        db.drop_table(table=table_for_testing, schema='working')
+
     def test_my_tables_pg_multiple(self):
         my_tables_df = db.my_tables(schema='working')
         number_of_my_tables = len(my_tables_df)
