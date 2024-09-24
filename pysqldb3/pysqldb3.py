@@ -624,7 +624,7 @@ class DbConnect:
     def schema_tables(self, schema='public'):
         # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
         """
-        Get a list of tables for which you are the owner (PG only).
+        Get a list of tables for specific schema (PG only).
         :param schema: Schema to look in (defaults to public)
         :return: Pandas DataFrame of the table list
         """
