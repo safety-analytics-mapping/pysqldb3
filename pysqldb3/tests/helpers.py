@@ -419,7 +419,7 @@ def set_up_geopackage():
     # asser that a Geopackage file exists now 
     assert os.path.isfile(f'{DIR}\\testgpkg.gpkg'), "Geopackage was not created correctly"
     
-    # SET UP SECOND TABLE (fine that the data is the exact same)
+    ## SET UP SECOND TABLE (fine that the data is the exact same) ##
 
     cmd = f'''ogr2ogr -f "GPKG" -update {DIR}\\testgpkg.gpkg -nln test_layer2 -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326) as geom, some_value FROM sample" {fle}'''
