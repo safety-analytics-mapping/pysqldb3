@@ -39,6 +39,7 @@ pg_schema = 'working'
 
 
 class TestQueryToGpkgPg:
+
     def test_query_to_gpkg_basic(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
@@ -66,6 +67,91 @@ class TestQueryToGpkgPg:
 
         # clean up
         db.drop_table(pg_schema, test_table)
+        os.remove(os.path.join(fldr, gpkg))
+
+    def test_query_to_gpkg_multitable(self):
+
+        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        gpkg = 'testgpkg.gpkg'
+
+        # create table
+        db.query(f"""
+            DROP TABLE IF EXISTS {pg_schema}.{test_table};
+            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+
+            INSERT INTO {pg_schema}.{test_table}
+             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+         """)
+        
+        assert db.table_exists(test_table, schema=pg_schema)
+
+        # add first table
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        # add second table to the same gpkg
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
+
+        # check table in folder
+        assert os.path.isfile(os.path.join(fldr, gpkg))
+
+        # Check that both tables appear in geopackage
+        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table}_2 LIMIT 1" -q'
+        cmd_gpkg2 = f'ogrinfo  ./test_data/{gpkg} -sql "SELECT id FROM {test_table}_2 LIMIT 1" -q'
+
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        ogr_response_gpkg2 = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        
+        assert 'id (Integer) = 1' in str(ogr_response_gpkg) and 'id (Integer) = 1' in str(ogr_response_gpkg2), "Geopackage does not contain multiple tables"
+
+        # clean up
+        db.drop_table(pg_schema, test_table)
+        db.drop_table(pg_schema, test_table + '_2')
+        os.remove(os.path.join(fldr, gpkg))
+
+    def test_query_to_gpkg_overwrite(self):
+        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        gpkg = 'testgpkg.gpkg'
+
+        # create table
+        db.query(f"""
+            DROP TABLE IF EXISTS {pg_schema}.{test_table};
+            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+
+            INSERT INTO {pg_schema}.{test_table}
+            VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+         """)
+        
+        assert db.table_exists(test_table, schema=pg_schema)
+
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+
+        # create table
+        db.query(f"""
+            DROP TABLE IF EXISTS {pg_schema}.{test_table}_2;
+            CREATE TABLE {pg_schema}.{test_table}_2 (id2 int, txt2 text, dte2 timestamp, geom geometry(Point));
+
+            INSERT INTO {pg_schema}.{test_table}_2
+             VALUES (2, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+         """)
+        
+        # overwrite the table
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}_2", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+
+        # check table in folder
+        assert os.path.isfile(os.path.join(fldr, gpkg))
+
+        # this should fail
+        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        assert 'ERROR' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
+
+        # check that the overwritten table works
+        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id2 FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        assert 'id2 (Integer) = 2' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
+
+        # clean up
+        db.drop_table(pg_schema, test_table)
+        db.drop_table(pg_schema, test_table + '_2')
         os.remove(os.path.join(fldr, gpkg))
 
     def test_query_to_gpkg_basic_pth(self):
@@ -107,7 +193,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, tbl_name = test_table,
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
                         path=fldr+'\\'+gpkg, print_cmd=True)
 
         # check table in folder
@@ -161,8 +247,8 @@ class TestQueryToGpkgPg:
         """)
         assert db.table_exists(test_table, schema=pg_schema)
 
-        # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, tbl_name = test_table,
+        # table to gpkg - make sure gpkg_tbl overwrites any gpkg in the path
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
                         path=fldr+'\\'+'test_'+gpkg, print_cmd=True)
 
         # check table in folder
@@ -239,7 +325,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg("select * from {}.{}".format(pg_schema, test_table), gpkg_name=gpkg, path=fldr, print_cmd=True)
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -298,14 +384,13 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, tbl_name = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=pg_schema,
-                        gpkg_name=gpkg, print_cmd=True)
+        db.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
         select
@@ -350,7 +435,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, tbl_name = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -394,9 +479,9 @@ class TestQueryToGpkgPg:
 
 
 class TestQueryToGpkgMs:
-    # @classmethod
-    # def setup_class(cls):
-    #     helpers.set_up_schema(sql, ms_schema=ms_schema)
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_schema(sql, ms_schema=ms_schema)
 
     def test_query_to_gpkg_basic(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
@@ -415,7 +500,7 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg("select * from {}.{}".format(ms_schema, test_table), gpkg_name=gpkg, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -429,6 +514,101 @@ class TestQueryToGpkgMs:
         sql.drop_table(ms_schema, test_table)
         os.remove(os.path.join(fldr, gpkg))
         
+    def test_query_to_gpkg_multitable(self):
+        
+        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        gpkg = 'testgpkg.gpkg'
+        sql.drop_table(schema=ms_schema, table=test_table)
+
+        # create table
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+
+            INSERT INTO {ms_schema}.{test_table}
+            (id, txt, dte, geom)
+             VALUES (1, 'test text', CURRENT_TIMESTAMP,
+             geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
+        assert sql.table_exists(test_table, schema=ms_schema)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+
+        sql.drop_table(schema=ms_schema, table=test_table)
+        # add similar table under a different name in the same gpkg
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_table} (id3 int, txt text, dte datetime, geom geometry);
+
+            INSERT INTO {ms_schema}.{test_table}
+            (id3, txt, dte, geom)
+             VALUES (3, 'test text', CURRENT_TIMESTAMP,
+             geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
+        assert sql.table_exists(test_table, schema=ms_schema)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
+
+        # check table in folder
+        assert os.path.isfile(os.path.join(fldr, gpkg))
+
+        # Check that both tables appear in geopackage
+        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id3 FROM {test_table}_2 LIMIT 1" -q'
+
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        ogr_response_gpkg2 = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        
+        assert 'id (Integer) = 1' in str(ogr_response_gpkg) and 'id3 (Integer) = 3' in str(ogr_response_gpkg2), "geopackage does not contain multiple tables"
+
+        # clean up
+        sql.drop_table(ms_schema, test_table)
+        os.remove(os.path.join(fldr, gpkg))
+
+    def test_query_to_gpkg_overwrite(self):
+        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        gpkg = 'testgpkg.gpkg'
+        sql.drop_table(schema=ms_schema, table=test_table)
+
+        # create table
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_table} (id int, txt text, dte datetime, geom geometry);
+
+            INSERT INTO {ms_schema}.{test_table}
+            (id, txt, dte, geom)
+             VALUES (1, 'test text', CURRENT_TIMESTAMP,
+             geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+
+        # create new, slightly different table
+        sql.drop_table(schema=ms_schema, table=test_table)
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_table} (id3 int, txt text, dte datetime, geom geometry);
+
+            INSERT INTO {ms_schema}.{test_table}
+            (id3, txt, dte, geom)
+             VALUES (3, 'test text', CURRENT_TIMESTAMP,
+             geometry::Point(1015329.1, 213793.1, 2263 ))
+        """)
+        assert sql.table_exists(test_table, schema=ms_schema)
+
+        # overwrite the same table
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+
+        # check table in folder
+        assert os.path.isfile(os.path.join(fldr, gpkg))
+
+        # this should fail
+        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        assert 'ERROR' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
+
+        # check that the overwritten table works
+        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id3 FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        assert 'id3 (Integer) = 3' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
+
+        # clean up
+        sql.drop_table(ms_schema, test_table)
+        os.remove(os.path.join(fldr, gpkg))
+
     def test_query_to_gpkg_basic_pth(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
@@ -468,11 +648,11 @@ class TestQueryToGpkgMs:
             (id, txt, dte, geom)
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
-        """.format(s=ms_schema, t=test_table))
+        """)
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
-        sql.query_to_gpkg("select * from {}.{}".format(ms_schema, test_table), gpkg_name=gpkg,
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg,
                         path=fldr + '\\' + 'test_' + gpkg, print_cmd=True)
 
         # check table in folder
@@ -658,7 +838,7 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg("select top 0 * from {}.{}".format(schema, test_table), gpkg_name=gpkg, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(f"select top 0 * from {schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -791,7 +971,7 @@ class TestQueryToGpkgMs:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
-        sql.query("drop table {}.{}".format(ms_schema, sql.log_table))
+        sql.query(f"drop table {ms_schema}.{sql.log_table}")
         sql.cleanup_new_tables()
         # helpers.clean_up_schema(sql, ms_schema)
 
