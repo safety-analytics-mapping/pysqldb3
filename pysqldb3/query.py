@@ -565,13 +565,19 @@ class Query:
         if not gpkg_name:
             gpkg_name = '' # must set as empty string if no input to ensure that inputting a path but not gpkg_tbl would still work
 
-        if os.path.isfile(path + gpkg_name) == True:
+        table_exists = []
+
+        if os.path.isfile(os.path.join(path, gpkg_name)) == True:
         
             try:
-                exists_cmd = f'ogrinfo {path, gpkg_name}'
+                exists_cmd = f'ogrinfo {os.path.join(path, gpkg_name)}'
                 ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
                 table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
-        
+            
+            except: 
+
+                table_exists = []
+
             finally: 
 
                 if len(table_exists) > 0:

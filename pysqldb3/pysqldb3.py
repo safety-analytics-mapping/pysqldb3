@@ -2108,9 +2108,9 @@ class DbConnect:
         try:
             # Drop the temp table
             if self.type == PG:
-                self.query("drop table {}".format(tmp_table_name), internal=True, strict=False)
+                self.query(f"drop table {tmp_table_name}", internal=True, strict=False)
             elif self.type == MS:
-                self.query("drop table #{}".format(tmp_table_name), internal=True, strict=False)
+                self.query(f"drop table #{tmp_table_name}", internal=True, strict=False)
         except Exception as e:
             print(e)
             pass
@@ -2193,7 +2193,7 @@ class DbConnect:
                                     col=col_name[1:-1], short_col=shortened_col)
 
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
-        new_query = u"select {} from ({}) q ".format(return_cols, query)
+        new_query = f"select {return_cols} from ({query}) q "
         Query.query_to_gpkg(self, new_query, path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                             gpkg_tbl = gpkg_tbl, print_cmd=print_cmd, srid=srid)
 
