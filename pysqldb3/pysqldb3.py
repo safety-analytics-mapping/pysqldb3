@@ -2132,6 +2132,8 @@ class DbConnect:
             f.write(_insert_qry.format(schema=backup_schema, table=backup_table))
             f.write(_idx_query.format(schema=backup_schema, table=backup_table))
 
+        return backup_schema, backup_table
+
 
     def get_table_indexes(self, schema, table):
         if self.type == 'MS':
@@ -2140,15 +2142,27 @@ class DbConnect:
             idx_qry = ''
             for n, c, t in idxs:
                 idx_qry += f"CREATE {t} INDEX [{n}_backup] ON [{schema}].[{table}] ({c});\n"
+            return idx_qry.replace(f'[{schema}].[{table}]', "[{schema}].[{table}]") + "\n"
 
         elif self.type == 'PG':
             self.query(GET_PG_INDEX_QUERY.format(schema=schema, table=table), internal=True)
             idxs = self.internal_data
             idx_qry = ';'.join([_[1].replace(_[0], _[0]+'_backup') for _ in idxs])
+            return idx_qry.replace(f'{schema}.{table}', "{schema}.{table}") + "\n"
 
-        return idx_qry.replace(f'{schema}.{table}', "{schema}.{table}")+"\n"
 
-    def create_table_from_backup(self, backup_path):
-        f = open(backup_path, "r")
-        self.query(f.read())
-        f.close()
+
+    def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None):
+        with open(backup_path, 'r') as f:
+            read_data = f.read()
+        schema_table_name = get_unique_table_schema_string(
+            re.findall(r'CREATE TABLE [a-zA-Z]*\.[a-zA-Z0-9_*]* \(', read_data)[0].replace('CREATE TABLE ', '')[:-2],
+            self.type)
+        if all([overwrite_name, overwrite_schema]):
+            read_data = read_data.replace(schema_table_name, f'{overwrite_schema}.{overwrite_name}')
+            read_data = read_data.replace('['+schema_table_name.split('.')[0]+'].['+schema_table_name.split('.')[1]+']',
+                                          f'[{overwrite_schema}].[{overwrite_name}]')
+            schema_table_name = f'{overwrite_schema}.{overwrite_name}'
+        self.query(read_data)
+        assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
+        return schema_table_name
