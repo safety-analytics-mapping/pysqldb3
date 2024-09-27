@@ -2098,6 +2098,13 @@ class DbConnect:
             self.__run_table_logging([schema + "." + table], days=days)
 
     def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
+
+        # TODO
+        #  - add doc strings
+        #  - think about bulk tables?
+
+
+
         tbl_schema = self.get_table_columns(org_table, schema=org_schema)
 
         # CREATE TABLE QUERY
