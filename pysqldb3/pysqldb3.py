@@ -2139,12 +2139,12 @@ class DbConnect:
             idxs = self.internal_data
             idx_qry = ''
             for n, c, t in idxs:
-                idx_qry += f"CREATE {t} INDEX [{n}] ON [{schema}].[{table}] ({c});\n"
+                idx_qry += f"CREATE {t} INDEX [{n}_backup] ON [{schema}].[{table}] ({c});\n"
 
         elif self.type == 'PG':
             self.query(GET_PG_INDEX_QUERY.format(schema=schema, table=table), internal=True)
             idxs = self.internal_data
-            idx_qry = ';'.join([_[0] for _ in idxs])
+            idx_qry = ';'.join([_[1].replace(_[0], _[0]+'_backup') for _ in idxs])
 
         return idx_qry.replace(f'{schema}.{table}', "{schema}.{table}")+"\n"
 

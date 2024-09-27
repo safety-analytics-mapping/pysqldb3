@@ -290,6 +290,7 @@ where
 
 GET_PG_INDEX_QUERY = """
 SELECT 
+    indexname,
     indexdef 
 FROM 
     pg_indexes 
