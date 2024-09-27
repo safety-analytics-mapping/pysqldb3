@@ -2096,3 +2096,59 @@ class DbConnect:
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
+
+    def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
+        tbl_schema = self.get_table_columns(org_table, schema=org_schema)
+
+        # CREATE TABLE QUERY
+        _create_qry = "CREATE TABLE {schema}.{table} ("
+        for col, dtyp in tbl_schema:
+            _create_qry += f'\n"{col}" {dtyp},'
+        _create_qry=_create_qry[:-1]+');\n'
+
+        # INSERT INTO TABLE QUERY
+        _insert_qry = "INSERT INTO {schema}.{table} values\n"
+        self.query(f"select * from {org_schema}.{org_table}", internal=True)
+        data  = self.internal_data
+        for row in data:
+            r = "("
+            for pos, col in enumerate(row):
+                r += f"'{col}',"
+            r = r[:-1] + '),'
+            _insert_qry += r
+
+        _insert_qry = _insert_qry[:-1] + ';\n'
+
+        # CREATE INDEX QUERY
+        _idx_query = self.get_table_indexes(org_schema, org_table)
+
+        with open(backup_path, 'w') as f:
+            # Write header
+            f.write(f'''/*\nBackeup SQL from {self.server}.{self.database}.{org_schema}.{org_table}
+            on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n*/\n\n''')
+
+            # Write sql queries
+            f.write(_create_qry.format(schema=backup_schema, table=backup_table))
+            f.write(_insert_qry.format(schema=backup_schema, table=backup_table))
+            f.write(_idx_query.format(schema=backup_schema, table=backup_table))
+
+
+    def get_table_indexes(self, schema, table):
+        if self.type == 'MS':
+            self.query(GET_MS_INDEX_QUERY.format(schema=schema, table=table), internal=True)
+            idxs = self.internal_data
+            idx_qry = ''
+            for n, c, t in idxs:
+                idx_qry += f"CREATE {t} INDEX [{n}] ON [{schema}].[{table}] ({c});\n"
+
+        elif self.type == 'PG':
+            self.query(GET_PG_INDEX_QUERY.format(schema=schema, table=table), internal=True)
+            idxs = self.internal_data
+            idx_qry = ';'.join([_[0] for _ in idxs])
+
+        return idx_qry.replace(f'{schema}.{table}', "{schema}.{table}")+"\n"
+
+    def create_table_from_backup(self, backup_path):
+        f = open(backup_path, "r")
+        self.query(f.read())
+        f.close()
