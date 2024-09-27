@@ -3,6 +3,7 @@ import os
 
 from .. import pysqldb3 as pysqldb
 from ..data_io import *
+from .. sql import GET_MS_INDEX_QUERY
 
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
@@ -71,7 +72,8 @@ class TestBackupTablesPg:
         assert os.path.isfile(test_back_file)
 
         # run backup
-        db.create_table_from_backup(test_back_file)
+        db.drop_table(pg_schema, test_pg_from_backup)
+        schema_table_name = db.create_table_from_backup(test_back_file)
 
         # validate table exists
         assert db.table_exists(test_pg_from_backup, schema=pg_schema)
@@ -162,6 +164,7 @@ class TestBackupTablesMs:
         sql.drop_table(table=test_sql_to_backup, schema=ms_schema)
 
         # table schema
+        sql.drop_table(ms_schema, test_sql_to_backup)
         sql.query(f"""
             CREATE TABLE {ms_schema}.{test_sql_to_backup} (
                 id int,
@@ -190,6 +193,7 @@ class TestBackupTablesMs:
         assert os.path.isfile(test_back_file)
 
         # run backup
+        sql.drop_table(ms_schema, test_sql_from_backup)
         sql.create_table_from_backup(test_back_file)
 
         # validate table exists
@@ -209,3 +213,72 @@ class TestBackupTablesMs:
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
+
+    def test_backup_tables_idx_basic(self):
+        sql.drop_table(table=test_sql_to_backup, schema=ms_schema)
+
+        # table schema
+        sql.drop_table(ms_schema, test_sql_to_backup)
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_sql_to_backup} (
+                id int,
+                column2 text,
+                column3 datetime,
+                "1 test messy column" text
+            );
+            
+            CREATE NONCLUSTERED INDEX [idx_test_backup_{test_sql_to_backup}] ON {ms_schema}.{test_sql_to_backup} (id);
+        """)
+        # populate table
+        for i in range(10):
+            sql.query(f"""
+                INSERT INTO {ms_schema}.{test_sql_to_backup}
+                    (id, column2, column3, "1 test messy column")
+                values ({i}, '{i}', '{'2022-10-14 10:12:40'}', '{'test ' * i}')
+            """)
+        # validate table created
+        assert sql.table_exists(test_sql_to_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_to_backup}")
+        assert sql.data[0][0] == 10
+
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+        sql.drop_table(ms_schema, test_sql_from_backup)
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_from_backup)
+        assert os.path.isfile(test_back_file)
+
+        # run backup
+        sql.drop_table(ms_schema, test_sql_from_backup)
+        sql.create_table_from_backup(test_back_file)
+
+        # validate table exists
+        assert sql.table_exists(test_sql_from_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_from_backup}")
+        assert sql.data[0][0] == 10
+
+        # Validate schema matches
+        _to = sql.get_table_columns(test_sql_to_backup, schema=ms_schema)
+        _from = sql.get_table_columns(test_sql_from_backup, schema=ms_schema)
+        assert _to == _from
+
+        # validate indexes are the same
+        sql.query(GET_MS_INDEX_QUERY.format(schema=ms_schema, table=test_sql_to_backup))
+        to_data = sql.data
+        to_data = [_[-2:] for _ in to_data]
+
+        sql.query(GET_MS_INDEX_QUERY.format(schema=ms_schema, table=test_sql_from_backup))
+        from_data = sql.data
+        from_data = [_[-2:] for _ in from_data]
+
+        assert to_data == from_data
+
+        # clean up
+        sql.cleanup_new_tables()
+        assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
+        assert not sql.table_exists(test_sql_from_backup, schema=ms_schema)
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
