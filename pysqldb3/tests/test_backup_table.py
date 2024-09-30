@@ -225,6 +225,53 @@ class TestBackupTablesPg:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
+    def test_messy_table(self):
+        # base messy case
+        # schema = 'minireports'
+        # table_name = 'daylighting_old_turn_calming_20240626'
+
+
+        db.drop_table(pg_schema, "4_table name")
+        # table schema
+        db.query(f"""
+                   CREATE TABLE {pg_schema}."4_table name" (
+                       id int,
+                       column2 text,
+                       column3 timestamp,
+                    "1 test messy column" text,
+                    "2 test messy column" numeric
+                   );
+               """)
+        # populate table
+        for i in range(10):
+            db.query(f"""
+                   INSERT INTO {pg_schema}."4_table name"
+                       (id, column2, column3, "1 test messy column", "2 test messy column")
+                   values ({i}, '{i}', '{'2022-10-14 10:12:40-04'}', '{'{1 test messy column}'}', NULL)
+               """)
+
+        db.backup_table(pg_schema, "4_table name", test_back_file, pg_schema, '4_table name_backup')
+
+        db.create_table_from_backup(test_back_file)
+
+        # validate table exists
+        assert db.table_exists('4_table name_backup', schema=pg_schema)
+        db.query(f'select count(*) cnt from {pg_schema}."4_table name_backup"')
+        assert db.data[0][0] == 10
+
+        # Validate schema matches
+        _to = db.get_table_columns( '4_table name', schema=pg_schema)
+        _from = db.get_table_columns( '4_table name_backup', schema=pg_schema)
+        assert _to == _from
+
+        # clean up
+        db.cleanup_new_tables()
+        assert not db.table_exists( '4_table name', schema=pg_schema)
+        assert not db.table_exists( '4_table name_backup', schema=pg_schema)
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+        db.cleanup_new_tables()
 
 class TestBackupTablesMs:
     def test_backup_tables_basic(self):
@@ -418,4 +465,52 @@ class TestBackupTablesMs:
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
+
+    def test_messy_table(self):
+        # base messy case
+        # schema = 'minireports'
+        # table_name = 'daylighting_old_turn_calming_20240626'
+
+        sql.drop_table(ms_schema, "4_table name")
+        # table schema
+        sql.query(f"""
+                   CREATE TABLE {ms_schema}."4_table name" (
+                       id int,
+                       column2 text,
+                       column3 datetime,
+                    "1 test messy column" text,
+                    "2 test messy column" numeric
+                   );
+               """)
+        # populate table
+        for i in range(10):
+            sql.query(f"""
+                   INSERT INTO {ms_schema}."4_table name"
+                       (id, column2, column3, "1 test messy column", "2 test messy column")
+                   values ({i}, '{i}', '{'2022-10-14 10:12:40'}', '{'{1 test messy column}'}', NULL)
+               """)
+
+        sql.backup_table(ms_schema, "4_table name", test_back_file, ms_schema, '4_table name_backup')
+
+        sql.create_table_from_backup(test_back_file)
+
+        # validate table exists
+        assert sql.table_exists('4_table name_backup', schema=ms_schema)
+        sql.query(f'select count(*) cnt from {ms_schema}."4_table name_backup"')
+        assert sql.data[0][0] == 10
+
+        # Validate schema matches
+        _to = sql.get_table_columns('4_table name', schema=ms_schema)
+        _from = sql.get_table_columns('4_table name_backup', schema=ms_schema)
+        assert _to == _from
+
+        # clean up
+        sql.cleanup_new_tables()
+        assert not sql.table_exists('4_table name', schema=ms_schema)
+        assert not sql.table_exists('4_table name_backup', schema=ms_schema)
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+        sql.cleanup_new_tables()
 
