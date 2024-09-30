@@ -2098,9 +2098,18 @@ class DbConnect:
             self.__run_table_logging([schema + "." + table], days=days)
 
     def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
+        """
+        Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
+        as backing up to csv for large tables, but it will ensure identical schema.
+        :param org_schema: Name of database schema of the table to be backed up.
+        :param org_table: Name of database table to be backed up.
+        :param backup_path: File path where the .sql file will be written.
+        :param backup_schema: Name of database schema the backed up table will be written back to.
+        :param backup_table: Name of database table the backed up table will be written back to.
+        :return: backup_schema, backup_table
+        """
 
         # TODO
-        #  - add doc strings
         #  - think about bulk tables?
 
 
@@ -2108,19 +2117,24 @@ class DbConnect:
         tbl_schema = self.get_table_columns(org_table, schema=org_schema)
 
         # CREATE TABLE QUERY
-        _create_qry = "CREATE TABLE {schema}.{table} ("
+        _create_qry = f"CREATE TABLE {backup_schema}.{backup_table} ("
         for col, dtyp in tbl_schema:
             _create_qry += f'\n"{col}" {dtyp},'
         _create_qry=_create_qry[:-1]+');\n'
 
         # INSERT INTO TABLE QUERY
-        _insert_qry = "INSERT INTO {schema}.{table} values\n"
+        _insert_qry = f"INSERT INTO {backup_schema}.{backup_table} values\n"
         self.query(f"select * from {org_schema}.{org_table}", internal=True)
         data  = self.internal_data
         for row in data:
             r = "("
-            for pos, col in enumerate(row):
-                r += f"'{col}',"
+            for col in row:
+                if col == None:
+                    r += f"NULL,"
+                elif type(col) == str:
+                    r += f"""'{col.replace("'","''")}',"""
+                else:
+                    r += f"'{col}',"
             r = r[:-1] + '),'
             _insert_qry += r
 
@@ -2135,14 +2149,20 @@ class DbConnect:
             on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n*/\n\n''')
 
             # Write sql queries
-            f.write(_create_qry.format(schema=backup_schema, table=backup_table))
-            f.write(_insert_qry.format(schema=backup_schema, table=backup_table))
+            f.write(_create_qry)
+            f.write(_insert_qry)
             f.write(_idx_query.format(schema=backup_schema, table=backup_table))
 
         return backup_schema, backup_table
 
 
     def get_table_indexes(self, schema, table):
+        """
+        Generates the create index sql scripts for any table.
+        :param schema: Name of the database schema of the table to get the idexes from.
+        :param table: Name of the database table of the table to get the idexes from.
+        :return: SQL script to create indexes associated with input table.
+        """
         if self.type == 'MS':
             self.query(GET_MS_INDEX_QUERY.format(schema=schema, table=table), internal=True)
             idxs = self.internal_data
@@ -2160,6 +2180,13 @@ class DbConnect:
 
 
     def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None):
+        """
+        Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
+        :param backup_path: File path of the .sql file to be used to create the backup.
+        :param overwrite_name: Name of the database schema to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :param overwrite_schema: Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :return: String of schema.table where backup table was written.
+        """
         with open(backup_path, 'r') as f:
             read_data = f.read()
         schema_table_name = get_unique_table_schema_string(
