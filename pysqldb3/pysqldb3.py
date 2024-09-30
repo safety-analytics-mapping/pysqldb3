@@ -2117,14 +2117,14 @@ class DbConnect:
         tbl_schema = self.get_table_columns(org_table, schema=org_schema)
 
         # CREATE TABLE QUERY
-        _create_qry = f"CREATE TABLE {backup_schema}.{backup_table} ("
+        _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
             _create_qry += f'\n"{col}" {dtyp},'
         _create_qry=_create_qry[:-1]+');\n'
 
         # INSERT INTO TABLE QUERY
-        _insert_qry = f"INSERT INTO {backup_schema}.{backup_table} values\n"
-        self.query(f"select * from {org_schema}.{org_table}", internal=True)
+        _insert_qry = f'INSERT INTO "{backup_schema}"."{backup_table}" values\n'
+        self.query(f'select * from "{org_schema}"."{org_table}"', internal=True)
         data  = self.internal_data
         for row in data:
             r = "("
@@ -2169,13 +2169,13 @@ class DbConnect:
             idx_qry = ''
             for n, c, t in idxs:
                 idx_qry += f"CREATE {t} INDEX [{n}_backup] ON [{schema}].[{table}] ({c});\n"
-            return idx_qry.replace(f'[{schema}].[{table}]', "[{schema}].[{table}]") + "\n"
+            return idx_qry.replace(f'[{schema}].[{table}]', '"{schema}"."{table}"') + "\n"
 
         elif self.type == 'PG':
             self.query(GET_PG_INDEX_QUERY.format(schema=schema, table=table), internal=True)
             idxs = self.internal_data
             idx_qry = ';'.join([_[1].replace(_[0], _[0]+'_backup') for _ in idxs])
-            return idx_qry.replace(f'{schema}.{table}', "{schema}.{table}") + "\n"
+            return idx_qry.replace(f'{schema}.{table}', '"{schema}"."{table}"') + "\n"
 
 
 
@@ -2189,11 +2189,10 @@ class DbConnect:
         """
         with open(backup_path, 'r') as f:
             read_data = f.read()
-        schema_table_name = get_unique_table_schema_string(
-            re.findall(r'CREATE TABLE [a-zA-Z]*\.[a-zA-Z0-9_*]* \(', read_data)[0].replace('CREATE TABLE ', '')[:-2],
-            self.type)
+        schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
+                       read_data)[0].replace('CREATE TABLE ', '')[:-2]
         if all([overwrite_name, overwrite_schema]):
-            read_data = read_data.replace(schema_table_name, f'{overwrite_schema}.{overwrite_name}')
+            read_data = read_data.replace(schema_table_name, f'"{overwrite_schema}"."{overwrite_name}"')
             read_data = read_data.replace('['+schema_table_name.split('.')[0]+'].['+schema_table_name.split('.')[1]+']',
                                           f'[{overwrite_schema}].[{overwrite_name}]')
             schema_table_name = f'{overwrite_schema}.{overwrite_name}'
