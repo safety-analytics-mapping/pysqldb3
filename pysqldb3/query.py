@@ -294,20 +294,20 @@ class Query:
         _ = query_string.split()
         query_string = ' '.join(_)
         new_tables = list()
-        create_table = r'((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)\s*create\s+table\s+(if\s+not\s+exists\s+)?)' \
-                       r'((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"]' \
-                       r'[\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.]' \
-                       r'(([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?)'
+        create_table = r'((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)\s*create\s+table\s+(if\s+not\s+exists\s+)?)((([\[]'\
+            r'[\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))'\
+                r'?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]'\
+                       r'*[\"])|([\w]+)))?)'
         matches = re.findall(create_table, query_string, re.IGNORECASE)
 
         # Get all schema and table pairs remove create table match
         new_tables += [set(match[2:3]) for match in matches]
 
         # Adds catch for MS [database].[schema].[table]
-        select_into = r'(((\$body\$)([^\$]*)(\$body\$;$))|((\$\$)([^\$]*)(\$\$;$)))|(?<!\*)(?<!\*\s)(?<!--)' \
-                      r'(?<!--\s)\s*(select[^\.;]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
-                      r'[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*' \
-                      r'[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?)'
+        select_into = r' (((\$body\$)([^\$]*)(\$body\$;$))|((\$\$)([^\$]*)(\$\$;$)))|(?<!\*)(?<!\*\s)(?<!--)(?<!--\s)'\
+                r'\s*(select[^\.;]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+))'\
+            r'([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*'\
+            r'[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))?)'
         matches = re.findall(select_into, query_string, re.IGNORECASE)
 
         # [[select ... into], [table], [misc]]
