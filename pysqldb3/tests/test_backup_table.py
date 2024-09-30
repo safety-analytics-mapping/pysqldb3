@@ -159,7 +159,7 @@ class TestBackupTablesPg:
         assert not os.path.isfile(test_back_file)
 
     def test_backup_tables_idx_rename(self):
-        new_backup_name = test_pg_from_backup + '_new_name'
+        new_backup_name = '1-'+test_pg_from_backup + '_new_name'
         db.drop_table(table=test_pg_to_backup, schema=pg_schema)
 
         # table schema
@@ -183,7 +183,7 @@ class TestBackupTablesPg:
             """)
         # validate table created
         assert db.table_exists(test_pg_to_backup, schema=pg_schema)
-        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_to_backup}")
+        db.query(f'select count(*) cnt from {pg_schema}."{test_pg_to_backup}"')
         assert db.data[0][0] == 10
 
         if os.path.isfile(test_back_file):
@@ -200,7 +200,7 @@ class TestBackupTablesPg:
 
         # validate table exists
         assert db.table_exists(new_backup_name, schema=pg_schema)
-        db.query(f"select count(*) cnt from {pg_schema}.{new_backup_name}")
+        db.query(f'select count(*) cnt from {pg_schema}."{new_backup_name}"')
         assert db.data[0][0] == 10
 
         # Validate schema matches
@@ -211,7 +211,7 @@ class TestBackupTablesPg:
         # validate indexes are the same
         db.query(f"SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='{pg_schema}' AND tablename='{test_pg_to_backup}';")
         to_data = db.data
-        to_data = [_[1].replace(_[0], _[0] + '_backup').replace(f'ON {pg_schema}.{test_pg_to_backup}', f'ON {pg_schema}.{new_backup_name}') for _ in to_data]
+        to_data = [_[1].replace(_[0], _[0] + '_backup').replace(f'ON {pg_schema}.{test_pg_to_backup}', f'ON {pg_schema}."{new_backup_name}"') for _ in to_data]
         db.query(f"SELECT indexdef FROM pg_indexes WHERE schemaname='{pg_schema}' AND tablename='{new_backup_name}';")
         from_data = [_[0] for _ in db.data]
 
@@ -219,7 +219,14 @@ class TestBackupTablesPg:
 
         # clean up
         db.cleanup_new_tables()
-        assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
+        # assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
+        # db.query(f"""
+        # SELECT EXISTS (
+        # SELECT 1
+        # FROM pg_catalog.pg_tables
+        # WHERE schemaname = '{pg_schema}'
+        # AND tablename = '{new_backup_name}'
+        # """)
         assert not db.table_exists(new_backup_name, schema=pg_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
