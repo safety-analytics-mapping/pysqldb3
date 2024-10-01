@@ -1780,18 +1780,21 @@ class DbConnect:
         return
 
     def query_to_shp(self, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
-                     print_cmd=False, srid=2263):
+                     print_cmd=False, srid=2263, shp = True, gpkg_tbl = None):
         """
         Exports query results to a shp file.
         :param query: SQL query as string type
         :param path: folder path for output shp
-        :param shp_name: filename for shape (should end in .shp)
+        :param shp_name: filename for shape (should end in .shp); can also be used for gpkg (should end in .gpkg)
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: boolean to print ogr command (without password)
         :param srid: SRID to manually set output to; defaults to 2263
+        :param shp: Boolean for whether the query is to be exported as a shp or gpkg. Defaults to Shp.
+        :param gpkg_tbl: Optional argument if this function is run for gpkg
         :return:
         """
+
         # Temporarily sets temp flag to True
         original_temp_flag = self.allow_temp_tables
         self.allow_temp_tables = True
@@ -1899,8 +1902,16 @@ class DbConnect:
 
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         new_query = u"select {} from ({}) q ".format(return_cols, query)
-        Query.query_to_shp(self, new_query, path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+
+        if shp == True:
+            Query.query_to_shp(self, new_query, path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                            print_cmd=print_cmd, srid=srid)
+        else:
+            # gpkg
+            # shp_name = geopackage name
+            # gpkg_tbl argument would be filled in
+            Query.query_to_gpkg(self, new_query, path=path, gpkg_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+                            gpkg_tbl = gpkg_tbl, print_cmd=print_cmd, srid=srid)
 
         # Drop the temp table
         if self.type == PG:
@@ -2090,122 +2101,9 @@ class DbConnect:
         :param srid: SRID to manually set output to; defaults to 2263
         :return:
         """
-
-        # Send warning
-        if not gpkg_tbl:
-            print("Since no gpkg table name was input, the geopackage table will be named 'None'")
+        self.query_to_shp(query, path, shp_name = gpkg_name, cmd = cmd, gpkg_tbl = gpkg_tbl,
+                          gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
         
-        # Temporarily sets temp flag to True
-        original_temp_flag = self.allow_temp_tables
-        self.allow_temp_tables = True
-
-        # Makes a temp table name
-        tmp_table_name = "tmp_query_to_gpkg_{}_{}".format(self.user,
-                                                         str(datetime.datetime.now())[:16].replace('-', '_').replace(
-                                                             ' ', '_').replace(':', ''))
-
-        # Create temp table to get column types
-        try:
-            # Drop the temp table
-            if self.type == PG:
-                self.query(f"drop table {tmp_table_name}", internal=True, strict=False)
-            elif self.type == MS:
-                self.query(f"drop table #{tmp_table_name}", internal=True, strict=False)
-        except Exception as e:
-            print(e)
-            pass
-
-        if self.type == PG:
-            self.query(f"""    
-            create temp table {tmp_table_name} as     
-            select * 
-            from ({query}) q 
-            limit 10
-            """, internal=True)
-        elif self.type == MS:
-            self.query(f"""        
-            select top 10 * 
-            into #{tmp_table_name}
-            from ({query}) q 
-            """, internal=True)
-
-        # Extract column names, including datetime/timestamp types, from results
-        if self.type == PG:
-            col_df = self.dfquery("""
-            SELECT *
-            FROM
-            INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = '{}'
-            """.format(tmp_table_name), internal=True)
-
-            cols = ['\\"' + c + '\\"' for c in list(col_df['column_name'])]
-            dt_col_names = ['\\"' + c + '\\"' for c in list(
-                col_df[col_df['data_type'].str.contains('datetime') | col_df['data_type'].str.contains('timestamp')][
-                    'column_name'])]
-
-        elif self.type == MS:
-            col_df = self.dfquery(f"""
-            SELECT
-                [column] = c.name,
-                [type] = t.name, 
-                c.max_length, 
-                c.precision, 
-                c.scale, 
-                c.is_nullable
-            FROM
-                tempdb.sys.columns AS c
-            LEFT JOIN
-                tempdb.sys.types AS t
-            ON
-                c.system_type_id = t.system_type_id
-                AND
-                t.system_type_id = t.user_type_id
-            WHERE
-                [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}');
-            """, internal=True)
-
-            cols = ['[' + c + ']' for c in list(col_df['column'])]
-            dt_col_names = ['[' + c + ']' for c in list(
-                col_df[col_df['type'].str.contains('datetime') | col_df['type'].str.contains('timestamp')]['column'])]
-
-        # Make string of columns to be returned by select statement
-        return_cols = ' , '.join([c for c in cols if c not in dt_col_names])
-
-        # If there are datetime/timestamp columns:
-        if len(dt_col_names) > 0:
-            if self.type == PG:
-                print_cols = str([str(c[2:-2]) for c in dt_col_names])
-
-            if self.type == MS:
-                print_cols = str([str(c[1:-1]) for c in dt_col_names])
-
-            # Add the date and time (casted as a string) to the output
-            for col_name in dt_col_names:
-                if self.type == PG:
-                    shortened_col = col_name[2:-2][:7]
-                    return_cols += ' , cast(\\"{col}\\" as date) \\"{short_col}_dt\\", ' \
-                                   'cast(cast(\\"{col}\\" as time) as varchar) \\"{short_col}_tm\\" '.format(
-                                    col=col_name[2:-2], short_col=shortened_col)
-                elif self.type == MS:
-                    shortened_col = col_name[1:-1][:7]
-                    return_cols += " , cast([{col}] as date) [{short_col}_dt], cast(cast([{col}] as time) as varchar)" \
-                                   " [{short_col}_tm] ".format(
-                                    col=col_name[1:-1], short_col=shortened_col)
-
-        # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
-        new_query = f"select {return_cols} from ({query}) q "
-        Query.query_to_gpkg(self, new_query, path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
-                            gpkg_tbl = gpkg_tbl, print_cmd=print_cmd, srid=srid)
-
-        # Drop the temp table
-        if self.type == PG:
-            self.query(f"drop table {tmp_table_name}", internal=True)
-        elif self.type == MS:
-            self.query(f"drop table #{tmp_table_name}", internal=True)
-
-        # Reset the temp flag
-        self.last_query = new_query
-        self.allow_temp_tables = original_temp_flag
 
     def table_to_gpkg(self, table, schema=None, strict=True, path=None, gpkg_name=None, gpkg_tbl = None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
