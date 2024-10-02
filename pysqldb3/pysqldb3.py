@@ -657,6 +657,15 @@ class DbConnect:
         server = kwargs.get('server', self.server)
         database = kwargs.get('database', self.database)
         internal = kwargs.get('internal', False)
+        case_sensitive = kwargs.get('case_sensitive', False)
+
+        # if 1st char is not a letter set to case sensitive
+        if not re.findall(r'[a-zA-Z]', table[0]):
+            case_sensitive = True
+
+        if case_sensitive:
+            table = f'"{table}"'
+            schema = f'"{schema}"'
 
         cleaned_server = get_unique_table_schema_string(server, self.type)
         cleaned_database = get_unique_table_schema_string(database, self.type)
