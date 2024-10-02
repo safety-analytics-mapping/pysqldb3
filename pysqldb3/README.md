@@ -287,7 +287,10 @@ Checks if table exists in the database
 ###### Parameters:
  - **`table`: str** Table name 
  - **`schema`: str, default Database's default schema**: Database schema name 
- 
+ - **`server`: str, default database connection's server**: Database server name 
+ - **`internal`: bool, default False**: internal query
+ - **`case_sensitive`: bool, default False**: Specify if table name is case sensitive 
+
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
@@ -295,6 +298,9 @@ Checks if table exists in the database
 >>> db.table_exists('bike_inj', schema='working')
 
 True
+>>> db.table_exists('Bike_inj', schema='working', case_sensitive)
+
+False
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
