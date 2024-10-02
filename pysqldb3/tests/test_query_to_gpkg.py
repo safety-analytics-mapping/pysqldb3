@@ -853,7 +853,7 @@ class TestQueryToGpkgMs:
         gpkg = 'testgpkg.gpkg'
 
         sql.drop_table(schema, test_table)
-        sql.drop_table(schema, test_table + 'qa')
+        sql.drop_table(schema, test_table + 'QA')
 
         # create table
         sql.query(f"""
@@ -881,6 +881,7 @@ class TestQueryToGpkgMs:
         # import gpkg to db to compare
         sql.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
+        # fld6 automatically becomes renamed as geom when gpkg_to_table is run
         sql.query(f"""
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
@@ -897,7 +898,7 @@ class TestQueryToGpkgMs:
 
         # clean up
         sql.drop_table(schema, test_table)
-        sql.drop_table(schema, test_table + 'qa')
+        sql.drop_table(schema, test_table + 'QA')
 
         os.remove(os.path.join(fldr, gpkg))
             
@@ -907,7 +908,7 @@ class TestQueryToGpkgMs:
         gpkg = 'testgpkg.gpkg'
 
         sql.drop_table(schema, test_table)
-        sql.drop_table(schema, test_table + 'qa')
+        sql.drop_table(schema, test_table + 'QA')
 
         # create table
         sql.query(f"""
@@ -951,7 +952,7 @@ class TestQueryToGpkgMs:
 
         # clean up
         sql.drop_table(schema, test_table)
-        sql.drop_table(schema, test_table + 'qa')
+        sql.drop_table(schema, test_table + 'QA')
 
         os.remove(os.path.join(fldr, gpkg))
 

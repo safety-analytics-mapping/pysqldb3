@@ -2135,7 +2135,7 @@ class DbConnect:
     
     def gpkg_to_table(self, path=None, schema=None, table =None, gpkg_name=None, gpkg_tbl=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
-                     gpkg_encoding=None, print_cmd=False, days=7, zip=False):
+                     gpkg_encoding=None, print_cmd=False, days=7):
         """
         Imports geopackage file to database. This uses GDAL to generate the table.
         :param path: File path of the shapefile
@@ -2154,7 +2154,6 @@ class DbConnect:
         Options inlude LATIN1, UTF-8.
         :param print_cmd: Defaults to False; if True prints the cmd
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
-        :param zip: Flag to use if importing from a sipped file (defaults to False)
         :return:
         """
 
@@ -2183,7 +2182,7 @@ class DbConnect:
         gpkg = Geopackage(dbo=self, path=path, table=table, schema=schema, gpkg_name=gpkg_name, gpkg_tbl = gpkg_tbl,
                         cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
 
-        gpkg.read_gpkg(precision, private, gpkg_encoding, print_cmd, zip=zip)
+        gpkg.read_gpkg(precision, private, gpkg_encoding, print_cmd)
 
         self.tables_created.append(f"{schema}.{table}")
 
