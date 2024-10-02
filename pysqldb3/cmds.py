@@ -107,6 +107,9 @@ WRITE_GPKG_CMD_SHP = r'ogr2ogr -f "ESRI Shapefile" {gpkg_tbl}.shp "{export_path}
 
 COUNT_GPKG_LAYERS = r'ogrinfo "{full_path}"' # command used for reading in all geopackage tables
 
+# ogr2ogr -f "ESRI Shapefile" "C:\Users\SHostetter\Desktop\GIT\pysqldb3\pysqldb3\tests\output.shp" "C:\Users\SHostetter\Desktop\GIT\pysqldb3\pysqldb3\tests\gpkg_to_shp.gpkg" "test_write_gpkg_table_shostetter"
+
+
 """
 Db to Db IO 
 """
