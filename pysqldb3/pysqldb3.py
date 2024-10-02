@@ -2183,8 +2183,8 @@ class DbConnect:
         """
         Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
         :param backup_path: File path of the .sql file to be used to create the backup.
-        :param overwrite_name: Name of the database schema to use for the backup table, this will overwrite the schema name used in the backup sql script.
-        :param overwrite_schema: Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :param overwrite_name: Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :param overwrite_schema: Name of the database schema to use for the backup table, this will overwrite the schema name used in the backup sql script.
         :return: String of schema.table where backup table was written.
         """
         with open(backup_path, 'r') as f:
