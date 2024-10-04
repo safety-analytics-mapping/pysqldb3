@@ -4,7 +4,12 @@ import sys
 import psycopg2
 
 from .shapefile import *
+from .geopackage import *
 from .util import parse_table_string
+import re
+import shlex
+import subprocess
+import os
 
 
 class Query:
@@ -530,3 +535,57 @@ class Query:
         """
         for _ in query_string.split('\n'):
             print(_)
+
+    @staticmethod
+    def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, gpkg_tbl=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
+                     srid=2263):
+        """
+        Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
+        :param dbo:
+        :param query:
+        :param path:
+        :param gpkg_name: Name of geopackage
+        :param cmd:
+        :param gpkg_tbl: Table name to be created in the Geopackage file
+        :param gdal_data_loc:
+        :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
+        :param srid: sets SRID
+        :return:
+        """
+
+        gpkg = Geopackage(dbo=dbo,
+                        path=path,
+                        query=query,
+                        gpkg_name=gpkg_name,
+                        gpkg_tbl = gpkg_tbl,
+                        cmd=cmd,
+                        gdal_data_loc=gdal_data_loc,
+                        srid=srid)
+        
+        if not gpkg_name:
+            gpkg_name = '' # must set as empty string if no input to ensure that inputting a path but not gpkg_tbl would still work
+
+        table_exists = []
+
+        if os.path.isfile(os.path.join(path, gpkg_name)) == True:
+        
+            try:
+                exists_cmd = f'ogrinfo {os.path.join(path, gpkg_name)}'
+                ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
+                table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+            
+            except: 
+
+                table_exists = []
+
+            finally: 
+
+                if len(table_exists) > 0:
+                    print("The table name to be exported already exists in the geopackage. Table was overwritten")
+                    gpkg.write_gpkg(overwrite = True, print_cmd= print_cmd)
+                elif len(table_exists) == 0:
+                    gpkg.write_gpkg(print_cmd= print_cmd)
+        
+        else:
+             gpkg.write_gpkg(print_cmd= print_cmd)
+        
