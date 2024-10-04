@@ -2194,7 +2194,7 @@ class DbConnect:
 
         # there can only be one geometry column in a gpkg so we do not need to run a loop
             if geom_output:      
-                self.query(f"EXEC '{schema}.{table}.{geom_output}', 'geom', 'geometry'")
+                self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'")
         else:
             # Postgres
             geom_output = self.dfquery(f"""SELECT COLUMN_NAME 
@@ -2203,6 +2203,7 @@ class DbConnect:
                             AND lower(TABLE_NAME)=lower('{table}')
                             AND table_schema = '{schema}'
                     """).values[0][0]
+            
             if geom_output:
                 self.query(f"alter table {schema}.{table} rename column {geom_output} to geom")
                     

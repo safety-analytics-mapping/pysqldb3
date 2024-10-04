@@ -399,7 +399,7 @@ class TestQueryToGpkgPg:
             t1.fld4::date = t2.fld4_dt, -- shapefiles cannot store datetimes
             t1.fld4::time = t2.fld4_tm::time, -- shapefiles cannot store datetimes
             t1.fld5 = t2.fld5,
-            st_distance(t1.fld6, t2.fld6) < 1 -- default name from pysqldb
+            st_distance(t1.fld6, t2.geom) < 1 -- default name from pysqldb
         from {pg_schema}.{test_table} t1
         join {pg_schema}.{test_table}QA t2
         on t1.fld1=t2.fld1
@@ -451,7 +451,7 @@ class TestQueryToGpkgPg:
             t1.longfld4::date = t2.longfld_dt, -- shapefiles cannot store datetimes
             t1.longfld4::time = t2.longfld_tm::time, -- shapefiles cannot store datetimes
             t1.fld5 = t2.fld5,
-            st_distance(t1.fld6, t2.fld6) < 1 -- deafult name from pysqldb
+            st_distance(t1.fld6, t2.geom) < 1 -- deafult name from pysqldb
         from {pg_schema}.{test_table} t1
         join {pg_schema}.{test_table}QA t2
         on t1.fld1=t2.fld1
@@ -882,6 +882,7 @@ class TestQueryToGpkgMs:
         sql.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         # fld6 automatically becomes renamed as geom when gpkg_to_table is run
+        # t1 field should remain fld6 because that is how the table was created directly in 
         sql.query(f"""
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
