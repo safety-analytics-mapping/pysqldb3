@@ -2158,7 +2158,6 @@ class DbConnect:
         """
 
         assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
-
         if not schema:
             schema = self.default_schema
 
@@ -2184,6 +2183,29 @@ class DbConnect:
 
         gpkg.read_gpkg(precision, private, gpkg_encoding, print_cmd)
 
+        if self.type == "MS":
+        # rename geom columns if necessary (problem only identified in MS)
+            geom_output = self.dfquery(f""" SELECT COLUMN_NAME 
+                                            FROM information_schema.COLUMNS 
+                                            WHERE lower(TABLE_NAME)=lower('{table}')
+                                            and table_schema = '{schema}'
+                                            AND DATA_TYPE = 'geometry'
+                """).values[0][0]
+
+        # there can only be one geometry column in a gpkg so we do not need to run a loop
+            if geom_output:      
+                self.query(f"EXEC '{schema}.{table}.{geom_output}', 'geom', 'geometry'")
+        else:
+            # Postgres
+            geom_output = self.dfquery(f"""SELECT COLUMN_NAME 
+                            FROM information_schema.COLUMNS 
+                            WHERE data_type = 'USER-DEFINED'
+                            AND lower(TABLE_NAME)=lower('{table}')
+                            AND table_schema = '{schema}'
+                    """).values[0][0]
+            if geom_output:
+                self.query(f"alter table {schema}.{table} rename column {geom_output} to geom")
+                    
         self.tables_created.append(f"{schema}.{table}")
 
         if temp:
