@@ -1800,43 +1800,41 @@ class DbConnect:
         self.allow_temp_tables = True
 
         # Makes a temp table name
-        tmp_table_name = "tmp_query_to_shp_{}_{}".format(self.user,
-                                                         str(datetime.datetime.now())[:16].replace('-', '_').replace(
-                                                             ' ', '_').replace(':', ''))
+        tmp_table_name = f"tmp_query_to_shp_{self.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
 
         # Create temp table to get column types
         try:
             # Drop the temp table
             if self.type == PG:
-                self.query("drop table {}".format(tmp_table_name), internal=True, strict=False)
+                self.query(f"drop table {tmp_table_name}", internal=True, strict=False)
             elif self.type == MS:
-                self.query("drop table #{}".format(tmp_table_name), internal=True, strict=False)
+                self.query(f"drop table #{tmp_table_name}", internal=True, strict=False)
         except Exception as e:
             print(e)
             pass
 
         if self.type == PG:
-            self.query(u"""    
-            create temp table {} as     
+            self.query(f"""    
+            create temp table {tmp_table_name} as     
             select * 
-            from ({}) q 
+            from ({query}) q 
             limit 10
-            """.format(tmp_table_name, query), internal=True)
+            """, internal=True)
         elif self.type == MS:
-            self.query(u"""        
+            self.query(f"""        
             select top 10 * 
-            into #{}
-            from ({}) q 
-            """.format(tmp_table_name, query), internal=True)
+            into #{tmp_table_name}
+            from ({query}) q 
+            """, internal=True)
 
         # Extract column names, including datetime/timestamp types, from results
         if self.type == PG:
-            col_df = self.dfquery("""
+            col_df = self.dfquery(f"""
             SELECT *
             FROM
             INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = '{}'
-            """.format(tmp_table_name), internal=True)
+            WHERE TABLE_NAME = '{tmp_table_name}'
+            """)
 
             cols = ['\\"' + c + '\\"' for c in list(col_df['column_name'])]
             dt_col_names = ['\\"' + c + '\\"' for c in list(
@@ -1844,7 +1842,7 @@ class DbConnect:
                     'column_name'])]
 
         elif self.type == MS:
-            col_df = self.dfquery("""
+            col_df = self.dfquery(f"""
             SELECT
                 [column] = c.name,
                 [type] = t.name, 
@@ -1861,8 +1859,8 @@ class DbConnect:
                 AND
                 t.system_type_id = t.user_type_id
             WHERE
-                [object_id] = OBJECT_ID(N'tempdb.dbo.#{}');
-            """.format(tmp_table_name), internal=True)
+                [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}');
+            """, internal=True)
 
             cols = ['[' + c + ']' for c in list(col_df['column'])]
             dt_col_names = ['[' + c + ']' for c in list(
@@ -1879,13 +1877,13 @@ class DbConnect:
             if self.type == MS:
                 print_cols = str([str(c[1:-1]) for c in dt_col_names])
 
-            print("""
+            print(f"""
             The following columns are of type datetime/timestamp: \n
-            {}
+            {print_cols}
             
             Shapefiles don't support datetime/timestamps with both the date and time. Each column will be split up
             into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
-            """.format(print_cols))
+            """)
 
             # Add the date and time (casted as a string) to the output
             for col_name in dt_col_names:
@@ -1901,7 +1899,7 @@ class DbConnect:
                                     col=col_name[1:-1], short_col=shortened_col)
 
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
-        new_query = u"select {} from ({}) q ".format(return_cols, query)
+        new_query = f"select {return_cols} from ({query}) q "
 
         if shp == True:
             Query.query_to_shp(self, new_query, path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
@@ -1915,9 +1913,9 @@ class DbConnect:
 
         # Drop the temp table
         if self.type == PG:
-            self.query("drop table {}".format(tmp_table_name), internal=True)
+            self.query(f"drop table {tmp_table_name}", internal=True, strict=False)
         elif self.type == MS:
-            self.query("drop table #{}".format(tmp_table_name), internal=True)
+            self.query(f"drop table #{tmp_table_name}", internal=True, strict=False)
 
         # Reset the temp flag
         self.last_query = new_query
@@ -1943,7 +1941,7 @@ class DbConnect:
 
         path, shp_name = parse_shp_path(path, shp_name)
 
-        return self.query_to_shp("select * from {}.{}".format(schema, table),
+        return self.query_to_shp(f"select * from {schema}.{table}",
                                  path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                                  print_cmd=print_cmd, srid=srid)
 
@@ -2185,27 +2183,31 @@ class DbConnect:
 
         if self.type == "MS":
         # rename geom columns if necessary (problem only identified in MS)
-            geom_output = self.dfquery(f""" SELECT COLUMN_NAME 
+            try:
+                geom_output = self.dfquery(f""" SELECT COLUMN_NAME 
                                             FROM information_schema.COLUMNS 
                                             WHERE lower(TABLE_NAME)=lower('{table}')
                                             and table_schema = '{schema}'
-                                            AND DATA_TYPE = 'geometry'
-                """).values[0][0]
+                                            AND DATA_TYPE = 'geometry' """).values[0][0]
 
-        # there can only be one geometry column in a gpkg so we do not need to run a loop
-            if geom_output:      
-                self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'")
+                if geom_output != 'geom':      
+                    self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'")
+            except:
+                pass
         else:
             # Postgres
-            geom_output = self.dfquery(f"""SELECT COLUMN_NAME 
-                            FROM information_schema.COLUMNS 
-                            WHERE data_type = 'USER-DEFINED'
-                            AND lower(TABLE_NAME)=lower('{table}')
-                            AND table_schema = '{schema}'
-                    """).values[0][0]
+            try:
+                geom_output = self.dfquery(f"""SELECT COLUMN_NAME 
+                                FROM information_schema.COLUMNS 
+                                WHERE data_type = 'USER-DEFINED'
+                                AND lower(TABLE_NAME)=lower('{table}')
+                                AND table_schema = '{schema}'
+                        """).values[0][0]
             
-            if geom_output:
-                self.query(f"alter table {schema}.{table} rename column {geom_output} to geom")
+                if geom_output != 'geom':
+                    self.query(f"alter table {schema}.{table} rename column {geom_output} to geom")
+            except:
+                pass
                     
         self.tables_created.append(f"{schema}.{table}")
 
