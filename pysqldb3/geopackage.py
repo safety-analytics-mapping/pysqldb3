@@ -352,7 +352,7 @@ class Geopackage:
                 if 'pkey' not in index_name and 'PK' not in index_name:
                     self.dbo.query('DROP INDEX {t}.{i}'.format(t=self.table, i=index_name), strict=False, internal=True)
 
-    def read_gpkg(self, precision=False, private=True, gpkg_encoding=None, print_cmd=False, zip=False):
+    def read_gpkg(self, precision=False, private=True, gpkg_encoding=None, print_cmd=False):
         """
         Reads a geopackage into SQL or Postgresql as a table
 
@@ -360,7 +360,6 @@ class Geopackage:
         :param private:
         :param gpkg_encoding: encoding of data within Geopackage
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
-        :param zip: Optional flag needed if reading from a zipped file; defaults to False
         :return:
         """
         port = self.port
