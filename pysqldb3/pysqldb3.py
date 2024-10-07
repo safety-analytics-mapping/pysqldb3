@@ -660,7 +660,7 @@ class DbConnect:
         case_sensitive = kwargs.get('case_sensitive', False)
 
         # if 1st char is not a letter set to case sensitive
-        if not re.findall(r'[a-zA-Z]', table[0]):
+        if not re.findall(r'[a-zA-Z_]', table[0]):
             case_sensitive = True
 
         if case_sensitive:
