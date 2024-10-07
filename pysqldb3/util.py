@@ -145,7 +145,11 @@ def get_query_table_schema_name(tbl_str, db_type):
             return '"' + tbl_str + '"'
 
     if db_type == MS:
-        return '[' + tbl_str + ']'
+        if tbl_str.islower() and " " not in tbl_str:
+            return tbl_str
+        else:
+            return '[' + tbl_str + ']'
+
 
 
 def parse_table_string(tbl_str, default_schema, db_type):
