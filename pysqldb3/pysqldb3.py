@@ -2096,3 +2096,106 @@ class DbConnect:
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
+
+    def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
+        """
+        Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
+        as backing up to csv for large tables, but it will ensure identical schema.
+        :param org_schema: Name of database schema of the table to be backed up.
+        :param org_table: Name of database table to be backed up.
+        :param backup_path: File path where the .sql file will be written.
+        :param backup_schema: Name of database schema the backed up table will be written back to.
+        :param backup_table: Name of database table the backed up table will be written back to.
+        :return: backup_schema, backup_table
+        """
+
+        # TODO
+        #  - think about bulk tables?
+
+
+
+        tbl_schema = self.get_table_columns(org_table, schema=org_schema)
+
+        # CREATE TABLE QUERY
+        _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
+        for col, dtyp in tbl_schema:
+            _create_qry += f'\n"{col}" {dtyp},'
+        _create_qry=_create_qry[:-1]+');\n'
+
+        # INSERT INTO TABLE QUERY
+        _insert_qry = f'INSERT INTO "{backup_schema}"."{backup_table}" values\n'
+        self.query(f'select * from "{org_schema}"."{org_table}"', internal=True)
+        data  = self.internal_data
+        for row in data:
+            r = "("
+            for col in row:
+                if col == None:
+                    r += f"NULL,"
+                elif type(col) == str:
+                    r += f"""'{col.replace("'","''")}',"""
+                else:
+                    r += f"'{col}',"
+            r = r[:-1] + '),'
+            _insert_qry += r
+
+        _insert_qry = _insert_qry[:-1] + ';\n'
+
+        # CREATE INDEX QUERY
+        _idx_query = self.get_table_indexes(org_schema, org_table)
+
+        with open(backup_path, 'w') as f:
+            # Write header
+            f.write(f'''/*\nBackup SQL from {self.server}.{self.database}.{org_schema}.{org_table}
+            on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n*/\n\n''')
+
+            # Write sql queries
+            f.write(_create_qry)
+            f.write(_insert_qry)
+            f.write(_idx_query.format(schema=backup_schema, table=backup_table))
+
+        return backup_schema, backup_table
+
+
+    def get_table_indexes(self, schema, table):
+        """
+        Generates the create index sql scripts for any table.
+        :param schema: Name of the database schema of the table to get the idexes from.
+        :param table: Name of the database table of the table to get the idexes from.
+        :return: SQL script to create indexes associated with input table.
+        """
+        if self.type == 'MS':
+            self.query(GET_MS_INDEX_QUERY.format(schema=schema, table=table), internal=True)
+            idxs = self.internal_data
+            idx_qry = ''
+            for n, c, t in idxs:
+                idx_qry += f"CREATE {t} INDEX [{n}_backup] ON [{schema}].[{table}] ({c});\n"
+            return idx_qry.replace(f'[{schema}].[{table}]', '"{schema}"."{table}"') + "\n"
+
+        elif self.type == 'PG':
+            self.query(GET_PG_INDEX_QUERY.format(schema=schema, table=table), internal=True)
+            idxs = self.internal_data
+            idx_qry = ';'.join([_[1].replace(_[0], _[0]+'_backup') for _ in idxs])
+            return idx_qry.replace(f'{schema}.{table}', '"{schema}"."{table}"') + "\n"
+
+
+
+    def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None):
+        """
+        Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
+        :param backup_path: File path of the .sql file to be used to create the backup.
+        :param overwrite_name: Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :param overwrite_schema: Name of the database schema to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :return: String of schema.table where backup table was written.
+        """
+        with open(backup_path, 'r') as f:
+            read_data = f.read()
+        schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
+                       read_data)[0].replace('CREATE TABLE ', '')[:-2]
+        if all([overwrite_name, overwrite_schema]):
+            read_data = read_data.replace(schema_table_name, f'"{overwrite_schema}"."{overwrite_name}"')
+            read_data = read_data.replace('['+schema_table_name.split('.')[0]+'].['+schema_table_name.split('.')[1]+']',
+                                          f'[{overwrite_schema}].[{overwrite_name}]')
+            schema_table_name = f'{overwrite_schema}.{overwrite_name}'
+        self.query(read_data)
+        assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
+        return schema_table_name
