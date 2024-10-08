@@ -2145,7 +2145,7 @@ class DbConnect:
 
         with open(backup_path, 'w') as f:
             # Write header
-            f.write(f'''/*\nBackeup SQL from {self.server}.{self.database}.{org_schema}.{org_table}
+            f.write(f'''/*\nBackup SQL from {self.server}.{self.database}.{org_schema}.{org_table}
             on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n*/\n\n''')
 
             # Write sql queries
