@@ -29,6 +29,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         allow_temp_tables=True)
 
 test_table = 'pytest_{}'.format(db.user)
+test_table2 = 'Pytest_{}'.format(db.user)
+test_table3 = '3Pytest_{}'.format(db.user)
 
 
 class TestTableExistsPG():
@@ -119,6 +121,33 @@ class TestTableExistsPG():
         ris_db.query("""drop table bf_pytest""")
         assert ris_db.table_exists(table='bf_pytest') == False
 
+    def test_table_exists_special_chars(self):
+        for tbl in (test_table2, test_table3):
+            db.query(f"""
+                drop table if exists "{tbl}";
+                create table "{tbl}" (id integer)
+            """)
+
+            assert db.table_exists(tbl, case_sensitive=True)
+
+            db.query(f"""
+                drop table if exists "{tbl}"
+            """)
+
+    def test_table_exists_special_chars_auto(self):
+        db.drop_table(schema=db.default_schema, table=test_table3)
+        db.query(f"""
+            create table "{test_table3}" (id integer)
+        """)
+
+        assert db.table_exists(test_table3)
+
+        db.query(f"""
+            drop table if exists "{test_table3}"
+        """)
+
+
+
 
 class TestTableExistsMS():
 
@@ -182,3 +211,29 @@ class TestTableExistsMS():
     def test_table_exists_ms_temp_drop(self):
         sql.query("""drop table #pytest""")
         assert not sql.table_exists('#pytest')
+
+
+    def test_table_exists_special_chars(self):
+        for tbl in (test_table2, test_table3):
+            sql.drop_table(schema=sql.default_schema, table=tbl)
+            sql.query(f"""
+                create table "{tbl}" (id integer)
+            """)
+
+            assert sql.table_exists(tbl, case_sensitive=True)
+
+            sql.query(f"""
+                drop table if exists "{tbl}"
+            """)
+
+    def test_table_exists_special_chars_auto(self):
+        sql.drop_table(schema=sql.default_schema, table=test_table3)
+        sql.query(f"""
+            create table "{test_table3}" (id integer)
+        """)
+
+        assert sql.table_exists(test_table3)
+
+        sql.query(f"""
+            drop table if exists "{test_table3}"
+        """)
