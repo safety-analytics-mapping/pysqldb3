@@ -391,9 +391,9 @@ def parse_shp_path(path=None, shp_name=None):
 def parse_gpkg_path(path=None, gpkg_name=None):
     """
     Standardizes extracting geopackage file name from path process, if gpkg_name provided that will override anything in the path
-    :param path: folder path with or without shp
+    :param path: folder path with or without gpkg
     :param gpkg_name: geopackage name
-    :return: path (without shp), gpkg_name
+    :return: path (without gpkg), gpkg_name
     """
     # type: (str, str)
     if not path:
