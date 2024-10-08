@@ -664,8 +664,12 @@ class DbConnect:
             case_sensitive = True
 
         if case_sensitive:
-            table = f'"{table}"'
-            schema = f'"{schema}"'
+            if self.type == MS and ('[' in table or '"' in table):
+                # account for [dbo].["test"]
+                table = table
+            else:
+                table = f'"{table}"'
+                schema = f'"{schema}"'
 
         cleaned_server = get_unique_table_schema_string(server, self.type)
         cleaned_database = get_unique_table_schema_string(database, self.type)
