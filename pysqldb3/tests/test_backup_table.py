@@ -74,6 +74,7 @@ class TestBackupTablesPg:
         # run backup
         db.drop_table(pg_schema, test_pg_from_backup)
         schema_table_name = db.create_table_from_backup(test_back_file)
+        assert re.findall(r'[\-["\w"\]]*\.[-\["\w"\]]*', schema_table_name)
 
         # validate table exists
         assert db.table_exists(test_pg_from_backup, schema=pg_schema)
