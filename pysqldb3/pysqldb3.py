@@ -1779,11 +1779,12 @@ class DbConnect:
         fig.show()
         return
 
-    def query_to_shp(self, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
-                     print_cmd=False, srid=2263, shp = True, gpkg_tbl = None):
+    def query_to_shp(self, query,  gpkg_tbl, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+                     print_cmd=False, srid=2263, shp = True):
         """
         Exports query results to a shp file.
         :param query: SQL query as string type
+        :param gpkg_tbl: Argument if this function is run for gpkg
         :param path: folder path for output shp
         :param shp_name: filename for shape (should end in .shp); can also be used for gpkg (should end in .gpkg)
         :param cmd: GDAL command to overwrite default
@@ -1791,7 +1792,6 @@ class DbConnect:
         :param print_cmd: boolean to print ogr command (without password)
         :param srid: SRID to manually set output to; defaults to 2263
         :param shp: Boolean for whether the query is to be exported as a shp or gpkg. Defaults to Shp.
-        :param gpkg_tbl: Optional argument if this function is run for gpkg
         :return:
         """
 
@@ -2085,20 +2085,21 @@ class DbConnect:
             self.__run_table_logging([schema + "." + table], days=days)
 
 
-    def query_to_gpkg(self, query, path=None, gpkg_name=None, cmd=None, gpkg_tbl = None, gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_gpkg(self, query, gpkg_tbl, path=None, gpkg_name=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
         Exports query results to a geopackage (.gpkg) file.
         :param query: SQL query as string type
-        :param path: folder path for output gpkg
+        :param gpkg_tbl (str): Table name to be written in the Geopackage output
+        :param path (str): folder path for output gpkg
         :param gpkg_name: filename for shape (should end in .gpkg)
         :param cmd: GDAL command to overwrite default
-        :param gpkg_tbl: Table name to be written in the Geopackage output
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
-        :param print_cmd: boolean to print ogr command (without password)
+        :param print_cmd: (bool): print ogr command (without password)
         :param srid: SRID to manually set output to; defaults to 2263
         :return:
         """
+            
         self.query_to_shp(query, path, shp_name = gpkg_name, cmd = cmd, gpkg_tbl = gpkg_tbl,
                           gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
         
