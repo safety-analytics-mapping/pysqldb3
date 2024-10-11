@@ -537,8 +537,7 @@ class Query:
             print(_)
 
     @staticmethod
-    def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, gpkg_tbl=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
-                     srid=2263):
+    def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, gpkg_tbl=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
         :param dbo:
@@ -553,14 +552,9 @@ class Query:
         :return:
         """
 
-        gpkg = Geopackage(dbo=dbo,
-                        path=path,
-                        query=query,
+        gpkg = Geopackage(path=path,
                         gpkg_name=gpkg_name,
-                        gpkg_tbl = gpkg_tbl,
-                        cmd=cmd,
-                        gdal_data_loc=gdal_data_loc,
-                        srid=srid)
+                        gpkg_tbl = gpkg_tbl)
         
         if not gpkg_name:
             gpkg_name = '' # must set as empty string if no input to ensure that inputting a path but not gpkg_tbl would still work
@@ -582,10 +576,9 @@ class Query:
 
                 if len(table_exists) > 0:
                     print("The table name to be exported already exists in the geopackage. Table was overwritten")
-                    gpkg.write_gpkg(overwrite = True, print_cmd= print_cmd)
+                    gpkg.write_gpkg(dbo = dbo, gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
                 elif len(table_exists) == 0:
-                    gpkg.write_gpkg(print_cmd= print_cmd)
+                    gpkg.write_gpkg(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
         
         else:
-             gpkg.write_gpkg(print_cmd= print_cmd)
-        
+             gpkg.write_gpkg(dbo = dbo, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)

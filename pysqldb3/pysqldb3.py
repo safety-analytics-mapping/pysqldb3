@@ -2104,7 +2104,7 @@ class DbConnect:
                           gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
         
 
-    def table_to_gpkg(self, table, schema=None, strict=True, path=None, gpkg_name=None, gpkg_tbl = None, cmd=None,
+    def table_to_gpkg(self, table, schema=None, path=None, gpkg_name=None, gpkg_tbl = None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports table to a geopackage file. Generates query to query_to_gpkg.
@@ -2132,17 +2132,17 @@ class DbConnect:
                                  path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc, gpkg_tbl = gpkg_tbl,
                                  print_cmd=print_cmd, srid=srid)
     
-    def gpkg_to_table(self, path=None, schema=None, table =None, gpkg_name=None, gpkg_tbl=None, cmd=None,
+    def gpkg_to_table(self, dbo = None, path=None, schema=None, table =None, gpkg_name=None, gpkg_tbl=None, 
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7):
         """
         Imports geopackage file to database. This uses GDAL to generate the table.
+        :param dbo: Database connection
         :param path: File path of the shapefile
         :param schema: Schema to use in the database (defaults to db's default schema)
         :param table: Output table name in database. If blank, output name will match geopackage table name.
         :param gpkg_name: Geopackage name (ends in .gpkg)
         :param gpkg_table: (Optional) Input table name from Geopackage. If blank, all tables in geopackage will be loaded in.
-        :param cmd: Optional ogr2ogr command to overwrite default
         :param srid:  SRID to use (defaults to 2263)
         :param port:
         :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
@@ -2158,10 +2158,10 @@ class DbConnect:
 
         assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
         if not schema:
-            schema = self.default_schema
+            schema = dbo.default_schema
 
         if not port:
-            port = self.port
+            port = 5432
 
         path, gpkg = parse_gpkg_path(path, gpkg_name)
         if not gpkg_name:
@@ -2177,10 +2177,10 @@ class DbConnect:
         
         table = table.lower()
 
-        gpkg = Geopackage(dbo=self, path=path, table=table, schema=schema, gpkg_name=gpkg_name, gpkg_tbl = gpkg_tbl,
-                        cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
+        gpkg = Geopackage(path=path, gpkg_name=gpkg_name, gpkg_tbl = gpkg_tbl)
 
-        gpkg.read_gpkg(precision, private, gpkg_encoding, print_cmd)
+        gpkg.read_gpkg(dbo = dbo, schema = schema, table = table, gpkg_encoding = gpkg_encoding, srid = srid,
+                       gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
 
         if self.type == "MS":
         # rename geom columns if necessary (problem only identified in MS)
