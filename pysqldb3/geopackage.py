@@ -49,10 +49,7 @@ class Geopackage:
         :param print_cmd (bool): Optional flag to print the GDAL command being used; defaults to False
         :return:
         """
-
-        if not schema:
-            schema = dbo.default_schema
-
+        
         if table:
             qry = f"SELECT * FROM {schema}.{table}"
         elif not table and not query:
