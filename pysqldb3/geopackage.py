@@ -12,25 +12,12 @@ class Geopackage:
     def __str__(self):
         pass
 
-    def __init__(self, dbo=None, path=None, table=None, schema=None, query=None, gpkg_name=None, gpkg_tbl = None, cmd=None,
-                 srid='2263', port=5432, gdal_data_loc=GDAL_DATA_LOC, skip_failures='', shp_name = None):
-        self.dbo = dbo
+    def __init__(self, path=None, gpkg_name=None, gpkg_tbl = None, skip_failures='', shp_name = None):
         self.path = path
-        self.table = table # db table
-        self.schema = schema
-        self.query = query
         self.gpkg_name = gpkg_name
         self.gpkg_tbl = gpkg_tbl
-        self.cmd = cmd
-        self.srid = srid
-        self.port = port
-        self.gdal_data_loc = gdal_data_loc
         self.skip_failures=skip_failures
         self.shp_name = shp_name
-
-        # Use default schema from db object
-        if not self.schema:
-            self.schema = dbo.default_schema
 
     @staticmethod
     def name_extension(name):
@@ -45,23 +32,33 @@ class Geopackage:
         else:
             return name + '.gpkg'
 
-    def write_gpkg(self, overwrite = False, print_cmd=False):
+    def write_gpkg(self, dbo = None, table = None, schema  = None, query = None, srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
+        
         """
         Converts a SQL or Postgresql query to a new geopackage.
         Rename the geopackage table using the argument gpkg_tbl.
         Otherwise, the table name in the geopackage output will match the name of the input db table.
         
-        :param overwrite: Overwrite the specific table in the geopackage; defaults to False
-        :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
+        :param dbo: Database connection
+        :param table (str): DB Table
+        :param schema (str): DB schema
+        :param query (str): DB query whose output is to be written to a GPKG
+        :param srid (str): SRID for geometry. Defaults to 2263
+        :param cmd (str): Command
+        :param overwrite (bool): Overwrite the specific table in the geopackage; defaults to False
+        :param print_cmd (bool): Optional flag to print the GDAL command being used; defaults to False
         :return:
         """
 
-        if self.table:
-            qry = f"SELECT * FROM {self.schema}.{self.table}"
-        elif not self.table and not self.query:
+        if not schema:
+            schema = dbo.default_schema
+
+        if table:
+            qry = f"SELECT * FROM {schema}.{table}"
+        elif not table and not query:
             raise Exception('Please specify the table to be written to the Geopackage.')
         else:
-            qry = f"SELECT * FROM ({self.query}) x"
+            qry = f"SELECT * FROM ({query}) x"
 
         self.path, gpkg = parse_gpkg_path(self.path, self.gpkg_name)
 
@@ -84,7 +81,7 @@ class Geopackage:
             self.path = file_loc('folder')
 
         if not self.gpkg_tbl:
-            self.gpkg_tbl = self.table
+            self.gpkg_tbl = table
 
         # overwrite vs update vs an issue has arisen
         if overwrite:
@@ -103,86 +100,90 @@ class Geopackage:
                 exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
                 ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
                 table_exists = re.findall(f"{self.gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
-                assert len(table_exists) == 0, "The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied."
+                
+            except Exception:
+                if len(table_exists) == 0:
+                    "The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied."
 
             finally:
             # update variables if this case is successful
                 _update = '-update'
                 _overwrite = ''
 
-        if not self.cmd:
-            if self.dbo.type == 'PG':
-                self.cmd = WRITE_GPKG_CMD_PG.format(export_path=self.path,
+        if not cmd:
+            if dbo.type == 'PG':
+                cmd = WRITE_GPKG_CMD_PG.format(export_path=self.path,
                                                    gpkg_name=self.name_extension(self.gpkg_name),
-                                                   host=self.dbo.server,
-                                                   username=self.dbo.user,
-                                                   db=self.dbo.database,
-                                                   password=self.dbo.password,
+                                                   host=dbo.server,
+                                                   username=dbo.user,
+                                                   db=dbo.database,
+                                                   password=dbo.password,
                                                    pg_sql_select=qry,
                                                    gpkg_tbl = self.gpkg_tbl,
-                                                   tbl_name = self.table,
+                                                   tbl_name = table,
                                                    _overwrite = _overwrite,
                                                    _update = _update,
-                                                   srid=self.srid,
-                                                   gdal_data=self.gdal_data_loc)
-            elif self.dbo.type == 'MS':
-                if self.dbo.LDAP:
-                    self.cmd = WRITE_GPKG_CMD_MS.replace(";UID={username};PWD={password}", "").format(
+                                                   srid=srid,
+                                                   gdal_data=gdal_data_loc)
+            elif dbo.type == 'MS':
+                if dbo.LDAP:
+                    cmd = WRITE_GPKG_CMD_MS.replace(";UID={username};PWD={password}", "").format(
                         export_path=self.path,
                         gpkg_name=self.name_extension(self.gpkg_name),
-                        host=self.dbo.server,
-                        db=self.dbo.database,
+                        host=dbo.server,
+                        db=dbo.database,
                         ms_sql_select=qry,
                         gpkg_tbl = self.gpkg_tbl,
                         _overwrite = _overwrite,
                         _update = _update,
-                        tbl_name = self.table,
-                        srid=self.srid,
-                        gdal_data=self.gdal_data_loc
+                        tbl_name = table,
+                        srid=srid,
+                        gdal_data=gdal_data_loc
                     )
                 else:
-                    self.cmd = WRITE_GPKG_CMD_MS.format(export_path=self.path,
+                    cmd = WRITE_GPKG_CMD_MS.format(export_path=self.path,
                                                        gpkg_name=self.name_extension(self.gpkg_name),
-                                                       host=self.dbo.server,
-                                                       username=self.dbo.user,
-                                                       db=self.dbo.database,
-                                                       password=self.dbo.password,
+                                                       host=dbo.server,
+                                                       username=dbo.user,
+                                                       db=dbo.database,
+                                                       password=dbo.password,
                                                        ms_sql_select=qry,
                                                        gpkg_tbl = self.gpkg_tbl,
                                                        _overwrite = _overwrite,
                                                        _update = _update,
-                                                       tbl_name = self.table,
-                                                       srid=self.srid,
-                                                       gdal_data=self.gdal_data_loc)
+                                                       tbl_name = table,
+                                                       srid=srid,
+                                                       gdal_data=gdal_data_loc)
 
         if print_cmd:
-            print(print_cmd_string([self.dbo.password], self.cmd))
+            print(print_cmd_string([dbo.password], cmd))
 
         try:
-            ogr_response = subprocess.check_output(shlex.split(self.cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
             print(ogr_response)
         except subprocess.CalledProcessError as e:
             print("Ogr2ogr Output:\n", e.output)
             print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
-            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], self.cmd), returncode=1)
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
 
-        if self.table:
+        if table:
             print('{t} geopackage \nwritten to: {p}\ngenerated from: {q}'.format(t=self.name_extension(self.gpkg_name),
                                                                                 p=self.path,
-                                                                                q=self.table))
+                                                                                q=table))
         else:
             print(u'{t} geopackage \nwritten to: {p}\ngenerated from: {q}'.format(
                 t=self.name_extension(self.gpkg_name),
                 p=self.path,
-                q=self.query))
+                q=query))
             
-    def shp_to_gpkg(self, shp_name, gpkg_tbl = None, print_cmd=False):
+    def shp_to_gpkg(self, shp_name, gpkg_tbl = None, cmd = None):
         
         """
-        Converts a Shapefile to a Geopackage file
-        :param shp_name: file name for shape file input (should end in .shp)
-        :param gpkg_tbl: OPTIONAL table name in the new geopackage; leave blank if you want the table name the same as the gpkg_name
-        :param print_cmd: Print command line query
+        Converts a Shapefile to a Geopackage file in the same file location as the original Shapefile.
+        :param shp_name (str): file name for shape file input (should end in .shp)
+        :param gpkg_name (str): file name for gpkg ouput (should end with .gpkg)
+        :param gpkg_tbl (str): OPTIONAL table name in the new geopackage; leave blank if you want the table name the same as the gpkg_name
+        :param print_cmd (bool): Print command line query
         """
         
         assert self.gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
@@ -201,69 +202,62 @@ class Geopackage:
         # check if the gpkg already exists. if so, we add another layer to the gpkg
         if not os.path.isfile(os.path.join(self.path, self.gpkg_name)):
 
-            self.cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
+            cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
+                                                  full_path = self.path,
                                                 shp_name = shp_name,
                                                 _update = '',
-                                                gpkg_tbl = gpkg_tbl,
-                                                export_path=self.path)
+                                                gpkg_tbl = gpkg_tbl)
         
         else:
 
-            self.cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
+            cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
+                                                  full_path = self.path,
                                                 shp_name = shp_name,
                                                 _update = '-update',
-                                                gpkg_tbl = gpkg_tbl,
-                                                export_path=self.path)
-
-        if print_cmd:
-            print(print_cmd_string([self.dbo.password], self.cmd))
+                                                gpkg_tbl = gpkg_tbl)
 
         try:
-            ogr_response = subprocess.check_output(shlex.split(self.cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
             print(ogr_response)
         except subprocess.CalledProcessError as e:
             print("Ogr2ogr Output:\n", e.output)
             print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
-            raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], self.cmd), returncode=1)
-
         return
 
-    def gpkg_to_shp(self, print_cmd=False):
-        
+    def gpkg_to_shp(self, gpkg_tbl = None, export_path = None, cmd = None):
         """
         Converts a Geopackage to a Shapefile.
         The output Shapefile name will match the name of the geopackage table to be copied.
 
-        :param gpkg_name: file name for geopackage input (should end in .gpkg)
-
-        :param export_path: The folder directory to place the shapefiles output.
+        :param gpkg_name (str): file name for geopackage input (should end in .gpkg)
+        :param gpkg_tbl (str): OPTIONAL specific table within the geopackage to convert to a Shapefile
+        :param export_path: str The folder directory to place the shapefiles output.
                             You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.
-
-        :param gpkg_tbl: OPTIONAL. Name of the single table in the geopackage that you want to convert to a Shapefile.
-                         Do not add gpkg_tbl argument if you want to copy all tables within the geopackage input.
-
-        :param print_cmd: Print command line query
+        :param print_cmd (bool): Print command line query
         """
         
         assert self.gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
 
         self.path, gpkg = parse_gpkg_path(self.path, self.gpkg_name)
 
+        # set a default self.path for the gpkg input if it exists
         if not self.path:
             self.path = file_loc('folder')
 
-        full_path = os.path.join(self.path, self.gpkg_name)
+        # set an export path to the gpkg if it is not manually set up
+        if not export_path:
+            export_path = self.path
 
         ### bulk upload capabilities ### 
         
-        if not self.gpkg_tbl:
+        if not gpkg_tbl:
 
             #######
             # if no table name listed in argument, then we assume bulk upload
             # this prompts us to count the number of tables within the geopackage to confirm bulk upload
             
             # confirm number of tables within the geotable
-            count_cmd = COUNT_GPKG_LAYERS.format(full_path = full_path) 
+            count_cmd = COUNT_GPKG_LAYERS.format(full_path = os.path.join(self.path, self.gpkg_name)) 
 
             try:
                 ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
@@ -273,11 +267,11 @@ class Geopackage:
             except subprocess.CalledProcessError as e:
                 print("Ogr2ogr Output:\n", e.output)
                 print('Ogr2ogr command failed. The Geopackage was not read in.')
-                raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], count_cmd), returncode=1)
+                raise subprocess.CalledProcessError(count_cmd, returncode=1)
             
             if tbl_count > 1:
 
-                assert not self.table, """Since the geopackage has more than 1 layer to be read, you cannot specify one output table name to apply to all the tables. \n
+                assert not gpkg_tbl, """Since the geopackage has more than 1 layer to be read, you cannot specify one output table name to apply to all the tables. \n
                                     Either run the function for each table with customized output table names separately, \n
                                     or remove the 'db_table' or 'table' argument for bulk upload.
                                     """
@@ -290,79 +284,88 @@ class Geopackage:
 
             # if the bulk upload involves only 1 table and no db table name was specified, we name the table the same thing as the original gpkg table
             elif tbl_count == 1:            
-                gpkg_tbl_names = {re.search(r'([a-z0-9A-Z_]+)$', tables_in_gpkg[0]).group(): self.table}
+                gpkg_tbl_names = {re.search(r'([a-z0-9A-Z_]+)$', tables_in_gpkg[0]).group(): gpkg_tbl}
 
         else:
-
-            if not self.table:
-                self.table = self.gpkg_tbl.replace('.gpkg', '').lower()
+            
+            gpkg_tbl = self.gpkg_tbl.replace('.gpkg', '').lower()
 
             # create empty list of table names that will get read into the db
-            gpkg_tbl_names = {self.gpkg_tbl: self.table}
+            gpkg_tbl_names = {self.gpkg_tbl: gpkg_tbl}
         
 
         for input_name, output_name in gpkg_tbl_names.items():
             
-            self.cmd = WRITE_GPKG_CMD_SHP.format(   gpkg_name = self.gpkg_name,
+            cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
+                                                    gpkg_name = self.gpkg_name,
                                                     gpkg_tbl = input_name,
-                                                    export_path=self.path)
-
-            if print_cmd:
-                print(print_cmd_string([self.dbo.password], self.cmd))
+                                                    export_path=export_path)
             
             try:
-                ogr_response = subprocess.check_output(shlex.split(self.cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+                ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
                 print(ogr_response)
             except subprocess.CalledProcessError as e:
                 print("Ogr2ogr Output:\n", e.output)
                 print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
-                raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], self.cmd), returncode=1)
         
         return
 
-    def table_exists(self):
+    def table_exists(self, dbo = None, schema = None, table = None):
         """
         Wrapper for DbConnect table_exists function.
 
+        :param table: table name
+        :param schema: schema name
         :return: boolean if gpkg name exists as a table in the schema
         """
 
-        return self.dbo.table_exists(table=self.table, schema=self.schema)
+        return dbo.table_exists(schema = schema, table = table)
 
-    def del_indexes(self):
+    def del_indexes(self, dbo, schema = None, table = None):
         """
         Drops indexes
+        :param dbo: database connection
+        :param schema: Schema for deleting index
+        :param table: Table for deleting index
         :return:
         """
-        if self.dbo.type == 'PG':
-            self.dbo.query(SHP_DEL_INDICES_QUERY_PG.format(s=self.schema, t=self.table), internal=True)
-            indexes_to_delete = self.dbo.internal_data
+        
+        if dbo.type == 'PG':
+            dbo.query(SHP_DEL_INDICES_QUERY_PG.format(s=schema, t=table), internal=True)
+            indexes_to_delete = dbo.internal_data
 
             for _ in list(indexes_to_delete):
                 table_name, schema_name, index_name, column_name = _
                 if 'pkey' not in index_name and 'PK' not in index_name:
-                    self.dbo.query('DROP INDEX {s}.{i}'.format(s=self.schema, i=index_name),
+                    dbo.query('DROP INDEX {s}.{i}'.format(s=schema, i=index_name),
                                    strict=False, internal=True)
         else:
-            self.dbo.query(SHP_DEL_INDICES_QUERY_MS.format(s=self.schema, t=self.table), internal=True)
-            indexes_to_delete = self.dbo.internal_data
+            dbo.query(SHP_DEL_INDICES_QUERY_MS.format(s=schema, t=table), internal=True)
+            indexes_to_delete = dbo.internal_data
 
             for _ in list(indexes_to_delete):
                 table_name, index_name, column_name, idx_typ = _
                 if 'pkey' not in index_name and 'PK' not in index_name:
-                    self.dbo.query('DROP INDEX {t}.{i}'.format(t=self.table, i=index_name), strict=False, internal=True)
+                    dbo.query('DROP INDEX {t}.{i}'.format(t=table, i=index_name), strict=False, internal=True)
 
-    def read_gpkg(self, precision=False, private=True, gpkg_encoding=None, print_cmd=False):
+    def read_gpkg(self, dbo = None, schema = None, table = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=True, gpkg_encoding=None, print_cmd=False):
         """
         Reads a geopackage into SQL or Postgresql as a table
 
+        :param dbo: Database connection
+        :param schema (str): Schema that the imported geopackage data will be found
+        :param table (str): Name for uploaded table
+        :param port (int): Optional port
+        :param srid (str): SRID for geometry. Defaults to 2263
         :param precision:
         :param private:
         :param gpkg_encoding: encoding of data within Geopackage
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :return:
         """
-        port = self.port
+        # Use default schema from db object
+        if not schema:
+            schema = dbo.default_schema
 
         if precision:
             precision = '-lco precision=NO'
@@ -374,15 +377,15 @@ class Geopackage:
             self.gpkg_name = os.path.basename(filename)
             self.path = os.path.dirname(filename)
 
-        if self.table:
-            self.table = self.table.lower()
-        
-        if self.table_exists():
-            # Clean up spatial index
-            self.del_indexes()
+        if table:
+            table = table.lower()
 
-            print('Deleting existing table {s}.{t}'.format(s=self.schema, t=self.table))
-            self.dbo.drop_table(schema=self.schema, table=self.table)
+        if dbo.table_exists(schema = schema, table = table):
+            # Clean up spatial index
+            self.del_indexes(dbo = dbo, schema = schema, table = table)
+
+            print('Deleting existing table {s}.{t}'.format(s=schema, t=table))
+            dbo.drop_table(schema=schema, table=table)
 
         path = self.path
         full_path = os.path.join(path, self.gpkg_name)
@@ -405,11 +408,11 @@ class Geopackage:
             except subprocess.CalledProcessError as e:
                 print("Ogr2ogr Output:\n", e.output)
                 print('Ogr2ogr command failed. The Geopackage was not read in.')
-                raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], count_cmd), returncode=1)
+                raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], count_cmd), returncode=1)
             
             if tbl_count > 1:
 
-                assert not self.table, """Since the geopackage has more than 1 layer to be read, you cannot specify one output table name to apply to all the tables. \n
+                assert not table, """Since the geopackage has more than 1 layer to be read, you cannot specify one output table name to apply to all the tables. \n
                                     Either run the function for each table with customized output table names separately, \n
                                     or remove the 'db_table' or 'table' argument for bulk upload.
                                     """
@@ -422,52 +425,52 @@ class Geopackage:
 
             # if the bulk upload involves only 1 table and no db table name was specified, we name the table the same thing as the original gpkg table
             elif tbl_count == 1:            
-                gpkg_tbl_names = {re.search(r'([a-z0-9A-Z_]+)$', tables_in_gpkg[0]).group(): self.table}
+                gpkg_tbl_names = {re.search(r'([a-z0-9A-Z_]+)$', tables_in_gpkg[0]).group(): table}
 
         else:
 
-            if not self.table:
-                self.table = self.gpkg_tbl.replace('.gpkg', '').lower()
+            if not table:
+                table = self.gpkg_tbl.replace('.gpkg', '').lower()
 
             # create empty list of table names that will get read into the db
-            gpkg_tbl_names = {self.gpkg_tbl: self.table}
+            gpkg_tbl_names = {self.gpkg_tbl: table}
 
 
         # loop through the tables     
         for input_name, output_name in gpkg_tbl_names.items():
             
-            if self.table_exists():
+            if dbo.table_exists(table = table, schema = schema):
             # Clean up spatial index
-                self.del_indexes()
+                self.del_indexes(dbo = dbo, table = table, schema = schema)
 
-                print('Deleting existing table {s}.{t}'.format(s=self.schema, t=output_name))
-                self.dbo.drop_table(schema=self.schema, table=output_name)
+                print('Deleting existing table {s}.{t}'.format(s=schema, t=output_name))
+                dbo.drop_table(schema=schema, table=output_name)
 
-            if self.dbo.type == 'PG':
+            if dbo.type == 'PG':
                 cmd = READ_GPKG_CMD_PG.format(
-                    gdal_data=self.gdal_data_loc,
-                    srid=self.srid,
-                    host=self.dbo.server,
-                    dbname=self.dbo.database,
-                    user=self.dbo.user,
-                    password=self.dbo.password,
+                    gdal_data=gdal_data_loc,
+                    srid=srid,
+                    host=dbo.server,
+                    dbname=dbo.database,
+                    user=dbo.user,
+                    password=dbo.password,
                     gpkg_name = full_path,
                     gpkg_tbl = input_name,
-                    schema=self.schema,
+                    schema=schema,
                     tbl_name=output_name,
                     perc=precision,
                     port=port
                 )
-            elif self.dbo.type == 'MS':
-                if self.dbo.LDAP:
+            elif dbo.type == 'MS':
+                if dbo.LDAP:
                     cmd = READ_GPKG_CMD_MS.format(
-                        gdal_data=self.gdal_data_loc,
-                        srid=self.srid,
-                        host=self.dbo.server,
-                        dbname=self.dbo.database,
+                        gdal_data=gdal_data_loc,
+                        srid=srid,
+                        host=dbo.server,
+                        dbname=dbo.database,
                         gpkg_name=full_path,
                         gpkg_tbl = input_name,
-                        schema=self.schema,
+                        schema=schema,
                         tbl_name=output_name,
                         perc=precision,
                         port=port
@@ -476,15 +479,15 @@ class Geopackage:
 
                 else:
                     cmd = READ_GPKG_CMD_MS.format(
-                        gdal_data=self.gdal_data_loc,
-                        srid=self.srid,
-                        host=self.dbo.server,
-                        dbname=self.dbo.database,
-                        user=self.dbo.user,
-                        password=self.dbo.password,
+                        gdal_data=gdal_data_loc,
+                        srid=srid,
+                        host=dbo.server,
+                        dbname=dbo.database,
+                        user=dbo.user,
+                        password=dbo.password,
                         gpkg_name=full_path,
                         gpkg_tbl = input_name,
-                        schema=self.schema,
+                        schema=schema,
                         tbl_name=output_name,
                         perc=precision,
                         port=port
@@ -499,7 +502,7 @@ class Geopackage:
                 cmd_env['PGCLIENTENCODING'] = 'UTF8'
 
             if print_cmd:
-                print(print_cmd_string([self.dbo.password], cmd))
+                print(print_cmd_string([dbo.password], cmd))
 
             try:
                 ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, env=cmd_env)
@@ -507,13 +510,13 @@ class Geopackage:
             except subprocess.CalledProcessError as e:
                 print("Ogr2ogr Output:\n", e.output)
                 print('Ogr2ogr command failed. The Geopackage was not read in.')
-                raise subprocess.CalledProcessError(cmd=print_cmd_string([self.dbo.password], cmd), returncode=1)
+                raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
 
-            if self.dbo.type == 'PG':
-                self.dbo.query(FEATURE_COMMENT_QUERY.format(
-                    s=self.schema,
+            if dbo.type == 'PG':
+                dbo.query(FEATURE_COMMENT_QUERY.format(
+                    s=schema,
                     t=output_name,
-                    u=self.dbo.user,
+                    u=dbo.user,
                     p=self.path,
                     gpkg=self.gpkg_name,
                     d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -521,62 +524,65 @@ class Geopackage:
 
             if not private:
                 try:
-                    self.dbo.query('grant select on {s}."{t}" to public;'.format(
-                        s=self.schema, t=output_name),
+                    dbo.query('grant select on {s}."{t}" to public;'.format(
+                        s=schema, t=output_name),
                         timeme=False, internal=True, strict=True)
                 except:
                     pass
-            self.rename_geom()
+            self.rename_geom(dbo, schema, table)
 
-    def rename_geom(self):
+    def rename_geom(self, dbo = None, schema = None, table = None, port=5432):
         """
         Renames wkb_geometry to geom, along with index
 
+        :param dbo: Database connection
+        :param schema: Schema where geom is located
+        :param table: Table where geom is located
         :return:
         """
-        self.dbo.query("""
+        dbo.query("""
                         SELECT column_name
                         FROM information_schema.columns
                         WHERE table_schema = '{s}'
                         AND table_name   = '{t}';
-                    """.format(s=self.schema, t=self.table), timeme=False, internal=True)
+                    """.format(s=schema, t=table), timeme=False, internal=True)
         f = None
 
-        if self.dbo.type == 'PG':
+        if dbo.type == 'PG':
 
             # Get the column in question
-            if 'wkb_geometry' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            if 'wkb_geometry' in [i[0] for i in dbo.internal_queries[-1].data]:
                 f = 'wkb_geometry'
-            elif 'shape' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            elif 'shape' in [i[0] for i in dbo.internal_queries[-1].data]:
                 f = 'shape'
 
             if f:
                 # Rename column
-                self.dbo.rename_column(schema=self.schema, table=self.table, old_column=f, new_column='geom')
+                dbo.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
 
                 # Rename index
-                self.dbo.query("""
+                dbo.query("""
                     ALTER INDEX IF EXISTS
                     {s}.{t}_{f}_geom_idx
                     RENAME to {t}_geom_idx
-                """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
+                """.format(s=schema, t=table, f=f), timeme=False, internal=True)
 
-        elif self.dbo.type == 'MS':
+        elif dbo.type == 'MS':
             # Get the column in question
-            if 'ogr_geometry' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            if 'ogr_geometry' in [i[0] for i in dbo.internal_queries[-1].data]:
                 f = 'ogr_geometry'
-            elif 'Shape' in [i[0] for i in self.dbo.internal_queries[-1].data]:
+            elif 'Shape' in [i[0] for i in dbo.internal_queries[-1].data]:
                 f = 'Shape'
 
             if f:
                 # Rename column
-                self.dbo.rename_column(schema=self.schema, table=self.table, old_column=f, new_column='geom')
+                dbo.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
 
                 # Rename index if exists
                 try:
-                    self.dbo.query("""
+                    dbo.query("""
                         EXEC sp_rename N'{s}.{t}.ogr_{s}_{t}_{f}_sidx', N'{t}_geom_idx', N'INDEX';
-                    """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
+                    """.format(s=schema, t=table, f=f), timeme=False, internal=True)
                 except SystemExit as e:
                     print(e)
                     print('Warning - could not update index name after renaming geometry. It may not exist.')
