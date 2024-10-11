@@ -55,7 +55,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table, gpkg_name=gpkg, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -86,9 +86,9 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # add first table
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
         # add second table to the same gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -122,7 +122,7 @@ class TestQueryToGpkgPg:
         
         assert db.table_exists(test_table, schema=pg_schema)
 
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
 
         # create table
         db.query(f"""
@@ -134,7 +134,7 @@ class TestQueryToGpkgPg:
          """)
         
         # overwrite the table
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}_2", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}_2", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -169,7 +169,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", path=fldr+'\\'+gpkg, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=fldr+'\\'+gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -193,7 +193,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
                         path=fldr+'\\'+gpkg, print_cmd=True)
 
         # check table in folder
@@ -223,7 +223,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
         
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", path=fldr+'\\'+gpkg, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=fldr+'\\'+gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -248,7 +248,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg - make sure gpkg_tbl overwrites any gpkg in the path
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
                         path=fldr+'\\'+'test_'+gpkg, print_cmd=True)
 
         # check table in folder
@@ -273,7 +273,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -297,7 +297,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -350,8 +350,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table} limit 0",
-                        gpkg_name=gpkg, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table} limit 0", gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -384,13 +383,13 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
+        db.gpkg_to_table(dbo = db, path=fldr, table=test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
         select
@@ -435,13 +434,13 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=pg_schema,
+        db.gpkg_to_table(dbo = db, path=fldr, table=test_table + 'QA', schema=pg_schema,
                         gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
@@ -543,7 +542,7 @@ class TestQueryToGpkgMs:
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
         assert sql.table_exists(test_table, schema=ms_schema)
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -590,7 +589,7 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # overwrite the same table
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -626,7 +625,7 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", path=fldr + '\\' + gpkg, print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", path=fldr + '\\' + gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -873,13 +872,13 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(dbo = sql, path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         # fld6 automatically becomes renamed as geom when gpkg_to_table is run
         # t1 field should remain fld6 because that is how the table was created directly in 
@@ -929,13 +928,13 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {schema}.{test_table}", gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(dbo = sql, path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         sql.query(f"""
         select

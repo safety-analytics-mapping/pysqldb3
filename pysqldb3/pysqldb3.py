@@ -1908,7 +1908,7 @@ class DbConnect:
             # gpkg
             # shp_name = geopackage name
             # gpkg_tbl argument would be filled in
-            Query.query_to_gpkg(self, new_query, path=path, gpkg_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+            Query.query_to_gpkg(self, query = new_query, path=path, gpkg_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                             gpkg_tbl = gpkg_tbl, print_cmd=print_cmd, srid=srid)
 
         # Drop the temp table
@@ -2043,7 +2043,7 @@ class DbConnect:
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
 
-    def feature_class_to_table(self, path, table, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
+    def feature_class_to_table(self, path, table = None, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
                                srid=2263, private=False, temp=True, fc_encoding=None, print_cmd=False,
                                days=7, skip_failures=''):
         """
@@ -2085,7 +2085,7 @@ class DbConnect:
             self.__run_table_logging([schema + "." + table], days=days)
 
 
-    def query_to_gpkg(self, query, gpkg_tbl, path=None, gpkg_name=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_gpkg(self, query, gpkg_tbl = None, path=None, gpkg_name=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
         Exports query results to a geopackage (.gpkg) file.
@@ -2100,7 +2100,7 @@ class DbConnect:
         :return:
         """
             
-        self.query_to_shp(query, path, shp_name = gpkg_name, cmd = cmd, gpkg_tbl = gpkg_tbl,
+        self.query_to_shp(query, gpkg_tbl = gpkg_tbl, path = path, shp_name = gpkg_name, cmd = cmd, 
                           gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
         
 

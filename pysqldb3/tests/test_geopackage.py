@@ -1276,6 +1276,8 @@ class TestGpkgShpConversion:
         os.remove(os.path.join(fp, gpkg_name))
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2")
+        for ext in ('dbf', 'prj', 'shx', 'shp'):
+            os.remove(os.path.join(fp, test_write_gpkg_table_name + '_2.' + ext))
 
         # don't delete test_write_gpkg_table_name.shp as it will be used in the subsequent test
 

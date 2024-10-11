@@ -540,7 +540,7 @@ class Query:
     def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, gpkg_tbl=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
-        :param dbo:
+        :param dbo: Database connection for the query
         :param query:
         :param path:
         :param gpkg_name: Name of geopackage
@@ -576,9 +576,9 @@ class Query:
 
                 if len(table_exists) > 0:
                     print("The table name to be exported already exists in the geopackage. Table was overwritten")
-                    gpkg.write_gpkg(dbo = dbo, gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
+                    gpkg.write_gpkg(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
                 elif len(table_exists) == 0:
                     gpkg.write_gpkg(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
         
         else:
-             gpkg.write_gpkg(dbo = dbo, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+             gpkg.write_gpkg(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
