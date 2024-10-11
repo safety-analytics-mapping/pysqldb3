@@ -56,8 +56,8 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1, table=test_read_gpkg_table_name, schema=pg_schema)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1)
+        s.read_gpkg(dbo=db, table=test_read_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table = test_read_gpkg_table_name)
@@ -89,9 +89,9 @@ class TestReadgpkgPG:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
-
+        
     def test_read_gpkg_basic_multigpkgtbl(self):
-    
+
         """
         Test for multiple tables within a geopackage
         """
@@ -104,8 +104,8 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # no gpkg_tbl argument so that it bulk uploads
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, schema=pg_schema)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.read_gpkg(dbo=db, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table = test_layer1)
@@ -173,8 +173,8 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # Read gpkg to new, test table
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer2, table = test_read_gpkg_table_name)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer2)
+        s.read_gpkg(dbo=db, table = test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=db.default_schema, table=test_read_gpkg_table_name)
@@ -203,25 +203,25 @@ class TestReadgpkgPG:
         # Cleanup
         db.drop_table(schema=db.default_schema, table=test_read_gpkg_table_name)
 
-#     def test_read_gpkg_precision(self):
-#         return
+    # def test_read_gpkg_precision(self):
+    #     return
 
-#     def test_read_gpkg_private(self):
-#         # TODO: pending permissions defaults convo
-#         return
+    # def test_read_gpkg_private(self):
+    #     # TODO: pending permissions defaults convo
+    #     return
 
-#     def test_read_temp(self):
-#         # TODO: pending temp functionality
-#         return
+    # def test_read_temp(self):
+    #     # TODO: pending temp functionality
+    #     return
 
-#     def test_read_gpkg_encoding(self):
-#         # TODO: add test with fix to special characters
-#         return
+    # def test_read_gpkg_encoding(self):
+    #     # TODO: add test with fix to special characters
+    #     return
 
-    @classmethod
-    def teardown_class(cls):
-        helpers.clean_up_geopackage()
-        helpers.clean_up_test_table_pg(db)
+    # @classmethod
+    # def teardown_class(cls):
+    #     helpers.clean_up_geopackage()
+    #     helpers.clean_up_test_table_pg(db)
 
 
 class TestReadgpkgMS:
@@ -240,8 +240,8 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_read_gpkg_table_name}")
 
         # Read gpkg to new, test table
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer2, table=test_read_gpkg_table_name, schema=ms_schema)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer2)
+        s.read_gpkg(dbo=sql, table=test_read_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table=test_read_gpkg_table_name)
@@ -272,7 +272,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_read_gpkg_table_name}")
 
     def test_read_gpkg_basic_multigpkgtbl(self):
-    
+
         """
         Test for multiple tables within a geopackage
         """
@@ -285,8 +285,8 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.test_layer2")
 
         # no gpkg_tbl argument so that it bulk uploads
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name, schema=ms_schema)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.read_gpkg(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table = 'test_layer1')
@@ -298,7 +298,7 @@ class TestReadgpkgMS:
 
         assert set(table_df1.columns) == set(table_df2.columns)
         assert len(table_df1) == len(table_df2)
-        
+
         # Cleanup
         sql.query(f"drop table if exists {ms_schema}.test_layer1")
         sql.query(f"drop table if exists {ms_schema}.test_layer2")
@@ -315,15 +315,15 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # Read gpkg to new, test table
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name, schema=ms_schema)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.read_gpkg(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table=test_layer1)
         table_df = sql.dfquery(f'select * from {ms_schema}.{test_layer1}')
         assert set(table_df.columns) == {'fid', 'gid', 'some_value', 'geom'}
         assert len(table_df) == 2
-    
+
         assert sql.table_exists(schema=ms_schema, table=test_layer2)
         table_df2 = sql.dfquery(f'select * from {ms_schema}.{test_layer2}')
         assert set(table_df2.columns) == {'fid', 'gid', 'some_value', 'geom'}
@@ -371,8 +371,8 @@ class TestReadgpkgMS:
         sql.drop_table(schema=sql.default_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1, table=test_read_gpkg_table_name)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1)
+        s.read_gpkg(dbo=sql, table=test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=sql.default_schema, table=test_read_gpkg_table_name)
@@ -410,8 +410,8 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
         # Read gpkg to new, test table
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1, schema=ms_schema)
-        s.read_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1)
+        s.read_gpkg(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table=test_layer1)
@@ -441,20 +441,20 @@ class TestReadgpkgMS:
         # Cleanup
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
-#     def test_read_gpkg_precision(self):
-#         return
+    # def test_read_gpkg_precision(self):
+    #     return
 
-#     def test_read_gpkg_private(self):
-#         # TODO: pending permissions defaults convo
-#         return
+    # def test_read_gpkg_private(self):
+    #     # TODO: pending permissions defaults convo
+    #     return
 
-#     def test_read_temp(self):
-#         # TODO: pending temp functionality
-#         return
+    # def test_read_temp(self):
+    #     # TODO: pending temp functionality
+    #     return
 
-#     def test_read_gpkg_encoding(self):
-#         # TODO: add test with fix to special characters
-#         return
+    # def test_read_gpkg_encoding(self):
+    #     # TODO: add test with fix to special characters
+    #     return
 
     @classmethod
     def teardown_class(cls):
@@ -481,14 +481,14 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, schema=pg_schema, table=test_write_gpkg_table_name)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp, table=test_reuploaded_table_name, schema=pg_schema, gpkg_name=gpkg_name, print_cmd=True)
+        db.gpkg_to_table(path=fp, dbo = db, table=test_reuploaded_table_name, schema=pg_schema, gpkg_name=gpkg_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -517,7 +517,7 @@ class TestWritegpkgPG:
         db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
         db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
         os.remove(os.path.join(fp, gpkg_name))
-    
+
     def test_write_gpkg_overwrite(self):
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name};
@@ -533,12 +533,12 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, schema=pg_schema, table=test_write_gpkg_table_name)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
-    
+
         # overwrite the table as a version with 2 rows
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name};
@@ -549,11 +549,11 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, schema=pg_schema, table=test_write_gpkg_table_name)
-        s.write_gpkg(overwrite = True, print_cmd=True) # overwrite to 2 rows
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
-        db.gpkg_to_table(path=fp, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, table = test_reuploaded_table_name, print_cmd=True)
+        db.gpkg_to_table(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 2")
@@ -582,9 +582,9 @@ class TestWritegpkgPG:
         db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
         db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
         os.remove(os.path.join(fp, gpkg_name))
-    
+
     def test_write_gpkg_add_table(self):
-    
+
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name};
 
@@ -599,12 +599,12 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, schema=pg_schema, table=test_write_gpkg_table_name)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
-    
+
         # add another (differently-named) table to the same gpkg
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name}_2;
@@ -615,14 +615,14 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, schema=pg_schema, table=test_write_gpkg_table_name + '_2')
-        s.write_gpkg(overwrite = False, print_cmd=True) # add another table
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name + '_2', overwrite = False, print_cmd=True) # add another table
 
         assert os.path.isfile(os.path.join(fp, gpkg_name)) # assert that the table is still there
 
         # Reupload both tables from the same geopackage
-        db.gpkg_to_table(path=fp, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, table = test_reuploaded_table_name, print_cmd=True) 
-        db.gpkg_to_table(path=fp, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name + '_2', table = test_reuploaded_table_name + '_2', print_cmd=True)
+        db.gpkg_to_table(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, table = test_reuploaded_table_name, print_cmd=True) 
+        db.gpkg_to_table(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name + '_2', table = test_reuploaded_table_name + '_2', print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -638,7 +638,7 @@ class TestWritegpkgPG:
         pd.testing.assert_frame_equal(db_df[list(mutual_columns)], gpkg_uploaded_df[list(mutual_columns)],
                                       check_like=True, check_names=False, check_dtype=False,
                                       check_datetimelike_compat=True)
-    
+
         mutual_columns2 = set(db_df2.columns).intersection(gpkg_uploaded_df2.columns) - {'fid', 'geom'}
         pd.testing.assert_frame_equal(db_df2[list(mutual_columns2)], gpkg_uploaded_df2[list(mutual_columns2)],
                                       check_like=True, check_names=False, check_dtype=False,
@@ -686,14 +686,14 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, table=test_write_gpkg_table_name, schema=pg_schema)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp+'\\'+gpkg_name, gpkg_name = gpkg_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.gpkg_to_table(path=fp+'\\'+gpkg_name, dbo = db, gpkg_name = gpkg_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -740,14 +740,14 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name, table=test_write_gpkg_table_name, schema=pg_schema)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp+'\\'+'err_'+gpkg_name, gpkg_name=gpkg_name ,schema=pg_schema,
+        db.gpkg_to_table(path=fp+'\\'+'err_'+gpkg_name, dbo = db, gpkg_name=gpkg_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -785,15 +785,14 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=db, path=fp, gpkg_name=gpkg_name,
-                      query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""")
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=db, query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""", print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.gpkg_to_table(path=fp, dbo = db, gpkg_name=gpkg_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -846,14 +845,14 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name, schema = ms_schema, table=test_write_gpkg_table_name)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -897,11 +896,8 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg. Gpkg table will be named the same as the query table
-        s = Geopackage(dbo=sql, path=fp,
-                        gpkg_name=gpkg_name,
-                        schema = ms_schema,
-                        table=test_write_gpkg_table_name)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
@@ -916,18 +912,16 @@ class TestWritegpkgMS:
         """)
 
         # Write gpkg. Gpkg table will be named the same as the previous table to overwrite it
-        s = Geopackage(dbo=sql, path=fp,
+        s = Geopackage(path=fp,
                        gpkg_name=gpkg_name,
-                        gpkg_tbl = test_write_gpkg_table_name,
-                        schema = ms_schema,
-                        table=test_write_gpkg_table_name + '_2')
-        s.write_gpkg(overwrite = True, print_cmd=True)
+                        gpkg_tbl = test_write_gpkg_table_name)
+        s.write_gpkg(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name + '_2', overwrite = True, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
+        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name}_2 order by test_col3")
@@ -973,11 +967,8 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg. Gpkg table will be named the same as the query table
-        s = Geopackage(dbo=sql, path=fp,
-                        gpkg_name=gpkg_name,
-                        schema = ms_schema,
-                        table=test_write_gpkg_table_name)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
@@ -992,19 +983,15 @@ class TestWritegpkgMS:
         """)
 
         # Write gpkg.
-        s = Geopackage(dbo=sql, path=fp,
-                       gpkg_name=gpkg_name,
-                        gpkg_tbl = test_write_gpkg_table_name + '_2',
-                        schema = ms_schema,
-                        table=test_write_gpkg_table_name + '_2')
-        s.write_gpkg(print_cmd=True) # add second table
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name + '_2')
+        s.write_gpkg(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name + '_2', print_cmd=True) # add second table
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
-        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name + '_2', table=test_reuploaded_table_name + '_2', print_cmd=True)
+        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
+        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name + '_2', table=test_reuploaded_table_name + '_2', print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1056,14 +1043,14 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name, table= test_write_gpkg_table_name, schema=ms_schema)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp+'\\'+gpkg_name, gpkg_name = gpkg_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.gpkg_to_table(path=fp+'\\'+gpkg_name, dbo = sql, gpkg_name = gpkg_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1107,16 +1094,14 @@ class TestWritegpkgMS:
         """)
 
         # Write gpkg
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name,
-                       gpkg_tbl = test_write_gpkg_table_name,
-                      query=f"""select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1""")
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name)
+        s.write_gpkg(dbo=sql, query=f"""select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1""", print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1146,30 +1131,36 @@ class TestWritegpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
 
         os.remove(os.path.join(fp, gpkg_name))
+        
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_test_table_sql(db)
 
+class TestGpkgShpConversion:
+    @classmethod
     def test_convert_gpkg_to_shp_file(self):
 
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         gpkg_name = 'gpkg_to_shp.gpkg'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
-
+        sql.drop_table(schema=ms_schema, table=test_write_gpkg_table_name)
         # write a query
-        sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name};
+        sql.query(f"""
                 create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
                 insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
                 insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
                 """)
 
         # write geopackage file
-        s = Geopackage(dbo=sql, path = fp, gpkg_name=gpkg_name, table= test_write_gpkg_table_name, schema=ms_schema)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path = fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
-        # Check table in folder
+        # # Check table in folder
         assert os.path.isfile(os.path.join(fp, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s.gpkg_to_shp(print_cmd = True)
+        s.gpkg_to_shp(export_path = fp)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
         assert os.path.isfile(os.path.join(fp, test_write_gpkg_table_name + '.shp'))
@@ -1187,6 +1178,47 @@ class TestWritegpkgMS:
         os.remove(os.path.join(fp, gpkg_name))
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, test_write_gpkg_table_name + '.' + ext))
+    
+    def test_convert_gpkg_to_shp_custom_path(self):
+
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        gpkg_name = 'gpkg_to_shp.gpkg'
+
+        # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
+
+        # write a query
+        sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name};
+                create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
+                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+                """)
+
+        # write geopackage file
+        s = Geopackage(path = fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
+
+        # Check table in folder
+        assert os.path.isfile(os.path.join(fp, gpkg_name))
+        
+        # run function to convert geopackage to shape file
+        s.gpkg_to_shp(export_path = fp + '/test_data/')
+        
+        # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
+        assert os.path.isfile(os.path.join(fp + '/test_data/', test_write_gpkg_table_name + '.shp'))
+
+        # check that the shapefile and gpkg have the same output
+        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo {"./test_data/" + test_write_gpkg_table_name + ".shp"} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
+        
+        assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg) and 'test_col1 (Integer) = 1' in str(ogr_response_shp), "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
+
+        # remove geopackage and shape files
+        os.remove(os.path.join(fp, gpkg_name))
+        for ext in ('dbf', 'prj', 'shx', 'shp'):
+            os.remove(os.path.join(fp + '/test_data/', test_write_gpkg_table_name + '.' + ext))
 
     def test_convert_gpkg_to_shp_file_multitable(self):
 
@@ -1203,8 +1235,8 @@ class TestWritegpkgMS:
                 """)
 
         # write geopackage file
-        s = Geopackage(dbo=sql, path = fp, gpkg_name=gpkg_name, table= test_write_gpkg_table_name, schema=ms_schema)
-        s.write_gpkg(print_cmd=True)
+        s = Geopackage(path = fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # add an extra table to test multiple
         sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2;
@@ -1212,15 +1244,15 @@ class TestWritegpkgMS:
                 insert into {ms_schema}.{test_write_gpkg_table_name}_2 VALUES(5, 6, geometry::Point(985830.79200444, 203371.60461367, 2263));
                 insert into {ms_schema}.{test_write_gpkg_table_name}_2 VALUES(7, 8, geometry::Point(985830.79200444, 203371.60461367, 2263));
                 """)
-        s = Geopackage(dbo=sql, path = fp, gpkg_name=gpkg_name, table= test_write_gpkg_table_name + '_2', schema=ms_schema)
-        s.write_gpkg(print_cmd=True) # this will append 
+        s = Geopackage(path = fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2', print_cmd=True) # this will append 
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s = Geopackage(dbo=sql, path = fp, gpkg_name=gpkg_name, schema=ms_schema)
-        s.gpkg_to_shp(print_cmd = True)
+        s = Geopackage(path = fp, gpkg_name=gpkg_name)
+        s.gpkg_to_shp()
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
         assert os.path.isfile(os.path.join(fp, test_write_gpkg_table_name + '.shp'))
@@ -1246,8 +1278,6 @@ class TestWritegpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2")
 
         # don't delete test_write_gpkg_table_name.shp as it will be used in the subsequent test
-        for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fp, test_write_gpkg_table_name + '_2.' + ext))
 
     def test_convert_shp_to_gpkg_file(self):
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
@@ -1258,8 +1288,8 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # run function to convert Shapefile to GPKG
-        s = Geopackage(dbo=sql, path=fp, shp_name = shp_name, table = test_write_gpkg_table_name, gpkg_name=gpkg_name)
-        s.shp_to_gpkg(shp_name = shp_name, print_cmd = True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.shp_to_gpkg(gpkg_tbl = test_write_gpkg_table_name, shp_name = shp_name)
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(fp, gpkg_name))
@@ -1289,8 +1319,8 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # run function to convert Shapefile to GPKG
-        s = Geopackage(dbo=sql, path=fp, gpkg_name=gpkg_name)
-        s.shp_to_gpkg(shp_name = shp_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2', print_cmd = True)
+        s = Geopackage(path=fp, gpkg_name=gpkg_name)
+        s.shp_to_gpkg(shp_name = shp_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2')
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(fp, gpkg_name))
@@ -1315,6 +1345,3 @@ class TestWritegpkgMS:
         os.remove(os.path.join(fp, gpkg_name))
 
 
-    @classmethod
-    def teardown_class(cls):
-        helpers.clean_up_test_table_sql(db)
