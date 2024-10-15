@@ -3,13 +3,57 @@ from ..util import PG, MS
 
 
 class TestQueryCreatesTablesSql():
+    def test_complicated(self):
+        query_string = """
+            -- create table test.test; 
+            /* 
+            CREATE TABLE WTF.TEST SD as select ; 
+            */
+            --/* 
+            CREATE TABLE WTF.fake_out SD as select; 
+            --*/
+            create table server.db.schema.table as select ;
+            create table [server].db.schema.[table] as select ;
+            create table server.[db].schema.[CapitalTable] as select ;
+            create table server.[db].schema.BadCapitalTable as select ;
+            create table server.db."schema".[Capital Table] as select ;
+            create table server.db.schema.[1-able] as select ;
+            create table [server]."db".schema._table as select ;
+            create table server.db.schema.[-_ta^b l*e] as select ;
+            create table db.schema."-_ta&$b l*e" as select ;
+            
+            create table [schema]."123456-_ta&$b l*e" as select ;
+            create table [123456-_ta&$b l*e] as select ;
+                     
+                """
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [
+            (None, None, 'wtf', 'fake_out sd'),
+            ('server', 'db','schema','table'),
+            ('server', 'db','schema','table'),
+            ('server', 'db','schema','CapitalTable'),
+            ('server', 'db','schema','badcapitaltable'),
+            ('server', 'db','schema','Capital Table'),
+            ('server', 'db','schema','1-able'),
+            ('server', 'db','schema','_table'),
+            ('server', 'db','schema','-_ta^b l*e'),
+            (None, 'db','schema','-_ta&$b l*e'),
+
+            (None, None, 'schema', '123456-_ta&$b l*e'),
+            (None, None, 'dbo', '123456-_ta&$b l*e')
+
+        ]
+        query.Query.query_creates_table(query_string, 'dbo', MS)
+
+
+
+
     def test_query_creates_table_from_qry(self):
         query_string = """
             CREATE TABLE dbo.test AS
              SELECT TOP 10 *
              FROM RISCRASHDATA.dbo.node
         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None,None,'dbo','test')]
 
     def test_query_creates_table_from_qry_wdb(self):
         query_string = """
