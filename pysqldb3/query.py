@@ -298,9 +298,10 @@ class Query:
         """
         create_pattern =r"""
             (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
-            (create\s+table\s+)(if\s+not\s+exists\s+)?
+            (create\s+table\s+)
+            (if\s+not\s+exists\s+)?
             (((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}
-            ((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1})
+            ((([\[|\"])?)((?!\#)[\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1})
             (?=(as\s+select)|(\())\s?
         """
         # create_pattern=r'(create\s+)(?!temp\s+|temporary\s+)(table\s+)(.+)(?=\s+as\s+)'
@@ -328,11 +329,12 @@ class Query:
         new_tables+=tables
 
 
-        into_pattern = """
+        into_pattern = r"""
             ((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                        # ignore comments
             (select([.\n\w\*\s\",^])*into\s+)                       # find select into
             (((([\[|\"])??)([\w0-9]+)(([\]|\"])?\.)){0,3}           # server.db.schema. 0-3 times
-            ((([\[|\"])??)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?))\s+){1}){1} # table (whole thing only once)
+            (?!\#)((([\[|\"])??)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?))\s+){1}) # table (whole thing only once)
+            (?=from)
             """
 
         create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
@@ -348,7 +350,7 @@ class Query:
         #     # Clean table names via parse_table_string, get_query_table_schema_name
             parsed_tables = [parse_table_string(a, default_schema, db_type) for a in all_tables]
         return parsed_tables
-            # TODO regex is picking up from and as .. in some cases
+            # TODO create table query tables will always be 1st in the list over select into queries... does order matter?
 
 
 
