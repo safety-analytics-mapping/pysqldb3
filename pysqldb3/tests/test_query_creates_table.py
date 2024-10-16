@@ -61,7 +61,7 @@ class TestQueryCreatesTablesSql():
              SELECT TOP 10 *
              FROM RISCRASHDATA.dbo.node
         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'riscrashdata','dbo','test')]
 
     def test_query_creates_table_from_qry_wserver(self):
         query_string = """
@@ -69,7 +69,7 @@ class TestQueryCreatesTablesSql():
              SELECT TOP 10 *
              FROM RISCRASHDATA.dbo.node
         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dotdevgissql01].[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [('dotdevgissql01','riscrashdata','dbo','test')]
 
     def test_query_creates_table_from_qry_brackets(self):
         query_string = """
@@ -77,21 +77,21 @@ class TestQueryCreatesTablesSql():
                      SELECT TOP 10 *
                      FROM RISCRASHDATA.dbo.node
                 """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'RISCRASHDATA','dbo','test')]
 
         query_string = """
                             CREATE TABLE [RISCRASHDATA].[dbo].[123 test] AS
                              SELECT TOP 10 *
                              FROM RISCRASHDATA.dbo.node
                         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[123 test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'RISCRASHDATA','dbo','123 test')]
 
         query_string = """
                             CREATE TABLE [RISCRASHDATA].[dbo].test AS
                              SELECT TOP 10 *
                              FROM RISCRASHDATA.dbo.node
                         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'RISCRASHDATA','dbo','test')]
 
     def test_query_creates_table_from_simple(self):
         query_string = """
@@ -99,7 +99,7 @@ class TestQueryCreatesTablesSql():
                 PersonID int
             );
             """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'riscrashdata','dbo','test')]
 
     def test_query_creates_table_from_simple_brackets(self):
         query_string = """
@@ -107,14 +107,14 @@ class TestQueryCreatesTablesSql():
                         PersonID int
                     );
                     """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'riscrashdata','dbo','test')]
 
         query_string = """
                             CREATE TABLE [riscrashdata].[dbo].[123 test] (
                                 PersonID int
                             );
                             """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[123 test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None,'riscrashdata','dbo','123 test')]
 
     def test_query_creates_table_from_with_server(self):
         query_string = """
@@ -122,7 +122,7 @@ class TestQueryCreatesTablesSql():
                     PersonID int
                 );
                 """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dotdevgissql01].[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [('dotdevgissql01','riscrashdata','dbo','test')]
 
     def test_query_creates_table_from_with_server_brackets(self):
         query_string = """
@@ -130,14 +130,14 @@ class TestQueryCreatesTablesSql():
                                     PersonID int
                                 );
                                 """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dotdevgissql01].[riscrashdata].[dbo].[test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [('dotdevgissql01','riscrashdata','dbo','test')]
 
         query_string = """
                         CREATE TABLE dotdevgissql01.riscrashdata.dbo.[123 test] (
                             PersonID int
                         );
                         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dotdevgissql01].[riscrashdata].[dbo].[123 test]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [('dotdevgissql01','riscrashdata','dbo','123 test')]
 
     def test_query_creates_table_multiple_tables(self):
         query_string = """
@@ -154,7 +154,7 @@ class TestQueryCreatesTablesSql():
                     """
         x = query.Query.query_creates_table(query_string, 'dbo', MS)
         x.sort()
-        assert x == ['[riscrashdata].[dbo].[test2]', '[riscrashdata].[dbo].[test3]', '[riscrashdata].[dbo].[test]']
+        assert x == [(None, 'riscrashdata','dbo','test'), (None, 'riscrashdata','dbo','test2'), (None, 'riscrashdata','dbo','test3')]
 
     def test_query_creates_table_multiple_tables_brackets(self):
         query_string = """
@@ -171,8 +171,8 @@ class TestQueryCreatesTablesSql():
                             FROM RISCRASHDATA.dbo.node
                             """
         x = query.Query.query_creates_table(query_string, 'dbo', MS)
-        x = set(x)
-        assert x == {'[riscrashdata].[dbo].[test2]', '[riscrashdata].[dbo].[test3]', '[riscrashdata].[dbo].[test]'}
+
+        assert x == [(None, 'riscrashdata','dbo','test'), (None, 'riscrashdata','dbo','test2'), (None, 'riscrashdata','dbo','test3')]
 
         query_string = """
                                     CREATE TABLE riscrashdata.dbo.[123 test] (
@@ -183,14 +183,14 @@ class TestQueryCreatesTablesSql():
                                         PersonID int
                                     );
 
-                                    CREATE TABLE [RISCRASHDATA].[dbo].[123 test3] AS
+                                    CREATE TABLE [server_path].[RISCRASHDATA].[dbo].[123 test3] AS
                                     SELECT TOP 10 *
                                     FROM RISCRASHDATA.dbo.node
                                     """
         x = query.Query.query_creates_table(query_string, 'dbo', MS)
-        x = set(x)
-        assert x == {'[riscrashdata].[dbo].[123 test2]', '[riscrashdata].[dbo].[123 test3]',
-                     '[riscrashdata].[dbo].[123 test]'}
+
+        assert x == [(None, 'riscrashdata','dbo','123 test'), (None, 'riscrashdata','dbo','123 test2'),
+                     ('server_path','RISCRASHDATA','dbo','123 test3')]
 
     def test_query_creates_table_view(self):
         query_string = """
@@ -266,7 +266,7 @@ class TestQueryCreatesTablesSql():
                     end
                 """
         print(query.Query.query_creates_table(query_string, 'dbo', MS))
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[temp1]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, None, 'dbo','temp1')]
 
     def test_query_creates_table_temp_table(self):
         query_string = """
@@ -304,22 +304,22 @@ class TestQueryCreatesTablesSql():
             INTO riscrashdata.dbo.test2
             FROM riscrashdata.dbo.test1
         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test2]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'riscrashdata','dbo','test2')]
 
     def test_query_creates_table_from_into_brackets(self):
         query_string = """
                     SELECT *
-                    INTO riscrashdata.[dbo].[test2]
+                    INTO RIScrashdata.[dbo].[test2]
                     FROM riscrashdata.dbo.test1
                 """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test2]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None,'riscrashdata','dbo','test2')]
 
         query_string = """
                             SELECT *
                             INTO riscrashdata.[dbo].[123 test2]
                             FROM riscrashdata.dbo.test1
                         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[123 test2]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None,'riscrashdata','dbo','123 test2')]
 
     def test_query_creates_table_from_into_multiple(self):
         query_string = """
@@ -337,7 +337,8 @@ class TestQueryCreatesTablesSql():
         """
         x = query.Query.query_creates_table(query_string, 'dbo', MS)
         x = set(x)
-        assert x == {'[riscrashdata].[dbo].[test1]', '[riscrashdata].[dbo].[test2]', '[riscrashdata].[dbo].[test3]'}
+        assert x == set([(None,'riscrashdata','dbo','test2'), (None,'riscrashdata','dbo','test1'), (None,'riscrashdata','dbo','test3')])
+
 
     def test_query_creates_table_from_into_multiple_brackets(self):
         query_string = """
@@ -355,7 +356,8 @@ class TestQueryCreatesTablesSql():
         """
         x = query.Query.query_creates_table(query_string, 'dbo', MS)
         x = set(x)
-        assert x == {'[riscrashdata].[dbo].[test1]', '[riscrashdata].[dbo].[123 test2]', '[riscrashdata].[dbo].[test3]'}
+        assert x == set([(None, 'riscrashdata', 'dbo', '123 test2'), (None, 'riscrashdata', 'dbo', 'test1'),
+         (None, 'RISCRASHDATA', 'dbo', 'test3')])
 
     def test_query_creates_table_from_into_multiple_wtemp(self):
         query_string = """
@@ -373,7 +375,8 @@ class TestQueryCreatesTablesSql():
             TOP 10 *
             FROM RISCRASHDATA.dbo.node
         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test2]']
+        query.Query.query_creates_table(query_string, 'dbo', MS)
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None,'riscrashdata','dbo','test2')]
 
     def test_query_creates_table_from_into_multiple_wtemp_brackets(self):
         query_string = """
@@ -396,8 +399,8 @@ class TestQueryCreatesTablesSql():
                     FROM RISCRASHDATA.dbo.node
                 """
 
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[test2]',
-                                                                            '[riscrashdata].[dbo].[123 test2]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'riscrashdata','dbo','test2'),
+                                                                            (None,'riscrashdata','dbo','123 test2')]
 
         query_string = """
                             SELECT *
@@ -418,10 +421,10 @@ class TestQueryCreatesTablesSql():
                             TOP 10 *
                             FROM RISCRASHDATA.dbo.node
                         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[riscrashdata].[dbo].[abc test2]',
-                                                                            '[riscrashdata].[dbo].[123 test2]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'riscrashdata','dbo','abc test2'),
+                                                                            (None,'riscrashdata','dbo','123 test2')]
 
-        def test_multiple_qrys_select_into_dif_parts(self):
+    def test_multiple_qrys_select_into_dif_parts(self):
             query_string = """
                 insert into working.safety_projects_segs (id, src, segmentid, mft, dte, conservative)
 
@@ -458,14 +461,14 @@ class TestQueryCreatesTablesSql():
                     --;
                     into temp1 from fatality.dbo.FARS_Fatal_Other
                 """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[temp1]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, None, 'dbo','temp1')]
 
         query_string = """
                             select * 
                             /*;*/
                             into temp2 from fatality.dbo.FARS_Fatal_Other
                         """
-        assert query.Query.query_creates_table(query_string, 'dbo', MS) == ['[dbo].[temp2]']
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, None, 'dbo','temp2')]
 
 
 class TestQueryCreatesTablesPgSql():
