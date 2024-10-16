@@ -298,11 +298,14 @@ class Query:
         """
         create_pattern =r"""
             (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
+            ((?<!\$BODY\$))
             (create\s+table\s+)
+            (?!temp\s+|temporary\s+)
             (if\s+not\s+exists\s+)?
             (((([\[|\"])?)([\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}
             ((([\[|\"])?)((?!\#)[\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1})
             (?=(as\s+select)|(\())\s?
+            ((?!\$BODY\$))
         """
         # create_pattern=r'(create\s+)(?!temp\s+|temporary\s+)(table\s+)(.+)(?=\s+as\s+)'
         # create_pattern ="""
@@ -321,7 +324,7 @@ class Query:
 
         # tables = [i[4].strip() for i in matches]
         # tables = [i[-1].strip() for i in matches]
-        tables = [i[2].strip() for i in matches]
+        tables = [i[3].strip() for i in matches]
         # jenky work around but fixes the problem :( (extra ... 'as select' included in match)
         tables2 = [re.sub(r'(?<!\"|\[)(\s+as\s+select)(?!\"|\])', '', t) for t in tables]
         tables2 = [re.sub(r'(?<!\"|\[)(\s+AS\s+SELECT)(?!\"|\])', '', t) for t in tables2]
@@ -331,16 +334,19 @@ class Query:
 
         into_pattern = r"""
             ((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                        # ignore comments
+            ((?<!\$BODY\$))
             (select([.\n\w\*\s\",^])*into\s+)                       # find select into
+            (?!temp\s+|temporary\s+)
             (((([\[|\"])??)([\w0-9]+)(([\]|\"])?\.)){0,3}           # server.db.schema. 0-3 times
             (?!\#)((([\[|\"])??)([\w!@$%^&*()\s0-9-]+)(([\]|\"])?))\s+){1}) # table (whole thing only once)
             (?=from)
+            ((?!\$BODY\$))
             """
 
         create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
         into_matches = re.findall(create_table_into, query_string)
 
-        into_tables = [i[3].strip() for i in into_matches]
+        into_tables = [i[4].strip() for i in into_matches]
         new_tables += into_tables
 
         if new_tables:

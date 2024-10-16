@@ -479,14 +479,14 @@ class TestQueryCreatesTablesPgSql():
                     FROM node
                     LIMIT 10
                 """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'working','test')]
         query_string = """
             CREATE TABLE test AS
             SELECT *
             FROM node
             LIMIT 10
         """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'public','test')]
 
     def test_query_creates_table_from_qry_w_comments(self):
         query_string = """
@@ -500,7 +500,7 @@ class TestQueryCreatesTablesPgSql():
                     FROM node
                     LIMIT 10
                 """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'working','test')]
         query_string = """
         -- create table error
                     /*  create table error */
@@ -512,7 +512,7 @@ class TestQueryCreatesTablesPgSql():
             FROM node
             LIMIT 10
         """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'public','test')]
 
     def test_query_creates_table_from_qry_quotes(self):
         query_string = """
@@ -521,7 +521,7 @@ class TestQueryCreatesTablesPgSql():
                     FROM node
                     LIMIT 10
                 """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'working','test')]
 
         query_string = """
                             CREATE TABLE working."123 test" AS
@@ -529,7 +529,7 @@ class TestQueryCreatesTablesPgSql():
                             FROM node
                             LIMIT 10
                         """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working."123 test"']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'working','123 test')]
 
         query_string = """
             CREATE TABLE "test" AS
@@ -537,7 +537,7 @@ class TestQueryCreatesTablesPgSql():
             FROM node
             LIMIT 10
         """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'public','test')]
 
         query_string = """
                    CREATE TABLE "123 test" AS
@@ -545,7 +545,7 @@ class TestQueryCreatesTablesPgSql():
                    FROM node
                    LIMIT 10
                """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public."123 test"']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'public','123 test')]
 
     def test_query_creates_table_from_simple(self):
         query_string = """
@@ -553,13 +553,13 @@ class TestQueryCreatesTablesPgSql():
                    PersonID int
                );
                """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'working','test')]
         query_string = """
                        CREATE TABLE test (
                            PersonID int
                        );
                        """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'public','test')]
 
     def test_query_creates_table_from_simple_quotes(self):
         query_string = """
@@ -567,28 +567,28 @@ class TestQueryCreatesTablesPgSql():
                    PersonID int
                );
                """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'working','test')]
 
         query_string = """
                        CREATE TABLE "working"."test" (
                            PersonID int
                        );
                        """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'working','test')]
 
         query_string = """
                        CREATE TABLE "Test" (
                            PersonID int
                        );
                        """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public."Test"']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'public','Test')]
 
         query_string = """
                                CREATE TABLE "123 test" (
                                    PersonID int
                                );
                                """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public."123 test"']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None,'public','123 test')]
 
     def test_query_creates_table_multiple_tables(self):
         query_string = """
@@ -604,8 +604,7 @@ class TestQueryCreatesTablesPgSql():
                        FROM dbo.node
                        """
         x = query.Query.query_creates_table(query_string, 'public', PG)
-        x = set(x)
-        assert x == {'staging.test3', 'public.test2', 'working.test'}
+        assert x == [(None, None,'working','test'), (None, None,'public','test2'), (None, None,'staging','test3')]
 
     def test_query_creates_table_multiple_tables_quotes(self):
         query_string = """
@@ -621,8 +620,8 @@ class TestQueryCreatesTablesPgSql():
                        FROM dbo.node
                        """
         x = query.Query.query_creates_table(query_string, 'public', PG)
-        x.sort()
-        assert x == ['public.test2', 'staging.test3', 'working.test']
+
+        assert x == [ (None, None,'working','test'), (None, None,'public','test2'),(None, None,'staging','test3')]
 
     def test_query_creates_table_view(self):
         query_string = """
@@ -654,7 +653,7 @@ class TestQueryCreatesTablesPgSql():
                                f_node integer;
                             begin
                               select nodeid
-                              into f_node
+                              into temp f_node
                               from node
                               limit 1;
                             return f_node;
@@ -743,7 +742,7 @@ class TestQueryCreatesTablesPgSql():
                FROM working.test1
            """
         print(query.Query.query_creates_table(query_string, 'public', PG))
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test2']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'working','test2')]
 
         query_string = """
                        SELECT *
@@ -751,7 +750,7 @@ class TestQueryCreatesTablesPgSql():
                        FROM working.test1
                    """
 
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public.test2']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'public','test2')]
 
     def test_query_creates_table_from_into_quote(self):
         query_string = """
@@ -759,21 +758,21 @@ class TestQueryCreatesTablesPgSql():
                        INTO "test2"
                        FROM working.test1
                    """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public.test2']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'public','test2')]
 
         query_string = """
                        SELECT *
                        INTO "working"."test2"
                        FROM working.test1
                    """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test2']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'working','test2')]
 
         query_string = """
                        SELECT *
                        INTO working."Test 21"
                        FROM working.test1
                    """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working."Test 21"']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'working','Test 21')]
 
     def test_query_creates_table_from_into_multiple(self):
         query_string = """
@@ -791,7 +790,7 @@ class TestQueryCreatesTablesPgSql():
         """
         x = query.Query.query_creates_table(query_string, 'public', PG)
         x = set(x)
-        assert x == {'public.test3', 'public.test1', 'working.test2'}
+        assert x == set([(None, None, 'public','test3'), (None, None, 'public','test1'), (None, None, 'working','test2')])
 
     def test_query_creates_table_from_into_multiple_quote(self):
         query_string = """
@@ -809,7 +808,7 @@ class TestQueryCreatesTablesPgSql():
         """
         x = query.Query.query_creates_table(query_string, 'public', PG)
         x = set(x)
-        assert x == {'public."test 3"', 'public.test1', 'working."Test2"'}
+        assert x == set([(None, None, 'public','test 3'), (None, None, 'public','test1'), (None, None, 'working','Test2')])
 
     def test_query_creates_table_from_into_multiple_wtemp(self):
         query_string = """
@@ -826,8 +825,7 @@ class TestQueryCreatesTablesPgSql():
                     FROM public.node
                 """
         x = query.Query.query_creates_table(query_string, 'public', PG)
-        x.sort()
-        assert x == ['working.test2']
+        assert x == [(None, None, 'working','test2')]
 
     def test_query_creates_table_from_into_quotes_brackets(self):
         query_string = """
@@ -836,8 +834,7 @@ class TestQueryCreatesTablesPgSql():
                     FROM test1;
                 """
         x = query.Query.query_creates_table(query_string, 'dbo', MS)
-        x.sort()
-        assert x == ['[working].["test2"]']
+        assert x == [(None, None, 'working','"test2"')]
 
     def test_query_creates_table_from_qry_if_not_exists(self):
         query_string = """
@@ -846,7 +843,7 @@ class TestQueryCreatesTablesPgSql():
                     FROM node
                     LIMIT 10
                 """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['working.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'working','test')]
 
         query_string = """
             CREATE TABLE if not exists test AS
@@ -854,7 +851,7 @@ class TestQueryCreatesTablesPgSql():
             FROM node
             LIMIT 10
         """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['public.test']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'public','test')]
 
     def test_query_creates_table_table_quote_if_not_exists(self):
         query_string = """
@@ -862,7 +859,7 @@ class TestQueryCreatesTablesPgSql():
                                PersonID int
                            );
                            """
-        assert query.Query.query_creates_table(query_string, 'public', PG) == ['"123"."Test"']
+        assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, '123','Test')]
 
     def test_query_creates_table_temp_table_quote_if_not_exists(self):
         query_string = """
@@ -902,14 +899,13 @@ class TestQueryCreatesTablesPgSql():
         assert query.Query.query_creates_table(query_string, 'working', PG) == []
 
     def test_semi_col_in_comment(self):
-        # TODO: the comment parsing isnt working correctly for this
         query_string = """
                            select * 
                            --;
                            into working.temp1 
                            from fatality.dbo.FARS_Fatal_Other
                        """
-        assert query.Query.query_creates_table(query_string, 'working', PG) == ['working.temp1']
+        assert query.Query.query_creates_table(query_string, 'working', PG) == [(None, None, 'working','temp1')]
 
         query_string = """
                                    select * 
@@ -917,4 +913,4 @@ class TestQueryCreatesTablesPgSql():
                                    into working.temp1 
                                    from fatality.dbo.FARS_Fatal_Other
                                """
-        assert query.Query.query_creates_table(query_string, 'working', PG) == ['working.temp1']
+        assert query.Query.query_creates_table(query_string, 'working', PG) == [(None, None, 'working','temp1')]
