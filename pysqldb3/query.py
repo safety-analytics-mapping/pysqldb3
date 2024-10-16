@@ -290,12 +290,13 @@ class Query:
         query_string = ' '.join(_)
         new_tables = list()
 
-        create_pattern =r"""
-            (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
-            ((create\s+table\s+)(?!temp\s+|temporary\s+|#{0,2})(if\s+not\s+exists\s+)*)(\s+)*  # create non-temp table expression
-            (((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}   # server.db.schema. 0-3 times
-            ((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1}){1} # table (whole thing only once
-        """
+        # # OlD
+        # create_pattern =r"""
+        #     (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
+        #     ((create\s+table\s+)(?!temp\s+|temporary\s+|#{0,2})(if\s+not\s+exists\s+)*)(\s+)*  # create non-temp table expression
+        #     (((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}   # server.db.schema. 0-3 times
+        #     ((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1}){1} # table (whole thing only once
+        # """
         create_pattern =r"""
             (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
             ((?<!\$BODY\$))
@@ -307,40 +308,26 @@ class Query:
             (?=(as\s+select)|(\())\s?
             ((?!\$BODY\$))
         """
-        # create_pattern=r'(create\s+)(?!temp\s+|temporary\s+)(table\s+)(.+)(?=\s+as\s+)'
-        # create_pattern ="""
-        #     (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
-        #     ((create\s+table\s+)(?!temp\s+|temporary\s+)(if\s+not\s+exists\s+)*)(\s+)*  # create non-temp table expression
-        #     ((((((\[)?([^\s]])*(\])?)\.|((\")?(.)*(\")?)\.){0,3})
-        #     (((\[.*\])|(\".*\"))\s+|[^\s\"\[\]]*\s+){1}){1})
-        # """
 
         create_table = re.compile(create_pattern, re.VERBOSE | re.IGNORECASE)
 
-
         # matches = re.findall(create_table, query_string, re.IGNORECASE)
         matches = re.findall(create_table, query_string)
-        matches
 
-        # tables = [i[4].strip() for i in matches]
-        # tables = [i[-1].strip() for i in matches]
         tables = [i[3].strip() for i in matches]
-        # jenky work around but fixes the problem :( (extra ... 'as select' included in match)
-        tables2 = [re.sub(r'(?<!\"|\[)(\s+as\s+select)(?!\"|\])', '', t) for t in tables]
-        tables2 = [re.sub(r'(?<!\"|\[)(\s+AS\s+SELECT)(?!\"|\])', '', t) for t in tables2]
-        # new_tables+=tables2
         new_tables+=tables
 
-
         into_pattern = r"""
-            ((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                        # ignore comments
-            ((?<!\$BODY\$))
+            ((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
+            ((?<!\$BODY\$))                                         # lookbehind for body (in function)
             (select([.\n\w\*\s\",^])*into\s+)                       # find select into
-            (?!temp\s+|temporary\s+)
+            (?!temp\s+|temporary\s+)                                # lookahead for temp
             (((([\[|\"])??)([\w0-9]+)(([\]|\"])?\.)){0,3}           # server.db.schema. 0-3 times
-            (?!\#)((([\[|\"])??)([\w!@$%^&*()\s0-9-]+)(([\]|\"])?))\s+){1}) # table (whole thing only once)
-            (?=from)
-            ((?!\$BODY\$))
+            (?!\#)((([\[|\"])??)                                    # [ or "
+                ([\w!@$%^&*()\s0-9-]+)                              # table name
+            (([\]|\"])?))\s+){1})                                   # ] or "
+            (?=from)                                                # lookahead for 'from'
+            ((?!\$BODY\$))                                          # lookahead for body (in function)
             """
 
         create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
@@ -358,24 +345,6 @@ class Query:
         return parsed_tables
             # TODO create table query tables will always be 1st in the list over select into queries... does order matter?
 
-
-
-        #     parsed_tables_clean = []
-        #     for ser, db, s, t in parsed_tables:
-        #         # format variables
-        #         ser = get_query_table_schema_name(ser, db_type)
-        #         db = get_query_table_schema_name(db, db_type)
-        #         s = get_query_table_schema_name(s, db_type)
-        #         t = get_query_table_schema_name(t, db_type)
-        #         if ser:
-        #             parsed_tables_clean.append('.'.join([ser, db, s, t]))
-        #         elif db:
-        #             parsed_tables_clean.append('.'.join([db, s, t]))
-        #         else:
-        #             parsed_tables_clean.append('.'.join([s, t]))
-        #     return parsed_tables_clean
-        # else:
-        #     return []
 
     @staticmethod
     def query_drops_table(query_string):
