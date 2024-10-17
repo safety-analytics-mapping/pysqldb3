@@ -6,6 +6,9 @@ import psycopg2
 from .shapefile import *
 from .util import parse_table_string
 
+RE_ENCAPSULATED_TABLE_NAME = r'((\[)(.)+?(\]))|((\")(.)+?(\"))'
+
+RE_NON_ENCAPSULATED_TABLE_NAME = r'([a-zA-Z_]+?[\w]+?)'
 
 class Query:
     """
@@ -286,8 +289,8 @@ class Query:
 
 
         # remove mulitple spaces
-        _ = query_string.split()
-        query_string = ' '.join(_)
+        # _ = query_string.split()
+        # query_string = ' '.join(_)
         new_tables = list()
 
         # # OlD
@@ -297,24 +300,37 @@ class Query:
         #     (((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}   # server.db.schema. 0-3 times
         #     ((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1}){1} # table (whole thing only once
         # """
-        create_pattern =r"""
-            (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
-            ((?<!\$BODY\$))
+        # create_pattern =r"""
+        #     (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
+        #     ((?<!\$BODY\$))
+        #     (create\s+table\s+)
+        #     (?!temp\s+|temporary\s+)
+        #     (if\s+not\s+exists\s+)?
+        #     (((([\[|\"])?)([\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}
+        #     ((([\[|\"])?)((?!\#)[\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1})
+        #     (?=(as\s+select)|(\())\s?
+        #     ((?!\$BODY\$))
+        # """
+
+        create_pattern = """
+            (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)
             (create\s+table\s+)
-            (?!temp\s+|temporary\s+)
+            (?!temp\s+|temporary|\s+)
             (if\s+not\s+exists\s+)?
-            (((([\[|\"])?)([\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}
-            ((([\[|\"])?)((?!\#)[\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1})
-            (?=(as\s+select)|(\())\s?
-            ((?!\$BODY\$))
-        """
+            (
+                (({encaps} | {nonencaps})\.){sds}?
+                (\[?\#{t3}){t1}
+                (({encaps} | {nonencaps})\s+){t}
+            )((as\s+select)|(\())\s?
+        """.format(encaps=RE_ENCAPSULATED_TABLE_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                   sds = "{0,3}", t="{1}", t1="{0}", t3="{1,2}")
 
         create_table = re.compile(create_pattern, re.VERBOSE | re.IGNORECASE)
 
         # matches = re.findall(create_table, query_string, re.IGNORECASE)
         matches = re.findall(create_table, query_string)
 
-        tables = [i[3].strip() for i in matches]
+        tables = [i[2].strip() for i in matches]
         new_tables+=tables
 
         into_pattern = r"""
@@ -386,6 +402,23 @@ class Query:
 
         rename_tables = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(alter table\s+(if exists\s+)?)(\"?[*\w\s]*\"?\.)?' \
                         r'(\"?[\w\s]*\"?)\s+(rename to )(\"?[\w\s]*\"?)\;?'
+
+
+        rename_pattern = r"""
+            (\s?alter\s+table\s(if exists\s+)?)
+            (
+                (((\[|\")([\w\s!@$%^&*()--])+(\]|\"))\.)|     # [\" encapsulated 
+                (([a-zA-Z]+[\w]+)+)                           # plain table - 1st char is standard after can be numbers etc
+            \.){0,3}                                          # server.database.schema 0-3 times 
+            (
+                (((\[|\")([\w\s!@$%^&*()--])+(\]|\"))\\s)|      # [\" encapsulated 
+                (([a-zA-Z]+[\w]+)+)\s+)+                        # plain table - 1st char is standard after can be numbers etc
+            (rename\s)
+                """
+
+        rename_tables = re.compile(rename_pattern, re.VERBOSE | re.IGNORECASE)
+
+
         matches = re.findall(rename_tables, query_string.lower())
         for row in matches:
             old_schema = row[2]
