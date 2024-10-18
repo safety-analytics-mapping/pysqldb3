@@ -6,7 +6,8 @@ import psycopg2
 from .shapefile import *
 from .util import parse_table_string
 
-RE_ENCAPSULATED_TABLE_NAME = r'((\[)(.)+?(\]))|((\")(.)+?(\"))'
+RE_ENCAPSULATED_SCHEMA_NAME = r'((\[)(.)+?(\]))|((\")(.)+?(\"))'
+RE_ENCAPSULATED_TABLE_NAME = r'((\[)([^#.\"])+?(\]))|((\")(.)+?(\"))'
 
 RE_NON_ENCAPSULATED_TABLE_NAME = r'([a-zA-Z_]+?[\w]+?)'
 
@@ -320,9 +321,10 @@ class Query:
             (
                 (({encaps} | {nonencaps})\.){sds}?
                 (\[?\#{t3}){t1}
-                (({encaps} | {nonencaps})\s+){t}
+                (({encapst} | {nonencaps})\s+){t}
             )((as\s+select)|(\())\s?
-        """.format(encaps=RE_ENCAPSULATED_TABLE_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+        """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                   encapst=RE_ENCAPSULATED_TABLE_NAME,
                    sds = "{0,3}", t="{1}", t1="{0}", t3="{1,2}")
 
         create_table = re.compile(create_pattern, re.VERBOSE | re.IGNORECASE)
