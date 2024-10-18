@@ -320,12 +320,12 @@ class Query:
             (if\s+not\s+exists\s+)?
             (
                 (({encaps} | {nonencaps})\.){sds}?
-                (\[?\#{t3}){t1}
-                (({encapst} | {nonencaps})\s+){t}
+                (\[?\#{temp_mark}){tmp_time}
+                (({encapst} | {nonencaps})\s+){tbl_time}
             )((as\s+select)|(\())\s?
         """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
-                   encapst=RE_ENCAPSULATED_TABLE_NAME,
-                   sds = "{0,3}", t="{1}", t1="{0}", t3="{1,2}")
+                          encapst=RE_ENCAPSULATED_TABLE_NAME,
+                          sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
 
         create_table = re.compile(create_pattern, re.VERBOSE | re.IGNORECASE)
 
@@ -335,19 +335,6 @@ class Query:
         tables = [i[2].strip() for i in matches]
         new_tables+=tables
 
-        # into_pattern = r"""
-        #     ((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
-        #     ((?<!\$BODY\$))                                         # lookbehind for body (in function)
-        #     (select([.\n\w\*\s\",^])*into\s+)                       # find select into
-        #     (?!temp\s+|temporary\s+)                                # lookahead for temp
-        #     (((([\[|\"])??)([\w0-9]+)(([\]|\"])?\.)){0,3}           # server.db.schema. 0-3 times
-        #     (?!\#)((([\[|\"])??)                                    # [ or "
-        #         ([\w!@$%^&*()\s0-9-]+)                              # table name
-        #     (([\]|\"])?))\s+){1})                                   # ] or "
-        #     (?=from)                                                # lookahead for 'from'
-        #     ((?!\$BODY\$))                                          # lookahead for body (in function)
-        #     """
-
         into_pattern = r"""
             (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
             
@@ -355,13 +342,13 @@ class Query:
             (?!temp\s+|temporary\s+)                                # lookahead for temp
             (
                (({encaps} | {nonencaps})\.){sds}?
-               (\[?\#{t3}){t1}
-               (({encapst} | {nonencaps})\s+){t}
+               (\[?\#{temp_mark}){tmp_time}
+               (({encapst} | {nonencaps})\s+){tbl_time}
            )
            (?=from)                                                # lookahead for 'from'
             """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
                           encapst=RE_ENCAPSULATED_TABLE_NAME,
-                          sds="{0,3}", t="{1}", t1="{0}", t3="{1,2}")
+                          sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
 
 
         create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
