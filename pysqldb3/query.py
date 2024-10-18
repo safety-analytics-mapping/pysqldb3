@@ -335,23 +335,39 @@ class Query:
         tables = [i[2].strip() for i in matches]
         new_tables+=tables
 
+        # into_pattern = r"""
+        #     ((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
+        #     ((?<!\$BODY\$))                                         # lookbehind for body (in function)
+        #     (select([.\n\w\*\s\",^])*into\s+)                       # find select into
+        #     (?!temp\s+|temporary\s+)                                # lookahead for temp
+        #     (((([\[|\"])??)([\w0-9]+)(([\]|\"])?\.)){0,3}           # server.db.schema. 0-3 times
+        #     (?!\#)((([\[|\"])??)                                    # [ or "
+        #         ([\w!@$%^&*()\s0-9-]+)                              # table name
+        #     (([\]|\"])?))\s+){1})                                   # ] or "
+        #     (?=from)                                                # lookahead for 'from'
+        #     ((?!\$BODY\$))                                          # lookahead for body (in function)
+        #     """
+
         into_pattern = r"""
-            ((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
-            ((?<!\$BODY\$))                                         # lookbehind for body (in function)
-            (select([.\n\w\*\s\",^])*into\s+)                       # find select into
+            (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
+            
+            (select([.\n\w\*\s\",^,\[\]])+?into\s+)+?               # find select into
             (?!temp\s+|temporary\s+)                                # lookahead for temp
-            (((([\[|\"])??)([\w0-9]+)(([\]|\"])?\.)){0,3}           # server.db.schema. 0-3 times
-            (?!\#)((([\[|\"])??)                                    # [ or "
-                ([\w!@$%^&*()\s0-9-]+)                              # table name
-            (([\]|\"])?))\s+){1})                                   # ] or "
-            (?=from)                                                # lookahead for 'from'
-            ((?!\$BODY\$))                                          # lookahead for body (in function)
-            """
+            (
+               (({encaps} | {nonencaps})\.){sds}?
+               (\[?\#{t3}){t1}
+               (({encapst} | {nonencaps})\s+){t}
+           )
+           (?=from)                                                # lookahead for 'from'
+            """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                          encapst=RE_ENCAPSULATED_TABLE_NAME,
+                          sds="{0,3}", t="{1}", t1="{0}", t3="{1,2}")
+
 
         create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
         into_matches = re.findall(create_table_into, query_string)
 
-        into_tables = [i[4].strip() for i in into_matches]
+        into_tables = [i[2].strip() for i in into_matches]
         new_tables += into_tables
 
         if new_tables:
