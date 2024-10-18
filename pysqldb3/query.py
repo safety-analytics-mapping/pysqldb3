@@ -7,7 +7,7 @@ from .shapefile import *
 from .util import parse_table_string
 
 RE_ENCAPSULATED_SCHEMA_NAME = r'((\[)(.)+?(\]))|((\")(.)+?(\"))'
-RE_ENCAPSULATED_TABLE_NAME = r'((\[)([^#.\"])+?(\]))|((\")(.)+?(\"))'
+RE_ENCAPSULATED_TABLE_NAME = r'((\[)([^#.])+?(\]))|((\")(.)+?(\"))'
 
 RE_NON_ENCAPSULATED_TABLE_NAME = r'([a-zA-Z_]+?[\w]+?)'
 
