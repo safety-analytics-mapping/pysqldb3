@@ -215,7 +215,7 @@ class Query:
             # 6.3 Commit and run new/dropped/renamed tables routine
             self.__safe_commit()
             if not internal:
-                self.renamed_tables = self.query_renames_table(self.query_string, self.dbo.default_schema)
+                self.renamed_tables = self.query_renames_table(self.query_string, self.dbo.default_schema, self.dbo.type)
                 self.new_tables = self.query_creates_table(self.query_string, self.dbo.default_schema, self.dbo.type)
 
                 # Add renamed tables to query's new table list
@@ -396,7 +396,7 @@ class Query:
             return []
 
     @staticmethod
-    def query_renames_table(query_string, default_schema):
+    def query_renames_table(query_string, default_schema, db_type):
         """
         Checks if a rename query is run
         :return: Dict {schema.new table name: original table name}
@@ -435,32 +435,60 @@ class Query:
             rename_tables_sql = r"(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(exec\s+sp_rename)(\s*')(\[?[\w\s+]*\]?\.)?" \
                                 r"(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?)',\s*'(\[?[\w\s+]*\]?)'" \
                                 r"(?!,?\s*n?'(column|index)'?\s*)"
-            matches = re.findall(rename_tables_sql, query_string.lower())
+            rename_tables_sql = """
+            (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
+            (exec\s+sp_rename)(\s+?')
+            ((.)+?)
+            ('\s?,\s?')
+            ((.)*?)
+            ('\s?)(;)?
+            (?!,?\s*n?'(column|index)'?\s*)
+            """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonecaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                          encapst=RE_ENCAPSULATED_TABLE_NAME,
+                          sds="{0,3}", tbl_time="{1}")
+
+            rename_tables = re.compile(rename_tables_sql, re.VERBOSE | re.IGNORECASE)
+            matches = re.findall(rename_tables, query_string)
+
 
             for row in matches:
-                row = [r for r in row if r and r.strip() != "'"]
+                from_data = row[2].split('.')
+                _ = [None for i in range(3)] + from_data
+                from_server, from_database, from_schema, from_table = _[-4:]
+                to_table = row[5]
 
-                if len(row) == 3:
-                    old_schema = default_schema + "."
-                    old_table = row[1]
+                if not from_schema:
+                    new_tables[default_schema + '.' + get_unique_table_schema_string(to_table, db_type)] = \
+                        get_unique_table_schema_string(from_table, db_type)
 
-                if len(row) == 4:
-                    old_schema = row[1]
-                    old_table = row[2]
+                else:
+                    new_tables[get_unique_table_schema_string(from_schema, db_type) +'.'+
+                           get_unique_table_schema_string(to_table, db_type)] = get_unique_table_schema_string(from_table, db_type)
 
-                if len(row) == 5:
-                    # old_database = row[1]
-                    old_schema = row[2]
-                    old_table = row[3]
-
-                if len(row) == 6:
-                    # old_server = row[1]
-                    # old_database = row[2]
-                    old_schema = row[3]
-                    old_table = row[4]
-
-                new_table = row[-1]
-                new_tables[old_schema + new_table] = old_table
+                #
+                # row = [r for r in row if r and r.strip() != "'"]
+                #
+                # if len(row) == 3:
+                #     old_schema = default_schema + "."
+                #     old_table = row[1]
+                #
+                # if len(row) == 4:
+                #     old_schema = row[1]
+                #     old_table = row[2]
+                #
+                # if len(row) == 5:
+                #     # old_database = row[1]
+                #     old_schema = row[2]
+                #     old_table = row[3]
+                #
+                # if len(row) == 6:
+                #     # old_server = row[1]
+                #     # old_database = row[2]
+                #     old_schema = row[3]
+                #     old_table = row[4]
+                #
+                # new_table = row[-1]
+                # new_tables[old_schema + new_table] = old_table
 
         return new_tables
 

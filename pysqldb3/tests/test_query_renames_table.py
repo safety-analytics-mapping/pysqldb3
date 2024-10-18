@@ -24,38 +24,41 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 
 sql_test_schema = config.get('SQL_DB', 'WORKING_SCHEMA')
 pg_test_schema = config.get('PG_DB', 'WORKING_SCHEMA')
-
+ms_db_type = 'MS'
+pg_db_type = 'PG'
 
 class TestQueryCreatesTablesSql:
+
+
     def test_query_renames_table_from_qry(self, schema_name=sql_test_schema):
         query_string = f"""
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
         """
-        assert query.Query.query_renames_table(query_string, schema_name) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_from_qry_no_db(self, schema_name=sql_test_schema):
         query_string = f"""
              EXEC sp_rename '{schema_name}.test_{sql.user}', 'node_{sql.user}'
          """
-        assert query.Query.query_renames_table(query_string, schema_name) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_from_qry_just_table(self, schema_name=sql_test_schema):
         query_string = f"""
              EXEC sp_rename 'test_{sql.user}', 'node_{sql.user}'
          """
-        assert query.Query.query_renames_table(query_string, schema_name) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_from_qry_server(self, schema_name=sql_test_schema):
         query_string = f"""
              EXEC sp_rename 'dotserver.RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
          """
-        assert query.Query.query_renames_table(query_string, schema_name) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_from_qry_brackets(self, schema_name=sql_test_schema):
         query_string = f"""
                EXEC sp_rename '[RISCRASHDATA].[{schema_name}].[test_{sql.user}]', '[node_{sql.user}]'
            """
-        assert query.Query.query_renames_table(query_string, schema_name) == {f'[{schema_name}].[node_{sql.user}]': f'[test_{sql.user}]'}
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_from_qry_multiple(self, schema_name=sql_test_schema):
 
@@ -69,7 +72,7 @@ class TestQueryCreatesTablesSql:
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
         """
 
-        assert query.Query.query_renames_table(query_string, default_schema=schema_name) == \
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == \
         {f"{schema_name}.node_{sql.user}": f"test_{sql.user}", f"{schema_name}.node0_{sql.user}": f"test3_{sql.user}"}
 
     def test_query_renames_table_from_qry_w_comments(self, schema_name=sql_test_schema):
@@ -81,7 +84,7 @@ class TestQueryCreatesTablesSql:
         */
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
         """
-        assert query.Query.query_renames_table(query_string, schema_name) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_logging_not_temp(self, schema_name=sql_test_schema):
         sql.drop_table(schema_name,f'___test___test___{sql.user}___')
@@ -116,14 +119,14 @@ class TestQueryCreatesTablesPgSql():
             ALTER TABLE {schema_name}.test_{db.user}
             RENAME TO node_{db.user}
         """
-        assert query.Query.query_renames_table(query_string, 'public') == {f'{schema_name}.node_{db.user}': f'test_{db.user}'}
+        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {f'{schema_name}.node_{db.user}': f'test_{db.user}'}
 
     def test_query_renames_table_from_qry_quotes(self, schema_name=pg_test_schema):
         query_string = f"""
             ALTER TABLE "{schema_name}"."test_{db.user}"
             RENAME TO "node_{db.user}"
         """
-        assert query.Query.query_renames_table(query_string, 'public') == {f'"{schema_name}"."node_{db.user}"': f'"test_{db.user}"'}
+        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {f'"{schema_name}"."node_{db.user}"': f'"test_{db.user}"'}
 
     def test_query_renames_table_from_qry_multiple(self, schema_name=pg_test_schema):
         query_string = f"""
@@ -136,7 +139,7 @@ class TestQueryCreatesTablesPgSql():
             ALTER TABLE {schema_name}.test2_{db.user}
             RENAME TO node2_{db.user};
         """
-        assert query.Query.query_renames_table(query_string, 'public') == {f'"{schema_name}"."node_{db.user}"': f'"test_{db.user}"',
+        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {f'"{schema_name}"."node_{db.user}"': f'"test_{db.user}"',
                                                                                f'{schema_name}.node2_{db.user}': f'test2_{db.user}'}
 
     def test_query_renames_table_from_qry_w_comments(self, schema_name=pg_test_schema):
@@ -149,7 +152,7 @@ class TestQueryCreatesTablesPgSql():
         ALTER TABLE {schema_name}.test_{db.user}
         RENAME TO node_{db.user}
         """
-        assert query.Query.query_renames_table(query_string, 'public') == {f'{schema_name}.node_{db.user}': f'test_{db.user}'}
+        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {f'{schema_name}.node_{db.user}': f'test_{db.user}'}
 
 
     def test_query_renames_table_logging_not_temp(self, schema_name=pg_test_schema):

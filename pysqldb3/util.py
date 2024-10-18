@@ -164,6 +164,8 @@ def parse_table_string(tbl_str, default_schema, db_type):
      
     """
     # Parse schema/table from table string
+    if type(tbl_str) in (list, tuple):
+        return tbl_str
     names_arr = tbl_str.split('.')
     # start = 0
     #
