@@ -35,6 +35,7 @@ class TestQueryCreatesTablesSql:
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
         """
         assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
+
     def test_query_renames_table_from_qry_caps(self, schema_name=sql_test_schema):
         query_string = f"""
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', '[Node_{sql.user}]'
@@ -128,15 +129,15 @@ class TestQueryCreatesTablesPgSql():
 
     def test_query_renames_table_from_qry_quotes(self, schema_name=pg_test_schema):
         query_string = f"""
-            ALTER TABLE "{schema_name}"."test_{db.user}"
+            ALTER TABLE "{schema_name}"."Test_{db.user}"
             RENAME TO "node_{db.user}"
         """
-        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {f'"{schema_name}"."node_{db.user}"': f'"test_{db.user}"'}
+        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {f'{schema_name}.node_{db.user}': f'Test_{db.user}'}
 
     def test_query_renames_table_from_qry_multiple(self, schema_name=pg_test_schema):
         query_string = f"""
-            ALTER TABLE "{schema_name}"."test_{db.user}"
-            RENAME TO "node_{db.user}";
+            ALTER TABLE "{schema_name}"."Test_{db.user}"
+            RENAME TO "2node_{db.user}";
 
             CREATE TABLE {schema_name}.test_table_error_{db.user} as
             SELECT * FROM node_{db.user};
@@ -144,8 +145,9 @@ class TestQueryCreatesTablesPgSql():
             ALTER TABLE {schema_name}.test2_{db.user}
             RENAME TO node2_{db.user};
         """
-        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {f'"{schema_name}"."node_{db.user}"': f'"test_{db.user}"',
-                                                                               f'{schema_name}.node2_{db.user}': f'test2_{db.user}'}
+        assert query.Query.query_renames_table(query_string, 'public', pg_db_type) == {
+            f'{schema_name}.2node_{db.user}': f'Test_{db.user}',
+            f'{schema_name}.node2_{db.user}': f'test2_{db.user}'}
 
     def test_query_renames_table_from_qry_w_comments(self, schema_name=pg_test_schema):
         query_string = f"""

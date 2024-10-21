@@ -427,7 +427,8 @@ class Query:
             old_schema = row[5]
             old_table = row[17]
             new_table = row[28]
-            new_tables[old_schema +'.'+ new_table] = old_table
+            new_tables[get_unique_table_schema_string(old_schema, db_type) + '.' + get_unique_table_schema_string(new_table, db_type)] = \
+                get_unique_table_schema_string(old_table, db_type)
 
         if not matches:
 
