@@ -303,21 +303,22 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
 def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
                    print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
     """
-    # TODO
-    :param from_sql:
-    :param to_sql:
-    :param qry:
-    :param LDAP_from:
-    :param LDAP_to:
-    :param spatial:
-    :param org_schema:
-    :param dest_schema:
-    :param print_cmd:
-    :param dest_table:
-    :param temp:
-    :param gdal_data_loc:
-    :param pg_encoding:
-    :param permission:
+    Migrates tables from one SQL Server database to another SQL Server database.
+
+    :param from_sql: DbConnect instance connecting to SQL Server Origin database
+    :param to_sql: DbConnect instance connecting to SQL Server Destination database
+    :param qry: Query String in SQL
+    :param LDAP_from: Flag for using LDAP credentials (defaults to False) for source
+    :param LDAP_to: Flag for using LDAP credentials (defaults to False) for destination
+    :param spatial: Flag for spatial table (defaults to True)
+    :param org_schema: SQL Server schema for origin table (defaults to default schema function result)
+    :param dest_schema: SQL Server schema for destination table (defaults to default schema function result)
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param dest_table: Table name of final migrated table in destination SQL Server database
+    :param temp: flag, defaults to true, for temporary tables
+    :param gdal_data_loc: location of GDAL data
+    :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
+    :param permission: set permission to Public on destination table (defaults to False)
     :return:
     """
 
@@ -398,7 +399,23 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
 def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
                print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
     """
-    # TODO
+    Migrates tables from one SQL Server database to another SQL Server database.
+
+    :param from_sql: DbConnect instance connecting to SQL Server Origin database
+    :param to_sql: DbConnect instance connecting to SQL Server Destination database
+    :param org_table: Table name in source database to be migrated
+    :param LDAP_from: Flag for using LDAP credentials (defaults to False) for source
+    :param LDAP_to: Flag for using LDAP credentials (defaults to False) for destination
+    :param spatial: Flag for spatial table (defaults to True)
+    :param org_schema: SQL Server schema for origin table (defaults to default schema function result)
+    :param dest_schema: SQL Server schema for destination table (defaults to default schema function result)
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param dest_table: Table name of final migrated table in destination SQL Server database
+    :param temp: flag, defaults to true, for temporary tables
+    :param gdal_data_loc: location of GDAL data
+    :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
+    :param permission: set permission to Public on destination table (defaults to False)
+    :return:
     """
 
     if not dest_table:
