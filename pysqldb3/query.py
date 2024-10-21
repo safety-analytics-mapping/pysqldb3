@@ -220,7 +220,7 @@ class Query:
 
                 # Add renamed tables to query's new table list
                 # self.new_tables += [t for t in self.renamed_tables.keys()]
-                self.dropped_tables = self.query_drops_table(self.query_string)
+                self.dropped_tables = self.query_drops_table(self.query_string, self.dbo.type)
 
                 if self.permission:
                     for t in self.new_tables:
@@ -368,32 +368,56 @@ class Query:
 
 
     @staticmethod
-    def query_drops_table(query_string):
+    def query_drops_table(query_string, db_type):
         """
         Checks if query drops any tables.
         Tables that were dropped should be removed from the to drop queue. This should help
         avoid dropping tables with coincident names.
         :return: list of tables dropped (including any db/schema info)
         """
-        _ = query_string.split()
-        query_string = ' '.join(_)
+
+        # remove multiline comments
+        comments = r'((/\*)+?[\w\W]+?(\*/)+)|(--.*)'
+        matches = re.findall(comments, query_string, re.IGNORECASE)
+        for m in matches:
+            if m:
+                m = [s for s in m if s != '']
+                query_string = ''.join(query_string.split(m[0]))
+
         dropped_tables = list()
-        drop_table = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(drop\s+table\s+(if\s+exists\s+)?)((([\[][\w\s\.\"]*[\]])|' \
-                     r'([\"][\w\s\.]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.]' \
-                     r'(([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
-                     r'[\"])|([\w]+)))?)([\s\n\r\t]*(\;?)[\s\n\r\t]*)'
-        matches = re.findall(drop_table, query_string, re.IGNORECASE)
+
+        drop_pattern = r"""
+                   (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
+                   (\s?drop\s+table\s(if\s+exists\s+)?)
+                   ((
+                       (({encaps} | {nonencaps})\.)){sds}
+                   (
+                       (({encapst} | {nonencaps})){tbl_time}
+                   ))(\s | \;)+
+                       """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME,
+                                  encapst=RE_ENCAPSULATED_TABLE_NAME,
+                                  nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                                  sds="{0,3}", tbl_time="{1}")
+        drop_pattern = re.compile(drop_pattern, re.VERBOSE | re.IGNORECASE)
+
+        matches = re.findall(drop_pattern, query_string)
+
+
+        # drop_table = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(drop\s+table\s+(if\s+exists\s+)?)((([\[][\w\s\.\"]*[\]])|' \
+        #              r'([\"][\w\s\.]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.]' \
+        #              r'(([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
+        #              r'[\"])|([\w]+)))?)([\s\n\r\t]*(\;?)[\s\n\r\t]*)'
+        # matches = re.findall(drop_table, query_string, re.IGNORECASE)
 
         if matches:
-            for match in matches:
-                if len(match) == 0:
-                    continue
+            for row in matches:
+                dropped_tables.append(
+                    '.'.join([
+                        get_unique_table_schema_string(t, db_type)
+                        for t in row[2].split('.')])
+                )
+        return dropped_tables
 
-                tb = [m for m in match][2:3]
-                dropped_tables += tb
-            return dropped_tables
-        else:
-            return []
 
     @staticmethod
     def query_renames_table(query_string, default_schema, db_type):

@@ -850,7 +850,7 @@ class DbConnect:
                     self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
                                timeme=False, strict=strict, internal=internal)
             else:
-                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table))
+                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table), self.type)
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
 
     def rename_column(self, schema, table, old_column, new_column):
