@@ -9,7 +9,7 @@ from .util import parse_table_string
 RE_ENCAPSULATED_SCHEMA_NAME = r'((\[)(.)+?(\]))|((\")(.)+?(\"))'
 RE_ENCAPSULATED_TABLE_NAME = r'((\[)([^#.])+?(\]))|((\")(.)+?(\"))'
 
-RE_NON_ENCAPSULATED_TABLE_NAME = r'([a-zA-Z_]+?[\w]+?)'
+RE_NON_ENCAPSULATED_TABLE_NAME = r'([a-zA-Z_]+[\w]+)'
 
 class Query:
     """
@@ -405,36 +405,32 @@ class Query:
         query_string = ' '.join(_)
         new_tables = dict()
 
-        rename_tables = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(alter table\s+(if exists\s+)?)(\"?[*\w\s]*\"?\.)?' \
-                        r'(\"?[\w\s]*\"?)\s+(rename to )(\"?[\w\s]*\"?)\;?'
-
-
         rename_pattern = r"""
+            (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
             (\s?alter\s+table\s(if exists\s+)?)
+            ((
+                (({encaps} | {nonencaps})\.)){sds}                                           
             (
-                (((\[|\")([\w\s!@$%^&*()--])+(\]|\"))\.)|     # [\" encapsulated 
-                (([a-zA-Z]+[\w]+)+)                           # plain table - 1st char is standard after can be numbers etc
-            \.){0,3}                                          # server.database.schema 0-3 times 
-            (
-                (((\[|\")([\w\s!@$%^&*()--])+(\]|\"))\\s)|      # [\" encapsulated 
-                (([a-zA-Z]+[\w]+)+)\s+)+                        # plain table - 1st char is standard after can be numbers etc
-            (rename\s)
-                """
+                (({encaps} | {nonencaps})\s+){tbl_time}
+            ))
+            (rename\s+to\s+)
+            ((({encaps} | {nonencaps}))+)
+                """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME,
+                           nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                           sds="{0,3}", tbl_time="{1}")
 
         rename_tables = re.compile(rename_pattern, re.VERBOSE | re.IGNORECASE)
 
 
-        matches = re.findall(rename_tables, query_string.lower())
+        matches = re.findall(rename_tables, query_string)
         for row in matches:
-            old_schema = row[2]
-            old_table = row[3]
-            new_table = row[-1]
-            new_tables[old_schema + new_table] = old_table
+            old_schema = row[5]
+            old_table = row[17]
+            new_table = row[28]
+            new_tables[old_schema +'.'+ new_table] = old_table
 
         if not matches:
-            rename_tables_sql = r"(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(exec\s+sp_rename)(\s*')(\[?[\w\s+]*\]?\.)?" \
-                                r"(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?)',\s*'(\[?[\w\s+]*\]?)'" \
-                                r"(?!,?\s*n?'(column|index)'?\s*)"
+
             rename_tables_sql = """
             (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
             (exec\s+sp_rename)(\s+?')
@@ -443,9 +439,7 @@ class Query:
             ((.)*?)
             ('\s?)(;)?
             (?!,?\s*n?'(column|index)'?\s*)
-            """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonecaps=RE_NON_ENCAPSULATED_TABLE_NAME,
-                          encapst=RE_ENCAPSULATED_TABLE_NAME,
-                          sds="{0,3}", tbl_time="{1}")
+            """
 
             rename_tables = re.compile(rename_tables_sql, re.VERBOSE | re.IGNORECASE)
             matches = re.findall(rename_tables, query_string)

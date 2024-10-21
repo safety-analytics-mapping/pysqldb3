@@ -35,6 +35,11 @@ class TestQueryCreatesTablesSql:
             EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', 'node_{sql.user}'
         """
         assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
+    def test_query_renames_table_from_qry_caps(self, schema_name=sql_test_schema):
+        query_string = f"""
+            EXEC sp_rename 'RISCRASHDATA.{schema_name}.test_{sql.user}', '[Node_{sql.user}]'
+        """
+        assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.Node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_from_qry_no_db(self, schema_name=sql_test_schema):
         query_string = f"""
