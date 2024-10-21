@@ -300,6 +300,116 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
         pg.log_temp_table(dest_schema, dest_table, pg.user)
 
 
+def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
+                   print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
+    """
+    # TODO
+    :param from_sql:
+    :param to_sql:
+    :param qry:
+    :param LDAP_from:
+    :param LDAP_to:
+    :param spatial:
+    :param org_schema:
+    :param dest_schema:
+    :param print_cmd:
+    :param dest_table:
+    :param temp:
+    :param gdal_data_loc:
+    :param pg_encoding:
+    :param permission:
+    :return:
+    """
+
+    if not org_schema:
+        org_schema = from_sql.default_schema
+
+    if not dest_schema:
+        dest_schema = to_sql.default_schema
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=to_sql.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    if spatial:
+        spatial = 'MSSQLSpatial'
+        nlt_spatial = ' '
+    else:
+        spatial = 'MSSQL'
+        nlt_spatial = '-nlt NONE'
+
+    if LDAP_from:
+        from_user = ''
+        from_password = ''
+    else:
+        from_user = from_sql.user
+        from_password = from_sql.password
+    if LDAP_to:
+        to_user = ''
+        to_password = ''
+    else:
+        to_user = to_sql.user
+        to_password = to_sql.password
+    cmd = SQL_TO_SQL_CMD.format(
+        gdal_data=gdal_data_loc,
+        from_server=from_sql.server,
+        from_database=from_sql.database,
+        from_user=from_user,
+        from_pass=from_password,
+        to_server=to_sql.server,
+        to_database=to_sql.database,
+        to_user=to_user,
+        to_pass=to_password,
+
+        to_schema=dest_schema,
+        to_table=dest_table,
+        qry=qry,
+
+        spatial=spatial,
+        nlt_spatial=nlt_spatial
+    )
+
+    if print_cmd:
+        print(print_cmd_string([from_sql.password, to_sql.password], cmd))
+
+    cmd_env = os.environ.copy()
+    cmd_env['PGCLIENTENCODING'] = pg_encoding
+
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
+                                               env=cmd_env)
+        if permission == True:
+            to_sql.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([from_sql.password, to_sql.password], cmd),
+                                            returncode=1)
+
+    clean_geom_column(to_sql, dest_table, dest_schema)
+
+    to_sql.tables_created.append(dest_schema + "." + dest_table)
+
+    if temp:
+        to_sql.log_temp_table(dest_schema, dest_table, to_sql.user)
+
+
+
+def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
+               print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
+    """
+    # TODO
+    """
+
+    if not dest_table:
+        dest_table = org_table
+
+
+    sql_to_sql_qry(from_sql, to_sql, f'select * from [{org_schema}].[{org_table}]', LDAP_from, LDAP_to, spatial, org_schema, dest_schema, print_cmd, dest_table, temp,
+                   gdal_data_loc, pg_encoding, permission)
+
+
+
 def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
              spatial=True, temp=True, permission = True):
     """
