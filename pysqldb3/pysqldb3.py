@@ -1779,12 +1779,12 @@ class DbConnect:
         fig.show()
         return
 
-    def query_to_shp(self, query,  gpkg_tbl, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_shp(self, query,  gpkg_tbl = None, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263, shp = True):
         """
         Exports query results to a shp file.
         :param query: SQL query as string type
-        :param gpkg_tbl: Argument if this function is run for gpkg
+        :param gpkg_tbl: Argument only if this function is run for gpkg
         :param path: folder path for output shp
         :param shp_name: filename for shape (should end in .shp); can also be used for gpkg (should end in .gpkg)
         :param cmd: GDAL command to overwrite default
@@ -2085,7 +2085,7 @@ class DbConnect:
             self.__run_table_logging([schema + "." + table], days=days)
 
 
-    def query_to_gpkg(self, query, gpkg_tbl = None, path=None, gpkg_name=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_gpkg(self, query, gpkg_tbl, gpkg_name = None, path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
         Exports query results to a geopackage (.gpkg) file.
@@ -2132,7 +2132,7 @@ class DbConnect:
                                  path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc, gpkg_tbl = gpkg_tbl,
                                  print_cmd=print_cmd, srid=srid)
     
-    def gpkg_to_table(self, dbo = None, path=None, schema=None, table =None, gpkg_name=None, gpkg_tbl=None, 
+    def gpkg_to_table(self, dbo, gpkg_name, path=None, schema=None, table =None, gpkg_tbl=None, 
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7):
         """

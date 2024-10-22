@@ -537,15 +537,15 @@ class Query:
             print(_)
 
     @staticmethod
-    def query_to_gpkg(dbo, query, path=None, gpkg_name=None, cmd=None, gpkg_tbl=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
+    def query_to_gpkg(dbo, query, path, gpkg_name, gpkg_tbl, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
         :param dbo: Database connection for the query
         :param query:
         :param path:
         :param gpkg_name: Name of geopackage
-        :param cmd:
         :param gpkg_tbl: Table name to be created in the Geopackage file
+        :param cmd:
         :param gdal_data_loc:
         :param print_cmd: Optional flag to print the GDAL command being used; defaults to False
         :param srid: sets SRID
@@ -557,7 +557,7 @@ class Query:
                         gpkg_tbl = gpkg_tbl)
         
         if not gpkg_name:
-            gpkg_name = '' # must set as empty string if no input to ensure that inputting a path but not gpkg_tbl would still work
+            gpkg_name = '' # must set as empty string if no input. Ensures that inputting a path but not a gpkg_tbl would still work
 
         table_exists = []
 
