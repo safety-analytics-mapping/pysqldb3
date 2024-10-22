@@ -237,9 +237,11 @@ class Query:
 
                         # Add standardized previous table name to dropped tables to remove from log
                         server, database, sch, tbl = parse_table_string(i, self.dbo.default_schema, self.dbo.type)
-                        org_table = get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
+                        org_table = get_query_table_schema_name(
                             self.renamed_tables[i], self.dbo.type)
-                        self.dropped_tables.append(org_table)
+                        # org_table = get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
+                        #     self.renamed_tables[i], self.dbo.type)
+                        self.dropped_tables.append((server, database, sch,org_table))
 
                         # If the standardized previous table name is in this query's new tables, replace with new name
                         if org_table in self.new_tables:
@@ -249,9 +251,9 @@ class Query:
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
-                        if org_table in self.dbo.tables_created:
+                        if (server, database, sch,org_table) in self.dbo.tables_created:
                             # self.dbo.tables_created.remove(org_table)
-                            self.dbo.tables_created[self.dbo.tables_created.index(org_table)] = \
+                            self.dbo.tables_created[self.dbo.tables_created.index( (server, database, sch,org_table))] = \
                                 get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
                                 tbl, self.dbo.type)
 
@@ -580,15 +582,15 @@ class Query:
         :return:
         """
         if self.dbo.type == PG and not self.no_comment:
-            for t in self.new_tables:
-                # tables in new_tables list will contain schema if provided, otherwise will default to public
-                q = """COMMENT ON TABLE {t} IS 'Created by {u} on {d}\n{cmnt}'""".format(
-                    t=t,
-                    u=self.dbo.user,
-                    d=self.query_start.strftime('%Y-%m-%d %H:%M'),
-                    cmnt=self.comment
-                )
-                self.dbo.query(q, strict=False, timeme=False, internal=True)
+            # tables in new_tables list will contain schema if provided, otherwise will default to public
+            for row in self.new_tables:
+                obj = '.'.join([f'"{x}"' for x in row if x])
+                self.dbo.query(f'''COMMENT ON TABLE {obj} 
+                IS 'Created by {self.dbo.user} 
+                on {self.query_start.strftime('%Y-%m-%d %H:%M')}
+                {self.comment}'
+                ''',
+                               strict=False, timeme=False, internal=True)
 
     @staticmethod
     def query_to_shp(dbo, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
