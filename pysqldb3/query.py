@@ -223,8 +223,9 @@ class Query:
                 self.dropped_tables = self.query_drops_table(self.query_string, self.dbo.type)
 
                 if self.permission:
-                    for t in self.new_tables:
-                        self.dbo.query('grant select on {t} to public;'.format(t=t),
+                    for row in self.new_tables:
+                        obj = '.'.join([f'"{x}"' for x in row if x])
+                        self.dbo.query(f'grant select on {obj} to public;',
                                        strict=False, timeme=False, internal=True)
 
                 if self.renamed_tables:
@@ -451,8 +452,13 @@ class Query:
             old_schema = row[5]
             old_table = row[17]
             new_table = row[28]
-            new_tables[get_unique_table_schema_string(old_schema, db_type) + '.' + get_unique_table_schema_string(new_table, db_type)] = \
-                get_unique_table_schema_string(old_table, db_type)
+            if old_schema:
+                new_tables[get_unique_table_schema_string(old_schema, db_type) + '.' + get_unique_table_schema_string(new_table, db_type)] = \
+                    get_unique_table_schema_string(old_table, db_type)
+            else:
+                new_tables[default_schema + '.' + get_unique_table_schema_string(
+                    new_table, db_type)] = \
+                    get_unique_table_schema_string(old_table, db_type)
 
         if not matches:
 
