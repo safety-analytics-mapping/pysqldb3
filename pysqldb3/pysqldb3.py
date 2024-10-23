@@ -2104,16 +2104,16 @@ class DbConnect:
                           gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
         
 
-    def table_to_gpkg(self, table, schema=None, path=None, gpkg_name=None, gpkg_tbl = None, cmd=None,
+    def table_to_gpkg(self, table, gpkg_name, gpkg_tbl, schema=None, path=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports table to a geopackage file. Generates query to query_to_gpkg.
         :param table: Database table name as string type
         :param schema: Database table's schema (defults to db default schema)
-        :param strict: If True, will run sys.exit on failed query attempts; defaults to True
-        :param path: folder path for output geopackage
         :param geopackage_name: filename for geopackage (should end in .gpkg)
         :param gpkg_tbl: Name of the table to be written as the Geopackage output
+        :param strict: If True, will run sys.exit on failed query attempts; defaults to True
+        :param path: folder path for output geopackage
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: Boolean flag to print the OGR command
@@ -2140,7 +2140,7 @@ class DbConnect:
         :param dbo: Database connection
         :param path: File path of the shapefile
         :param schema: Schema to use in the database (defaults to db's default schema)
-        :param table: Output table name in database. If blank, output name will match geopackage table name.
+        :param table: (Optional) output table name in database. If blank, output name will match geopackage table name.
         :param gpkg_name: Geopackage name (ends in .gpkg)
         :param gpkg_table: (Optional) Input table name from Geopackage. If blank, all tables in geopackage will be loaded in.
         :param srid:  SRID to use (defaults to 2263)
@@ -2172,16 +2172,26 @@ class DbConnect:
             gpkg_name = os.path.basename(filename)
             path = os.path.dirname(filename)
 
+        gpkg = Geopackage(path=path, gpkg_name=gpkg_name, gpkg_tbl = gpkg_tbl)
+
         if not table:
             table = gpkg_tbl.replace('.gpkg', '').lower() # if the gpkg_table is left blank, we will populate the name using read_gpkg
         
-        table = table.lower()
-
-        gpkg = Geopackage(path=path, gpkg_name=gpkg_name, gpkg_tbl = gpkg_tbl)
-
-        gpkg.read_gpkg(dbo = dbo, schema = schema, table = table, gpkg_encoding = gpkg_encoding, srid = srid,
+        if not gpkg_tbl:
+            # bulk upload
+            assert not table, "You cannot specify a table name for upload if you do not also specify the geopackage table name."
+            gpkg.read_gpkg_bulk_upload(dbo = dbo, schema = schema, gpkg_encoding = gpkg_encoding, srid = srid,
                        gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
-
+            
+        elif not gpkg_tbl and not table:
+        
+            gpkg.read_gpkg(dbo = dbo, schema = schema, table = table, gpkg_tbl = gpkg_tbl, gpkg_encoding = gpkg_encoding, srid = srid,
+                       gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
+        
+        else:
+            gpkg.read_gpkg(dbo = dbo, schema = schema, table = table, gpkg_tbl = gpkg_tbl, gpkg_encoding = gpkg_encoding, srid = srid,
+                       gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
+            
         if self.type == "MS":
         # rename geom columns if necessary (problem only identified in MS)
             try:
