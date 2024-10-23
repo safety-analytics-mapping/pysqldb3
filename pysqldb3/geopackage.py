@@ -290,27 +290,22 @@ class Geopackage:
 
          # clean the name if needed
         gpkg_tbl = gpkg_tbl.replace('.gpkg', '').lower()
-
-        gpkg_tbl_names = {self.gpkg_tbl: gpkg_tbl}
+    
+        cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
+                                                gpkg_name = self.gpkg_name,
+                                                gpkg_tbl = gpkg_tbl,
+                                                export_path=export_path)
         
+        if print_cmd:
+            print(cmd)
+        
+        try:
+            ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            print(ogr_response)
 
-        for input_name, output_name in gpkg_tbl_names.items():
-            
-            cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
-                                                    gpkg_name = self.gpkg_name,
-                                                    gpkg_tbl = input_name,
-                                                    export_path=export_path)
-            
-            if print_cmd:
-                print(cmd)
-            
-            try:
-                ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-                print(ogr_response)
-
-            except subprocess.CalledProcessError as e:
-                print("Ogr2ogr Output:\n", e.output)
-                print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
+        except subprocess.CalledProcessError as e:
+            print("Ogr2ogr Output:\n", e.output)
+            print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
         
         return
     
