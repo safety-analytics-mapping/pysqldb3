@@ -79,7 +79,7 @@ class TestTableToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.table_to_gpkg(test_table, schema=pg_schema, gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.table_to_gpkg(test_table, schema=pg_schema, gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -128,7 +128,7 @@ class TestTableToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.table_to_gpkg(test_table, schema=pg_schema, gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.table_to_gpkg(test_table, schema=pg_schema, gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -144,7 +144,7 @@ class TestTableToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # overwrite the table with the same name, but the table has different values
-        db.table_to_gpkg(test_table, schema=pg_schema, gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.table_to_gpkg(table = test_table, schema=pg_schema, gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # this should fail
         cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
@@ -199,7 +199,7 @@ class TestTableToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.table_to_gpkg(test_table, schema=pg_schema, gpkg_name=gpkg, path=fldr + '\\' + 'err_' + gpkg, print_cmd=True)
+        db.table_to_gpkg(test_table, schema=pg_schema, gpkg_name=gpkg, path=fldr + '\\' + gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -207,6 +207,7 @@ class TestTableToGpkgPg:
         # clean up
         db.drop_table(pg_schema, test_table)
         os.remove(os.path.join(fldr, gpkg))
+        
 
     def test_table_to_gpkg_basic_quotes(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
@@ -223,7 +224,7 @@ class TestTableToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.table_to_gpkg(test_table, pg_schema, path=fldr, gpkg_name=gpkg, print_cmd=True)
+        db.table_to_gpkg(table = test_table, schema = pg_schema, path=fldr, gpkg_name=gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -281,7 +282,7 @@ class TestTableTogpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.table_to_gpkg(test_table, schema=ms_schema, gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.table_to_gpkg(table = test_table, schema=ms_schema, gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -335,7 +336,7 @@ class TestTableTogpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.table_to_gpkg(test_table, schema=ms_schema, gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.table_to_gpkg(table = test_table, schema=ms_schema, gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # create a second table with slightly different data and overwrite it
         sql.drop_table(schema=ms_schema, table=test_table)
@@ -348,7 +349,7 @@ class TestTableTogpkgMs:
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
         assert sql.table_exists(test_table, schema=ms_schema)
-        sql.table_to_gpkg(test_table, schema=ms_schema, gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.table_to_gpkg(table = test_table, schema=ms_schema, gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -386,7 +387,7 @@ class TestTableTogpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.table_to_gpkg(test_table, schema=ms_schema, path=fldr + '\\' + gpkg, gpkg_name = gpkg, print_cmd=True)
+        sql.table_to_gpkg(table = test_table, schema=ms_schema, path=fldr + '\\' + gpkg, gpkg_name = gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -412,7 +413,7 @@ class TestTableTogpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.table_to_gpkg(test_table, schema=ms_schema, gpkg_name=gpkg ,path=fldr + '\\' + 'err_'+gpkg, print_cmd=True)
+        sql.table_to_gpkg(table = test_table, schema=ms_schema, gpkg_name=gpkg ,path=fldr + '\\' + 'err_'+gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -438,7 +439,7 @@ class TestTableTogpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.table_to_gpkg(test_table, schema=ms_schema, path=fldr, gpkg_name=gpkg, print_cmd=True)
+        sql.table_to_gpkg(table = test_table, schema=ms_schema, path=fldr, gpkg_name=gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))

@@ -610,7 +610,7 @@ class TestWritegpkgPG:
 
         # Write gpkg
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_gpkg(dbo=db, schema=pg_schema, gpkg_tbl = test_reuploaded_table_name, table= test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
@@ -626,13 +626,12 @@ class TestWritegpkgPG:
         limit 2
         """)
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name + '_2', overwrite = False, print_cmd=True) # add another table
+        s.write_gpkg(dbo=db, schema=pg_schema, table = test_write_gpkg_table_name + '_2', gpkg_tbl = test_reuploaded_table_name + '_2', overwrite = False, print_cmd=True) # add another table
 
         assert os.path.isfile(os.path.join(fp, gpkg_name)) # assert that the table is still there
 
-        # Reupload both tables from the same geopackage
-        db.gpkg_to_table(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, table = test_reuploaded_table_name, print_cmd=True) 
-        db.gpkg_to_table(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name + '_2', table = test_reuploaded_table_name + '_2', print_cmd=True)
+        # Reupload both tables from the same geopackage (since we are uploading under a different name, we can't use bulk upload function here)
+        db.gpkg_to_table_bulk_upload(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, print_cmd=True) 
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -982,7 +981,7 @@ class TestWritegpkgMS:
 
         # Write gpkg. Gpkg table will be named the same as the query table
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.write_gpkg(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_gpkg(dbo=sql, schema = ms_schema, table= test_write_gpkg_table_name, gpkg_tbl = test_reuploaded_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
@@ -997,15 +996,14 @@ class TestWritegpkgMS:
         """)
 
         # Write gpkg.
-        s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name + '_2')
-        s.write_gpkg(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name + '_2', print_cmd=True) # add second table
+        s = Geopackage(path=fp, gpkg_name=gpkg_name, )
+        s.write_gpkg(dbo=sql, schema = ms_schema, gpkg_tbl=test_reuploaded_table_name + '_2', table = test_write_gpkg_table_name + '_2', print_cmd=True) # add second table
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
-        # Reupload as table
-        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
-        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, gpkg_tbl = test_write_gpkg_table_name + '_2', table=test_reuploaded_table_name + '_2', print_cmd=True)
+        # Reupload as tables using bulk upload function
+        sql.gpkg_to_table_bulk_upload(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")

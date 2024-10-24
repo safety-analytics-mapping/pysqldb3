@@ -2104,14 +2104,15 @@ class DbConnect:
                           gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
         
 
-    def table_to_gpkg(self, table, gpkg_name, gpkg_tbl, schema=None, path=None, cmd=None,
+    def table_to_gpkg(self, table, gpkg_name, gpkg_tbl = None, schema=None, path=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports table to a geopackage file. Generates query to query_to_gpkg.
-        :param table: Database table name as string type
-        :param schema: Database table's schema (defults to db default schema)
+        :param table: Db table name as string type
+        :param schema: Db table's schema (defults to db default schema)
         :param geopackage_name: filename for geopackage (should end in .gpkg)
-        :param gpkg_tbl: Name of the table to be written as the Geopackage output
+        :param gpkg_tbl: (Optional) name of the table to be written as the Geopackage output.
+                        If blank, the output table will match the name of the db table.
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
         :param path: folder path for output geopackage
         :param cmd: GDAL command to overwrite default
@@ -2127,6 +2128,9 @@ class DbConnect:
         assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
 
         path, gpkg_name = parse_gpkg_path(path, gpkg_name)
+
+        if not gpkg_tbl:
+            gpkg_tbl = table
 
         return self.query_to_gpkg(f"select * from {schema}.{table}",
                                  path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc, gpkg_tbl = gpkg_tbl,
@@ -2181,15 +2185,49 @@ class DbConnect:
         
         if bulk_upload == True:
             # bulk upload
-            assert table, "You cannot specify a table name for upload if you do not also specify the geopackage table name."
-            gpkg.read_gpkg_bulk_upload(dbo = dbo, schema = schema, gpkg_encoding = gpkg_encoding, srid = srid,
-                       gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
+            output_table_names = gpkg.read_gpkg_bulk_upload(dbo = dbo, schema = schema, gpkg_encoding = gpkg_encoding, srid = srid,
+                            gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
             
+            for table in output_table_names.values():
+
+                if self.type == "MS":
+
+            # rename geom columns if necessary (problem only identified in MS)
+                    try:
+                        geom_output = self.dfquery(f""" SELECT COLUMN_NAME 
+                                                    FROM information_schema.COLUMNS 
+                                                    WHERE lower(TABLE_NAME)=lower('{table}')
+                                                    and table_schema = '{schema}'
+                                                    AND DATA_TYPE = 'geometry' """).values[0][0]
+
+                        if geom_output != 'geom':      
+                            self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'")
+                    except:
+                        pass
+                else:
+                    # Postgres
+                    try:
+                        geom_output = self.dfquery(f"""SELECT COLUMN_NAME 
+                                        FROM information_schema.COLUMNS 
+                                        WHERE data_type = 'USER-DEFINED'
+                                        AND lower(TABLE_NAME)=lower('{table}')
+                                        AND table_schema = '{schema}'
+                                """).values[0][0]
+                    
+                        if geom_output != 'geom':
+                            self.query(f"alter table {schema}.{table} rename column {geom_output} to geom")
+                    except:
+                        pass
+                        
+                self.tables_created.append(f"{schema}.{table}")
+
+                if temp:
+                    self.__run_table_logging([schema + "." + table], days=days)
+
         else:
         
             gpkg.read_gpkg(dbo = dbo, schema = schema, table = table, gpkg_tbl = gpkg_tbl, gpkg_encoding = gpkg_encoding, srid = srid,
                        gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
-        
             
             if self.type == "MS":
             # rename geom columns if necessary (problem only identified in MS)
@@ -2249,7 +2287,7 @@ class DbConnect:
         :return:
         """
          
-        self.gpkg_to_table(self, dbo = dbo, gpkg_name = gpkg_name, gpkg_tbl = '',
+        self.gpkg_to_table(dbo = dbo, gpkg_name = gpkg_name, gpkg_tbl = '',
                     path=path,
                             schema= schema,
                             srid=srid,
