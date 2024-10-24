@@ -450,20 +450,20 @@ class TestReadgpkgMS:
         # Cleanup
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
-    def test_read_gpkg_precision(self):
-        return
+    # def test_read_gpkg_precision(self):
+    #     return
 
-    def test_read_gpkg_private(self):
-        # TODO: pending permissions defaults convo
-        return
+    # def test_read_gpkg_private(self):
+    #     # TODO: pending permissions defaults convo
+    #     return
 
-    def test_read_temp(self):
-        # TODO: pending temp functionality
-        return
+    # def test_read_temp(self):
+    #     # TODO: pending temp functionality
+    #     return
 
-    def test_read_gpkg_encoding(self):
-        # TODO: add test with fix to special characters
-        return
+    # def test_read_gpkg_encoding(self):
+    #     # TODO: add test with fix to special characters
+    #     return
 
     @classmethod
     def teardown_class(cls):
