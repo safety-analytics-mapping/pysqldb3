@@ -576,9 +576,9 @@ class Query:
 
                 if len(table_exists) > 0:
                     print("The table name to be exported already exists in the geopackage. Table was overwritten")
-                    gpkg.write_gpkg(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
+                    gpkg.write_gpkg(dbo = dbo, query = query, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
                 elif len(table_exists) == 0:
-                    gpkg.write_gpkg(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+                    gpkg.write_gpkg(dbo = dbo, query = query, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
         
         else:
-             gpkg.write_gpkg(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+             gpkg.write_gpkg(dbo = dbo, query = query, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)

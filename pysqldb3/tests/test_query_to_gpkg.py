@@ -388,7 +388,7 @@ class TestQueryToGpkgPg:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(dbo = db, path=fldr, table=test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
+        db.gpkg_to_table(dbo = db, path=fldr, gpkg_tbl=test_table, table = test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
         select
@@ -439,7 +439,7 @@ class TestQueryToGpkgPg:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(dbo = db, path=fldr, table=test_table + 'QA', schema=pg_schema,
+        db.gpkg_to_table(dbo = db, path=fldr, gpkg_tbl = test_table, table = test_table + 'QA', schema=pg_schema,
                         gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
@@ -468,7 +468,7 @@ class TestQueryToGpkgPg:
 
         # This should fail
         try:
-            db.query_to_gpkg(query="select * from table_does_not_exist", gpkg_name=gpkg, path=fldr, print_cmd=True)
+            db.query_to_gpkg(query="select * from table_does_not_exist", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
         except:
             Failed = True
         # check table in not folder
@@ -651,7 +651,7 @@ class TestQueryToGpkgMs:
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
         sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
-                        path=fldr + '\\' + 'test_' + gpkg, print_cmd=True)
+                        path= fldr + '\\' + gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -659,7 +659,7 @@ class TestQueryToGpkgMs:
         # Manually check SRID of projection file and verify it contains 2263
         cmd = r'gdalsrsinfo {}\{}'.format(fldr, gpkg).replace('\\', '/')
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
-        assert b'"EPSG",2263' in ogr_response
+        assert b'"EPSG","2263"' in ogr_response
 
         # clean up
         sql.drop_table(ms_schema, test_table)
@@ -709,7 +709,7 @@ class TestQueryToGpkgMs:
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
         sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, 
-                        path=fldr + '\\' + 'test_' + gpkg, print_cmd=True)
+                        path=fldr + '\\' + gpkg, print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(fldr, gpkg))
@@ -877,7 +877,7 @@ class TestQueryToGpkgMs:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(dbo = sql, path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(dbo = sql, path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         # fld6 automatically becomes renamed as geom when gpkg_to_table is run
         # t1 field should remain fld6 because that is how the table was created directly in 
@@ -933,7 +933,7 @@ class TestQueryToGpkgMs:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(dbo = sql, path=fldr, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(dbo = sql, path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         sql.query(f"""
         select

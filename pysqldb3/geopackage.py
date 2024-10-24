@@ -264,7 +264,8 @@ class Geopackage:
     def gpkg_to_shp(self,
                     gpkg_tbl:str,
                     export_path = None,
-                    print_cmd = False):
+                    print_cmd = False,
+                    bulk_upload = False):
         """
         Converts a Geopackage to a Shapefile.
         The output Shapefile name will match the name of the geopackage table to be copied.
@@ -274,6 +275,7 @@ class Geopackage:
         :param export_path: str The folder directory to place the shapefiles output.
                             You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.'
         :param print_cmd (bool): Print command
+        :param bulk_upload: Default to False. Param used for gpkg_to_shp_bulk_upload() function.
         """
         
         assert self.gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
@@ -288,24 +290,64 @@ class Geopackage:
         if not export_path:
             export_path = self.path
 
-         # clean the name if needed
-        gpkg_tbl = gpkg_tbl.replace('.gpkg', '').lower()
-    
-        cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
-                                                gpkg_name = self.gpkg_name,
-                                                gpkg_tbl = gpkg_tbl,
-                                                export_path=export_path)
-        
-        if print_cmd:
-            print(cmd)
-        
-        try:
-            ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-            print(ogr_response)
+        if bulk_upload == True:
+            ### bulk upload capabilities ### 
 
-        except subprocess.CalledProcessError as e:
-            print("Ogr2ogr Output:\n", e.output)
-            print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
+            try:
+                count_cmd = COUNT_GPKG_LAYERS.format(full_path = os.path.join(self.path, self.gpkg_name))
+                ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+                tables_in_gpkg = re.findall(r"\\n\d+:\s(?:[a-z0-9A-Z_]+)", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+                tbl_count = len(tables_in_gpkg)
+            
+            except subprocess.CalledProcessError as e:
+                print("Ogr2ogr Output:\n", e.output)
+                print('Ogr2ogr command failed. The Geopackage was not read in.')
+                raise subprocess.CalledProcessError(count_cmd, returncode=1)
+            
+            # create a list of cleaned gpkg table names
+            gpkg_tbl_names = {} # create empty dictionary
+
+            for t_i_g in tables_in_gpkg:
+                insert_val = re.search(r'([\w]+)$', t_i_g).group()
+                gpkg_tbl_names[insert_val] = insert_val # add the cleaned name
+            
+            for input_name, output_name in gpkg_tbl_names.items():
+                
+                cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
+                                                        gpkg_name = self.gpkg_name,
+                                                        gpkg_tbl = input_name,
+                                                        export_path=export_path)
+                
+                if print_cmd:
+                    print(cmd)
+                
+                try:
+                    ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+                    print(ogr_response)
+
+                except subprocess.CalledProcessError as e:
+                    print("Ogr2ogr Output:\n", e.output)
+                    print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
+            
+        else:
+            # clean the name if needed
+            gpkg_tbl = gpkg_tbl.replace('.gpkg', '').lower()
+        
+            cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
+                                                    gpkg_name = self.gpkg_name,
+                                                   gpkg_tbl = gpkg_tbl,
+                                                    export_path=export_path)
+
+            if print_cmd:
+                print(cmd)
+
+            try:
+                ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+                print(ogr_response)
+
+            except subprocess.CalledProcessError as e:
+                print("Ogr2ogr Output:\n", e.output)
+                print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
         
         return
     
@@ -321,57 +363,8 @@ class Geopackage:
                             You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.'
         :param print_cmd (bool): Print command
         """
-        
-        assert self.gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
 
-        self.path, gpkg = parse_gpkg_path(self.path, self.gpkg_name)
-
-        # set a default self.path for the gpkg input if it exists
-        if not self.path:
-            self.path = file_loc('folder')
-
-        # set an export path to the gpkg if it is not manually set up
-        if not export_path:
-            export_path = self.path
-
-        ### bulk upload capabilities ### 
-
-        try:
-            count_cmd = COUNT_GPKG_LAYERS.format(full_path = os.path.join(self.path, self.gpkg_name))
-            ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-            tables_in_gpkg = re.findall(r"\\n\d+:\s(?:[a-z0-9A-Z_]+)", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
-            tbl_count = len(tables_in_gpkg)
-        
-        except subprocess.CalledProcessError as e:
-            print("Ogr2ogr Output:\n", e.output)
-            print('Ogr2ogr command failed. The Geopackage was not read in.')
-            raise subprocess.CalledProcessError(count_cmd, returncode=1)
-        
-        # create a list of cleaned gpkg table names
-        gpkg_tbl_names = {} # create empty dictionary
-
-        for t_i_g in tables_in_gpkg:
-            insert_val = re.search(r'([\w]+)$', t_i_g).group()
-            gpkg_tbl_names[insert_val] = insert_val # add the cleaned name
-        
-
-        for input_name, output_name in gpkg_tbl_names.items():
-            
-            cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
-                                                    gpkg_name = self.gpkg_name,
-                                                    gpkg_tbl = input_name,
-                                                    export_path=export_path)
-            
-            if print_cmd:
-                print(cmd)
-            
-            try:
-                ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-                print(ogr_response)
-
-            except subprocess.CalledProcessError as e:
-                print("Ogr2ogr Output:\n", e.output)
-                print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
+        self.gpkg_to_shp(gpkg_tbl = '', export_path = export_path, print_cmd = print_cmd, bulk_upload = True)
         
         return
 
