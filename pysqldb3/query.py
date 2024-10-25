@@ -1,4 +1,5 @@
 import csv
+import re
 import sys
 
 import psycopg2
@@ -322,9 +323,9 @@ class Query:
             (?!temp\s+|temporary|\s+)
             (if\s+not\s+exists\s+)?
             (
-                (({encaps} | {nonencaps})\.){sds}?
+                (({encaps} | {nonencaps})\.){sds}
                 (\[?\#{temp_mark}){tmp_time}
-                (({encapst} | {nonencaps})\s+){tbl_time}
+                (({encapst} | {nonencaps})\s*){tbl_time}
             )((as\s+select)|(\())\s?
         """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
                           encapst=RE_ENCAPSULATED_TABLE_NAME,
@@ -396,7 +397,7 @@ class Query:
                        (({encaps} | {nonencaps})\.)){sds}
                    (
                        (({encapst} | {nonencaps})){tbl_time}
-                   ))(\s | \;)+
+                   ))(\s | \;)*?
                        """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME,
                                   encapst=RE_ENCAPSULATED_TABLE_NAME,
                                   nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
@@ -463,19 +464,19 @@ class Query:
                     get_unique_table_schema_string(old_table, db_type)
 
         if not matches:
+            if not re.search(r"""(,?\s*n?'(column|index)'?\s*)""", query_string, re.IGNORECASE):
+                rename_tables_sql = """
+                (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
+                (exec\s+sp_rename)(\s+?')
+                ((.)+?)
+                ('\s?,\s?')
+                ((.)*?)
+                ('\s?)(;)?
+                (?!,?\s*n?'(column|index)'?\s*)
+                """
 
-            rename_tables_sql = """
-            (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
-            (exec\s+sp_rename)(\s+?')
-            ((.)+?)
-            ('\s?,\s?')
-            ((.)*?)
-            ('\s?)(;)?
-            (?!,?\s*n?'(column|index)'?\s*)
-            """
-
-            rename_tables = re.compile(rename_tables_sql, re.VERBOSE | re.IGNORECASE)
-            matches = re.findall(rename_tables, query_string)
+                rename_tables = re.compile(rename_tables_sql, re.VERBOSE | re.IGNORECASE)
+                matches = re.findall(rename_tables, query_string)
 
 
             for row in matches:

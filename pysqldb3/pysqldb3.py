@@ -405,7 +405,7 @@ class DbConnect:
                         query_table_name = get_query_table_schema_name(str(t[0]), self.type)
 
                         # If table does not exist, add to the list of tables to delete
-                        if not self.table_exists(query_table_name, schema=s, internal=True):
+                        if not self.table_exists(query_table_name, schema=s, internal=True, case_sensitive=True):
                             # Add the original version back to be deleted
                             to_delete.append(str(t[0]))
 
@@ -637,10 +637,11 @@ class DbConnect:
         with user_tables as (
         """
         for user in self.internal_data:
-            base += f"""
-            select table_owner tableowner, table_name tablename, created_on, expires from {schema}.__temp_log_table_{user[0]}__
-            union
-            """
+            if self.table_exists(f'__temp_log_table_{user[0]}__', schema=schema):
+                base += f"""
+                select table_owner tableowner, table_name tablename, created_on, expires from {schema}.__temp_log_table_{user[0]}__
+                union
+                """
         base = base[:-19] + ")"
         return self.dfquery(PG_USER_TABLES_QUERY.format(b=base, s=schema))
 
@@ -664,12 +665,16 @@ class DbConnect:
             case_sensitive = True
 
         if case_sensitive:
-            if self.type == MS and ('[' in table or '"' in table):
+            if self.type == MS and ('[' in table ):
                 # account for [dbo].["test"]
                 table = table
             else:
-                table = f'"{table}"'
-                schema = f'"{schema}"'
+                if self.type == MS:
+                    table = f'[{table}]'
+                    schema = f'[{schema}]'
+                else:
+                    table = f'"{table}"'
+                    schema = f'"{schema}"'
 
         cleaned_server = get_unique_table_schema_string(server, self.type)
         cleaned_database = get_unique_table_schema_string(database, self.type)
@@ -803,7 +808,7 @@ class DbConnect:
 
             if qry.temp and qry.new_tables:
                 self.__run_table_logging(qry.new_tables, days=days)
-                self.__remove_nonexistent_tables_from_logs()
+            self.__remove_nonexistent_tables_from_logs()
 
         if return_df:
             return qry.dfquery()
