@@ -166,7 +166,7 @@ class TestQuery:
 
         # Assert state is in proper shape
         assert db.table_exists(table=test_query_table, schema='working')
-        assert db.tables_created[0] == 'working.' + test_query_table
+        assert db.tables_created[0] == (None, None, 'working', test_query_table)
         assert len(db.tables_created) == 1
 
         # Cleanup
@@ -189,13 +189,14 @@ class TestQuery:
 
         # Confirm state has been updated
         assert sql.table_exists(table=test_query_table, schema='dbo')
-        assert sql.tables_created[0] == '[dbo].[' + test_query_table + ']'
+        assert sql.tables_created[0] == sql.tables_created[0] == (None, None, 'dbo', test_query_table)
         assert len(sql.tables_created) == 1
 
         # Cleanup
         sql.drop_table(table=test_query_table, schema='dbo')
 
     def test_dbconnect_state_remove_pg(self):
+        db.drop_table('working', test_query_table)
         assert not db.table_exists(table=test_query_table, schema='working')
 
         db.tables_dropped = []

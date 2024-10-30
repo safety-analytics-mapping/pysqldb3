@@ -256,6 +256,7 @@ class TestCleanUpNewTablesIO:
         # Setup
         ris.tables_created = []
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
+        ris.drop_table(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
 
         db.query("""
         create table {0}.{1}(col1 int, col2 int);
@@ -309,6 +310,7 @@ class TestCleanUpNewTablesIO:
         # Setup
         db.tables_created =[]
         sql.drop_table(schema=ms_schema, table=test_sql_to_pg_cleanup_table)
+        db.drop_table(schema=pg_schema, table=test_sql_to_pg_cleanup_table)
 
         # Create
         sql.query("""
@@ -335,6 +337,7 @@ class TestCleanUpNewTablesIO:
         # Setup
         db.tables_created = []
         sql_query = "select 1 as col1, 2 as col2"
+        db.drop_table(pg_schema, test_sql_to_pg_qry_cleanup_table)
 
         assert len(db.tables_created) == 0
         assert not db.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_cleanup_table)
