@@ -166,21 +166,21 @@ def parse_table_string(tbl_str, default_schema, db_type):
     # Parse schema/table from table string
     if type(tbl_str) in (list, tuple):
         return tbl_str
-    names_arr = tbl_str.split('.')
-    # start = 0
-    #
-    # if db_type == MS:
-    #     regex = '\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
-    # elif db_type == PG:
-    #     regex = '\.(?=([^\"]*\"[^\"]*\")*[^\"]*$)'
-    # else:
-    #     assert False, "Invalid Type"
-    #
-    # # Slices by the appropriate . found in the regex into schema, table, server...
-    # for r in re.finditer(regex, tbl_str):
-    #     names_arr.append(tbl_str[start:r.start()])
-    #     start = r.start() + 1
-    # names_arr.append(tbl_str[start:])
+    # names_arr = tbl_str.split('.')
+    start = 0
+    names_arr=list()
+    if db_type == MS:
+        regex = '\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
+    elif db_type == PG:
+        regex = '\.(?=([^\"]*\"[^\"]*\")*[^\"]*$)'
+    else:
+        assert False, "Invalid Type"
+
+    # Slices by the appropriate . found in the regex into schema, table, server...
+    for r in re.finditer(regex, tbl_str):
+        names_arr.append(tbl_str[start:r.start()])
+        start = r.start() + 1
+    names_arr.append(tbl_str[start:])
 
     server = None
     database = None
