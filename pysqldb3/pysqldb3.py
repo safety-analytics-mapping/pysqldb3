@@ -729,6 +729,8 @@ class DbConnect:
 
         elif self.type == PG:
             self.query(PG_GET_SCHEMAS_QUERY, timeme=False, internal=True)
+        else:
+            return []
 
         return [schema_row[0] for schema_row in self.__get_most_recent_query_data(internal=True)]
 
