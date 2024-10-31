@@ -24,6 +24,13 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
+sql2 = pysqldb.DbConnect(type=config.get('SECOND_SQL_DB', 'TYPE'),
+                        server=config.get('SECOND_SQL_DB', 'SERVER'),
+                        database=config.get('SECOND_SQL_DB', 'DB_NAME'),
+                        user=config.get('SECOND_SQL_DB', 'DB_USER'),
+                        password=config.get('SECOND_SQL_DB', 'DB_PASSWORD'),
+                        allow_temp_tables=True)
+
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 test_pg_to_sql_table ='tst_pg_to_sql_tbl_{}'.format(db.user)
 test_sql_to_pg_qry_table = 'tst_sql_to_pg_qry_table_{}'.format(db.user)
@@ -34,6 +41,11 @@ test_pg_to_pg_qry_table = 'tst_pg_to_pg_qry_table_{}'.format(db.user)
 
 pg_schema = 'working'
 sql_schema = 'dbo'
+
+test_org_schema = 'risadmin'
+test_dest_schema = 'dbo'
+test_sql_to_sql_tbl_to = 'tst_sql_to_sql_to_tbl_{}'.format(db.user)
+test_sql_to_sql_tbl_from = 'tst_sql_to_sql_from_tbl_{}'.format(db.user)
 
 # class TestPgToSql:
 #     @classmethod
@@ -881,4 +893,353 @@ class TestPgToPgQry:
         return
 
     # Note: temporary functionality will be tested separately!
-    # Still to test: LDAP, print_cmd
+    # Still to test: LDAP, print_cmd    # Still to test: LDAP, print_cmd
+class TestSqlToSqlQry:
+    
+    def test_sql_to_sql_basic_table(self):
+
+        # copy over an existing table   
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+
+        sql2.query(f"""
+
+                                create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4));
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (1, 2, 'ABCD');
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (3, 4, 'DE*G');
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (5, 60, 'HIj_');
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (-3, 24271, 'zhyw');
+                                """)
+
+        data_io.sql_to_sql(from_sql = sql,
+                        to_sql = sql2,
+                        org_schema = test_org_schema,
+                        org_table = test_sql_to_sql_tbl_from,
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to,
+                        spatial = False,
+                        print_cmd = True
+                        )
+
+        # check that hte table exists
+        assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema = test_dest_schema)
+
+        # check that the tables are the same.
+        # list out columns to avoid the ogr_fid and null fields in the output table
+        first_table = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to};").drop('ogr_fid', axis=1)
+        
+        second_table = sql.dfquery(f"select * from {test_org_schema}.{test_sql_to_sql_tbl_from}")
+        
+        # check for the same dimensions and columns
+        assert first_table.shape == second_table.shape
+        assert list(first_table.columns) == list(second_table.columns)
+        assert first_table.equals(second_table) # this fails because there are dtype issues
+
+        # drop ouptut table
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+
+    def test_sql_to_sql_qry(self):
+
+        """
+        Test to ensure that sql_to_sql query works
+        """
+
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+
+        data_io.sql_to_sql_qry(from_sql = sql,
+                                to_sql = sql2,
+                                org_schema = test_org_schema,
+                                qry = f"select top (3) * from {test_org_schema}.{test_sql_to_sql_tbl_from}",
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to, 
+                        spatial = False,
+                        print_cmd = True)
+
+        # check that the table exists
+        assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema = test_dest_schema)
+
+        # check that we are expecting the same values
+        test_dest_df = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to}").drop('ogr_fid', axis=1)
+        test_org_df = sql.dfquery(f"select top (3) * from {test_org_schema}.{test_sql_to_sql_tbl_from}")
+
+        assert list(test_dest_df.columns) == list(test_org_df.columns)
+
+        # check the dimensions
+        assert test_dest_df.shape == test_org_df.shape
+
+        # drop table
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+
+    def test_sql_to_sql_tbl_exists(self):
+
+        """
+        Copy a table whose name already exists in the destination database. It will overwrite the table.
+        """
+
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+
+        # create a fake table in RISCRASHDATA that we will try to overwrite
+        reference_table = sql2.dfquery(f"""
+
+                                create table {test_dest_schema}.{test_sql_to_sql_tbl_to} (test_col1 int, test_col2 int);
+                                insert into {test_dest_schema}.{test_sql_to_sql_tbl_to} (test_col1, test_col2) VALUES (1, 2);
+                                insert into {test_dest_schema}.{test_sql_to_sql_tbl_to} (test_col1, test_col2) VALUES (3, 4);
+
+                                select * from {test_dest_schema}.{test_sql_to_sql_tbl_to};
+                                """)
+        
+        # try to copy a table with the same name
+        try:
+            data_io.sql_to_sql(from_sql = sql,
+                        to_sql = sql2,
+                        org_schema = test_org_schema,
+                        org_table = test_sql_to_sql_tbl_from,
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to,
+                        print_cmd = True)
+        
+        except:
+            Failed = True
+        
+        assert Failed == True
+
+        new_table = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to}")
+            
+        assert new_table.equals(reference_table) # assert that the output table remains the same as the originaal
+
+        # clean data
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+
+    def test_sql_to_sql_src_table_nonexist(self):
+
+        """
+        Copy a table whose ou`tput name already exists in the destination database. It should overwrite it.
+        """
+        
+        # try to copy a table with the same name
+        try:
+            data_io.sql_to_sql(from_sql = sql,
+                        to_sql = sql2,
+                        org_schema = test_org_schema,
+                        org_table = test_sql_to_sql_tbl_from + '_2',
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to,
+                        print_cmd = True)
+        
+        except:
+            Failed = True
+        
+        assert Failed == True
+
+        # clean data
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+
+
+    def test_sql_to_sql_src_schema_nonexist(self):
+
+        """
+        Copy a table from a schema that doesn't exist to yield an error.
+        """
+        
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+
+        # create a table
+        sql.query(f"""
+
+                                create table {test_dest_schema}.{test_sql_to_sql_tbl_to} (test_col1 int, test_col2 int);
+                                insert into {test_dest_schema}.{test_sql_to_sql_tbl_to} (test_col1, test_col2) VALUES (1, 2);
+                                insert into {test_dest_schema}.{test_sql_to_sql_tbl_to} (test_col1, test_col2) VALUES (3, 4);
+
+                                select * from {test_dest_schema}.{test_sql_to_sql_tbl_to};
+                                """)
+
+        # try to copy a table with the same name but under a different schema that doesn't exist
+        try:
+            data_io.sql_to_sql(from_sql = sql,
+                        to_sql = sql2,
+                        org_schema = test_org_schema + '_2',
+                        org_table = test_sql_to_sql_tbl_from,
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to,
+                        print_cmd = True)
+        
+        except:
+            Failed = True
+        
+        assert Failed == True
+
+        # drop table
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to) # in case it somehow got created
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+
+    def test_sql_to_sql_query_geom(self):
+
+        """
+        Copy a table whose name already exists in the destination database. It should overwrite it.
+        """
+
+        # remove org table and replace with a table with a geometry column
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+
+        geometry_table = sql.dfquery(f"""
+
+                                create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4), geom geometry);
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
+                                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
+
+                                select * from {test_org_schema}.{test_sql_to_sql_tbl_from};
+                                """)
+        
+        assert sql.table_exists(table = test_sql_to_sql_tbl_from, schema=test_org_schema)
+                
+        # run sql_to_sql function
+        data_io.sql_to_sql(from_sql = sql,
+                        to_sql = sql2,
+                        org_schema = test_org_schema,
+                        org_table = test_sql_to_sql_tbl_from,
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to,
+                        print_cmd = True)
+
+        output_table = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to};").drop('ogr_fid', axis = 1)
+
+        assert sql2.table_exists(table = test_sql_to_sql_tbl_from, schema=test_org_schema)
+
+        # assert that the tables are the same
+        assert list(geometry_table.columns) == list(output_table.columns)
+        assert geometry_table.shape == output_table.shape
+        assert geometry_table.equals(output_table)
+
+        # drop table
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+        
+    def test_sql_to_sql_funky_field_names(self):
+
+        # remove org table and replace with funky field names table
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+        
+        # create table
+        reference_table = sql.dfquery(f"""
+            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, [t.txt] text, [1t txt] text, [t_txt] text, dte datetime, geom geometry);
+
+            INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
+            (id, [t.txt], [1t txt], [t_txt], dte, geom)
+            VALUES (1, 'test text','test text','test text', CURRENT_TIMESTAMP,
+            geometry::Point(1015329.1, 213793.1, 2263 ));
+
+            select * from {test_org_schema}.{test_sql_to_sql_tbl_from};
+        """)
+
+        assert sql.table_exists(table = test_sql_to_sql_tbl_from, schema=test_org_schema)
+
+        # run sql_to_sql function
+        data_io.sql_to_sql(from_sql = sql,
+                        to_sql = sql2,
+                        org_schema = test_org_schema,
+                        org_table = test_sql_to_sql_tbl_from,
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to,
+                        print_cmd = True)
+        
+        output_table = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to}").drop('ogr_fid', axis = 1)
+
+        assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema = test_dest_schema)
+
+        # assert that the tables are the same
+        assert reference_table.shape == output_table.shape
+        assert list(reference_table.columns) == list(output_table.columns)
+        assert reference_table.equals(output_table)
+
+        # clean up
+        sql2.drop_table(test_dest_schema, test_sql_to_sql_tbl_to)
+        sql.drop_table(test_org_schema, test_sql_to_sql_tbl_from)
+
+    def test_sql_to_sql_basic_long_names(self):
+
+        sql2.drop_table(schema= test_dest_schema, table = test_sql_to_sql_tbl_from)
+
+        # create table
+        reference_table = sql.dfquery(f"""
+            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id_name_one int,
+            [123text name one] text,
+            [text@name-two~three four five six seven] text,
+            current_date_time datetime,
+            [x-coord] float,
+            geom geometry);
+
+            INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
+            VALUES (1, 'test text', 'test text', CURRENT_TIMESTAMP,
+            123.456, geometry::Point(1015329.1, 213793.1, 2263 ));
+
+            SELECT * FROM {test_org_schema}.{test_sql_to_sql_tbl_from};
+        """)
+        
+        assert sql.table_exists(schema=test_org_schema, table = test_sql_to_sql_tbl_from)
+
+        # table to shp
+        data_io.sql_to_sql(
+                        from_sql = sql,
+                        to_sql = sql2,
+                        org_schema = test_org_schema,
+                        org_table = test_sql_to_sql_tbl_from,
+                        dest_schema = test_dest_schema,
+                        dest_table = test_sql_to_sql_tbl_to,
+                        print_cmd = True)
+
+        assert sql2.table_exists(schema=test_org_schema, table = test_sql_to_sql_tbl_from)        
+
+        # call the table but remove the ogr_fid field that gets created
+        output_table = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to};").drop('ogr_fid', axis = 1)
+
+        # assert that the tables are the same
+        assert list(reference_table.columns) == list(output_table.columns)
+        assert reference_table.shape == output_table.shape
+        assert reference_table.equals(output_table)
+
+        # clean up
+        sql2.drop_table(test_dest_schema, test_sql_to_sql_tbl_to)
+        sql.drop_table(test_org_schema, test_sql_to_sql_tbl_from)
+
+    def test_query_to_shp_basic_no_data(self):
+
+        """
+        Test that an empty table is created if that is what the query outlines
+        """
+
+        sql.drop_table(schema= test_org_schema, table= test_sql_to_sql_tbl_from)
+        assert not sql.table_exists(table=test_org_schema, schema=test_sql_to_sql_tbl_from)
+
+        # create table
+        sql.query(f"""
+            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, txt text, dte datetime, geom geometry);
+
+            INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
+                 VALUES (1, 'test text', cast(CURRENT_TIMESTAMP as datetime), geometry::Point(1015329.1, 213793.1, 2263 ));
+        """)
+
+        assert sql.table_exists(table = test_sql_to_sql_tbl_from, schema= test_org_schema)
+
+        # table to shp
+        data_io.sql_to_sql_qry( from_sql = sql,
+                                to_sql = sql2,
+                                qry = f"select top (0) * from {test_org_schema}.{test_sql_to_sql_tbl_from}",
+                                org_schema = test_org_schema,
+                                dest_schema = test_dest_schema,
+                                dest_table = test_sql_to_sql_tbl_to,
+                                print_cmd=True)
+
+        assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema= test_dest_schema)
+
+        ref_table = sql.dfquery(f"select top (0) * from {test_org_schema}.{test_sql_to_sql_tbl_from}")
+        output_table = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to}").drop(['ogr_fid'], axis = 1)
+
+        # check that the output table returns as expected (empty table)
+        assert list(ref_table.columns) == list(output_table.columns)
+        assert ref_table.shape == output_table.shape
+
+        # clean up
+        sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
+        sql.drop_table(test_org_schema, test_sql_to_sql_tbl_from)
