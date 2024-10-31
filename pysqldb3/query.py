@@ -363,6 +363,7 @@ class Query:
 
         if new_tables:
             all_tables = [i for i in new_tables if len(i) > 0]
+
             all_tables = [t if ('"' in t or "[" in t) else t.lower() for t in all_tables]
 
         #     # Clean table names via parse_table_string, get_query_table_schema_name
