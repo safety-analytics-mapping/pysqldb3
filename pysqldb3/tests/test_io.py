@@ -893,6 +893,7 @@ class TestPgToPgQry:
         return
 
     # Note: temporary functionality will be tested separately!
+
     # Still to test: LDAP, print_cmd    # Still to test: LDAP, print_cmd
 class TestSqlToSqlQry:
     
@@ -1243,3 +1244,4 @@ class TestSqlToSqlQry:
         # clean up
         sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
         sql.drop_table(test_org_schema, test_sql_to_sql_tbl_from)
+
