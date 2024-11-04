@@ -436,7 +436,7 @@ class Query:
 
         rename_pattern = r"""
             (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
-            (\s?alter\s+table\s(if exists\s+)?)
+            (\s?alter\s+table\s+(if exists\s+)?)
             ((
                 (({encaps} | {nonencaps})\.)){sds}                                           
             (

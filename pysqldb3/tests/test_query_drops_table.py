@@ -310,12 +310,12 @@ class TestQueryDropsTablesPgSql():
         query_string = """
         DROP temporary table test; 
         """
-        assert query.Query.query_drops_table(query_string, 'PS') == []
+        assert query.Query.query_drops_table(query_string, 'PG') == []
 
         query_string = """
         DROP temp table test; 
         """
-        assert query.Query.query_drops_table(query_string, 'PS') == []
+        assert query.Query.query_drops_table(query_string, 'PG') == []
 
     def test_query_drops_table_from_into_multiple_wtemp(self):
         query_string = """
@@ -333,7 +333,7 @@ class TestQueryDropsTablesPgSql():
         create table working.test1 as 
         select * from node limit 5; 
 
-        DROP TABLE working.test1;
+        DROP TABLE working.test2;
         """
         x = query.Query.query_drops_table(query_string, 'PG')
-        assert x == ['working.test1', 'working.test1']
+        assert x == ['working.test1', 'working.test2']
