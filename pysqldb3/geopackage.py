@@ -56,6 +56,45 @@ class Geopackage:
         except subprocess.CalledProcessError as e:
             print("This geopackage file does not exist at this file location.")
             print(exists_cmd) # print the command for reference
+    
+    def geopackage_exists(self, gpkg_name = None):
+        
+        """
+        Checks if a geopackage already exists at that location
+        """
+        
+        if not gpkg_name:
+            gpkg_name = self.gpkg_name
+
+        gpkg_exists = os.path.isfile(os.path.join(self.path, gpkg_name))
+                                  
+        return gpkg_exists
+    
+    def geopackage_tbl_exists(self, gpkg_tbl):
+               
+        """
+        Checks if a geopackage table already exists, in case it isn't meant to be overwritten.
+        """
+
+        try:
+            exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
+            ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
+            table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+        
+        except:
+            pass 
+        
+        if len(table_exists) == 0:
+            gpkg_tbl_exists = False
+
+        elif len(table_exists) > 0:
+            gpkg_tbl_exists = True
+        
+        else:
+            gpkg_tbl_exists = None
+
+        return gpkg_tbl_exists
+
 
     def write_gpkg(self, dbo, table = None, schema = None, query = None, gpkg_tbl = None, srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
         
@@ -122,26 +161,22 @@ class Geopackage:
             _update = ''
             _overwrite = '-overwrite'
         
-        elif not overwrite and not os.path.isfile(os.path.join(self.path, self.gpkg_name)):
+        elif not overwrite and not self.geopackage_exists():
             # this geopackage does not exist so create as if new
             _update = ''
             _overwrite = ''
         
-        elif not overwrite and os.path.isfile(os.path.join(self.path, self.gpkg_name)): # check if the geopackage already exists
+        elif not overwrite and self.geopackage_exists(): # check if the geopackage already exists
             
-            try:
-                exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
-                ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
-                table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
-                
-            except Exception:
-                if len(table_exists) == 0:
-                    "The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied."
-
-            finally:
-            # update allows you to add an extra table into an existing geopackage
-                _update = '-update'
-                _overwrite = ''
+            table_exists = self.geopackage_tbl_exists(gpkg_tbl)
+            
+            if table_exists == True:
+                print("The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied.")
+                exit 
+        
+        # update allows you to add an extra table into an existing geopackage
+            _update = '-update'
+            _overwrite = ''
 
         if not cmd:
             if dbo.type == 'PG':
@@ -233,7 +268,7 @@ class Geopackage:
             gpkg_tbl = shp_name.replace('.shp', '')
 
         # check if the gpkg already exists. if so, we add another layer to the gpkg
-        if not os.path.isfile(os.path.join(self.path, self.gpkg_name)):
+        if not self.geopackage_exists(self.gpkg_name):
 
             cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
                                                   full_path = self.path,
