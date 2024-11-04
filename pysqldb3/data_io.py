@@ -433,7 +433,7 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
     # enforce column data types in dest match the source
     for c in cols.keys():
         if '-' in c:
-            # GDAL sanitizes `'` out of column names this will put them back so the start/end tables match
+            # GDAL sanitizes `-` out of column names this will put them back so the start/end tables match
             to_sql.query(f"""EXEC sp_rename '{dest_schema}.{dest_table}.{c.replace('-', '_')}', '{c}', 'COLUMN';""")
             cols_to = to_sql.get_table_columns(dest_table, schema=dest_schema)
             cols_to = {_[0]: _[1] for _ in cols_to}
