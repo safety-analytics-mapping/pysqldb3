@@ -167,7 +167,7 @@ SELECT *
 FROM sys.tables t 
 JOIN sys.schemas s 
 ON t.schema_id = s.schema_id
-WHERE LOWER(s.name) = '{s}' AND LOWER(t.name) = '{t}'
+WHERE s.name = '{s}' AND t.name = '{t}'
 """
 
 MS_GET_SCHEMAS_QUERY = r"""

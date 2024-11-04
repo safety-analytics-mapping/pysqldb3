@@ -106,7 +106,8 @@ def get_unique_table_schema_string(tbl_str, db_type):
             return tbl_str.replace('"', '')
 
     if db_type.upper() == MS:
-        tbl_str = tbl_str.lower()
+        if not '"' in tbl_str and not '[' in tbl_str:
+            tbl_str = tbl_str.lower()
         if '"' in tbl_str and '[' in tbl_str and ']' in tbl_str:
             # If "" and [], just remove []
             return tbl_str.replace('[', '').replace(']', '')
@@ -145,7 +146,11 @@ def get_query_table_schema_name(tbl_str, db_type):
             return '"' + tbl_str + '"'
 
     if db_type == MS:
-        return '[' + tbl_str + ']'
+        if tbl_str.islower() and " " not in tbl_str and '"' not in tbl_str:
+            return tbl_str
+        else:
+            return '[' + tbl_str + ']'
+
 
 
 def parse_table_string(tbl_str, default_schema, db_type):
@@ -159,9 +164,11 @@ def parse_table_string(tbl_str, default_schema, db_type):
      
     """
     # Parse schema/table from table string
-    names_arr = []
+    if type(tbl_str) in (list, tuple):
+        return tbl_str
+    # names_arr = tbl_str.split('.')
     start = 0
-
+    names_arr=list()
     if db_type == MS:
         regex = '\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
     elif db_type == PG:

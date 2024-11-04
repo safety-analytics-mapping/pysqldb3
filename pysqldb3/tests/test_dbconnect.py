@@ -743,6 +743,7 @@ class TestLogging:
         sql.query('DROP TABLE dbo.{}'.format(table_for_testing_logging))
 
     def test_ms_quotes(self):
+        sql.drop_table('dbo', table_for_testing_logging)
         # Assert no test table
         assert len(sql.dfquery("""
         SELECT *
@@ -779,10 +780,11 @@ class TestLogging:
         """.format(sql.user, table_for_testing_logging))) == 1
 
         # Cleanup
-        sql.query('DROP TABLE dbo."{}"'.format(table_for_testing_logging))
+        sql.drop_table('dbo', table_for_testing_logging)
 
     def test_ms_brackets(self):
         # Assert no test table
+        sql.drop_table('dbo', table_for_testing_logging)
         assert len(sql.dfquery("""
         SELECT *
         FROM sys.tables t
@@ -821,6 +823,7 @@ class TestLogging:
         sql.query('DROP TABLE dbo.[{}]'.format(table_for_testing_logging))
 
     def test_ms_brackets_caps(self):
+        sql.drop_table('dbo', table_for_testing_logging)
         # Assert no test table
         assert len(sql.dfquery("""
         SELECT *
@@ -900,10 +903,11 @@ class TestLogging:
         """.format(sql.user, table_for_testing_logging))) == 1
 
         # Cleanup
-        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging))
+        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging)) # todo not removing from log????
+        print('here')
 
     def test_ms_quotes_brackets_caps(self):
-        sql.drop_table(schema='dbo', table='["{}"]'.format(table_for_testing_logging))
+        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging), strict=False)
 
         # Assert no test table
         assert len(sql.dfquery("""
@@ -943,7 +947,7 @@ class TestLogging:
         """.format(sql.user, table_for_testing_logging))) == 1
 
         # Cleanup
-        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging))
+        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging), strict=False)
 
     @classmethod
     def teardown_class(cls):

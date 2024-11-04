@@ -1,4 +1,5 @@
 import csv
+import re
 import sys
 
 import psycopg2
@@ -6,6 +7,10 @@ import psycopg2
 from .shapefile import *
 from .util import parse_table_string
 
+RE_ENCAPSULATED_SCHEMA_NAME = r'((\[)(.)+?(\]))|((\")(.)+?(\"))'
+RE_ENCAPSULATED_TABLE_NAME = r'((\[)([^#.])+?(\]))|((\")(.)+?(\"))'
+
+RE_NON_ENCAPSULATED_TABLE_NAME = r'([a-zA-Z_]+[\w]+)'
 
 class Query:
     """
@@ -211,16 +216,17 @@ class Query:
             # 6.3 Commit and run new/dropped/renamed tables routine
             self.__safe_commit()
             if not internal:
-                self.renamed_tables = self.query_renames_table(self.query_string, self.dbo.default_schema)
+                self.renamed_tables = self.query_renames_table(self.query_string, self.dbo.default_schema, self.dbo.type)
                 self.new_tables = self.query_creates_table(self.query_string, self.dbo.default_schema, self.dbo.type)
 
                 # Add renamed tables to query's new table list
                 # self.new_tables += [t for t in self.renamed_tables.keys()]
-                self.dropped_tables = self.query_drops_table(self.query_string)
+                self.dropped_tables = self.query_drops_table(self.query_string, self.dbo.type)
 
                 if self.permission:
-                    for t in self.new_tables:
-                        self.dbo.query('grant select on {t} to public;'.format(t=t),
+                    for row in self.new_tables:
+                        obj = '.'.join([f'"{x}"' for x in row if x])
+                        self.dbo.query(f'grant select on {obj} to public;',
                                        strict=False, timeme=False, internal=True)
 
                 if self.renamed_tables:
@@ -232,9 +238,11 @@ class Query:
 
                         # Add standardized previous table name to dropped tables to remove from log
                         server, database, sch, tbl = parse_table_string(i, self.dbo.default_schema, self.dbo.type)
-                        org_table = get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
+                        org_table = get_query_table_schema_name(
                             self.renamed_tables[i], self.dbo.type)
-                        self.dropped_tables.append(org_table)
+                        # org_table = get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
+                        #     self.renamed_tables[i], self.dbo.type)
+                        self.dropped_tables.append((server, database, sch,org_table))
 
                         # If the standardized previous table name is in this query's new tables, replace with new name
                         if org_table in self.new_tables:
@@ -244,9 +252,9 @@ class Query:
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
-                        if org_table in self.dbo.tables_created:
+                        if (server, database, sch,org_table) in self.dbo.tables_created:
                             # self.dbo.tables_created.remove(org_table)
-                            self.dbo.tables_created[self.dbo.tables_created.index(org_table)] = \
+                            self.dbo.tables_created[self.dbo.tables_created.index( (server, database, sch,org_table))] = \
                                 get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
                                 tbl, self.dbo.type)
 
@@ -274,104 +282,150 @@ class Query:
         """
         # remove lines after '--'
         new_query_string = list()
-        for ln in query_string.split('\n'):
-            comment_line = ln.find('--')
-            if comment_line>0:
-                ln = ln[:comment_line]
-            else:
-                ln
-            new_query_string.append(ln)
-        query_string =' '.join(new_query_string)
+        parsed_tables = []
 
         # remove multiline comments
-        comments = r'((/\*)+?[\w\W]+?(\*/)+)'
+        comments = r'((/\*)+?[\w\W]+?(\*/)+)|(--.*)'
         matches = re.findall(comments, query_string, re.IGNORECASE)
         for m in matches:
-            query_string =''.join(query_string.split(m[0]))
+            if m:
+                m = [s for s in m if s!='']
+                query_string =''.join(query_string.split(m[0]))
 
 
         # remove mulitple spaces
-        _ = query_string.split()
-        query_string = ' '.join(_)
+        # _ = query_string.split()
+        # query_string = ' '.join(_)
         new_tables = list()
-        create_table = r'((?<!\*)(?<!\*\s)(?<!--)(?<!--\s)\s*create\s+table\s+(if\s+not\s+exists\s+)?)((([\[]'\
-            r'[\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))'\
-                r'?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]'\
-                       r'*[\"])|([\w]+)))?)'
-        matches = re.findall(create_table, query_string, re.IGNORECASE)
 
-        # Get all schema and table pairs remove create table match
-        new_tables += [set(match[2:3]) for match in matches]
+        # # OlD
+        # create_pattern =r"""
+        #     (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
+        #     ((create\s+table\s+)(?!temp\s+|temporary\s+|#{0,2})(if\s+not\s+exists\s+)*)(\s+)*  # create non-temp table expression
+        #     (((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}   # server.db.schema. 0-3 times
+        #     ((([\[|\"])?)([\w!@#$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1}){1} # table (whole thing only once
+        # """
+        # create_pattern =r"""
+        #     (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)    # ignore comments
+        #     ((?<!\$BODY\$))
+        #     (create\s+table\s+)
+        #     (?!temp\s+|temporary\s+)
+        #     (if\s+not\s+exists\s+)?
+        #     (((([\[|\"])?)([\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.)){0,3}
+        #     ((([\[|\"])?)((?!\#)[\w!@$%^&*()\s0-9-]+)(([\]|\"])?\.?)\s+){1})
+        #     (?=(as\s+select)|(\())\s?
+        #     ((?!\$BODY\$))
+        # """
 
-        # Adds catch for MS [database].[schema].[table]
-        select_into = r' (((\$body\$)([^\$]*)(\$body\$;$))|((\$\$)([^\$]*)(\$\$;$)))|(?<!\*)(?<!\*\s)(?<!--)(?<!--\s)'\
-                r'\s*(select[^\.;]*into\s+)(?!temp\s|temporary\s)((([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+))'\
-            r'([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*'\
-            r'[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.-]*[\"])|([\w]+)))?)'
-        matches = re.findall(select_into, query_string, re.IGNORECASE)
+        create_pattern = """
+            (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)
+            (create\s+table\s+)
+            (?!temp\s+|temporary|\s+)
+            (if\s+not\s+exists\s+)?
+            (
+                (({encaps} | {nonencaps})\.){sds}
+                (\[?\#{temp_mark}){tmp_time}
+                (({encapst} | {nonencaps})\s*){tbl_time}
+            )((as\s+select)|(\())\s?
+        """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                          encapst=RE_ENCAPSULATED_TABLE_NAME,
+                          sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
 
-        # [[select ... into], [table], [misc]]
-        # new_tables += [set(match[1:2]) for match in matches]
-        new_tables += [set(match[10:11]) for match in matches]
+        create_table = re.compile(create_pattern, re.VERBOSE | re.IGNORECASE)
 
-        # Clean up
-        for _ in new_tables:
-            if '' in _:
-                _.remove('')
+        # matches = re.findall(create_table, query_string, re.IGNORECASE)
+        matches = re.findall(create_table, query_string)
 
-        if new_tables and new_tables != [set()]:
-            all_tables = [i.pop() for i in new_tables if len(i) > 0]
+        tables = [i[2].strip() for i in matches]
+        new_tables+=tables
+
+        into_pattern = r"""
+            (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
+            
+            (select([.\n\w\*\s\",^,\[\]])+?into\s+)+?               # find select into
+            (?!temp\s+|temporary\s+)                                # lookahead for temp
+            (
+               (({encaps} | {nonencaps})\.){sds}?
+               (\[?\#{temp_mark}){tmp_time}
+               (({encapst} | {nonencaps})\s+){tbl_time}
+           )
+           (?=from)                                                # lookahead for 'from'
+            """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                          encapst=RE_ENCAPSULATED_TABLE_NAME,
+                          sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
+
+
+        create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
+        into_matches = re.findall(create_table_into, query_string)
+
+        into_tables = [i[2].strip() for i in into_matches]
+        new_tables += into_tables
+
+        if new_tables:
+            all_tables = [i for i in new_tables if len(i) > 0]
+
             all_tables = [t if ('"' in t or "[" in t) else t.lower() for t in all_tables]
 
-            # Clean table names via parse_table_string, get_query_table_schema_name
+        #     # Clean table names via parse_table_string, get_query_table_schema_name
             parsed_tables = [parse_table_string(a, default_schema, db_type) for a in all_tables]
-            parsed_tables_clean = []
-            for ser, db, s, t in parsed_tables:
-                # format variables
-                ser = get_query_table_schema_name(ser, db_type)
-                db = get_query_table_schema_name(db, db_type)
-                s = get_query_table_schema_name(s, db_type)
-                t = get_query_table_schema_name(t, db_type)
-                if ser:
-                    parsed_tables_clean.append('.'.join([ser, db, s, t]))
-                elif db:
-                    parsed_tables_clean.append('.'.join([db, s, t]))
-                else:
-                    parsed_tables_clean.append('.'.join([s, t]))
-            return parsed_tables_clean
-        else:
-            return []
+        return parsed_tables
+            # TODO create table query tables will always be 1st in the list over select into queries... does order matter?
+
 
     @staticmethod
-    def query_drops_table(query_string):
+    def query_drops_table(query_string, db_type):
         """
         Checks if query drops any tables.
         Tables that were dropped should be removed from the to drop queue. This should help
         avoid dropping tables with coincident names.
         :return: list of tables dropped (including any db/schema info)
         """
-        _ = query_string.split()
-        query_string = ' '.join(_)
+
+        # remove multiline comments
+        comments = r'((/\*)+?[\w\W]+?(\*/)+)|(--.*)'
+        matches = re.findall(comments, query_string, re.IGNORECASE)
+        for m in matches:
+            if m:
+                m = [s for s in m if s != '']
+                query_string = ''.join(query_string.split(m[0]))
+
         dropped_tables = list()
-        drop_table = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(drop\s+table\s+(if\s+exists\s+)?)((([\[][\w\s\.\"]*[\]])|' \
-                     r'([\"][\w\s\.]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.]' \
-                     r'(([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
-                     r'[\"])|([\w]+)))?)([\s\n\r\t]*(\;?)[\s\n\r\t]*)'
-        matches = re.findall(drop_table, query_string, re.IGNORECASE)
+
+        drop_pattern = r"""
+                   (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
+                   (\s?drop\s+table\s(if\s+exists\s+)?)
+                   ((
+                       (({encaps} | {nonencaps})\.)){sds}
+                   (
+                       (({encapst} | {nonencaps})){tbl_time}
+                   ))(\s | \;)*?
+                       """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME,
+                                  encapst=RE_ENCAPSULATED_TABLE_NAME,
+                                  nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                                  sds="{0,3}", tbl_time="{1}")
+        drop_pattern = re.compile(drop_pattern, re.VERBOSE | re.IGNORECASE)
+
+        matches = re.findall(drop_pattern, query_string)
+
+
+        # drop_table = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(drop\s+table\s+(if\s+exists\s+)?)((([\[][\w\s\.\"]*[\]])|' \
+        #              r'([\"][\w\s\.]*[\"])|([\w]+))([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.]' \
+        #              r'(([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*[\"])|([\w]+)))?([.](([\[][\w\s\.\"]*[\]])|([\"][\w\s\.]*' \
+        #              r'[\"])|([\w]+)))?)([\s\n\r\t]*(\;?)[\s\n\r\t]*)'
+        # matches = re.findall(drop_table, query_string, re.IGNORECASE)
 
         if matches:
-            for match in matches:
-                if len(match) == 0:
-                    continue
+            for row in matches:
+                dropped_tables.append(
+                    '.'.join([
+                        get_unique_table_schema_string(t, db_type)
+                        for t in row[2].split('.')])
+                )
+        return dropped_tables
 
-                tb = [m for m in match][2:3]
-                dropped_tables += tb
-            return dropped_tables
-        else:
-            return []
 
     @staticmethod
-    def query_renames_table(query_string, default_schema):
+    def query_renames_table(query_string, default_schema, db_type):
         """
         Checks if a rename query is run
         :return: Dict {schema.new table name: original table name}
@@ -380,45 +434,90 @@ class Query:
         query_string = ' '.join(_)
         new_tables = dict()
 
-        rename_tables = r'(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(alter table\s+(if exists\s+)?)(\"?[*\w\s]*\"?\.)?' \
-                        r'(\"?[\w\s]*\"?)\s+(rename to )(\"?[\w\s]*\"?)\;?'
-        matches = re.findall(rename_tables, query_string.lower())
+        rename_pattern = r"""
+            (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
+            (\s?alter\s+table\s+(if exists\s+)?)
+            ((
+                (({encaps} | {nonencaps})\.)){sds}                                           
+            (
+                (({encaps} | {nonencaps})\s+){tbl_time}
+            ))
+            (rename\s+to\s+)
+            ((({encaps} | {nonencaps}))+)
+                """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME,
+                           nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                           sds="{0,3}", tbl_time="{1}")
+
+        rename_tables = re.compile(rename_pattern, re.VERBOSE | re.IGNORECASE)
+
+
+        matches = re.findall(rename_tables, query_string)
         for row in matches:
-            old_schema = row[2]
-            old_table = row[3]
-            new_table = row[-1]
-            new_tables[old_schema + new_table] = old_table
+            old_schema = row[5]
+            old_table = row[17]
+            new_table = row[28]
+            if old_schema:
+                new_tables[get_unique_table_schema_string(old_schema, db_type) + '.' + get_unique_table_schema_string(new_table, db_type)] = \
+                    get_unique_table_schema_string(old_table, db_type)
+            else:
+                new_tables[default_schema + '.' + get_unique_table_schema_string(
+                    new_table, db_type)] = \
+                    get_unique_table_schema_string(old_table, db_type)
 
         if not matches:
-            rename_tables_sql = r"(?<!--\s)(?<!--)(?<!\*\s)(?<!\*)(exec\s+sp_rename)(\s*')(\[?[\w\s+]*\]?\.)?" \
-                                r"(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?\.)?(\[?[\w\s+]*\]?)',\s*'(\[?[\w\s+]*\]?)'" \
-                                r"(?!,?\s*n?'(column|index)'?\s*)"
-            matches = re.findall(rename_tables_sql, query_string.lower())
+            if not re.search(r"""(,?\s*n?'(column|index)'?\s*)""", query_string, re.IGNORECASE):
+                rename_tables_sql = """
+                (?<!--\s)(?<!--)(?<!\*\s)(?<!\*)
+                (exec\s+sp_rename)(\s+?')
+                ((.)+?)
+                ('\s?,\s?')
+                ((.)*?)
+                ('\s?)(;)?
+                (?!,?\s*n?'(column|index)'?\s*)
+                """
+
+                rename_tables = re.compile(rename_tables_sql, re.VERBOSE | re.IGNORECASE)
+                matches = re.findall(rename_tables, query_string)
+
 
             for row in matches:
-                row = [r for r in row if r and r.strip() != "'"]
+                from_data = row[2].split('.')
+                _ = [None for i in range(3)] + from_data
+                from_server, from_database, from_schema, from_table = _[-4:]
+                to_table = row[5]
 
-                if len(row) == 3:
-                    old_schema = default_schema + "."
-                    old_table = row[1]
+                if not from_schema:
+                    new_tables[default_schema + '.' + get_unique_table_schema_string(to_table, db_type)] = \
+                        get_unique_table_schema_string(from_table, db_type)
 
-                if len(row) == 4:
-                    old_schema = row[1]
-                    old_table = row[2]
+                else:
+                    new_tables[get_unique_table_schema_string(from_schema, db_type) +'.'+
+                           get_unique_table_schema_string(to_table, db_type)] = get_unique_table_schema_string(from_table, db_type)
 
-                if len(row) == 5:
-                    # old_database = row[1]
-                    old_schema = row[2]
-                    old_table = row[3]
-
-                if len(row) == 6:
-                    # old_server = row[1]
-                    # old_database = row[2]
-                    old_schema = row[3]
-                    old_table = row[4]
-
-                new_table = row[-1]
-                new_tables[old_schema + new_table] = old_table
+                #
+                # row = [r for r in row if r and r.strip() != "'"]
+                #
+                # if len(row) == 3:
+                #     old_schema = default_schema + "."
+                #     old_table = row[1]
+                #
+                # if len(row) == 4:
+                #     old_schema = row[1]
+                #     old_table = row[2]
+                #
+                # if len(row) == 5:
+                #     # old_database = row[1]
+                #     old_schema = row[2]
+                #     old_table = row[3]
+                #
+                # if len(row) == 6:
+                #     # old_server = row[1]
+                #     # old_database = row[2]
+                #     old_schema = row[3]
+                #     old_table = row[4]
+                #
+                # new_table = row[-1]
+                # new_tables[old_schema + new_table] = old_table
 
         return new_tables
 
@@ -485,15 +584,15 @@ class Query:
         :return:
         """
         if self.dbo.type == PG and not self.no_comment:
-            for t in self.new_tables:
-                # tables in new_tables list will contain schema if provided, otherwise will default to public
-                q = """COMMENT ON TABLE {t} IS 'Created by {u} on {d}\n{cmnt}'""".format(
-                    t=t,
-                    u=self.dbo.user,
-                    d=self.query_start.strftime('%Y-%m-%d %H:%M'),
-                    cmnt=self.comment
-                )
-                self.dbo.query(q, strict=False, timeme=False, internal=True)
+            # tables in new_tables list will contain schema if provided, otherwise will default to public
+            for row in self.new_tables:
+                obj = '.'.join([f'"{x}"' for x in row if x])
+                self.dbo.query(f'''COMMENT ON TABLE {obj} 
+                IS 'Created by {self.dbo.user} 
+                on {self.query_start.strftime('%Y-%m-%d %H:%M')}
+                {self.comment}'
+                ''',
+                               strict=False, timeme=False, internal=True)
 
     @staticmethod
     def query_to_shp(dbo, query, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False,
