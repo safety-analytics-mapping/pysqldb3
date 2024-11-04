@@ -22,8 +22,8 @@ class TestQueryCreatesTablesSql():
             create table server.db.schema.[-_ta^b l*e] as select ;
             create table db.schema."-_ta&$b l*e" as select ;
 
-            create table [schema]."123456-_ta&$b l*e" as select ;
-            create table [123456-_ta&$b l*e] as select ;
+            create table [schema]."123456-_ta&$b l*e" as select ; /* comment */
+            create table [123456-_ta&$b l*e] as select ; -- comment 
                      
                 """
         assert query.Query.query_creates_table(query_string, 'dbo', MS) == [
