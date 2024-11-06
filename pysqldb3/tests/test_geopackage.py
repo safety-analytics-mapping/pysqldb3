@@ -35,8 +35,8 @@ pg_table_name = f'pg_test_table_{db.user}'
 test_read_gpkg_table_name = f'test_read_gpkg_table_{db.user}'
 test_write_gpkg_table_name = f'test_write_gpkg_table_{db.user}'
 test_reuploaded_table_name = f'test_write_reuploaded_{db.user}'
-test_layer1 = 'test_layer1'
-test_layer2 = 'test_layer2'
+test_layer1 = 't:est_layer1'
+test_layer2 = 'test_layer2!?'
 
 ms_schema = 'dbo'
 pg_schema = 'working'
@@ -100,26 +100,26 @@ class TestReadgpkgPG:
 
         # Assert successful
         assert gpkg_name in os.listdir(fp)
-        db.drop_table(schema=pg_schema, table=test_layer1)
-        db.drop_table(schema=pg_schema, table=test_layer2)
+        db.drop_table(schema=pg_schema, table='test_layer1')
+        db.drop_table(schema=pg_schema, table='test_layer2')
 
         # no gpkg_tbl argument so that it bulk uploads
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
         s.read_gpkg_bulk_upload(dbo=db, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
-        assert db.table_exists(schema=pg_schema, table = test_layer1)
-        assert db.table_exists(schema=pg_schema, table = test_layer2)
+        assert db.table_exists(schema=pg_schema, table = 'test_layer1')
+        assert db.table_exists(schema=pg_schema, table = 'test_layer2')
 
         table_df = db.dfquery(f"""
-                                select * from {pg_schema}.{test_layer1}
+                                select * from {pg_schema}.test_layer1
                                 """)
 
         assert set(table_df.columns) == {'gid', 'some_value', 'fid', 'geom'}
         assert len(table_df) == 2
 
         table_df2 = db.dfquery(f"""
-                                select * from {pg_schema}.{test_layer2}
+                                select * from {pg_schema}.test_layer2
                                 """)
         assert set(table_df2.columns) == {'gid', 'some_value', 'fid', 'geom'}
         assert len(table_df2) == 2
@@ -135,7 +135,7 @@ class TestReadgpkgPG:
             union
             select 2 as id, st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
         ) raw_inputs
-        join {pg_schema}.{test_layer1} end_table
+        join {pg_schema}.test_layer1 end_table
                     on raw_inputs.id=end_table.gid::int
         """)
 
@@ -151,7 +151,7 @@ class TestReadgpkgPG:
             union
             select 2 as id, st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
         ) raw_inputs
-        join {pg_schema}.{test_layer2} end_table
+        join {pg_schema}.test_layer2 end_table
                     on raw_inputs.id=end_table.gid::int
         """)
 
@@ -218,19 +218,19 @@ class TestReadgpkgPG:
     #     # TODO: pending permissions defaults convo
     #     return
 
-    # def test_read_temp(self):
-    #     # TODO: pending temp functionality
-    #     return
+    def test_read_temp(self):
+        # TODO: pending temp functionality
+        return
 
-    # def test_read_gpkg_encoding(self):
-    #     # TODO: add test with fix to special characters
-    #     return
+    def test_read_gpkg_encoding(self):
+        # TODO: add test with fix to special characters
+        return
 
-    # @classmethod
+    @classmethod
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()
-#         helpers.clean_up_test_table_pg(db)
+        # helpers.clean_up_test_table_pg(db)
 
 
 class TestReadgpkgMS:
@@ -320,21 +320,21 @@ class TestReadgpkgMS:
         assert gpkg_name in os.listdir(fp)
 
         # drop temp table if exists
-        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
-        sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
+        sql.query(f"drop table if exists {ms_schema}.test_layer1")
+        sql.query(f"drop table if exists {ms_schema}.test_layer2")
 
         # Read gpkg to new, test table
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
         s.read_gpkg_bulk_upload(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
-        assert sql.table_exists(schema=ms_schema, table=test_layer1)
-        table_df = sql.dfquery(f'select * from {ms_schema}.{test_layer1}')
+        assert sql.table_exists(schema=ms_schema, table= 'test_layer1')
+        table_df = sql.dfquery(f'select * from {ms_schema}.test_layer1')
         assert set(table_df.columns) == {'fid', 'gid', 'some_value', 'geom'}
         assert len(table_df) == 2
 
-        assert sql.table_exists(schema=ms_schema, table=test_layer2)
-        table_df2 = sql.dfquery(f'select * from {ms_schema}.{test_layer2}')
+        assert sql.table_exists(schema=ms_schema, table= 'test_layer2')
+        table_df2 = sql.dfquery(f'select * from {ms_schema}.test_layer2')
         assert set(table_df2.columns) == {'fid', 'gid', 'some_value', 'geom'}
         assert len(table_df2) == 2
 
@@ -347,7 +347,7 @@ class TestReadgpkgMS:
             union all
             (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
-        join {ms_schema}.{test_layer1} end_table
+        join {ms_schema}.test_layer1 end_table
         on raw_inputs.id=cast(end_table.gid as int)
         """)
         assert len(diff_df) == 1
@@ -360,15 +360,15 @@ class TestReadgpkgMS:
             union all
             (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
-        join {ms_schema}.{test_layer2} end_table
+        join {ms_schema}.test_layer2 end_table
         on raw_inputs.id=cast(end_table.gid as int)
         """)
         assert len(diff_df2) == 1
         assert int(diff_df2.iloc[0]['distance']) == 0
 
         # Cleanup
-        sql.query(f'drop table if exists {ms_schema}.{test_layer1}')
-        sql.query(f'drop table if exists {ms_schema}.{test_layer2}')
+        sql.query(f'drop table if exists {ms_schema}.test_layer1')
+        sql.query(f'drop table if exists {ms_schema}.test_layer2')
 
 
     def test_read_gpkg_no_schema(self):
@@ -416,17 +416,17 @@ class TestReadgpkgMS:
         assert gpkg_name in os.listdir(fp)
 
         # remove temp table from MS SQL Server if it already exists
-        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
+        sql.query(f"drop table if exists {ms_schema}.test_layer1")
 
         # Read gpkg to new, test table
         s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1)
         s.read_gpkg(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
-        assert sql.table_exists(schema = ms_schema, table=test_layer1)
+        assert sql.table_exists(schema = ms_schema, table= 'test_layer1')
 
         # todo: this fails because odbc 17 driver isnt supporting geometry
-        table_df = sql.dfquery(f'select * from {ms_schema}.{test_layer1}')
+        table_df = sql.dfquery(f'select * from {ms_schema}.test_layer1')
 
         assert set(table_df.columns) == {'fid', 'gid', 'some_value', 'geom'}
         assert len(table_df) == 2
@@ -440,7 +440,7 @@ class TestReadgpkgMS:
             union all
             (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
-        join {ms_schema}.{test_layer1} end_table
+        join {ms_schema}.test_layer1 end_table
         on raw_inputs.id=end_table.gid
         """)
 
@@ -448,7 +448,7 @@ class TestReadgpkgMS:
         assert int(diff_df.iloc[0]['distance']) == 0
 
         # Cleanup
-        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
+        sql.query(f"drop table if exists {ms_schema}.test_layer1")
 
     # def test_read_gpkg_precision(self):
     #     return

@@ -42,17 +42,10 @@ class Geopackage:
             ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
 
             # use regex to find all the tables in the geopackage
-            tables_in_gpkg = re.findall(r"\\n\d+:\s(?:[a-z0-9A-Z_]+)", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+            tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
             
-            # clean the table names
-            cleaned_gpkg_tbl_names = [] # empty list of clean table names
-
-            for t_i_g in tables_in_gpkg:
-                insert_val = re.search(r'([\w]+)$', t_i_g).group()
-                cleaned_gpkg_tbl_names.append(insert_val)
-
-            return cleaned_gpkg_tbl_names
-
+            return tables_in_gpkg
+            
         except subprocess.CalledProcessError as e:
             print("This geopackage file does not exist at this file location.")
             print(exists_cmd) # print the command for reference
@@ -331,7 +324,7 @@ class Geopackage:
             try:
                 count_cmd = COUNT_GPKG_LAYERS.format(full_path = os.path.join(self.path, self.gpkg_name))
                 ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-                tables_in_gpkg = re.findall(r"\\n\d+:\s(?:[a-z0-9A-Z_]+)", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+                tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
                 tbl_count = len(tables_in_gpkg)
             
             except subprocess.CalledProcessError as e:
@@ -343,8 +336,8 @@ class Geopackage:
             gpkg_tbl_names = {} # create empty dictionary
 
             for t_i_g in tables_in_gpkg:
-                insert_val = re.search(r'([\w]+)$', t_i_g).group()
-                gpkg_tbl_names[insert_val] = insert_val # add the cleaned name
+                # insert_val = re.search(r'(\w+):\s(.+)$', t_i_g).group(2)
+                gpkg_tbl_names[t_i_g] = t_i_g # add the cleaned name
             
             for input_name, output_name in gpkg_tbl_names.items():
                 
@@ -444,9 +437,12 @@ class Geopackage:
                 gpkg_tbl = self.gpkg_tbl
 
             if table:
+                assert table == re.sub(r'[^A-Za-z0-9_]+', r'', table) # make sure the name will load into the database
                 table = table.lower()
             else:
+                # clean the geopackage table name
                 table = gpkg_tbl.replace('.gpkg', '').lower()
+                table = re.sub(r'[^A-Za-z0-9_]+', r'', table) # clean the table name in case there are special characters
 
             if dbo.table_exists(schema = schema, table = table):
 
@@ -545,7 +541,9 @@ class Geopackage:
 
             try:
                 ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-                tables_in_gpkg = re.findall(r"\\n\d+:\s(?:[a-z0-9A-Z_]+)", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+                tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
+                # only allows tables names with underscores, numbers, and letters as the first character
+                # excludes any dtype description that's also returned by the command line
             
             except subprocess.CalledProcessError as e:
                 print("Ogr2ogr Output:\n", e.output)
@@ -556,11 +554,14 @@ class Geopackage:
             # create a list of cleaned gpkg table names
             gpkg_tbl_names = {} # create empty dictionary
             for t_i_g in tables_in_gpkg:
-                insert_val = re.search(r'([a-z0-9A-Z_]+)$', t_i_g).group()
-                gpkg_tbl_names[insert_val] = insert_val # add the cleaned name
+                insert_val = re.sub(r'[^A-Za-z0-9_]+', r'', t_i_g)
+                gpkg_tbl_names[insert_val] = t_i_g # add the cleaned name
+
+            # assert that the new cleaned names are unique. if not, we won't get the same dimensions
+            assert len(gpkg_tbl_names) == len(tables_in_gpkg), "Clean the geopackage table names so they can be uploaded as tables (by removing special characters other than _) and make sure they are unique."
 
             # loop through the tables     
-            for input_name, output_name in gpkg_tbl_names.items():
+            for output_name, input_name in gpkg_tbl_names.items():
             
                 if dbo.table_exists(table = output_name, schema = schema):
 
@@ -645,8 +646,7 @@ class Geopackage:
 
                 if not private:
                     try:
-                        dbo.query('grant select on {s}."{t}" to public;'.format(
-                            s=schema, t=output_name),
+                        dbo.query(f'grant select on {schema}."{output_name}" to public;',
                             timeme=False, internal=True, strict=True)
                     except:
                         pass
@@ -724,9 +724,9 @@ class Geopackage:
 
                 # Rename index if exists
                 try:
-                    dbo.query("""
-                        EXEC sp_rename N'{s}.{t}.ogr_{s}_{t}_{f}_sidx', N'{t}_geom_idx', N'INDEX';
-                    """.format(s=schema, t=table, f=f), timeme=False, internal=True)
+                    dbo.query(f"""
+                        EXEC sp_rename N'{schema}.{table}.ogr_{schema}_{table}_{f}_sidx', N'{table}_geom_idx', N'INDEX';
+                    """, timeme=False, internal=True)
                 except SystemExit as e:
                     print(e)
                     print('Warning - could not update index name after renaming geometry. It may not exist.')
