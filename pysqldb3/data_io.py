@@ -421,9 +421,31 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
     if not dest_table:
         dest_table = org_table
 
+    sql_to_sql_qry(from_sql, to_sql,
+           f'select * from [{org_schema}].[{org_table}]', LDAP_from, LDAP_to, spatial, org_schema, dest_schema, print_cmd, dest_table, temp,
+           gdal_data_loc, pg_encoding, permission)
 
-    sql_to_sql_qry(from_sql, to_sql, f'select * from [{org_schema}].[{org_table}]', LDAP_from, LDAP_to, spatial, org_schema, dest_schema, print_cmd, dest_table, temp,
-                   gdal_data_loc, pg_encoding, permission)
+    cols = from_sql.get_table_columns(org_table, schema=org_schema)
+    cols = {c[0]:c[1] for c in cols}
+    cols_to = to_sql.get_table_columns(dest_table, schema=dest_schema)
+    cols_to = {c[0]: c[1] for c in cols_to}
+
+    # enforce column data types in dest match the source
+    for c in cols.keys():
+        if '-' in c:
+            # GDAL sanitizes `-` out of column names this will put them back so the start/end tables match
+            to_sql.query(f"""EXEC sp_rename '{dest_schema}.{dest_table}.{c.replace('-', '_')}', '{c}', 'COLUMN';""")
+            cols_to = to_sql.get_table_columns(dest_table, schema=dest_schema)
+            cols_to = {_[0]: _[1] for _ in cols_to}
+        if cols[c] != cols_to[c]:
+            if 'varchar' in cols[c] and 'nvarchar' in cols_to[c]:
+                # allow upgrade to nvarchar
+                pass
+            else:
+                to_sql.query(f"ALTER TABLE [{dest_schema}].[{dest_table}] ALTER COLUMN [{c}] {cols[c]}",
+                         timeme=False, internal=True, strict=False)
+
+
 
 
 
