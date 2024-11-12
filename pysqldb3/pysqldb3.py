@@ -2216,6 +2216,16 @@ class DbConnect:
             read_data = read_data.replace('['+schema_table_name.split('.')[0]+'].['+schema_table_name.split('.')[1]+']',
                                           f'[{overwrite_schema}].[{overwrite_name}]')
             schema_table_name = f'{overwrite_schema}.{overwrite_name}'
+        
+        elif not all([overwrite_name, overwrite_schema]) and self.type == 'MS':
+            new_table_name = schema_table_name.split('.')[1].replace('"', '')
+            new_table_name = f'[{new_table_name}]' # got an error when I tried writing this on one line
+            new_schema_name = schema_table_name.split('.')[0]
+            
         self.query(read_data)
-        assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
+        
+        if self.type == "MS" and not all([overwrite_name, overwrite_schema]):
+            assert self.table_exists(new_table_name, schema=new_schema_name, case_sensitive = True)
+        else:
+            assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0], case_sensitive = True)
         return schema_table_name

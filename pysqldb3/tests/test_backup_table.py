@@ -337,7 +337,7 @@ class TestBackupTablesPg:
 
 class TestBackupTablesMs:
     def test_backup_tables_basic(self):
-        sql.drop_table(table=test_sql_to_backup, schema=ms_schema)
+        sql.drop_table(table=f'[{test_sql_to_backup.capitalize()}]', schema=ms_schema)
 
         # table schema
         sql.drop_table(ms_schema, test_sql_to_backup)
@@ -365,16 +365,15 @@ class TestBackupTablesMs:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_from_backup.capitalize())
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, f"{test_sql_from_backup.capitalize()}")
         assert os.path.isfile(test_back_file)
 
         # run backup
-        sql.drop_table(ms_schema, test_sql_from_backup.capitalize())
+        sql.drop_table(ms_schema, f"{test_sql_from_backup.capitalize()}")
         sql.create_table_from_backup(test_back_file)
-
         # validate table exists
-        assert sql.table_exists(test_sql_from_backup, schema=ms_schema)
-        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_from_backup.capitalize()}")
+        assert sql.table_exists(test_sql_from_backup.capitalize(), schema=ms_schema)
+        sql.query(f'select count(*) cnt from {ms_schema}."{test_sql_from_backup.capitalize()}"')
         assert sql.data[0][0] == 10
 
         # Validate schema matches
@@ -603,27 +602,27 @@ class TestBackupTablesMs:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_from_backup.capitalize())
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, f"{test_sql_from_backup.capitalize()}")
         assert os.path.isfile(test_back_file)
 
         # run backup
-        sql.drop_table(ms_schema, test_sql_from_backup.capitalize())
+        sql.drop_table(ms_schema, f"{test_sql_from_backup.capitalize()}")
         sql.create_table_from_backup(test_back_file)
 
         # validate table exists
-        assert sql.table_exists(test_sql_from_backup.capitalize(), schema=ms_schema)
-        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_from_backup.capitalize()}")
+        assert sql.table_exists(f"{test_sql_from_backup.capitalize()}", schema=ms_schema)
+        sql.query(f'select count(*) cnt from {ms_schema}."{test_sql_from_backup.capitalize()}"')
         assert sql.data[0][0] == 10
 
         # Validate schema matches
         _to = sql.get_table_columns(test_sql_to_backup, schema=ms_schema)
-        _from = sql.get_table_columns(test_sql_from_backup.capitalize(), schema=ms_schema)
+        _from = sql.get_table_columns(f"{test_sql_from_backup.capitalize()}", schema=ms_schema)
         assert _to == _from
 
         # clean up
         sql.cleanup_new_tables()
         assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
-        assert not sql.table_exists(test_sql_from_backup.capitalize(), schema=ms_schema)
+        assert not sql.table_exists(f"{test_sql_from_backup.capitalize()}", schema=ms_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
