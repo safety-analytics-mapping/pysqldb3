@@ -2139,6 +2139,8 @@ class DbConnect:
         # CREATE TABLE QUERY
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
+            if dtyp == 'USER-DEFINED':
+                dtyp = 'geometry'
             _create_qry += f'\n"{col}" {dtyp},'
         _create_qry=_create_qry[:-1]+');\n'
 
