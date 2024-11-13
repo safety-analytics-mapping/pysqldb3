@@ -2211,13 +2211,16 @@ class DbConnect:
         """
         with open(backup_path, 'r') as f:
             read_data = f.read()
-        schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
-                       read_data)[0].replace('CREATE TABLE ', '')[:-2]
+
+        # schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
+        #                read_data)[0].replace('CREATE TABLE ', '')[:-2]
+        server, database, schema, table = Query.query_creates_table(read_data, self.default_schema, self.type)[0]
         if all([overwrite_name, overwrite_schema]):
-            read_data = read_data.replace(schema_table_name, f'"{overwrite_schema}"."{overwrite_name}"')
-            read_data = read_data.replace('['+schema_table_name.split('.')[0]+'].['+schema_table_name.split('.')[1]+']',
-                                          f'[{overwrite_schema}].[{overwrite_name}]')
+            read_data = read_data.replace(f'"{schema}"."{table}"', f'"{overwrite_schema}"."{overwrite_name}"')
+            read_data = read_data.replace(f'[{schema}].[{table}]', f'[{overwrite_schema}].[{overwrite_name}]')
             schema_table_name = f'{overwrite_schema}.{overwrite_name}'
+        else:
+            schema_table_name = f'{schema}.{table}'
         self.query(read_data)
         assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
         return schema_table_name
