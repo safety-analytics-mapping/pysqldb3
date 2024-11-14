@@ -2201,7 +2201,7 @@ class DbConnect:
 
 
 
-    def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None):
+    def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None, temp=False):
         """
         Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
         :param backup_path: File path of the .sql file to be used to create the backup.
@@ -2221,6 +2221,6 @@ class DbConnect:
             schema_table_name = f'{overwrite_schema}.{overwrite_name}'
         else:
             schema_table_name = f'{schema}.{table}'
-        self.query(read_data)
+        self.query(read_data, temp=temp)
         assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
         return schema_table_name
