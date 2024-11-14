@@ -2139,6 +2139,8 @@ class DbConnect:
         # CREATE TABLE QUERY
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
+            if dtyp == 'USER-DEFINED':
+                dtyp = 'geometry'
             _create_qry += f'\n"{col}" {dtyp},'
         _create_qry=_create_qry[:-1]+');\n'
 
@@ -2199,7 +2201,7 @@ class DbConnect:
 
 
 
-    def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None):
+    def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None, temp=False):
         """
         Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
         :param backup_path: File path of the .sql file to be used to create the backup.
@@ -2209,13 +2211,16 @@ class DbConnect:
         """
         with open(backup_path, 'r') as f:
             read_data = f.read()
-        schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
-                       read_data)[0].replace('CREATE TABLE ', '')[:-2]
+
+        # schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
+        #                read_data)[0].replace('CREATE TABLE ', '')[:-2]
+        server, database, schema, table = Query.query_creates_table(read_data, self.default_schema, self.type)[0]
         if all([overwrite_name, overwrite_schema]):
-            read_data = read_data.replace(schema_table_name, f'"{overwrite_schema}"."{overwrite_name}"')
-            read_data = read_data.replace('['+schema_table_name.split('.')[0]+'].['+schema_table_name.split('.')[1]+']',
-                                          f'[{overwrite_schema}].[{overwrite_name}]')
+            read_data = read_data.replace(f'"{schema}"."{table}"', f'"{overwrite_schema}"."{overwrite_name}"')
+            read_data = read_data.replace(f'[{schema}].[{table}]', f'[{overwrite_schema}].[{overwrite_name}]')
             schema_table_name = f'{overwrite_schema}.{overwrite_name}'
-        self.query(read_data)
+        else:
+            schema_table_name = f'{schema}.{table}'
+        self.query(read_data, temp=temp)
         assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
         return schema_table_name

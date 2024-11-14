@@ -51,7 +51,8 @@ CREATE TABLE {s}.{log}  (
     created_on timestamp, 
     expires date, 
     primary key (table_schema, table_name)
-    )
+    ); 
+    grant select on {s}.{log} to public;
 """
 
 PG_ADD_TABLE_TO_LOG_QUERY = r"""
