@@ -300,6 +300,155 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
         pg.log_temp_table(dest_schema, dest_table, pg.user)
 
 
+def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
+                   print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
+    """
+    Migrates tables from one SQL Server database to another SQL Server database.
+
+    :param from_sql: DbConnect instance connecting to SQL Server Origin database
+    :param to_sql: DbConnect instance connecting to SQL Server Destination database
+    :param qry: Query String in SQL
+    :param LDAP_from: Flag for using LDAP credentials (defaults to False) for source
+    :param LDAP_to: Flag for using LDAP credentials (defaults to False) for destination
+    :param spatial: Flag for spatial table (defaults to True)
+    :param org_schema: SQL Server schema for origin table (defaults to default schema function result)
+    :param dest_schema: SQL Server schema for destination table (defaults to default schema function result)
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param dest_table: Table name of final migrated table in destination SQL Server database
+    :param temp: flag, defaults to true, for temporary tables
+    :param gdal_data_loc: location of GDAL data
+    :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
+    :param permission: set permission to Public on destination table (defaults to False)
+    :return:
+    """
+
+    if not org_schema:
+        org_schema = from_sql.default_schema
+
+    if not dest_schema:
+        dest_schema = to_sql.default_schema
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=to_sql.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    if spatial:
+        spatial = 'MSSQLSpatial'
+        nlt_spatial = ' '
+    else:
+        spatial = 'MSSQL'
+        nlt_spatial = '-nlt NONE'
+
+    if LDAP_from:
+        from_user = ''
+        from_password = ''
+    else:
+        from_user = from_sql.user
+        from_password = from_sql.password
+    if LDAP_to:
+        to_user = ''
+        to_password = ''
+    else:
+        to_user = to_sql.user
+        to_password = to_sql.password
+    cmd = SQL_TO_SQL_CMD.format(
+        gdal_data=gdal_data_loc,
+        from_server=from_sql.server,
+        from_database=from_sql.database,
+        from_user=from_user,
+        from_pass=from_password,
+        to_server=to_sql.server,
+        to_database=to_sql.database,
+        to_user=to_user,
+        to_pass=to_password,
+
+        to_schema=dest_schema,
+        to_table=dest_table,
+        qry=qry,
+
+        spatial=spatial,
+        nlt_spatial=nlt_spatial
+    )
+
+    if print_cmd:
+        print(print_cmd_string([from_sql.password, to_sql.password], cmd))
+
+    cmd_env = os.environ.copy()
+    cmd_env['PGCLIENTENCODING'] = pg_encoding
+
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
+                                               env=cmd_env)
+        if permission == True:
+            to_sql.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([from_sql.password, to_sql.password], cmd),
+                                            returncode=1)
+
+    clean_geom_column(to_sql, dest_table, dest_schema)
+
+    to_sql.tables_created.append(dest_schema + "." + dest_table)
+
+    if temp:
+        to_sql.log_temp_table(dest_schema, dest_table, to_sql.user)
+
+
+
+def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
+               print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
+    """
+    Migrates tables from one SQL Server database to another SQL Server database.
+
+    :param from_sql: DbConnect instance connecting to SQL Server Origin database
+    :param to_sql: DbConnect instance connecting to SQL Server Destination database
+    :param org_table: Table name in source database to be migrated
+    :param LDAP_from: Flag for using LDAP credentials (defaults to False) for source
+    :param LDAP_to: Flag for using LDAP credentials (defaults to False) for destination
+    :param spatial: Flag for spatial table (defaults to True)
+    :param org_schema: SQL Server schema for origin table (defaults to default schema function result)
+    :param dest_schema: SQL Server schema for destination table (defaults to default schema function result)
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param dest_table: Table name of final migrated table in destination SQL Server database
+    :param temp: flag, defaults to true, for temporary tables
+    :param gdal_data_loc: location of GDAL data
+    :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
+    :param permission: set permission to Public on destination table (defaults to False)
+    :return:
+    """
+
+    if not dest_table:
+        dest_table = org_table
+
+    sql_to_sql_qry(from_sql, to_sql,
+           f'select * from [{org_schema}].[{org_table}]', LDAP_from, LDAP_to, spatial, org_schema, dest_schema, print_cmd, dest_table, temp,
+           gdal_data_loc, pg_encoding, permission)
+
+    cols = from_sql.get_table_columns(org_table, schema=org_schema)
+    cols = {c[0]:c[1] for c in cols}
+    cols_to = to_sql.get_table_columns(dest_table, schema=dest_schema)
+    cols_to = {c[0]: c[1] for c in cols_to}
+
+    # enforce column data types in dest match the source
+    for c in cols.keys():
+        if '-' in c:
+            # GDAL sanitizes `-` out of column names this will put them back so the start/end tables match
+            to_sql.query(f"""EXEC sp_rename '{dest_schema}.{dest_table}.{c.replace('-', '_')}', '{c}', 'COLUMN';""")
+            cols_to = to_sql.get_table_columns(dest_table, schema=dest_schema)
+            cols_to = {_[0]: _[1] for _ in cols_to}
+        if cols[c] != cols_to[c]:
+            if 'varchar' in cols[c] and 'nvarchar' in cols_to[c]:
+                # allow upgrade to nvarchar
+                pass
+            else:
+                to_sql.query(f"ALTER TABLE [{dest_schema}].[{dest_table}] ALTER COLUMN [{c}] {cols[c]}",
+                         timeme=False, internal=True, strict=False)
+
+
+
+
+
 def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
              spatial=True, temp=True, permission = True):
     """

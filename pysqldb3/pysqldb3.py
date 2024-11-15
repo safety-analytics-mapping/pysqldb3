@@ -740,7 +740,11 @@ class DbConnect:
         if full:
             columns = '*'
         else:
-            columns = "column_name, data_type"
+            if self.type == PG:
+                columns = "column_name, data_type"
+            else:
+                columns = "column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then " \
+                          "DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' else DATA_TYPE end as DATA_TYPE"
 
         if self.type == PG:
             self.query("""
