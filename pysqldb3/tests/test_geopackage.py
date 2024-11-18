@@ -105,7 +105,7 @@ class TestReadgpkgPG:
 
         # no gpkg_tbl argument so that it bulk uploads
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.read_gpkg_bulk_upload(dbo=db, schema=pg_schema, print_cmd=True)
+        s.read_gpkg_bulk(dbo=db, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table = 'test_layer1')
@@ -295,7 +295,7 @@ class TestReadgpkgMS:
 
         # no gpkg_tbl argument so that it bulk uploads
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.read_gpkg_bulk_upload(dbo=sql, schema=ms_schema, print_cmd=True)
+        s.read_gpkg_bulk(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table = 'test_layer1')
@@ -325,7 +325,7 @@ class TestReadgpkgMS:
 
         # Read gpkg to new, test table
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.read_gpkg_bulk_upload(dbo=sql, schema=ms_schema, print_cmd=True)
+        s.read_gpkg_bulk(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table= 'test_layer1')
@@ -468,7 +468,7 @@ class TestReadgpkgMS:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()
-
+        helpers.clean_up_test_table_pg(db)
 
 class TestWritegpkgPG:
     @classmethod
@@ -497,7 +497,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp, dbo = db, schema=pg_schema, table = test_reuploaded_table_name, gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        db.gpkg_to_table(path=fp, schema=pg_schema, table = test_reuploaded_table_name, gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -562,7 +562,7 @@ class TestWritegpkgPG:
         s.write_gpkg(dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
-        db.gpkg_to_table(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        db.gpkg_to_table(path=fp, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                          table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -631,7 +631,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(fp, gpkg_name)) # assert that the table is still there
 
         # Reupload both tables from the same geopackage (since we are uploading under a different name, we can't use bulk upload function here)
-        db.gpkg_to_table_bulk_upload(path=fp, dbo = db, schema=pg_schema, gpkg_name=gpkg_name, print_cmd=True) 
+        db.gpkg_to_table_bulk(path=fp, schema=pg_schema, gpkg_name=gpkg_name, print_cmd=True) 
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -702,7 +702,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp+'\\'+gpkg_name, dbo = db, gpkg_name = gpkg_name, schema=pg_schema, table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        db.gpkg_to_table(path=fp+'\\'+gpkg_name, gpkg_name = gpkg_name, schema=pg_schema, table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -756,7 +756,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp+'\\'+'err_'+gpkg_name, dbo = db, gpkg_name=gpkg_name ,schema=pg_schema,
+        db.gpkg_to_table(path=fp+'\\'+'err_'+gpkg_name, gpkg_name=gpkg_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -802,7 +802,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=fp, dbo = db, gpkg_name=gpkg_name, schema=pg_schema,
+        db.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -863,7 +863,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
+        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
                           gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert equality
@@ -933,7 +933,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, 
+        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, schema = ms_schema, 
                           gpkg_tbl = test_write_gpkg_table_name +'_2', table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
@@ -1003,7 +1003,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as tables using bulk upload function
-        sql.gpkg_to_table_bulk_upload(path=fp, dbo = sql, gpkg_name=gpkg_name, schema = ms_schema, print_cmd=True)
+        sql.gpkg_to_table_bulk(path=fp, gpkg_name=gpkg_name, schema = ms_schema, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1062,7 +1062,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp+'\\'+gpkg_name, dbo = sql, gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        sql.gpkg_to_table(path=fp+'\\'+gpkg_name, gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1115,7 +1115,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=fp, dbo = sql, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        sql.gpkg_to_table(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1217,7 +1217,7 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s.gpkg_to_shp_bulk_upload(export_path = fp + '/test_data/')
+        s.gpkg_to_shp_bulk(export_path = fp + '/test_data/')
         
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
         assert os.path.isfile(os.path.join(fp + '/test_data/', test_write_gpkg_table_name + '.shp'))
@@ -1236,7 +1236,7 @@ class TestGpkgShpConversion:
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp + '/test_data/', test_write_gpkg_table_name + '.' + ext))
 
-    def test_convert_gpkg_to_shp_file_bulk_upload(self):
+    def test_convert_gpkg_to_shp_file_bulk(self):
 
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         gpkg_name = 'gpkg_to_shp.gpkg'
@@ -1268,7 +1268,7 @@ class TestGpkgShpConversion:
         
         # run function to convert geopackage to shape file
         s = Geopackage(path = fp, gpkg_name=gpkg_name)
-        s.gpkg_to_shp_bulk_upload(print_cmd = True)
+        s.gpkg_to_shp_bulk(print_cmd = True)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
         assert os.path.isfile(os.path.join(fp, test_write_gpkg_table_name + '.shp'))
@@ -1361,5 +1361,8 @@ class TestGpkgShpConversion:
 
         # remove gpkg output
         os.remove(os.path.join(fp, gpkg_name))
-
+        
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_geopackage()
 

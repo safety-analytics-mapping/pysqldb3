@@ -433,8 +433,10 @@ def set_up_geopackage():
 def clean_up_geopackage():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
     
-    _fle = f'{fldr}\\test_data\\testgpkg.gpkg'
-    if os.path.isfile(_fle):
-        os.remove(_fle)
+    for _filename in ('testgpkg', 'test_write', 'gpkg_to_shp'):
+        _fle = f'{fldr}\\test_data\\{_filename}.gpkg'
+        
+        if os.path.isfile(_fle):
+            os.remove(_fle)
 
     print ('Deleting any existing gpkg')

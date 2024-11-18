@@ -388,7 +388,7 @@ class TestQueryToGpkgPg:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(dbo = db, path=fldr, gpkg_tbl=test_table, table = test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
+        db.gpkg_to_table(path=fldr, gpkg_tbl=test_table, table = test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
         select
@@ -439,7 +439,7 @@ class TestQueryToGpkgPg:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(dbo = db, path=fldr, gpkg_tbl = test_table, table = test_table + 'QA', schema=pg_schema,
+        db.gpkg_to_table(path=fldr, gpkg_tbl = test_table, table = test_table + 'QA', schema=pg_schema,
                         gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
@@ -877,7 +877,7 @@ class TestQueryToGpkgMs:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(dbo = sql, path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         # fld6 automatically becomes renamed as geom when gpkg_to_table is run
         # t1 field should remain fld6 because that is how the table was created directly in 
@@ -933,7 +933,7 @@ class TestQueryToGpkgMs:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(dbo = sql, path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         sql.query(f"""
         select
