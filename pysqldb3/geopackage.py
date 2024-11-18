@@ -37,20 +37,24 @@ class Geopackage:
         List all the tables contained in a geopackage file.
         """
 
-        try:
-            exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
-            ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
+        if self.gpkg_exists():
 
-            # use regex to find all the tables in the geopackage
-            tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
-            
-            return tables_in_gpkg
-            
-        except subprocess.CalledProcessError as e:
-            print("This geopackage file does not exist at this file location.")
-            print(exists_cmd) # print the command for reference
+            try:
+                exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
+                ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
+
+                # use regex to find all the tables in the geopackage
+                tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+                
+                return tables_in_gpkg
+                
+            except subprocess.CalledProcessError as e:
+                print(e)
+        
+        else:
+             print("This geopackage file does not exist at this file location.")
     
-    def geopackage_exists(self, gpkg_name = None):
+    def gpkg_exists(self, gpkg_name = None):
         
         """
         Checks if a geopackage already exists at that location
@@ -63,28 +67,27 @@ class Geopackage:
                                   
         return gpkg_exists
     
-    def geopackage_tbl_exists(self, gpkg_tbl):
+    def gpkg_tbl_exists(self, gpkg_tbl):
                
         """
         Checks if a geopackage table already exists, in case it isn't meant to be overwritten.
         """
+        
+        if self.gpkg_exists():
+            try:
+                exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
+                ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
+                table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
 
-        try:
-            exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
-            ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
-            table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
-        
-        except:
-            pass 
-        
-        if len(table_exists) == 0:
-            gpkg_tbl_exists = False
+                if len(table_exists) == 0:
+                    gpkg_tbl_exists = False
 
-        elif len(table_exists) > 0:
-            gpkg_tbl_exists = True
-        
-        else:
-            gpkg_tbl_exists = None
+                elif len(table_exists) > 0:
+                    gpkg_tbl_exists = True
+                
+            except:
+
+                gpkg_tbl_exists = None
 
         return gpkg_tbl_exists
 
@@ -154,14 +157,14 @@ class Geopackage:
             _update = ''
             _overwrite = '-overwrite'
         
-        elif not overwrite and not self.geopackage_exists():
+        elif not overwrite and not self.gpkg_exists():
             # this geopackage does not exist so create as if new
             _update = ''
             _overwrite = ''
         
-        elif not overwrite and self.geopackage_exists(): # check if the geopackage already exists
+        elif not overwrite and self.gpkg_exists(): # check if the geopackage already exists
             
-            table_exists = self.geopackage_tbl_exists(gpkg_tbl)
+            table_exists = self.gpkg_tbl_exists(gpkg_tbl)
             
             if table_exists == True:
                 print("The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied.")
@@ -237,13 +240,14 @@ class Geopackage:
                 p=self.path,
                 q=query))
             
-    def shp_to_gpkg(self, shp_name, gpkg_tbl = None, print_cmd = False):
+    def shp_to_gpkg(self, shp_name, gpkg_tbl = None, overwrite = False, print_cmd = False):
         
         """
         Converts a Shapefile to a Geopackage file in the same file location as the original Shapefile.
         :param shp_name (str): file name for shape file input (should end in .shp)
         :param gpkg_name (str): file name for gpkg ouput (should end with .gpkg)
         :param gpkg_tbl (str): OPTIONAL table name in the new geopackage; leave blank if you want the table name the same as the gpkg_name
+        :param overwrite (bool): Boolean; defaults to False. Overwrite table in the geopackage if the table name already exists in the file.
         :param print_cmd (bool): Print command
         """
         
@@ -261,21 +265,35 @@ class Geopackage:
             gpkg_tbl = shp_name.replace('.shp', '')
 
         # check if the gpkg already exists. if so, we add another layer to the gpkg
-        if not self.geopackage_exists(self.gpkg_name):
+        if not self.gpkg_exists(self.gpkg_name):
 
             cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
-                                                  full_path = self.path,
+                                                full_path = self.path,
                                                 shp_name = shp_name,
                                                 _update = '',
                                                 gpkg_tbl = gpkg_tbl)
         
-        else:
+        elif overwrite == True: # if gpkg exists and overwrite is explicityly written
+        
+            cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
+                                                full_path = self.path,
+                                                shp_name = shp_name,
+                                                _overwrite = '-overwrite',
+                                                gpkg_tbl = gpkg_tbl)
 
+        elif not self.gpkg_tbl_exists(gpkg_tbl): # if gpkg exists and overwrite was not explicitly called
+
+            # then add the table to the gpkg
             cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
                                                   full_path = self.path,
                                                 shp_name = shp_name,
                                                 _update = '-update',
                                                 gpkg_tbl = gpkg_tbl)
+            
+        elif self.gpkg_tbl_exists(gpkg_tbl): # if the gpkg and table exists but no overwrite was called
+            
+            print("The table name to be copied to the geopackage already exists. Either change to Overwrite = True or check the name of the table to be copied.")
+            exit 
 
         try:
             ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
@@ -299,11 +317,11 @@ class Geopackage:
         The output Shapefile name will match the name of the geopackage table to be copied.
 
         :param gpkg_name (str): file name for geopackage input (should end in .gpkg)
-        :param gpkg_tbl (list): OSpecific table within the geopackage to convert to a Shapefile. Use gpkg_to_shp_bulk_upload() if you want all tables in a gpkg file.
+        :param gpkg_tbl (list): Specific table within the geopackage to convert to a Shapefile. Use gpkg_to_shp_bulk() if you want all tables in a gpkg file.
         :param export_path: str The folder directory to place the shapefiles output.
                             You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.'
         :param print_cmd (bool): Print command
-        :param bulk_upload: Default to False. Param used for gpkg_to_shp_bulk_upload() function.
+        :param bulk_upload: Default to False. Param used for gpkg_to_shp_bulk() function.
         """
         
         assert self.gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
@@ -334,16 +352,12 @@ class Geopackage:
             
             # create a list of cleaned gpkg table names
             gpkg_tbl_names = {} # create empty dictionary
-
+ 
             for t_i_g in tables_in_gpkg:
-                # insert_val = re.search(r'(\w+):\s(.+)$', t_i_g).group(2)
-                gpkg_tbl_names[t_i_g] = t_i_g # add the cleaned name
-            
-            for input_name, output_name in gpkg_tbl_names.items():
                 
                 cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
                                                         gpkg_name = self.gpkg_name,
-                                                        gpkg_tbl = input_name,
+                                                        gpkg_tbl = t_i_g,
                                                         export_path=export_path)
                 
                 if print_cmd:
@@ -358,13 +372,11 @@ class Geopackage:
                     print('Ogr2ogr command failed. The Geopackage/feature class was not written.')
             
         else:
-            # clean the name if needed
-            gpkg_tbl = gpkg_tbl.replace('.gpkg', '').lower()
         
             cmd = WRITE_GPKG_CMD_SHP.format(   full_path = self.path,
-                                                    gpkg_name = self.gpkg_name,
-                                                   gpkg_tbl = gpkg_tbl,
-                                                    export_path=export_path)
+                                                gpkg_name = self.gpkg_name,
+                                                gpkg_tbl = gpkg_tbl,
+                                                export_path=export_path)
 
             if print_cmd:
                 print(cmd)
@@ -379,9 +391,9 @@ class Geopackage:
         
         return
     
-    def gpkg_to_shp_bulk_upload(self,
-                                export_path = None,
-                                print_cmd = False):
+    def gpkg_to_shp_bulk(   self,
+                            export_path = None,
+                            print_cmd = False):
         """
         Converts an entire Geopackage (all tables) to a Shapefile.
         The output Shapefile name will match the name of the geopackage table to be copied.
@@ -411,7 +423,7 @@ class Geopackage:
         :param private:
         :param gpkg_encoding: encoding of data within Geopackage
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
-        :param bulk_upload: Default to False. Use read_gpkg_bulk_upload() to upload all gpkg tables to db.
+        :param bulk_upload: Default to False. Do not set to True; please use read_gpkg_bulk() to upload all gpkg tables to db.
         :return:
         """
         # Use default schema from db object
@@ -438,11 +450,11 @@ class Geopackage:
 
             if table:
                 assert table == re.sub(r'[^A-Za-z0-9_]+', r'', table) # make sure the name will load into the database
-                table = table.lower()
             else:
                 # clean the geopackage table name
-                table = gpkg_tbl.replace('.gpkg', '').lower()
-                table = re.sub(r'[^A-Za-z0-9_]+', r'', table) # clean the table name in case there are special characters
+                table = re.sub(r'[^A-Za-z0-9_]+', r'', gpkg_tbl) # clean the table name in case there are special characters
+
+            table = table.lower()
 
             if dbo.table_exists(schema = schema, table = table):
 
@@ -474,7 +486,7 @@ class Geopackage:
                         gpkg_name=full_path,
                         gpkg_tbl = gpkg_tbl,
                         schema=schema,
-                        tbl_name=table,
+                        tbl_name='"' + table + '"',
                         perc=precision,
                         port=port
                     )
@@ -491,7 +503,7 @@ class Geopackage:
                         gpkg_name=full_path,
                         gpkg_tbl = gpkg_tbl,
                         schema=schema,
-                        tbl_name=table,
+                        tbl_name= '"' + table + '"',
                         perc=precision,
                         port=port
                     )
@@ -593,7 +605,7 @@ class Geopackage:
                             gpkg_name=full_path,
                             gpkg_tbl = input_name,
                             schema=schema,
-                            tbl_name=output_name,
+                            tbl_name='"' + output_name + '"',
                             perc=precision,
                             port=port
                         )
@@ -610,7 +622,7 @@ class Geopackage:
                             gpkg_name=full_path,
                             gpkg_tbl = input_name,
                             schema=schema,
-                            tbl_name=output_name,
+                            tbl_name='"' + output_name + '"',
                             perc=precision,
                             port=port
                         )
@@ -654,7 +666,7 @@ class Geopackage:
             
             return gpkg_tbl_names
 
-    def read_gpkg_bulk_upload(self, dbo, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
+    def read_gpkg_bulk(self, dbo, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
                     precision=False, private=False, gpkg_encoding=None, print_cmd=False):
         """
         Reads all tables within a geopackage file into SQL or Postgresql as tables

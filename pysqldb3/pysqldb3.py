@@ -2136,19 +2136,17 @@ class DbConnect:
                                  path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc, gpkg_tbl = gpkg_tbl,
                                  print_cmd=print_cmd, srid=srid)
     
-    def gpkg_to_table(self, dbo, gpkg_name, gpkg_tbl, path=None, schema=None, table =None, 
+    def gpkg_to_table(self, gpkg_name, gpkg_tbl, path=None, schema=None, table =None, 
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7, bulk_upload = False):
         """
         Imports single geopackage table to database. This uses GDAL to generate the table.
-        :param dbo: Database connection
-        :param path: File path of the shapefile
-        :param schema: Schema to use in the database (defaults to db's default schema)
         :param gpkg_name: Geopackage name (ends in .gpkg)
         :param gpkg_tbl: Input table name from Geopackage.
+        :param path: File path of the shapefile
+        :param schema: Schema to use in the database (defaults to db's default schema)
         :param table: (Optional) output table name in database. If blank, output name will match geopackage table name.
         :param srid:  SRID to use (defaults to 2263)
-        :param port:
         :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
         :param precision:  Sets precision flag in ogr (defaults to -lco precision=NO)
         :param private: Flag for permissions in database (Defaults to False - will only grant select to public)
@@ -2157,14 +2155,14 @@ class DbConnect:
         Options inlude LATIN1, UTF-8.
         :param print_cmd: Defaults to False; if True prints the cmd
         :param days: if temp=Tue, the number of days that the temp table will be kept. Defaults to 7.
-        :param bulk_upload: Defaults to False. Use gpkg_to_table_bulk_upload() to load all tables within a geopackage.
+        :param bulk_upload: Defaults to False. Use gpkg_to_table_bulk() to load all tables within a geopackage.
         :return:
         """
 
         assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
 
         if not schema:
-            schema = dbo.default_schema
+            schema = self.default_schema
 
         if not port:
             port = 5432
@@ -2185,7 +2183,7 @@ class DbConnect:
         
         if bulk_upload == True:
             # bulk upload
-            output_table_names = gpkg.read_gpkg_bulk_upload(dbo = dbo, schema = schema, gpkg_encoding = gpkg_encoding, srid = srid,
+            output_table_names = gpkg.read_gpkg_bulk(dbo = self, schema = schema, gpkg_encoding = gpkg_encoding, srid = srid,
                             gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
             
             for table in output_table_names.values():
@@ -2201,7 +2199,7 @@ class DbConnect:
                                                     AND DATA_TYPE = 'geometry' """).values[0][0]
 
                         if geom_output != 'geom':      
-                            self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'")
+                            self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'", internal = True)
                     except:
                         pass
                 else:
@@ -2215,7 +2213,7 @@ class DbConnect:
                                 """).values[0][0]
                     
                         if geom_output != 'geom':
-                            self.query(f"alter table {schema}.{table} rename column {geom_output} to geom")
+                            self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                     except:
                         pass
                         
@@ -2226,7 +2224,7 @@ class DbConnect:
 
         else:
         
-            gpkg.read_gpkg(dbo = dbo, schema = schema, table = table, gpkg_tbl = gpkg_tbl, gpkg_encoding = gpkg_encoding, srid = srid,
+            gpkg.read_gpkg(dbo = self, schema = schema, table = table, gpkg_tbl = gpkg_tbl, gpkg_encoding = gpkg_encoding, srid = srid,
                        gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
             
             if self.type == "MS":
@@ -2239,7 +2237,7 @@ class DbConnect:
                                                 AND DATA_TYPE = 'geometry' """).values[0][0]
 
                     if geom_output != 'geom':      
-                        self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'")
+                        self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'", internal = True)
                 except:
                     pass
             else:
@@ -2250,10 +2248,10 @@ class DbConnect:
                                     WHERE data_type = 'USER-DEFINED'
                                     AND lower(TABLE_NAME)=lower('{table}')
                                     AND table_schema = '{schema}'
-                            """).values[0][0]
+                            """, internal = True).values[0][0]
                 
                     if geom_output != 'geom':
-                        self.query(f"alter table {schema}.{table} rename column {geom_output} to geom")
+                        self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                 except:
                     pass
                         
@@ -2262,18 +2260,15 @@ class DbConnect:
             if temp:
                 self.__run_table_logging([schema + "." + table], days=days)
 
-    def gpkg_to_table_bulk_upload(self, dbo, gpkg_name, path=None, schema=None,
+    def gpkg_to_table_bulk(self, gpkg_name,  path=None, schema=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7):
 
         """
         Imports geopackage file to database. This uses GDAL to generate the table.
-        :param dbo: Database connection
+        :param gpkg_name: Geopackage name (ends in .gpkg)
         :param path: File path of the shapefile
         :param schema: Schema to use in the database (defaults to db's default schema)
-        :param table: (Optional) output table name in database. If blank, output name will match geopackage table name.
-        :param gpkg_name: Geopackage name (ends in .gpkg)
-        :param gpkg_table: (Optional) Input table name from Geopackage. If blank, all tables in geopackage will be loaded in.
         :param srid:  SRID to use (defaults to 2263)
         :param port:
         :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
@@ -2287,8 +2282,8 @@ class DbConnect:
         :return:
         """
          
-        self.gpkg_to_table(dbo = dbo, gpkg_name = gpkg_name, gpkg_tbl = '',
-                    path=path,
+        self.gpkg_to_table( gpkg_name = gpkg_name, gpkg_tbl = '',
+                            path=path,
                             schema= schema,
                             srid=srid,
                             port=port,

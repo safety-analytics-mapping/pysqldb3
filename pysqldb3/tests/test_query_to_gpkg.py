@@ -718,22 +718,6 @@ class TestQueryToGpkgMs:
         sql.drop_table(ms_schema, test_table)
         os.remove(os.path.join(fldr, gpkg))
 
-    # def test_ldap(self): # todo: need ldap db to test
-    #     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-    #     gpkg = 'testgpkg.gpkg'
-    
-    #     ldap_sql.query_to_gpkg("""
-    #     select 1 as test_col1, 2 as test_col2, geometry::Point(985831.79200444, 203371.60461367, 2263) as geom
-    #     union all
-    #     select 3 as test_col1, 4 as test_col2, geometry::Point(985831.79200444, 203371.60461367, 2263) as geom
-    #     """, gpkg_name=gpkg, path=fldr, print_cmd=True)
-    
-    #     assert os.path.isfile(os.path.join(fldr, gpkg))
-    
-    #     os.remove(os.path.join(fldr, gpkg))
-    
-    #     ldap_sql.drop_table(schema=ldap_sql.default_schema, table='test_table')
-
     def test_query_to_gpkg_basic_brackets(self):
         schema = 'dbo'
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')

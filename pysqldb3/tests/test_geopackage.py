@@ -845,8 +845,6 @@ class TestWritegpkgMS:
 
         # Add test_table
         sql.query(f"""
-                
-        drop table if exists {ms_schema}.{test_write_gpkg_table_name};
         create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
         insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
         insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
