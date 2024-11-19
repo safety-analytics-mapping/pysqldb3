@@ -2085,7 +2085,7 @@ class DbConnect:
             self.__run_table_logging([schema + "." + table], days=days)
 
 
-    def query_to_gpkg(self, query, gpkg_tbl, gpkg_name = None, path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_gpkg(self, query, gpkg_tbl, gpkg_name = '', path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
         Exports query results to a geopackage (.gpkg) file.
