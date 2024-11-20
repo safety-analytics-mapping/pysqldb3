@@ -741,10 +741,22 @@ class DbConnect:
             columns = '*'
         else:
             if self.type == PG:
-                columns = "column_name, data_type"
+
+                columns = """
+                column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then 
+                      DATA_TYPE || ' ('|| cast(CHARACTER_MAXIMUM_LENGTH as varchar) ||')'
+                       when DATA_TYPE = 'USER-DEFINED' then udt_name 
+                      else DATA_TYPE end as DATA_TYPE
+                      """
             else:
-                columns = "column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then " \
-                          "DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' else DATA_TYPE end as DATA_TYPE"
+                columns = """
+                    column_name, case 
+					   when DATA_TYPE = 'text' then DATA_TYPE
+                    when CHARACTER_MAXIMUM_LENGTH is not null 
+                    then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' 
+                    when CHARACTER_MAXIMUM_LENGTH >= 3000 then DATA_TYPE + ' (3000)' 
+                          else DATA_TYPE end as DATA_TYPE
+                      """
 
         if self.type == PG:
             self.query("""
@@ -2143,8 +2155,6 @@ class DbConnect:
         # CREATE TABLE QUERY
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
-            if dtyp == 'USER-DEFINED':
-                dtyp = 'geometry'
             _create_qry += f'\n"{col}" {dtyp},'
         _create_qry=_create_qry[:-1]+');\n'
 
