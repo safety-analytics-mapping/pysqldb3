@@ -77,7 +77,7 @@ class Geopackage:
             try:
                 exists_cmd = f'ogrinfo {os.path.join(self.path, self.gpkg_name)}'
                 ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
-                table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+                table_exists = re.findall(f"\b{gpkg_tbl}\b", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
 
                 if len(table_exists) == 0:
                     gpkg_tbl_exists = False
@@ -541,7 +541,7 @@ class Geopackage:
             
             # bulk upload == True
 
-            gpkg_tbl_names = self.read_gpkg_bulk_function(dbo, table, gpkg_tbl, schema, port, srid, gdal_data_loc, precision, private, gpkg_encoding, print_cmd, bulk_upload)
+            gpkg_tbl_names = self.read_gpkg_bulk_function(dbo, table, gpkg_tbl, schema, port, srid, gdal_data_loc, precision, private, gpkg_encoding, print_cmd, bulk_upload, full_path)
 
             return gpkg_tbl_names
 
@@ -567,28 +567,11 @@ class Geopackage:
         
         return gpkg_tbl_names
 
-    def read_gpkg_bulk_function(self, dbo, table, gpkg_tbl, schema, port, srid, gdal_data_loc, precision, private, gpkg_encoding, print_cmd, bulk_upload):
+    def read_gpkg_bulk_function(self, dbo, table, gpkg_tbl, schema, port, srid, gdal_data_loc, precision, private, gpkg_encoding, print_cmd, bulk_upload, full_path):
 
         """
         Not called by end user. This is a sub-function for bulk uploading since there is a lot of code.
         """
-        # Use default schema from db object
-        if not schema:
-            schema = dbo.default_schema
-
-        if precision:
-            precision = '-lco precision=NO'
-        else:
-            precision = ''
-
-        if not all([self.path, self.gpkg_name]):
-            filename = file_loc('file', 'Missing file info - Opening search dialog...')
-            self.gpkg_name = os.path.basename(filename)
-            self.path = os.path.dirname(filename)
-
-        path = self.path
-        full_path = os.path.join(path, self.gpkg_name)
-
         ####### BULK UPLOAD ########
         
         count_cmd = COUNT_GPKG_LAYERS.format(full_path = full_path) 
