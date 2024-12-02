@@ -2143,7 +2143,7 @@ class DbConnect:
         Imports single geopackage table to database. This uses GDAL to generate the table.
         :param gpkg_name: Geopackage name (ends in .gpkg)
         :param gpkg_tbl: Input table name from Geopackage.
-        :param path: File path of the shapefile
+        :param path: File path of the geopackage
         :param schema: Schema to use in the database (defaults to db's default schema)
         :param table: (Optional) output table name in database. If blank, output name will match geopackage table name.
         :param srid:  SRID to use (defaults to 2263)
@@ -2267,7 +2267,7 @@ class DbConnect:
         """
         Imports geopackage file to database. This uses GDAL to generate the table.
         :param gpkg_name: Geopackage name (ends in .gpkg)
-        :param path: File path of the shapefile
+        :param path: File path of the geopackage
         :param schema: Schema to use in the database (defaults to db's default schema)
         :param srid:  SRID to use (defaults to 2263)
         :param port:
