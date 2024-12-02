@@ -453,7 +453,7 @@ class TestWriteShpPG:
         mutual_columns = set(db_df.columns).intersection(shp_uploaded_df.columns) - {'ogc_fid', 'geom'}
         pd.testing.assert_frame_equal(db_df[list(mutual_columns)], shp_uploaded_df[list(mutual_columns)],
                                       check_like=True, check_names=False, check_dtype=False,
-                                      check_datetimelike_compat=True, check_less_precise=True)
+                                      check_datetimelike_compat=True)
 
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = db.dfquery(f"""
@@ -507,7 +507,7 @@ class TestWriteShpPG:
         mutual_columns = set(db_df.columns).intersection(shp_uploaded_df.columns) - {'ogc_fid', 'geom'}
         pd.testing.assert_frame_equal(db_df[list(mutual_columns)], shp_uploaded_df[list(mutual_columns)],
                                       check_like=True, check_names=False, check_dtype=False,
-                                      check_datetimelike_compat=True, check_less_precise=True)
+                                      check_datetimelike_compat=True)
 
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = db.dfquery(f"""
@@ -563,7 +563,7 @@ class TestWriteShpPG:
         mutual_columns = set(db_df.columns).intersection(shp_uploaded_df.columns) - {'ogc_fid', 'geom'}
         pd.testing.assert_frame_equal(db_df[list(mutual_columns)], shp_uploaded_df[list(mutual_columns)],
                                       check_like=True, check_names=False, check_dtype=False,
-                                      check_datetimelike_compat=True, check_less_precise=True)
+                                      check_datetimelike_compat=True)
 
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = db.dfquery(f"""
@@ -609,7 +609,7 @@ class TestWriteShpPG:
         mutual_columns = set(db_df.columns).intersection(shp_uploaded_df.columns) - {'ogc_fid', 'geom'}
         pd.testing.assert_frame_equal(db_df[list(mutual_columns)], shp_uploaded_df[list(mutual_columns)],
                                       check_like=True, check_names=False, check_dtype=False,
-                                      check_datetimelike_compat=True, check_less_precise=True)
+                                      check_datetimelike_compat=True)
 
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = db.dfquery(f"""
