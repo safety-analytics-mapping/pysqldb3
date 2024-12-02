@@ -264,36 +264,28 @@ class Geopackage:
             # if no gpkg_tbl name given, name the table consistente with the shape file
             gpkg_tbl = shp_name.replace('.shp', '')
 
+        # set variables
+        _overwrite = ''
+        _update = ''
+
         # check if the gpkg already exists. if so, we add another layer to the gpkg
         if not self.gpkg_exists(self.gpkg_name):
-
-            cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
-                                                full_path = self.path,
-                                                shp_name = shp_name,
-                                                _update = '',
-                                                gpkg_tbl = gpkg_tbl)
-        
+            _update = ''
         elif overwrite == True: # if gpkg exists and overwrite is explicityly written
-        
-            cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
-                                                full_path = self.path,
-                                                shp_name = shp_name,
-                                                _overwrite = '-overwrite',
-                                                gpkg_tbl = gpkg_tbl)
-
+            _overwrite = '-overwrite'
         elif not self.gpkg_tbl_exists(gpkg_tbl): # if gpkg exists and overwrite was not explicitly called
-
-            # then add the table to the gpkg
-            cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
-                                                  full_path = self.path,
-                                                shp_name = shp_name,
-                                                _update = '-update',
-                                                gpkg_tbl = gpkg_tbl)
-            
+            _update = '-update' # then add the table to the gpkg
         elif self.gpkg_tbl_exists(gpkg_tbl): # if the gpkg and table exists but no overwrite was called
-            
             print("The table name to be copied to the geopackage already exists. Either change to Overwrite = True or check the name of the table to be copied.")
             exit 
+
+        # update the command
+        cmd = WRITE_SHP_CMD_GPKG.format(gpkg_name = self.gpkg_name,
+                                                  full_path = self.path,
+                                                shp_name = shp_name,
+                                                _update = _update,
+                                                _overwrite = _overwrite,
+                                                gpkg_tbl = gpkg_tbl)
 
         try:
             ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
@@ -546,128 +538,16 @@ class Geopackage:
             self.rename_geom(dbo, schema, table)
 
         else:
-
-            ####### BULK UPLOAD ########
-        
-            count_cmd = COUNT_GPKG_LAYERS.format(full_path = full_path) 
-
-            try:
-                ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-                tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
-                # only allows tables names with underscores, numbers, and letters as the first character
-                # excludes any dtype description that's also returned by the command line
             
-            except subprocess.CalledProcessError as e:
-                print("Ogr2ogr Output:\n", e.output)
-                print('Ogr2ogr command failed. The Geopackage was not read in.')
-                raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], count_cmd), returncode=1)
-            
+            # bulk upload == True
 
-            # create a list of cleaned gpkg table names
-            gpkg_tbl_names = {} # create empty dictionary
-            for t_i_g in tables_in_gpkg:
-                insert_val = re.sub(r'[^A-Za-z0-9_]+', r'', t_i_g)
-                gpkg_tbl_names[insert_val] = t_i_g # add the cleaned name
+            gpkg_tbl_names = self.read_gpkg_bulk_function(dbo, table, gpkg_tbl, schema, port, srid, gdal_data_loc, precision, private, gpkg_encoding, print_cmd, bulk_upload)
 
-            # assert that the new cleaned names are unique. if not, we won't get the same dimensions
-            assert len(gpkg_tbl_names) == len(tables_in_gpkg), "Clean the geopackage table names so they can be uploaded as tables (by removing special characters other than _) and make sure they are unique."
-
-            # loop through the tables     
-            for output_name, input_name in gpkg_tbl_names.items():
-            
-                if dbo.table_exists(table = output_name, schema = schema):
-
-                    print(f'Deleting existing table {schema}.{output_name}')
-                    dbo.drop_table(schema=schema, table=output_name)
-
-                if dbo.type == 'PG':
-                    cmd = READ_GPKG_CMD_PG.format(
-                        gdal_data=gdal_data_loc,
-                        srid=srid,
-                        host=dbo.server,
-                        dbname=dbo.database,
-                        user=dbo.user,
-                        password=dbo.password,
-                        gpkg_name = full_path,
-                        gpkg_tbl = input_name,
-                        schema=schema,
-                        tbl_name=output_name,
-                        perc=precision,
-                        port=port
-                    )
-                elif dbo.type == 'MS':
-                    if dbo.LDAP:
-                        cmd = READ_GPKG_CMD_MS.format(
-                            gdal_data=gdal_data_loc,
-                            srid=srid,
-                            host=dbo.server,
-                            dbname=dbo.database,
-                            gpkg_name=full_path,
-                            gpkg_tbl = input_name,
-                            schema=schema,
-                            tbl_name='"' + output_name + '"',
-                            perc=precision,
-                            port=port
-                        )
-                        cmd.replace(";UID={user};PWD={password}", "")
-
-                    else:
-                        cmd = READ_GPKG_CMD_MS.format(
-                            gdal_data=gdal_data_loc,
-                            srid=srid,
-                            host=dbo.server,
-                            dbname=dbo.database,
-                            user=dbo.user,
-                            password=dbo.password,
-                            gpkg_name=full_path,
-                            gpkg_tbl = input_name,
-                            schema=schema,
-                            tbl_name='"' + output_name + '"',
-                            perc=precision,
-                            port=port
-                        )
-
-                cmd_env = os.environ.copy()
-
-                if gpkg_encoding and gpkg_encoding.upper() == 'LATIN1':
-                    cmd_env['PGCLIENTENCODING'] = 'LATIN1'
-
-                if gpkg_encoding and gpkg_encoding.upper().replace('-', '') == 'UTF8':
-                    cmd_env['PGCLIENTENCODING'] = 'UTF8'
-
-                if print_cmd:
-                    print(print_cmd_string([dbo.password], cmd))
-
-                try:
-                    ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, env=cmd_env)
-                    print(ogr_response)
-                except subprocess.CalledProcessError as e:
-                    print("Ogr2ogr Output:\n", e.output)
-                    print('Ogr2ogr command failed. The Geopackage was not read in.')
-                    raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
-
-                if dbo.type == 'PG':
-                    dbo.query(FEATURE_COMMENT_QUERY.format(
-                        s=schema,
-                        t=output_name,
-                        u=dbo.user,
-                        p=self.path,
-                        gpkg=self.gpkg_name,
-                        d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-                    ), timeme=False, internal=True)
-
-                if not private:
-                    try:
-                        dbo.query(f'grant select on {schema}."{output_name}" to public;',
-                            timeme=False, internal=True, strict=True)
-                    except:
-                        pass
-                self.rename_geom(dbo, schema, output_name)
-            
             return gpkg_tbl_names
 
     def read_gpkg_bulk(self, dbo, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
                     precision=False, private=False, gpkg_encoding=None, print_cmd=False):
+
         """
         Reads all tables within a geopackage file into SQL or Postgresql as tables
 
@@ -684,6 +564,147 @@ class Geopackage:
 
         gpkg_tbl_names = self.read_gpkg(dbo = dbo, table = '', gpkg_tbl = '', schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
                     precision=precision, private=private, gpkg_encoding=gpkg_encoding, print_cmd=print_cmd, bulk_upload = True)
+        
+        return gpkg_tbl_names
+
+    def read_gpkg_bulk_function(self, dbo, table, gpkg_tbl, schema, port, srid, gdal_data_loc, precision, private, gpkg_encoding, print_cmd, bulk_upload):
+
+        """
+        Not called by end user. This is a sub-function for bulk uploading since there is a lot of code.
+        """
+        # Use default schema from db object
+        if not schema:
+            schema = dbo.default_schema
+
+        if precision:
+            precision = '-lco precision=NO'
+        else:
+            precision = ''
+
+        if not all([self.path, self.gpkg_name]):
+            filename = file_loc('file', 'Missing file info - Opening search dialog...')
+            self.gpkg_name = os.path.basename(filename)
+            self.path = os.path.dirname(filename)
+
+        path = self.path
+        full_path = os.path.join(path, self.gpkg_name)
+
+        ####### BULK UPLOAD ########
+        
+        count_cmd = COUNT_GPKG_LAYERS.format(full_path = full_path) 
+
+        try:
+            ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
+            # only allows tables names with underscores, numbers, and letters as the first character
+            # excludes any dtype description that's also returned by the command line
+        
+        except subprocess.CalledProcessError as e:
+            print("Ogr2ogr Output:\n", e.output)
+            print('Ogr2ogr command failed. The Geopackage was not read in.')
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], count_cmd), returncode=1)
+        
+
+        # create a list of cleaned gpkg table names
+        gpkg_tbl_names = {} # create empty dictionary
+        for t_i_g in tables_in_gpkg:
+            insert_val = re.sub(r'[^A-Za-z0-9_]+', r'', t_i_g)
+            gpkg_tbl_names[insert_val] = t_i_g # add the cleaned name
+
+        # assert that the new cleaned names are unique. if not, we won't get the same dimensions
+        assert len(gpkg_tbl_names) == len(tables_in_gpkg), "Clean the geopackage table names so they can be uploaded as tables (by removing special characters other than _) and make sure they are unique."
+
+        # loop through the tables     
+        for output_name, input_name in gpkg_tbl_names.items():
+        
+            if dbo.table_exists(table = output_name, schema = schema):
+
+                print(f'Deleting existing table {schema}.{output_name}')
+                dbo.drop_table(schema=schema, table=output_name)
+
+            if dbo.type == 'PG':
+                cmd = READ_GPKG_CMD_PG.format(
+                    gdal_data=gdal_data_loc,
+                    srid=srid,
+                    host=dbo.server,
+                    dbname=dbo.database,
+                    user=dbo.user,
+                    password=dbo.password,
+                    gpkg_name = full_path,
+                    gpkg_tbl = input_name,
+                    schema=schema,
+                    tbl_name=output_name,
+                    perc=precision,
+                    port=port
+                )
+            elif dbo.type == 'MS':
+                if dbo.LDAP:
+                    cmd = READ_GPKG_CMD_MS.format(
+                        gdal_data=gdal_data_loc,
+                        srid=srid,
+                        host=dbo.server,
+                        dbname=dbo.database,
+                        gpkg_name=full_path,
+                        gpkg_tbl = input_name,
+                        schema=schema,
+                        tbl_name='"' + output_name + '"',
+                        perc=precision,
+                        port=port
+                    )
+                    cmd.replace(";UID={user};PWD={password}", "")
+
+                else:
+                    cmd = READ_GPKG_CMD_MS.format(
+                        gdal_data=gdal_data_loc,
+                        srid=srid,
+                        host=dbo.server,
+                        dbname=dbo.database,
+                        user=dbo.user,
+                        password=dbo.password,
+                        gpkg_name=full_path,
+                        gpkg_tbl = input_name,
+                        schema=schema,
+                        tbl_name='"' + output_name + '"',
+                        perc=precision,
+                        port=port
+                    )
+
+            cmd_env = os.environ.copy()
+
+            if gpkg_encoding and gpkg_encoding.upper() == 'LATIN1':
+                cmd_env['PGCLIENTENCODING'] = 'LATIN1'
+
+            if gpkg_encoding and gpkg_encoding.upper().replace('-', '') == 'UTF8':
+                cmd_env['PGCLIENTENCODING'] = 'UTF8'
+
+            if print_cmd:
+                print(print_cmd_string([dbo.password], cmd))
+
+            try:
+                ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, env=cmd_env)
+                print(ogr_response)
+            except subprocess.CalledProcessError as e:
+                print("Ogr2ogr Output:\n", e.output)
+                print('Ogr2ogr command failed. The Geopackage was not read in.')
+                raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
+
+            if dbo.type == 'PG':
+                dbo.query(FEATURE_COMMENT_QUERY.format(
+                    s=schema,
+                    t=output_name,
+                    u=dbo.user,
+                    p=self.path,
+                    gpkg=self.gpkg_name,
+                    d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+                ), timeme=False, internal=True)
+
+            if not private:
+                try:
+                    dbo.query(f'grant select on {schema}."{output_name}" to public;',
+                        timeme=False, internal=True, strict=True)
+                except:
+                    pass
+            self.rename_geom(dbo, schema, output_name)
         
         return gpkg_tbl_names
 
