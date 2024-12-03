@@ -269,6 +269,6 @@ class TestTableToShpMs:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
-        sql.drop_tabl(schema = ms_schema, table = sql.log_table)
+        sql.drop_table(schema = ms_schema, table = sql.log_table)
         sql.cleanup_new_tables()
         # helpers.clean_up_schema(sql, schema=ms_schema)
