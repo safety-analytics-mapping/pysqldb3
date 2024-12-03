@@ -278,7 +278,7 @@ class Shapefile:
                     timeme=False, internal=True, strict=True)
             except:
                 pass
-        self.rename_geom()
+        rename_geom(db = self.dbo, schema = self.schema, table = self.table)
 
     def read_feature_class(self, private=False, print_cmd=False, fc_encoding=None):
         """
@@ -366,58 +366,7 @@ class Shapefile:
                     timeme=False, internal=True, strict=True)
             except:
                 pass
-        self.rename_geom()
+        rename_geom(db = self.dbo, schema = self.schema, table = self.table)
         self.dbo.tables_created.append(self.schema + "." + self.table)
 
-    def rename_geom(self):
-        """
-        Renames wkb_geometry to geom, along with index
-
-        :return:
-        """
-        self.dbo.query("""
-                        SELECT column_name
-                        FROM information_schema.columns
-                        WHERE table_schema = '{s}'
-                        AND table_name   = '{t}';
-                    """.format(s=self.schema, t=self.table), timeme=False, internal=True)
-        f = None
-
-        if self.dbo.type == 'PG':
-
-            # Get the column in question
-            if 'wkb_geometry' in [i[0] for i in self.dbo.internal_queries[-1].data]:
-                f = 'wkb_geometry'
-            elif 'shape' in [i[0] for i in self.dbo.internal_queries[-1].data]:
-                f = 'shape'
-
-            if f:
-                # Rename column
-                self.dbo.rename_column(schema=self.schema, table=self.table, old_column=f, new_column='geom')
-
-                # Rename index
-                self.dbo.query("""
-                    ALTER INDEX IF EXISTS
-                    {s}.{t}_{f}_geom_idx
-                    RENAME to {t}_geom_idx
-                """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
-
-        elif self.dbo.type == 'MS':
-            # Get the column in question
-            if 'ogr_geometry' in [i[0] for i in self.dbo.internal_queries[-1].data]:
-                f = 'ogr_geometry'
-            elif 'Shape' in [i[0] for i in self.dbo.internal_queries[-1].data]:
-                f = 'Shape'
-
-            if f:
-                # Rename column
-                self.dbo.rename_column(schema=self.schema, table=self.table, old_column=f, new_column='geom')
-
-                # Rename index if exists
-                try:
-                    self.dbo.query("""
-                        EXEC sp_rename N'{s}.{t}.ogr_{s}_{t}_{f}_sidx', N'{t}_geom_idx', N'INDEX';
-                    """.format(s=self.schema, t=self.table, f=f), timeme=False, internal=True)
-                except SystemExit as e:
-                    print(e)
-                    print('Warning - could not update index name after renaming geometry. It may not exist.')
+    
