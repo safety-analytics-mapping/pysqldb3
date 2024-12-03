@@ -406,7 +406,7 @@ class DbConnect:
                         query_table_name = get_query_table_schema_name(str(t[0]), self.type)
 
                         # If table does not exist, add to the list of tables to delete
-                        if not self.table_exists(query_table_name, schema=s, internal=True):
+                        if not self.table_exists(query_table_name, schema=s, internal=True, case_sensitive=True):
                             # Add the original version back to be deleted
                             to_delete.append(str(t[0]))
 
@@ -622,6 +622,30 @@ class DbConnect:
 
         return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
 
+    def schema_tables(self, schema='public'):
+        # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
+        """
+        Get a list of tables for specific schema (PG only).
+        :param schema: Schema to look in (defaults to public)
+        :return: Pandas DataFrame of the table list
+        """
+        if self.type in (MS, AZ):
+            print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
+            return
+
+        self.query(PG_PYSQLDB_USERS_QUERY.format(s=schema), internal=True)
+        base = f"""
+        with user_tables as (
+        """
+        for user in self.internal_data:
+            if self.table_exists(f'__temp_log_table_{user[0]}__', schema=schema):
+                base += f"""
+                select table_owner tableowner, table_name tablename, created_on, expires from {schema}.__temp_log_table_{user[0]}__
+                union
+                """
+        base = base[:-19] + ")"
+        return self.dfquery(PG_USER_TABLES_QUERY.format(b=base, s=schema))
+
     def table_exists(self, table, **kwargs):
         # type: (DbConnect, str, **str) -> bool
         """
@@ -635,6 +659,23 @@ class DbConnect:
         server = kwargs.get('server', self.server)
         database = kwargs.get('database', self.database)
         internal = kwargs.get('internal', False)
+        case_sensitive = kwargs.get('case_sensitive', False)
+
+        # if 1st char is not a letter set to case sensitive
+        if not re.findall(r'[a-zA-Z_]', table[0]):
+            case_sensitive = True
+
+        if case_sensitive:
+            if self.type == MS and ('[' in table ):
+                # account for [dbo].["test"]
+                table = table
+            else:
+                if self.type == MS:
+                    table = f'[{table}]'
+                    schema = f'[{schema}]'
+                else:
+                    table = f'"{table}"'
+                    schema = f'"{schema}"'
 
         cleaned_server = get_unique_table_schema_string(server, self.type)
         cleaned_database = get_unique_table_schema_string(database, self.type)
@@ -689,6 +730,8 @@ class DbConnect:
 
         elif self.type == PG:
             self.query(PG_GET_SCHEMAS_QUERY, timeme=False, internal=True)
+        else:
+            return []
 
         return [schema_row[0] for schema_row in self.__get_most_recent_query_data(internal=True)]
 
@@ -698,7 +741,23 @@ class DbConnect:
         if full:
             columns = '*'
         else:
-            columns = "column_name, data_type"
+            if self.type == PG:
+
+                columns = """
+                column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then 
+                      DATA_TYPE || ' ('|| cast(CHARACTER_MAXIMUM_LENGTH as varchar) ||')'
+                       when DATA_TYPE = 'USER-DEFINED' then udt_name 
+                      else DATA_TYPE end as DATA_TYPE
+                      """
+            else:
+                columns = """
+                    column_name, case 
+					   when DATA_TYPE = 'text' then DATA_TYPE
+                    when CHARACTER_MAXIMUM_LENGTH is not null 
+                    then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' 
+                    when CHARACTER_MAXIMUM_LENGTH >= 3000 then DATA_TYPE + ' (3000)' 
+                          else DATA_TYPE end as DATA_TYPE
+                      """
 
         if self.type == PG:
             self.query("""
@@ -768,7 +827,7 @@ class DbConnect:
 
             if qry.temp and qry.new_tables:
                 self.__run_table_logging(qry.new_tables, days=days)
-                self.__remove_nonexistent_tables_from_logs()
+            self.__remove_nonexistent_tables_from_logs()
 
         if return_df:
             return qry.dfquery()
@@ -815,7 +874,7 @@ class DbConnect:
                     self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
                                timeme=False, strict=strict, internal=internal)
             else:
-                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table))
+                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table), self.type)
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
 
     def rename_column(self, schema, table, old_column, new_column):
@@ -2296,3 +2355,108 @@ class DbConnect:
                             days=days,
                             bulk_upload = True)
 
+    def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
+        """
+        Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
+        as backing up to csv for large tables, but it will ensure identical schema.
+        :param org_schema: Name of database schema of the table to be backed up.
+        :param org_table: Name of database table to be backed up.
+        :param backup_path: File path where the .sql file will be written.
+        :param backup_schema: Name of database schema the backed up table will be written back to.
+        :param backup_table: Name of database table the backed up table will be written back to.
+        :return: backup_schema, backup_table
+        """
+
+        # TODO
+        #  - think about bulk tables?
+
+
+
+        tbl_schema = self.get_table_columns(org_table, schema=org_schema)
+
+        # CREATE TABLE QUERY
+        _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
+        for col, dtyp in tbl_schema:
+            _create_qry += f'\n"{col}" {dtyp},'
+        _create_qry=_create_qry[:-1]+');\n'
+
+        # INSERT INTO TABLE QUERY
+        _insert_qry = f'INSERT INTO "{backup_schema}"."{backup_table}" values\n'
+        self.query(f'select * from "{org_schema}"."{org_table}"', internal=True)
+        data  = self.internal_data
+        for row in data:
+            r = "("
+            for col in row:
+                if col == None:
+                    r += f"NULL,"
+                elif type(col) == str:
+                    r += f"""'{col.replace("'","''")}',"""
+                else:
+                    r += f"'{col}',"
+            r = r[:-1] + '),'
+            _insert_qry += r
+
+        _insert_qry = _insert_qry[:-1] + ';\n'
+
+        # CREATE INDEX QUERY
+        _idx_query = self.get_table_indexes(org_schema, org_table)
+
+        with open(backup_path, 'w') as f:
+            # Write header
+            f.write(f'''/*\nBackup SQL from {self.server}.{self.database}.{org_schema}.{org_table}
+            on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n*/\n\n''')
+
+            # Write sql queries
+            f.write(_create_qry)
+            f.write(_insert_qry)
+            f.write(_idx_query.format(schema=backup_schema, table=backup_table))
+
+        return backup_schema, backup_table
+
+
+    def get_table_indexes(self, schema, table):
+        """
+        Generates the create index sql scripts for any table.
+        :param schema: Name of the database schema of the table to get the idexes from.
+        :param table: Name of the database table of the table to get the idexes from.
+        :return: SQL script to create indexes associated with input table.
+        """
+        if self.type == 'MS':
+            self.query(GET_MS_INDEX_QUERY.format(schema=schema, table=table), internal=True)
+            idxs = self.internal_data
+            idx_qry = ''
+            for n, c, t in idxs:
+                idx_qry += f"CREATE {t} INDEX [{n}_backup] ON [{schema}].[{table}] ({c});\n"
+            return idx_qry.replace(f'[{schema}].[{table}]', '"{schema}"."{table}"') + "\n"
+
+        elif self.type == 'PG':
+            self.query(GET_PG_INDEX_QUERY.format(schema=schema, table=table), internal=True)
+            idxs = self.internal_data
+            idx_qry = ';'.join([_[1].replace(_[0], _[0]+'_backup') for _ in idxs])
+            return idx_qry.replace(f'{schema}.{table}', '"{schema}"."{table}"') + "\n"
+
+
+
+    def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None, temp=False):
+        """
+        Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
+        :param backup_path: File path of the .sql file to be used to create the backup.
+        :param overwrite_name: Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :param overwrite_schema: Name of the database schema to use for the backup table, this will overwrite the schema name used in the backup sql script.
+        :return: String of schema.table where backup table was written.
+        """
+        with open(backup_path, 'r') as f:
+            read_data = f.read()
+
+        # schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
+        #                read_data)[0].replace('CREATE TABLE ', '')[:-2]
+        server, database, schema, table = Query.query_creates_table(read_data, self.default_schema, self.type)[0]
+        if all([overwrite_name, overwrite_schema]):
+            read_data = read_data.replace(f'"{schema}"."{table}"', f'"{overwrite_schema}"."{overwrite_name}"')
+            read_data = read_data.replace(f'[{schema}].[{table}]', f'[{overwrite_schema}].[{overwrite_name}]')
+            schema_table_name = f'{overwrite_schema}.{overwrite_name}'
+        else:
+            schema_table_name = f'{schema}.{table}'
+        self.query(read_data, temp=temp)
+        assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
+        return schema_table_name

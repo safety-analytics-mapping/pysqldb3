@@ -124,15 +124,15 @@ class TestStringParser:
 
         server, database, schema, table = parse_table_string('test."EXAMPLE"', "dbo", "MS")
         assert schema == 'test'
-        assert table == 'example'
+        assert table == 'EXAMPLE'
 
         server, database, schema, table = parse_table_string('test.[EXAMPLE]', "dbo", "MS")
         assert schema == 'test'
-        assert table == 'example'
+        assert table == 'EXAMPLE'
 
         server, database, schema, table = parse_table_string('test.["EXAMPLE"]', "dbo", "MS")
         assert schema == 'test'
-        assert table == '"example"'
+        assert table == '"EXAMPLE"'
 
 
 class TestUtil:

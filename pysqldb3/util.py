@@ -106,7 +106,8 @@ def get_unique_table_schema_string(tbl_str, db_type):
             return tbl_str.replace('"', '')
 
     if db_type.upper() == MS:
-        tbl_str = tbl_str.lower()
+        if not '"' in tbl_str and not '[' in tbl_str:
+            tbl_str = tbl_str.lower()
         if '"' in tbl_str and '[' in tbl_str and ']' in tbl_str:
             # If "" and [], just remove []
             return tbl_str.replace('[', '').replace(']', '')
@@ -145,7 +146,11 @@ def get_query_table_schema_name(tbl_str, db_type):
             return '"' + tbl_str + '"'
 
     if db_type == MS:
-        return '[' + tbl_str + ']'
+        if tbl_str.islower() and " " not in tbl_str and '"' not in tbl_str:
+            return tbl_str
+        else:
+            return '[' + tbl_str + ']'
+
 
 
 def parse_table_string(tbl_str, default_schema, db_type):
@@ -159,9 +164,11 @@ def parse_table_string(tbl_str, default_schema, db_type):
      
     """
     # Parse schema/table from table string
-    names_arr = []
+    if type(tbl_str) in (list, tuple):
+        return tbl_str
+    # names_arr = tbl_str.split('.')
     start = 0
-
+    names_arr=list()
     if db_type == MS:
         regex = '\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
     elif db_type == PG:
@@ -407,3 +414,60 @@ def parse_gpkg_path(path=None, gpkg_name=None):
         gpkg_name = gpkg
 
     return path, gpkg_name
+
+def rename_geom(db, schema, table):
+
+    """
+    Renames wkb_geometry to geom, along with index
+
+    :param dbo: Database connection
+    :param schema: Schema where geom is located
+    :param table: Table where geom is located
+    :return:
+    """
+    db.query(f"""
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = '{schema}'
+                    AND table_name   = '{table}';
+                """, timeme=False, internal=True)
+    f = None
+
+    if db.type == 'PG':
+
+        # Get the column in question
+        if 'wkb_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+            f = 'wkb_geometry'
+        elif 'shape' in [i[0] for i in db.internal_queries[-1].data]:
+            f = 'shape'
+
+        if f:
+            # Rename column
+            db.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
+
+            # Rename index
+            db.query(f"""
+                ALTER INDEX IF EXISTS
+                {schema}.{table}_{f}_geom_idx
+                RENAME to {table}_geom_idx
+            """, timeme=False, internal=True)
+
+    elif db.type == 'MS':
+        # Get the column in question
+        if 'ogr_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+            f = 'ogr_geometry'
+        elif 'Shape' in [i[0] for i in db.internal_queries[-1].data]:
+            f = 'Shape'
+
+        if f:
+            # Rename column
+            db.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
+
+            # Rename index if exists
+            try:
+                db.query(f"""
+                    EXEC sp_rename N'{schema}.{table}.ogr_{schema}_{table}_{f}_sidx', N'{table}_geom_idx', N'INDEX';
+                """, timeme=False, internal=True)
+            except SystemExit as e:
+                print(e)
+                print('Warning - could not update index name after renaming geometry. It may not exist.')

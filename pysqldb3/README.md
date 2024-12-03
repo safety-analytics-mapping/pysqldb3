@@ -49,10 +49,9 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 1. [`table_to_csv`](#table_to_csv): Exports database table to a csv file.
 1. [`shp_to_table`](#shp_to_table): Imports ESRI Shapefile to database, uses GDAL to generate the table.
 1. [`feature_class_to_table`](#feature_class_to_table): Imports shape file feature class to database, uses GDAL to generate the table.
-
-
-
-
+1. [`backup_table`](#backup_table): Creates backup sql file from table.
+1. [`create_table_from_backup`](#create_table_from_backup): Creates table in database from backup sql file.
+1. [`get_table_indexes`](#get_table_indexes): Gets create index queries from existing database tables
 
 
 
@@ -288,7 +287,10 @@ Checks if table exists in the database
 ###### Parameters:
  - **`table`: str** Table name 
  - **`schema`: str, default Database's default schema**: Database schema name 
- 
+ - **`server`: str, default database connection's server**: Database server name 
+ - **`internal`: bool, default False**: internal query
+ - **`case_sensitive`: bool, default False**: Specify if table name is case sensitive 
+
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
@@ -296,6 +298,9 @@ Checks if table exists in the database
 >>> db.table_exists('bike_inj', schema='working')
 
 True
+>>> db.table_exists('Bike_inj', schema='working', case_sensitive)
+
+False
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
@@ -1119,6 +1124,85 @@ Imports feature class from ESRI file geodatabase, uses GDAL to generate the tabl
 2           3     12497  INT  ...  1.001326e+06  186946.733112  0104000020D708000001000000010100000000A8ED4EDB...
 
 [3 rows x 16 columns]
+
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+-------------------------------------------------------------------------
+
+### backup_table
+**`DbConnect.backup_table(org_schema, org_table, backup_path, backup_schema, backup_table)`**
+
+Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
+as backing up to csv for large tables, but it will ensure identical schema.
+ 
+###### Parameters:
+ - **`org_schema` str**: Name of database schema of the table to be backed up
+ - **`org_table` str**: Name of database table to be backed up
+ - **`backup_path` str**:  File path where the .sql file will be written
+ - **`backup_schema` str**:  Name of database schema the backed up table will be written back to
+ - **`backup_table` str**: Name of database table the backed up table will be written back to
+
+**Sample**
+
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.backup_table('public', 'sample_table', 'c:/users/user/desktop/backup.sql', 'working', 'sample_table_backup')
+
+'working', 'sample_table_backup'
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+
+### create_table_from_backup
+**`DbConnect.create_table_from_backup(backup_path, overwrite_name=None, overwrite_schema=None)`**
+
+Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
+ 
+###### Parameters:
+ - **`backup_path` str**:  File path where the .sql file will be written
+ - **`overwrite_name` bool, default None**:  Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script
+ - **`overwrite_schema` str, default None**:  Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script
+ 
+
+**Sample**
+
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.create_table_from_backup('c:/users/user/desktop/backup.sql', 'working', 'sample_table_backup_new_name')
+
+'working.sample_table_backup_new_name'
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+### get_table_indexes
+**`DbConnect.get_table_indexes(schema, table)`**
+
+Gets create index queries from existing database tables. Intended to be used with `DbConnect.backup_table` function. 
+ 
+###### Parameters:
+ - **`schema` str**: Name of the database schema of the table to get the idexes from
+ - **`table` str**:  Name of the database table of the table to get the idexes from
+
+**Sample**
+
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.get_table_indexes('public', 'lion')
+
+CREATE INDEX mt_idx_backup ON "{schema}"."{table}" USING btree (masteridto);CREATE INDEX mf_idx_backup ON "{schema}"."{table}" USING btree (masteridfrom);CREATE INDEX nt_idx_backup ON "{schema}"."{table}" USING btree (nodeidto);CREATE INDEX nf_idx_backup ON "{schema}"."{table}" USING btree (nodeidfrom);CREATE INDEX mft_idx_backup ON "{schema}"."{table}" USING btree (mft);CREATE INDEX seg_idx_backup ON "{schema}"."{table}" USING btree (segmentid);CREATE INDEX lion_seg_idx_backup ON "{schema}"."{table}" USING btree (segmentid);CREATE INDEX lion_shape_geom_idx_backup ON "{schema}"."{table}" USING gist (geom);CREATE UNIQUE INDEX lion_pkey_backup ON "{schema}"."{table}" USING btree (objectid)
 
 ```
 
