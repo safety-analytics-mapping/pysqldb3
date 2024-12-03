@@ -342,10 +342,10 @@ class Query:
         into_pattern = r"""
             (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
             
-            (select([.\n\w\*\s\",^,\[\]])+?into\s+)+?               # find select into
+            (select([.\n\w\*\s\",^,\[\],',!,=,+,(,)])+?into\s+)+?    # find select into
             (?!temp\s+|temporary\s+)                                # lookahead for temp
             (
-               (({encaps} | {nonencaps})\.){sds}?
+               (({encaps} | {nonencaps})\.){sds}
                (\[?\#{temp_mark}){tmp_time}
                (({encapst} | {nonencaps})\s+){tbl_time}
            )

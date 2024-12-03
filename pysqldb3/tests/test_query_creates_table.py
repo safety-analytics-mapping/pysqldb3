@@ -63,6 +63,23 @@ class TestQueryCreatesTablesSql():
         """
         assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, 'riscrashdata','dbo','test')]
 
+    def test_query_creates_table_from_qry_into(self):
+        query_string = """
+            select distinct      
+                i.fid
+                , count(distinct i.victimid) fatals
+                , count(distinct case when isnull(v.preaction,'')!='Parked' then v.vehicleid else null end) vehicle_count
+                , sum(case when i.second_level = 'ped' then 1 else 0 end) + count(distinct case when isnull(v.preaction,'')!='Parked' then v.vehicleid else null end) as actors
+            into dbo.dashboad_fact 
+            from dbo.dashboard_victim_base i
+            left outer join dashboard_other_vehicle v
+            on i.fid = v.fid
+            group by i.fid
+        """
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [
+            (None, None, 'dbo', 'dashboad_fact')
+        ]
+
     def test_query_creates_table_from_qry_wserver(self):
         query_string = """
             CREATE TABLE dotdevgissql01.RISCRASHDATA.dbo.test AS
