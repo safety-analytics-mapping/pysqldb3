@@ -621,29 +621,49 @@ class DbConnect:
 
         return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
 
-    def schema_tables(self, schema='public'):
+    def schema_tables(self, schema=None):
         # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
         """
         Get a list of tables for specific schema (PG only).
         :param schema: Schema to look in (defaults to public)
         :return: Pandas DataFrame of the table list
         """
-        if self.type in (MS, AZ):
-            print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
+        if not schema:
+            schema = self.default_schema
+        if self.type in (AZ):
+            print('Aborting...attempting to run a Postgres/MS SQL-only command on a Azure DbConnect instance.')
             return
 
-        self.query(PG_PYSQLDB_USERS_QUERY.format(s=schema), internal=True)
-        base = f"""
-        with user_tables as (
-        """
-        for user in self.internal_data:
-            if self.table_exists(f'__temp_log_table_{user[0]}__', schema=schema):
-                base += f"""
-                select table_owner tableowner, table_name tablename, created_on, expires from {schema}.__temp_log_table_{user[0]}__
-                union
-                """
-        base = base[:-19] + ")"
-        return self.dfquery(PG_USER_TABLES_QUERY.format(b=base, s=schema))
+        if self.type == MS:
+            return self.dfquery(f"""
+                select 
+                    null as tableowner, 
+                    i.TABLE_NAME as tablename, 
+                    t.create_date, 
+                    created_on, 
+                    l.expires
+	            from sys.tables t
+	            join INFORMATION_SCHEMA.TABLES i
+	            on t.name = i.TABLE_NAME
+	            left outer join {schema}.__temp_log_table_{self.user}__ l
+	            on i.TABLE_NAME = l.table_name
+	            where i.TABLE_SCHEMA = '{schema}'
+            """)
+
+        elif self.type == 'PG':
+            return self.dfquery(f"""
+                select 
+                    l.table_owner tableowner, 
+                    i.table_name tablename, 
+                    l.created_on, 
+                    l.expires
+                FROM INFORMATION_SCHEMA.TABLES i
+                left outer join {schema}.__temp_log_table_{self.user}__ l
+                    on i.table_name = l.table_name
+                where i.table_schema='{schema}'
+            """)
+
+
 
     def table_exists(self, table, **kwargs):
         # type: (DbConnect, str, **str) -> bool
