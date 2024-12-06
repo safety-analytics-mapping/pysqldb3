@@ -89,7 +89,8 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
-    ms.tables_created.append(dest_schema + "." + dest_table)
+    # tables created always has (server, db, schema, table), in pg server and db are not listed
+    ms.tables_created.append((ms.server,ms.database, dest_schema, dest_table))
 
     if temp:
         ms.log_temp_table(dest_schema, dest_table, ms.user)
@@ -190,7 +191,8 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
 
     clean_geom_column(pg, dest_table, dest_schema)
 
-    pg.tables_created.append(dest_schema + "." + dest_table)
+    # tables created always has (server, db, schema, table), in pg server and db are not listed
+    pg.tables_created.append(('', '', dest_schema, dest_table))
 
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
@@ -294,7 +296,8 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
 
     clean_geom_column(pg, dest_table, dest_schema)
 
-    pg.tables_created.append(dest_schema + "." + dest_table)
+    # tables created always has (server, db, schema, table), in pg server and db are not listed
+    pg.tables_created.append(('', '', dest_schema, dest_table))
 
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
@@ -445,6 +448,9 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
                 to_sql.query(f"ALTER TABLE [{dest_schema}].[{dest_table}] ALTER COLUMN [{c}] {cols[c]}",
                          timeme=False, internal=True, strict=False)
 
+    # tables created always has (server, db, schema, table), in pg server and db are not listed
+    to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
+
 
 
 
@@ -515,7 +521,8 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
 
     clean_geom_column(to_pg, dest_table, dest_schema)
 
-    to_pg.tables_created.append(dest_schema + "." + dest_table)
+    # tables created always has (server, db, schema, table), in pg server and db are not listed
+    to_pg.tables_created.append(('', '', dest_schema, dest_table))
 
     if temp:
         to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)
@@ -590,7 +597,8 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
 
     clean_geom_column(to_pg, dest_table, dest_schema)
 
-    to_pg.tables_created.append(dest_schema + "." + dest_table)
+    # tables created always has (server, db, schema, table), in pg server and db are not listed
+    to_pg.tables_created.append(('', '', dest_schema, dest_table))
 
     if temp:
         to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)

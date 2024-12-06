@@ -303,6 +303,9 @@ class TestSqlToPgQry:
                             FROM information_schema.role_table_grants
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
+        # assert added to tables created in dest dbo
+        assert db.tables_created == [('', '', f'{pg_schema}', f'{test_sql_to_pg_qry_table}')]
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
         # sql.query(f"""drop table if exists ##{test_sql_to_pg_qry_table}""")
@@ -520,6 +523,9 @@ class TestSqlToPg:
                             FROM information_schema.role_table_grants
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
+        # assert added to tables created in dest dbo
+        assert db.tables_created[-1] == ('', '', f'{pg_schema}', f'{test_sql_to_pg_table}')
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_table)
         sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
@@ -643,6 +649,9 @@ class TestPgToPg:
                             FROM information_schema.role_table_grants
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_tbl}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
+        # assert added to tables created in dest dbo
+        assert ris.tables_created == [('', '', f'{pg_schema}', f'{test_pg_to_pg_tbl}')]
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
         ris.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
@@ -764,6 +773,9 @@ class TestPgToPgQry:
         assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
                             FROM information_schema.role_table_grants
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
+
+        # assert added to tables created in dest dbo
+        assert db.tables_created == [('', '', f'{pg_schema}', f'{test_pg_to_pg_qry_table}')]
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
@@ -896,6 +908,7 @@ class TestPgToPgQry:
     # Note: temporary functionality will be tested separately!
 
     # Still to test: LDAP, print_cmd    # Still to test: LDAP, print_cmd
+
 class TestSqlToSqlQry:
 
     def test_sql_to_sql_basic_table(self):
@@ -936,6 +949,9 @@ class TestSqlToSqlQry:
         assert first_table.shape == second_table.shape
         assert list(first_table.columns) == list(second_table.columns)
         assert first_table.equals(second_table) # this fails because there are dtype issues
+
+        # assert added to tables created in dest dbo
+        assert sql2.tables_created[-1] == (sql2.server, sql2.database, test_dest_schema, test_sql_to_sql_tbl_to)
 
         # drop ouptut table
         sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
@@ -1251,3 +1267,63 @@ class TestSqlToSqlQry:
         sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
         sql.drop_table(test_org_schema, test_sql_to_sql_tbl_from)
 
+class TestPgToSql:
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_test_table_pg(db)
+
+    def test_pg_to_sql_basic_table(self):
+
+
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
+        sql2.drop_table(schema=sql_schema, table=test_pg_to_pg_tbl)
+
+        # Create table
+        db.query(f"""
+            create table {pg_schema}.{test_pg_to_pg_tbl} as
+            select *
+            from {pg_schema}.{pg_table_name}
+            limit 10
+        """)
+
+        # Assert tables don't already exist in destination
+        assert db.table_exists(schema=pg_schema, table=test_pg_to_pg_tbl)
+        assert not sql2.table_exists(schema=sql_schema, table=test_pg_to_pg_tbl)
+
+        # pg_to_pg
+        data_io.pg_to_sql(db, sql2, org_schema=pg_schema, org_table=test_pg_to_pg_tbl, dest_schema=sql_schema)
+
+        # Assert pg_to_pg successful
+        assert db.table_exists(schema=pg_schema, table=test_pg_to_pg_tbl)
+        assert sql2.table_exists(schema=sql_schema, table=test_pg_to_pg_tbl)
+
+        # Assert db equality
+        sqldf = sql2.dfquery(f"""
+              select *
+              from {sql_schema}.{test_pg_to_pg_tbl}
+          """).infer_objects()
+
+        dbdf = db.dfquery(f"""
+              select *
+              from {pg_schema}.{test_pg_to_pg_tbl}
+          """).infer_objects()
+
+        # Assert
+        pd.testing.assert_frame_equal(sqldf.drop(['geom', 'ogr_fid'], axis=1), dbdf.drop(['geom'], axis=1),
+                                      check_exact=False
+                                      )
+
+        # assert added to tables created in dest dbo
+        assert sql2.tables_created[-1] == (sql2.server, sql2.database, sql_schema, test_pg_to_pg_tbl)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
+        sql2.drop_table(schema=sql_schema, table=test_pg_to_pg_tbl)
+
+
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_test_table_pg(db)
+        db.cleanup_new_tables()
+        sql.cleanup_new_tables()
