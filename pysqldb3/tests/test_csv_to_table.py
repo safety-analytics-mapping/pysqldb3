@@ -72,7 +72,7 @@ class TestCsvToTablePG:
         pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
 
         # assert null column in db is varchar
-        assert [_ for _ in db.get_table_columns(create_table_name, schema=pg_schema) if _[0]=='col3'][0][1] == 'character varying'
+        assert [_ for _ in db.get_table_columns(create_table_name, schema=pg_schema) if _[0]=='col3'][0][1] == 'character varying (500)'
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -130,7 +130,7 @@ class TestCsvToTablePG:
         for (name, typ) in db.get_table_columns(create_table_name, schema=pg_schema):
             if 'date' in name.lower():
                 print (name, typ)
-                assert typ == 'character varying'
+                assert typ == 'character varying (500)'
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
         os.remove(fp)
@@ -167,7 +167,7 @@ class TestCsvToTablePG:
         for (name, typ) in db.get_table_columns(create_table_name, schema=pg_schema):
             if 'date' in name.lower() and name.lower() !='false_date':
                 print (name, typ)
-                assert typ == 'character varying'
+                assert typ == 'character varying (500)'
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
         os.remove(fp)
@@ -591,7 +591,7 @@ class TestCsvToTableMS:
         pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
 
         # assert null column in db is varchar
-        assert [_ for _ in sql.get_table_columns(create_table_name, schema=sql_schema) if _[0]=='col3'][0][1] == 'varchar'
+        assert [_ for _ in sql.get_table_columns(create_table_name, schema=sql_schema) if _[0]=='col3'][0][1] == 'varchar (500)'
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
@@ -648,7 +648,7 @@ class TestCsvToTableMS:
         for (name, typ) in sql.get_table_columns(create_table_name, schema=sql_schema):
             if 'date' in name.lower():
                 print(name, typ)
-                assert typ == 'varchar'
+                assert typ == 'varchar (500)'
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
         os.remove(fp)
@@ -685,7 +685,7 @@ class TestCsvToTableMS:
         for (name, typ) in sql.get_table_columns(create_table_name, schema=sql_schema):
             if 'date' in name.lower() and name.lower() != 'false_date':
                 print(name, typ)
-                assert typ == 'varchar'
+                assert typ == 'varchar (500)'
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
         os.remove(fp)
@@ -962,7 +962,7 @@ class TestBulkCSVToTableMS:
 
         # assert null column in db is varchar
         assert [_ for _ in sql.get_table_columns(create_table_name, schema=sql_schema) if _[0] == 'col3'][0][
-                   1] == 'varchar'
+                   1] == 'varchar (500)'
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
@@ -989,7 +989,7 @@ class TestBulkCSVToTableMS:
 
         # assert null column in db is varchar
         assert [_ for _ in sql.get_table_columns(create_table_name, schema=sql_schema) if _[0] == 'col3'][0][
-                   1] == 'varchar'
+                   1] == 'varchar (500)'
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
