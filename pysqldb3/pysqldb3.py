@@ -94,15 +94,8 @@ class DbConnect:
         :return: string of database connection info
         """
 
-        return 'Database connection ({typ}) to {db} on {srv} - user: {usr} \nConnection established {dt}, /' \
-               '\n- ris version {v} - '.format(
-                typ=self.type,
-                db=self.database,
-                srv=self.server,
-                usr=self.user,
-                dt=self.connection_start,
-                v=__version__
-                )
+        return f'Database connection ({self.type}) to {self.database} on {self.server} - user: {self.user} \nConnection established {self.connection_start}, /' \
+               '\n- ris version {__version__} - '
 
     def __get_most_recent_query_data(self, internal=False):
         # type: (DbConnect) -> list
@@ -384,7 +377,7 @@ class DbConnect:
             cleaned += 1
 
         if cleaned > 0:
-            print('Attempted to remove {} expired temp tables: {}'.format(cleaned, to_clean))
+            print(f'Attempted to remove {cleaned} expired temp tables: {to_clean}')
 
     def __remove_nonexistent_tables_from_logs(self):
         # type: (DbConnect) -> None
@@ -413,9 +406,7 @@ class DbConnect:
                 # Remove stale table names
                 if to_delete:
                     self.query(
-                        "delete from {s}.{l} where table_name in ({tn})".format(
-                            s=s, l=self.log_table, tn=str(to_delete)[1:-1]
-                        ),
+                        f"delete from {s}.{self.log_table} where table_name in ({str(to_delete)[1:-1]})",
                         strict=False, timeme=False, internal=True
                     )
 
@@ -546,7 +537,7 @@ class DbConnect:
         if not schema:
             schema = self.default_schema
 
-        return self.dfquery("select * from {}.{}".format(schema, self.log_table))
+        return self.dfquery(f"select * from {schema}.{self.log_table}")
 
     def check_table_in_log(self, table_name, schema=None):
         """
@@ -556,8 +547,7 @@ class DbConnect:
         """
         if not schema:
             schema = self.default_schema
-        self.query("select * from {s}.{lt} where table_name = '{tn}'".format(
-            s=schema, lt=self.log_table, tn=table_name))
+        self.query(f"select * from {schema}.{self.log_table} where table_name = '{table_name}'")
 
         self.check_conn()
         return self.data
@@ -1049,9 +1039,9 @@ class DbConnect:
                 VALUES ({d})
             """.format(s=schema, t=table,
                        cols=str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", ''),
-                       d=row_values), strict=False, timeme=False)
+                       d=row_values), strict=False, timeme=False, internal = True)
 
-        df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False)
+        df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False, internal = True)
         print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema, t=table))
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
@@ -1414,7 +1404,7 @@ class DbConnect:
 
                 # Query one row to get columns
                 self.query("select {sq} * from {s}.stg_{t} {p}".format(s=schema, t=table, sq=sq, p=p), strict=False,
-                           timeme=False)
+                           timeme=False, internal = True)
 
                 column_names = self.queries[-1].data_columns
 
@@ -1499,7 +1489,7 @@ class DbConnect:
             self.drop_table(schema=schema, table='stg_{}'.format(table))
 
             # Log rows added to table
-            df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False)
+            df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False, internal = True)
 
             print("""
             {c} rows added to {s}.{t}. 
@@ -1545,11 +1535,11 @@ class DbConnect:
                     self.query(f"""
                         alter table {schema}.{table} alter "{stg_columns[column]}" type varchar 
                         using "{stg_columns[column]}"::varchar
-                    """)
+                    """, internal = True)
                 else:
                     self.query(f"""
                         alter table {schema}.{table} alter "{stg_columns[column]}" type varchar 
-                    """)
+                    """, internal = True)
                 updated.append(column)
 
         for c in table_schema:
