@@ -362,7 +362,7 @@ def file_loc(typ='file', print_message=None):
         return folder
     elif typ == 'save':
         output_file_name = tkFileDialog.asksaveasfilename(
-            filetypes=(("Shapefile", "*.shp"), ("All Files", "*.*")),
+            filetypes=(("Shapefile", "*.shp"), ("Geopackage", "*.gpkg"), ("All Files", "*.*")),
             defaultextension=".shp"
         )
         return output_file_name
@@ -395,6 +395,25 @@ def parse_shp_path(path=None, shp_name=None):
 
     return path, shp_name
 
+def parse_gpkg_path(path=None, gpkg_name=None):
+    """
+    Standardizes extracting geopackage file name from path process, if gpkg_name provided that will override anything in the path
+    :param path: folder path with or without gpkg
+    :param gpkg_name: geopackage name
+    :return: path (without gpkg), gpkg_name
+    """
+    # type: (str, str)
+    if not path:
+        return path, gpkg_name
+
+    if path.endswith('.gpkg'):
+        gpkg = os.path.basename(path)
+        path = path.replace(gpkg, '')
+
+    if not gpkg_name:
+        gpkg_name = gpkg
+
+    return path, gpkg_name
 
 def rename_geom(db, schema, table):
 
