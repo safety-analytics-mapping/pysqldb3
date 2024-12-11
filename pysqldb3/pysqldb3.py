@@ -653,8 +653,8 @@ class DbConnect:
         elif self.type == 'PG':
             return self.dfquery(f"""
                 select 
-                    i.tableowner tableowner, 
-                    i.tablename tablename, 
+                    i.tableowner , 
+                    i.tablename , 
                     l.created_on, 
                     l.expires
                 FROM pg_tables i

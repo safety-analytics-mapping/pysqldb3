@@ -234,7 +234,10 @@ class TestCsvToTablePG:
         pd.testing.assert_frame_equal(db_df[['a', 'b', 'c', 'd']], altered_column_type_df)
 
         # Assert df column types match override
-        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'character varying'}, {"column_name": 'b', "data_type": 'bigint'},{"column_name": 'c', "data_type": 'bigint'}, {"column_name": 'd', "data_type": 'character varying'}]),
+        pd.testing.assert_frame_equal(pd.DataFrame([{"column_name": 'a', "data_type": 'character varying'},
+                                                    {"column_name": 'b', "data_type": 'bigint'},
+                                                    {"column_name": 'c', "data_type": 'bigint'},
+                                                    {"column_name": 'd', "data_type": 'character varying'}]),
                                       db.dfquery("""
 
                                             select distinct column_name, data_type
