@@ -392,7 +392,7 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
 
     clean_geom_column(to_sql, dest_table, dest_schema)
 
-    to_sql.tables_created.append(dest_schema + "." + dest_table)
+    to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
 
     if temp:
         to_sql.log_temp_table(dest_schema, dest_table, to_sql.user)
