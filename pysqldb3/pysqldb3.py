@@ -654,14 +654,14 @@ class DbConnect:
         elif self.type == 'PG':
             return self.dfquery(f"""
                 select 
-                    l.table_owner tableowner, 
-                    i.table_name tablename, 
+                    i.tableowner , 
+                    i.tablename , 
                     l.created_on, 
                     l.expires
-                FROM INFORMATION_SCHEMA.TABLES i
+                FROM pg_tables i
                 left outer join {schema}.__temp_log_table_{self.user}__ l
-                    on i.table_name = l.table_name
-                where i.table_schema='{schema}'
+                    on i.tablename = l.table_name
+                where i.schemaname='{schema}'
             """)
 
 
