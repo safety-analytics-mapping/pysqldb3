@@ -95,6 +95,94 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
     if temp:
         ms.log_temp_table(dest_schema, dest_table, ms.user)
 
+def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, dest_table=None,
+              print_cmd=False, temp=True):
+    """
+    Migrates query from Postgres to SQL Server, generates spatial tables in MS if spatial in PG.
+
+    :param pg: DbConnect instance connecting to PostgreSQL source database
+    :param ms: DbConnect instance connecting to SQL Server destination database
+    :param query: query in PG
+    :param LDAP: Flag for using LDAP credentials (defaults to False)
+    :param spatial: Flag for spatial table (defaults to True)
+    :param dest_schema: SQL Server schema for destination table (defaults to dest db's default schema)
+    :param dest_table: Table name of final migrated table in SQL Server database
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :param temp: Flag for temporary table (defaults to True)
+    :return:
+    """
+    if not dest_schema:
+        dest_schema = ms.default_schema
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=ms.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    if spatial:
+        spatial = ' -a_srs EPSG:2263 '
+        nlt_spatial = ' '
+    else:
+        spatial = ' '
+        nlt_spatial = '-nlt NONE'
+
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', '', query)
+
+    if LDAP:
+        cmd = PG_TO_SQL_QRY_CMD.format(
+            ms_pass='',
+            ms_user='',
+            pg_pass=pg.password,
+            pg_user=pg.user,
+            ms_server=ms.server,
+            ms_db=ms.database,
+            pg_host=pg.server,
+            pg_port=pg.port,
+            pg_database=pg.database,
+            sql_select = query,
+            ms_schema=dest_schema,
+            spatial=spatial,
+            dest_name=dest_table,
+            nlt_spatial=nlt_spatial,
+            gdal_data=GDAL_DATA_LOC
+        )
+    else:
+        cmd = PG_TO_SQL_QRY_CMD.format(
+            ms_pass=ms.password,
+            ms_user=ms.user,
+            pg_pass=pg.password,
+            pg_user=pg.user,
+            ms_server=ms.server,
+            ms_db=ms.database,
+            pg_host=pg.server,
+            pg_port=pg.port,
+            pg_database=pg.database,
+            sql_select = query,
+            ms_schema=dest_schema,
+            spatial=spatial,
+            dest_name=dest_table,
+            nlt_spatial=nlt_spatial,
+            gdal_data=GDAL_DATA_LOC
+        )
+
+    if print_cmd:
+        print(print_cmd_string([ms.password, pg.password], cmd))
+
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
+
+    ms.tables_created.append(dest_schema + "." + dest_table)
+
+    if temp:
+        ms.log_temp_table(dest_schema, dest_table, ms.user)
+
 
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
                   dest_table=None, pg_encoding='UTF8', permission = True):
@@ -353,6 +441,7 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
     else:
         to_user = to_sql.user
         to_password = to_sql.password
+
     cmd = SQL_TO_SQL_CMD.format(
         gdal_data=gdal_data_loc,
         from_server=from_sql.server,
