@@ -178,7 +178,7 @@ def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, des
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
-    ms.tables_created.append(dest_schema + "." + dest_table)
+    ms.tables_created.append((ms.server, ms.database, dest_schema, dest_table))
 
     if temp:
         ms.log_temp_table(dest_schema, dest_table, ms.user)
