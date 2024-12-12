@@ -280,7 +280,7 @@ class TestPgtoSqlQry:
         # pg_to_sql_qry
         data_io.pg_to_sql_qry(db, sql, query=
                              f"""
-                             select * from {pg_schema}.{test_pg_to_sql_qry_table}
+                             select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
                              """,
                              dest_table=test_pg_to_sql_qry_table,
                              dest_schema = sql_schema,
@@ -292,17 +292,17 @@ class TestPgtoSqlQry:
 
         # Assert df equality
         pg_df = db.dfquery(f"""
-        select * from {pg_schema}.{test_pg_to_sql_qry_table}
+        select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
         order by test_col1
         """).infer_objects().replace(r'\s+', '', regex=True)
 
         sql_df = sql.dfquery(f"""
-        select * from {sql_schema}.{test_pg_to_sql_qry_table}
+        select test_col1, test_col2 from {sql_schema}.{test_pg_to_sql_qry_table}
         order by test_col1
         """).infer_objects().replace(r'\s+', '', regex=True)
 
         # Assert
-        pd.testing.assert_frame_equal(pg_df, sql_df.drop(['ogr_fid'], axis = 1),
+        pd.testing.assert_frame_equal(pg_df, sql_df,
                                       check_dtype=False,
                                       check_column_type=False)
 
@@ -355,13 +355,11 @@ class TestPgtoSqlQry:
 
     def test_pg_to_sql_qry_spatial(self):
         
-        sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_table)
         sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_spatial_table)
         db.drop_table(schema = pg_schema, table = test_pg_to_sql_qry_spatial_table)
 
         assert not db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
         assert not sql.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = sql_schema)
-        assert not sql.table_exists(table=test_pg_to_sql_qry_table, schema = sql_schema)
 
         # add new spatial table
         db.query(f"""
@@ -373,52 +371,35 @@ class TestPgtoSqlQry:
                 VALUES (3, 4, ST_SetSRID(ST_MAKEPOINT(91.2763, 11.9434), 2236));
         """)
 
-        # add regular table
-        db.query(f"""
-                    create table {pg_schema}.{test_pg_to_sql_qry_table} (test_col1 int, test_col2 int);
-                    insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(1, 2);
-                    insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(3, 4);
-        """)
-
         data_io.pg_to_sql_qry(db, sql, query=f"""
-                                               SELECT * --comments within the query
+                                               SELECT test_col1, test_col2, ST_AsEWKT(test_geom) test_geom --comments within the query
                                                 FROM {pg_schema}.{test_pg_to_sql_qry_spatial_table} -- geom here
                                                 -- end here""",
                               dest_table= test_pg_to_sql_qry_spatial_table,
-                              dest_schema = sql_schema)
-
-        data_io.pg_to_sql_qry(db, sql, query=f"""-- comments within the query
-                                               SELECT * FROM {pg_schema}.{test_pg_to_sql_qry_table} -- use nodeid as the unique key
-                                                -- includes geom
-                                            """,
-                              dest_table=test_pg_to_sql_qry_table,
-                              dest_schema = sql_schema,
-                              spatial=True)
-
-
-        assert db.table_exists(table=test_pg_to_sql_qry_table, schema = pg_schema)
-        assert len(db.dfquery(f'select * from {pg_schema}.{test_pg_to_sql_qry_table}')) == 2
+                              dest_schema = sql_schema,                      
+                              spatial = True
+                              )
 
         assert db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
-        assert len(db.dfquery(f'select * from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
+        assert len(db.dfquery(f'select test_col1, test_col2, ST_AsEWKT(test_geom) test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
 
-        spatial_df = sql.dfquery(f"""
-        select *
-        from {sql_schema}.{test_pg_to_sql_qry_spatial_table}
+        pg_df = db.dfquery(f"""
+        select test_col1, test_col2,  ST_AsEWKT(test_geom) test_geom
+        from {pg_schema}.{test_pg_to_sql_qry_spatial_table}
+        order by test_col1
         """)
 
-        not_spatial_df = sql.dfquery(f"""
-                select *
-                from {sql_schema}.{test_pg_to_sql_qry_table}
+        sql_df = sql.dfquery(f"""
+                select test_col1, test_col2, test_geom
+                from {sql_schema}.{test_pg_to_sql_qry_spatial_table}
+                order by test_col1
         """)
 
-        joined_df = spatial_df.merge(not_spatial_df, on='test_col1')
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
 
-        assert len(spatial_df) == len(not_spatial_df) and len(joined_df) == len(joined_df)
-
-        db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_spatial_table)
-        sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_table)
         sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_spatial_table)
         
     @classmethod
@@ -523,68 +504,45 @@ class TestSqlToPgQry:
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
 
     def test_sql_to_pg_qry_spatial(self):
-        db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
-        db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_spatial_table)
 
+        db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_spatial_table)
         assert not db.table_exists(table=test_sql_to_pg_qry_spatial_table, schema = pg_schema)
-        assert not db.table_exists(table=test_sql_to_pg_qry_table, schema = pg_schema)
 
         sql.query(f"""
+            drop table if exists ##{test_sql_to_pg_qry_spatial_table};
+
             create table ##{test_sql_to_pg_qry_spatial_table}
                 (test_col1 int, test_col2 int, test_geom geometry);
             insert into ##{test_sql_to_pg_qry_spatial_table} (test_col1, test_col2, test_geom)
-                VALUES (1, 2, CAST(geometry::Point(700890, 123456, 2236) AS VARCHAR));
+                VALUES (1, 2, CAST(geometry::Point(70.0890, 12.3456, 2236) AS VARCHAR));
             insert into ##{test_sql_to_pg_qry_spatial_table} (test_col1, test_col2, test_geom)
-                VALUES (3, 4, CAST(geometry::Point(912763, 119434, 2236) AS VARCHAR));
+                VALUES (3, 4, CAST(geometry::Point(91.2763, 11.9434, 2236) AS VARCHAR));
         """)
-
         data_io.sql_to_pg_qry(sql, db, query=f"""
-                                               SELECT * --comments within the query
+                                               SELECT test_col1, test_col2, CAST(test_geom.STAsText() AS VARCHAR) test_geom --comments within the query
                                                 FROM ##{test_sql_to_pg_qry_spatial_table} -- geom here
                                                 -- end here""",
                               dest_table= test_sql_to_pg_qry_spatial_table,
-                              dest_schema = pg_schema)
-
-        data_io.sql_to_pg_qry(sql, db, query=f"""-- comments within the query
-                                               SELECT * FROM ##{test_sql_to_pg_qry_table}-- use nodeid as the unique key
-                                                -- includes geom
-                                            """,
-                              dest_table=test_sql_to_pg_qry_table,
                               dest_schema = pg_schema,
-                              spatial=True)
+                              spatial = False)
 
-        assert db.table_exists(table=test_sql_to_pg_qry_table, schema = pg_schema)
-        assert len(db.dfquery(f'select * from {pg_schema}.{test_sql_to_pg_qry_table}')) == 2
 
         assert db.table_exists(table=test_sql_to_pg_qry_spatial_table, schema = pg_schema)
-        assert len(db.dfquery(f'select * from {pg_schema}.{test_sql_to_pg_qry_spatial_table}')) == 2
+        assert len(db.dfquery(f'select test_col1, test_col2, test_geom from {pg_schema}.{test_sql_to_pg_qry_spatial_table}')) == 2
 
-        spatial_df = db.dfquery(f"""
-        select *
-        from {pg_schema}.{test_sql_to_pg_qry_spatial_table}
-        """)
+        pg_df = db.dfquery(f"""select test_col1::int test_col1, test_col2::int test_col2, test_geom
+                                from {pg_schema}.{test_sql_to_pg_qry_spatial_table}""")
 
-        print(spatial_df)
+        sql_df = sql.dfquery(f""" select test_col1, test_col2, CAST(test_geom.STAsText() AS VARCHAR) test_geom from ##{test_sql_to_pg_qry_spatial_table}""")
 
-        not_spatial_df = db.dfquery(f"""
-                select *
-                from {pg_schema}.{test_sql_to_pg_qry_table}
-        """)
-
-        print(not_spatial_df)
-
-        joined_df = spatial_df.merge(not_spatial_df, on='test_col1')
-
-        print(joined_df)
-
-        assert len(spatial_df) == len(not_spatial_df) and len(joined_df) == len(
-             joined_df[joined_df['geom_x'] != joined_df['geom_y']])
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
 
         assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
                             FROM information_schema.role_table_grants
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_spatial_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
-        db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_spatial_table)
         sql.query(f"""DROP TABLE IF EXISTS ##{test_sql_to_pg_qry_spatial_table}""")
 
