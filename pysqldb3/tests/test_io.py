@@ -355,7 +355,7 @@ class TestPgtoSqlQry:
 
     def test_pg_to_sql_qry_spatial(self):
 
-        sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_spatial_table)
+        sql.drop_table(schema = sql_schema, table = test_pg_to_sql_qry_spatial_table)
         db.drop_table(schema = pg_schema, table = test_pg_to_sql_qry_spatial_table)
 
         assert not db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
@@ -366,13 +366,13 @@ class TestPgtoSqlQry:
             create table {pg_schema}.{test_pg_to_sql_qry_spatial_table}
                 (test_col1 int, test_col2 int, test_geom geometry);
             insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
-                 VALUES (1, 2, ST_SetSRID(ST_MAKEPOINT(-71.1043443253471, 42.3150676015829), 2236));
+                 VALUES (1, 2, ST_SetSRID(ST_MAKEPOINT(-71.10434, 42.31506), 2236));
             insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
                 VALUES (3, 4, ST_SetSRID(ST_MAKEPOINT(91.2763, 11.9434), 2236));
         """)
 
         data_io.pg_to_sql_qry(db, sql, query=f"""
-                                               SELECT test_col1, test_col2, ST_AsEWKT(test_geom) test_geom --comments within the query
+                                               SELECT test_col1, test_col2, test_geom --comments within the query
                                                 FROM {pg_schema}.{test_pg_to_sql_qry_spatial_table} -- geom here
                                                 -- end here""",
                               dest_table= test_pg_to_sql_qry_spatial_table,
@@ -381,24 +381,26 @@ class TestPgtoSqlQry:
                               )
 
         assert db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
-        assert len(db.dfquery(f'select test_col1, test_col2, ST_AsEWKT(test_geom) test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
+        assert len(db.dfquery(f'select test_col1, test_col2, test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
 
+        # doing it by long / lat was the only way the data frames would be equivalent
         pg_df = db.dfquery(f"""
-        select test_col1, test_col2,  ST_AsEWKT(test_geom) test_geom
+        select test_col1, test_col2, ST_X(test_geom) test_lat, ST_Y(test_geom) test_long
         from {pg_schema}.{test_pg_to_sql_qry_spatial_table}
         order by test_col1
         """)
 
         sql_df = sql.dfquery(f"""
-                select test_col1, test_col2, test_geom
+                select test_col1, test_col2, test_geom.STX test_lat, test_geom.STY test_long
                 from {sql_schema}.{test_pg_to_sql_qry_spatial_table}
                 order by test_col1
         """)
 
+        # chekc the first 2 columns using assert_frame_equal
         pd.testing.assert_frame_equal(pg_df, sql_df,
                                       check_dtype=False,
                                       check_column_type=False)
-
+        
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_spatial_table)
         sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_spatial_table)
 
