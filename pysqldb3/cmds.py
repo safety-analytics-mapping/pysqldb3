@@ -127,6 +127,14 @@ PG:"host={pg_host} port={pg_port} dbname={pg_database} user={pg_user} password={
 --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
 """.replace('\n', ' ')
 
+PG_TO_SQL_QRY_CMD = r"""
+ogr2ogr --config GDAL_DATA "{gdal_data}"  -overwrite -f MSSQLSpatial 
+"MSSQL:server={ms_server};database={ms_db};UID={ms_user};PWD={ms_pass}" 
+PG:"host={pg_host} port={pg_port} dbname={pg_database} user={pg_user} password={pg_pass}" 
+-sql "{sql_select}" -lco OVERWRITE=yes -nln {ms_schema}.{dest_name} {spatial} {nlt_spatial} -progress 
+--config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
+""".replace('\n', ' ')
+
 SQL_TO_PG_LDAP_QRY_CMD = r"""
 ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "PostgreSQL" PG:"host={pg_host} 
 port={pg_port} dbname={pg_database} user={pg_user} password={pg_pass}" -f {spatial} 
