@@ -370,6 +370,9 @@ class TestPgtoSqlQry:
             insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
                 VALUES (3, 4, ST_SetSRID(ST_MAKEPOINT(91.2763, 11.9434), 2236));
         """)
+        # make sure data is in source
+        assert len(db.dfquery(
+            f'select test_col1, test_col2, test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
 
         data_io.pg_to_sql_qry(db, sql, query=f"""
                                                SELECT test_col1, test_col2, test_geom --comments within the query
@@ -379,9 +382,10 @@ class TestPgtoSqlQry:
                               dest_schema = sql_schema,                      
                               spatial = True
                               )
-
+        # check data exists in both dbs
         assert db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
-        assert len(db.dfquery(f'select test_col1, test_col2, test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
+        assert sql.table_exists(table=test_pg_to_sql_qry_spatial_table, schema=sql_schema)
+
 
         # doing it by long / lat was the only way the data frames would be equivalent
         pg_df = db.dfquery(f"""
