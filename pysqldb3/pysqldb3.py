@@ -537,7 +537,7 @@ class DbConnect:
         if not schema:
             schema = self.default_schema
 
-        return self.dfquery(f"select * from {schema}.{self.log_table}")
+        return self.dfquery(f"select * from {schema}.{self.log_table}", internal = True)
 
     def check_table_in_log(self, table_name, schema=None):
         """
@@ -547,7 +547,8 @@ class DbConnect:
         """
         if not schema:
             schema = self.default_schema
-        self.query(f"select * from {schema}.{self.log_table} where table_name = '{table_name}'")
+        self.query(f"select * from {schema}.{self.log_table} where table_name = '{table_name}'",
+                   internal = True)
 
         self.check_conn()
         return self.data
@@ -1404,7 +1405,7 @@ class DbConnect:
 
                 # Query one row to get columns
                 self.query("select {sq} * from {s}.stg_{t} {p}".format(s=schema, t=table, sq=sq, p=p), strict=False,
-                           timeme=False, internal = True)
+                           timeme=False)
 
                 column_names = self.queries[-1].data_columns
 
@@ -1470,7 +1471,7 @@ class DbConnect:
                     cols=cols
                 )
 
-                self.query(qry, timeme=False, days=days)
+                self.query(qry, timeme=False, days=days, internal = True)
             else:
                 # Move into final table from stg
                 qry = """
@@ -1483,7 +1484,7 @@ class DbConnect:
                     cols=cols
                 )
 
-                self.query(qry, timeme=False, days=days)
+                self.query(qry, timeme=False, days=days, internal = True)
 
             # Drop stg table
             self.drop_table(schema=schema, table='stg_{}'.format(table))
