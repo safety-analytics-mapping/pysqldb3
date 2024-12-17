@@ -198,9 +198,9 @@ class DbConnect:
             if not self.database:
                 self.database = input('Database name:')
             if not self.user and not self.LDAP:
-                self.user = input('User name ({}):'.format(self.database.lower()))
+                self.user = input(f'User name ({self.database.lower()}):')
             if not self.password and not self.LDAP and self.type !=AZ:
-                self.password = getpass.getpass('Password ({})'.format(self.database.lower()))
+                self.password = getpass.getpass(f'Password ({self.database.lower()})')
 
     def __connect_pg(self):
         # type: (DbConnect) -> None
@@ -358,14 +358,10 @@ class DbConnect:
         :param schema: database schema name
         :return:
         """
-        self.query("""
-            SELECT table_schema, table_name FROM {s}.{l}
-            WHERE expires < '{dt}'
-            """.format(
-            s=schema,
-            l=self.log_table,
-            dt=datetime.datetime.now().strftime('%Y-%m-%d')
-        ), timeme=False, internal=True)
+        self.query(f"""
+            SELECT table_schema, table_name FROM {schema}.{self.log_table}
+            WHERE expires < '{datetime.datetime.now().strftime('%Y-%m-%d')}'
+            """, timeme=False, internal=True)
 
         to_clean = self.__get_most_recent_query_data(internal=True)
         cleaned = 0
@@ -392,7 +388,7 @@ class DbConnect:
             if self.table_exists(self.log_table, schema=s, internal=True):
 
                 # For each table in log file check if exists
-                self.query("select table_name from {}.{}".format(s, self.log_table), timeme=False, internal=True)
+                self.query(f"select table_name from {s}.{self.log_table}", timeme=False, internal=True)
 
                 if self.__get_most_recent_query_data(internal=True):
                     for t in self.__get_most_recent_query_data(internal=True):
@@ -446,8 +442,7 @@ class DbConnect:
             if self.table_exists(self.log_table, schema=schema, internal=True):
                 # Delete from log to avoid dropping perm tables with same name
                 self.query(
-                    """DELETE FROM {s}."{tmp}" WHERE table_schema = '{s}' AND table_name = '{t}'""".format(
-                        s=schema, t=table, tmp=self.log_table),
+                    f"""DELETE FROM {schema}."{self.log_table}" WHERE table_schema = '{schema}' AND table_name = '{table}'""",
                     timeme=False, internal=True
                 )
 
@@ -577,7 +572,7 @@ class DbConnect:
         if self.type == MS:
             print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
 
-        return self.dfquery(PG_BLOCKING_QUERY % self.user)
+        return self.dfquery(PG_BLOCKING_QUERY % self.user, internal = True)
 
     def kill_blocks(self):
         # type: (DbConnect) -> None
@@ -598,7 +593,7 @@ class DbConnect:
             print('Killing %i connections' % len(pids_to_kill))
 
             for pid in tqdm(pids_to_kill):
-                self.query("""SELECT pg_terminate_backend(%i);""" % pid)
+                self.query("""SELECT pg_terminate_backend(%i);""" % pid, internal = True)
 
     def my_tables(self, schema='public'):
         # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
@@ -611,7 +606,7 @@ class DbConnect:
             print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
             return
 
-        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
+        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user), internal = True)
 
     def schema_tables(self, schema=None):
         # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
@@ -640,7 +635,7 @@ class DbConnect:
 	            left outer join {schema}.__temp_log_table_{self.user}__ l
 	            on i.TABLE_NAME = l.table_name
 	            where i.TABLE_SCHEMA = '{schema}'
-            """)
+            """, internal = True)
 
         elif self.type == 'PG':
             return self.dfquery(f"""
@@ -653,7 +648,7 @@ class DbConnect:
                 left outer join {schema}.__temp_log_table_{self.user}__ l
                     on i.tablename = l.table_name
                 where i.schemaname='{schema}'
-            """)
+            """, internal = True)
 
 
 
@@ -771,22 +766,22 @@ class DbConnect:
                       """
 
         if self.type == PG:
-            self.query("""
-            SELECT {cols}
+            self.query(f"""
+            SELECT {columns}
             FROM information_schema.columns
-            WHERE table_schema = '{s}' 
-                AND table_name = '{t}'
+            WHERE table_schema = '{schema}' 
+                AND table_name = '{table}'
             ORDER BY ordinal_position;
-            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+            """, timeme=False, internal=True)
 
         if self.type == MS:
-            self.query("""
-            SELECT {cols}
+            self.query(f"""
+            SELECT {columns}
             FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE table_schema = '{s}' 
-                AND table_name = '{t}'
+            WHERE table_schema = '{schema}' 
+                AND table_name = '{table}'
             ORDER BY ORDINAL_POSITION;
-            """.format(cols=columns, s=schema, t=table), timeme=False, internal=True)
+            """, timeme=False, internal=True)
 
         return self.__get_most_recent_query_data(internal=True)
 
@@ -871,21 +866,21 @@ class DbConnect:
             db = ''
         if self.type == PG:
             if '"' not in table:
-                self.query('DROP TABLE IF EXISTS {}."{}" {}'.format(schema, table, c),
+                self.query(f'DROP TABLE IF EXISTS {schema}."{table}" {c}',
                            timeme=False, strict=strict, internal=internal)
             else:
-                self.query('DROP TABLE IF EXISTS {}.{} {}'.format(schema, table, c),
+                self.query(f'DROP TABLE IF EXISTS {schema}.{table} {c}',
                            timeme=False, strict=strict, internal=internal)
         elif self.type == MS:
             if self.table_exists(schema=schema, table=table):
                 if '[' not in table:
-                    self.query('DROP TABLE {}{}{}.[{}] {}'.format(ser, db, schema, table, c),
+                    self.query(f'DROP TABLE {ser}{db}{schema}.[{table}] {c}',
                                timeme=False, strict=strict, internal=internal)
                 else:
-                    self.query('DROP TABLE {}{}{}.{} {}'.format(ser, db, schema, table, c),
+                    self.query(f'DROP TABLE {ser}{db}{schema}.{table} {c}',
                                timeme=False, strict=strict, internal=internal)
             else:
-                dropped_tables_list = Query.query_drops_table('DROP TABLE {}.{}'.format(schema, table), self.type)
+                dropped_tables_list = Query.query_drops_table(f'DROP TABLE {schema}.{table}', self.type)
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
 
     def rename_column(self, schema, table, old_column, new_column):
@@ -902,11 +897,9 @@ class DbConnect:
             schema = self.default_schema
 
         if self.type == PG:
-            self.query("alter table {s}.{t} rename column {o} to {n}".format(s=schema, t=table, o=old_column,
-                                                                             n=new_column))
+            self.query(f"alter table {schema}.{table} rename column {old_column} to {new_column}", internal = True)
         elif self.type == MS:
-            self.query("EXEC sp_RENAME '{s}.{t}.{o}', '{n}', 'COLUMN'".format(s=schema, t=table, o=old_column,
-                                                                              n=new_column))
+            self.query(f"EXEC sp_RENAME '{schema}.{table}.{old_column}', '{new_column}', 'COLUMN'", internal = True)
 
     def dfquery(self, query, strict=False, permission=True, temp=True, timeme=False, no_comment=False, comment='',
                 lock_table=None, days=7, internal=False):
@@ -930,7 +923,7 @@ class DbConnect:
 
     def print_last_query(self):
         """
-        Prints latst query run with basic formatting
+        Prints last query run with basic formatting
         :return: None
         """
         Query.print_query(self.last_query)
@@ -973,7 +966,7 @@ class DbConnect:
             # check if column is empty - if so force string
             s = df[col_name].value_counts()
             if s.empty:
-                col_type = 'varchar ({})'.format(allowed_length)
+                col_type = f'varchar ({allowed_length})'
 
             # autodetect date and force to text (common error)
             if 'date' in col_name.lower() and col_type in ('int', 'bigint', 'float'):
@@ -988,14 +981,13 @@ class DbConnect:
             self.drop_table(schema=schema, table=table, cascade=False)
 
         # Create table in database
-        qry = """
-                CREATE TABLE {s}.{t} (
-                {cols}
+        qry = f"""
+                CREATE TABLE {schema}.{table} (
+                {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
                 )
-        """.format(s=schema, t=table,
-                   cols=str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", ""))
+        """
 
-        self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
+        self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days, internal = True)
         return input_schema
 
     def dataframe_to_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
@@ -1035,15 +1027,13 @@ class DbConnect:
             row_values = ",".join([clean_cell(i) for i in row.values])
             row_values = row_values.replace('None', 'NULL')
 
-            self.query(u"""
-                INSERT INTO {s}.{t} ({cols})
-                VALUES ({d})
-            """.format(s=schema, t=table,
-                       cols=str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", ''),
-                       d=row_values), strict=False, timeme=False, internal = True)
+            self.query(f"""
+                INSERT INTO {schema}.{table} ({str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", '')})
+                VALUES ({row_values})
+            """, strict=False, timeme=False, internal = True)
 
-        df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False, internal = True)
-        print('\n{c} rows added to {s}.{t}\n'.format(c=df.cnt.values[0], s=schema, t=table))
+        df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema}.{table}", timeme=False, internal = True)
+        print(f'\n{df.cnt.values[0]} rows added to {schema}.{table}\n')
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
                      long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
@@ -1404,15 +1394,14 @@ class DbConnect:
                     sq, p = '', 'LIMIT 1'
 
                 # Query one row to get columns
-                self.query("select {sq} * from {s}.stg_{t} {p}".format(s=schema, t=table, sq=sq, p=p), strict=False,
+                self.query(f"select {sq} * from {schema}.stg_{table} {p}", strict=False,
                            timeme=False)
 
                 column_names = self.queries[-1].data_columns
 
                 # check for null columns
                 for c in column_names:
-                    self.query('select count(case when "{c}" is not null then 1 else null end) nnulls from {s}.stg_{t}'.
-                               format(s=schema, t=table, c=c),
+                    self.query(f'select count(case when "{c}" is not null then 1 else null end) nnulls from {schema}.stg_{table}',
                                strict=False, timeme=False, internal=True)
                     if self.internal_data[0][0] == 0:
                         self.query(
@@ -1460,52 +1449,43 @@ class DbConnect:
 
             if self.table_exists(schema=schema, table=table):
                 # Move into final table from stg
-                qry = """
-                INSERT INTO {s}.{t}
+                qry = f"""
+                INSERT INTO {schema}.{table}
                 SELECT
                 {cols}
-                FROM {s}.stg_{t}
-                """.format(
-                    s=schema,
-                    t=table,
-                    cols=cols
-                )
-
+                FROM {schema}.stg_{table}
+                """
                 self.query(qry, timeme=False, days=days, internal = True)
             else:
                 # Move into final table from stg
-                qry = """
+                qry = f"""
                 SELECT {cols}
-                INTO {s}.{t}
-                FROM {s}.stg_{t}
-                """.format(
-                    s=schema,
-                    t=table,
-                    cols=cols
-                )
+                INTO {schema}.{table}
+                FROM {schema}.stg_{table}
+                """
 
                 self.query(qry, timeme=False, days=days, internal = True)
 
             # Drop stg table
-            self.drop_table(schema=schema, table='stg_{}'.format(table))
+            self.drop_table(schema=schema, table=f'stg_{table}')
 
             # Log rows added to table
-            df = self.dfquery("SELECT COUNT(*) as cnt FROM {s}.{t}".format(s=schema, t=table), timeme=False, internal = True)
+            df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema}.{table}", timeme=False, internal = True)
 
-            print("""
-            {c} rows added to {s}.{t}. 
+            print(f"""
+            {df.cnt.values[0]} rows added to {schema}.{table}. 
             The table name may include stg_. This will not change the end result. 
-            """.format(c=df.cnt.values[0], s=schema, t=table))
+            """)
 
         except SystemExit:
             # Drop stg table
-            self.drop_table(schema=schema, table='stg_{}'.format(table))
+            self.drop_table(schema=schema, table=f'stg_{table}')
             return False
 
         except Exception as e:
             print(e)
             # Drop stg table
-            self.drop_table(schema=schema, table='stg_{}'.format(table))
+            self.drop_table(schema=schema, table=f'stg_{table}')
             return False
 
         return True
@@ -1588,7 +1568,7 @@ class DbConnect:
 
         # Ogr doesn't check overwriting; will append unless stopped.
         if self.table_exists(table=table, schema=schema) and not overwrite:
-            print('{}.{} already exists. Use overwrite=True to replace.'.format(schema, table))
+            print(f'{schema}.{table} already exists. Use overwrite=True to replace.')
             return
 
         ef = pd.ExcelFile(input_file)
@@ -1669,7 +1649,7 @@ class DbConnect:
         # If no output specified, defaults to a generic data csv name with the date
         if not output_file:
             output_file = os.path.join(os.getcwd(),
-                                       'data_{}.csv'.format(datetime.datetime.now().strftime('%Y%m%d%H%M')))
+                                       f"data_{datetime.datetime.now().strftime('%Y%m%d%H%M')}.csv")
 
         self.check_conn()
 
@@ -1784,10 +1764,9 @@ class DbConnect:
             raise RuntimeError('Please input both geom and id columns or use the built-in precinct, nta, or borough.')
 
         if geom_column and id_column:
-            query = "select *, {} as id, st_asgeojson(st_transform({}, 4326))  geojson_geometry from ({}) q".format(
-                id_column, geom_column, query)
+            query = f"select *, {id_column} as id, st_asgeojson(st_transform({geom_column}, 4326))  geojson_geometry from ({query}) q"
 
-        query_df = self.dfquery(query)
+        query_df = self.dfquery(query, internal = True)
         query_df[value_column] = query_df[value_column].astype('float')
 
         if not geom_column and not id_column:
@@ -1829,12 +1808,12 @@ class DbConnect:
                     "BOROUGH": ("borocode", "districts_boroughs"),
                 }
 
-            g_df = self.dfquery("""
+            g_df = self.dfquery(f"""
     
-            select {} as id, st_asgeojson(st_transform(geom, 4326)) geojson_geometry
-            from {}
+            select {geom_map.get(map_type)[0]} as id, st_asgeojson(st_transform(geom, 4326)) geojson_geometry
+            from {geom_map.get(map_type)[1]}
             
-            """.format(geom_map.get(map_type)[0], geom_map.get(map_type)[1]))
+            """, internal = True)
             geo_j = df_to_geojson(g_df)
         else:
             geo_j = df_to_geojson(query_df)
@@ -1904,7 +1883,7 @@ class DbConnect:
             FROM
             INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_NAME = '{tmp_table_name}'
-            """)
+            """, internal = True)
 
             cols = ['\\"' + c + '\\"' for c in list(col_df['column_name'])]
             dt_col_names = ['\\"' + c + '\\"' for c in list(
@@ -2035,22 +2014,22 @@ class DbConnect:
         if schema:
             if self.type == PG:
                 if '"' not in table:
-                    schema_table = '{}."{}"'.format(schema, table)
+                    schema_table = f'{schema}."{table}"'
                 else:
-                    schema_table = '{}.{}'.format(schema, table)
+                    schema_table = f'{schema}.{table}'
             if self.type in (MS, AZ):
                 if '[' not in table:
-                    schema_table = '{}.[{}]'.format(schema, table)
+                    schema_table = f'{schema}.[{table}]'
                 else:
-                    schema_table = '{}.{}'.format(schema, table)
+                    schema_table = f'{schema}.{table}'
         else:
-            schema_table = '{}'.format(table)
+            schema_table = f'{table}'
 
 
-        query = """
+        query = f"""
         select *
-        from {}
-        """.format(schema_table)
+        from {schema_table}
+        """
 
         self.check_conn()
 
@@ -2266,7 +2245,7 @@ class DbConnect:
                                                     FROM information_schema.COLUMNS 
                                                     WHERE lower(TABLE_NAME)=lower('{table}')
                                                     and table_schema = '{schema}'
-                                                    AND DATA_TYPE = 'geometry' """).values[0][0]
+                                                    AND DATA_TYPE = 'geometry' """, internal = True).values[0][0]
 
                         if geom_output != 'geom':      
                             self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'", internal = True)
@@ -2280,7 +2259,7 @@ class DbConnect:
                                         WHERE data_type = 'USER-DEFINED'
                                         AND lower(TABLE_NAME)=lower('{table}')
                                         AND table_schema = '{schema}'
-                                """).values[0][0]
+                                """, internal = True).values[0][0]
                     
                         if geom_output != 'geom':
                             self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
@@ -2304,7 +2283,7 @@ class DbConnect:
                                                 FROM information_schema.COLUMNS 
                                                 WHERE lower(TABLE_NAME)=lower('{table}')
                                                 and table_schema = '{schema}'
-                                                AND DATA_TYPE = 'geometry' """).values[0][0]
+                                                AND DATA_TYPE = 'geometry' """, internal = True).values[0][0]
 
                     if geom_output != 'geom':      
                         self.query(f"EXEC sp_rename '{schema}.{table}.{geom_output}', 'geom', 'COLUMN'", internal = True)
