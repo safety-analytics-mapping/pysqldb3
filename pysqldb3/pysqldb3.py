@@ -319,13 +319,7 @@ class DbConnect:
         try:
             self.conn.close()
             if not quiet and not self.quiet:
-                print('Database connection ({typ}) to {db} on {srv} - user: {usr} \nConnection closed {dt}'.format(
-                    typ=self.type,
-                    db=self.database,
-                    srv=self.server,
-                    usr=self.user,
-                    dt=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                ))
+                print(f"Database connection ({self.type}) to {self.database} on {self.server} - user: {self.user} \nConnection closed {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         except Exception as e:
             print(e)
             return
@@ -1260,12 +1254,11 @@ class DbConnect:
             self.drop_table(schema=schema, table=table, cascade=False)
 
         # Create table in database
-        qry = """
-                CREATE TABLE {s}.{t} (
-                {cols}
+        qry = f"""
+                CREATE TABLE {schema}.{table} (
+                {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
                 )
-        """.format(s=schema, t=table,
-                   cols=str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", ""))
+        """
 
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema
@@ -1395,9 +1388,9 @@ class DbConnect:
 
                 # Query one row to get columns
                 self.query(f"select {sq} * from {schema}.stg_{table} {p}", strict=False,
-                           timeme=False)
+                           timeme=False, internal = True)
 
-                column_names = self.queries[-1].data_columns
+                column_names = self.internal_queries[-1].data_columns
 
                 # check for null columns
                 for c in column_names:
@@ -1405,8 +1398,7 @@ class DbConnect:
                                strict=False, timeme=False, internal=True)
                     if self.internal_data[0][0] == 0:
                         self.query(
-                            'alter table {s}.{t} alter "{c}" type varchar'.format(
-                                s=schema, t=table, c=c),
+                            f'alter table {schema}.{table} alter "{c}" type varchar',
                             strict=False, timeme=False, internal=True)
 
                 # fix datatype issues
