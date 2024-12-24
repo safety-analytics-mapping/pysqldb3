@@ -27,11 +27,6 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-# ldap_sql = pysqldb.DbConnect(type='MS',
-#                              database='CLION',
-#                              server='DOTGISSQL01',
-#                              ldap=True)
-
 test_table = f'__testing_query_to_shp_{db.user}__'
 ms_schema = 'risadmin'
 pg_schema = 'working'
@@ -249,7 +244,7 @@ class TestTableToShpMs:
                     (id, txt, dte, geom)
                      VALUES (1, 'test text', CURRENT_TIMESTAMP,
                      geometry::Point(1015329.1, 213793.1, 2263))
-                """.format(s=ms_schema, t=test_table))
+                """)
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to shp
@@ -271,4 +266,3 @@ class TestTableToShpMs:
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
         sql.drop_table(schema = ms_schema, table = sql.log_table)
         sql.cleanup_new_tables()
-        # helpers.clean_up_schema(sql, schema=ms_schema)

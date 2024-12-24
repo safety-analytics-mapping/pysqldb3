@@ -28,90 +28,91 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-test_table = 'pytest_{}'.format(db.user)
-test_table2 = 'Pytest_{}'.format(db.user)
-test_table3 = '3Pytest_{}'.format(db.user)
+test_table = f'pytest_{db.user}'
+test_table2 = f'Pytest_{db.user}'
+test_table3 = f'3Pytest_{db.user}'
 
+pg_schema = 'working'
 
 class TestTableExistsPG():
 
     def test_table_exists_pg_public_create(self):
-        db.query("""
-            drop table if exists {};
-            create table {} (id integer)
-        """.format(test_table, test_table))
+        db.query(f"""
+            drop table if exists {test_table};
+            create table {test_table} (id integer)
+        """)
 
         assert db.table_exists(test_table)
 
-        db.query("""
-            drop table if exists {}
-        """.format(test_table))
+        db.query(f"""
+            drop table if exists {test_table}
+        """)
 
     def test_table_exists_pg_public_drop(self):
-        db.query("""
-             drop table if exists {};
-             create table {} (id integer)
-         """.format(test_table, test_table))
+        db.query(f"""
+             drop table if exists {test_table};
+             create table {test_table} (id integer)
+         """)
 
         assert db.table_exists(test_table)
 
-        db.query("""
-             drop table if exists {}
-         """.format(test_table))
+        db.query(f"""
+             drop table if exists {test_table}
+         """)
 
         assert not db.table_exists(test_table)
 
     def test_table_exists_pg_working_create(self):
-        ris_db.query("""
-            drop table if exists working.{};
-            create table working.{} (id integer)
-        """.format(test_table, test_table))
+        ris_db.query(f"""
+            drop table if exists {pg_schema}.{test_table};
+            create table {pg_schema}.{test_table} (id integer)
+        """)
 
-        assert ris_db.table_exists(schema='working', table=test_table)
+        assert ris_db.table_exists(schema=pg_schema, table=test_table)
 
-        ris_db.drop_table(schema='working', table=test_table)
+        ris_db.drop_table(schema=pg_schema, table=test_table)
 
     def test_table_exists_pg_rename(self):
         renamed_test_table = test_table + "_renamed"
 
-        ris_db.query("""
-        drop table if exists working.{};
-        drop table if exists working.{};
-        create table working.{} (id integer);
-        """.format(renamed_test_table, test_table, test_table))
+        ris_db.query(f"""
+        drop table if exists {pg_schema}.{renamed_test_table};
+        drop table if exists {pg_schema}.{test_table};
+        create table {pg_schema}.{test_table} (id integer);
+        """)
 
-        assert ris_db.table_exists(schema='working', table=test_table)
+        assert ris_db.table_exists(schema=pg_schema, table=test_table)
 
-        ris_db.query("""
-            alter table working.{} rename to {}
-        """.format(test_table, renamed_test_table))
+        ris_db.query(f"""
+            alter table {pg_schema}.{test_table} rename to {renamed_test_table}
+        """)
 
-        assert not ris_db.table_exists(schema='working', table=test_table)
-        assert ris_db.table_exists(schema='working', table=renamed_test_table)
+        assert not ris_db.table_exists(schema=pg_schema, table=test_table)
+        assert ris_db.table_exists(schema=pg_schema, table=renamed_test_table)
 
-        ris_db.drop_table(schema='working', table=renamed_test_table)
+        ris_db.drop_table(schema=pg_schema, table=renamed_test_table)
 
     def test_table_exists_pg_working_drop(self):
         renamed_test_table = test_table + "_renamed"
 
-        ris_db.query("""
-        drop table if exists working.{};
-        drop table if exists working.{};
+        ris_db.query(f"""
+        drop table if exists {pg_schema}.{renamed_test_table};
+        drop table if exists {pg_schema}.{test_table};
         
-        create table working.{} (id integer);
+        create table {pg_schema}.{renamed_test_table} (id integer);
 
-        alter table working.{} rename to {};
-        """.format(renamed_test_table, test_table, renamed_test_table, renamed_test_table, test_table))
+        alter table {pg_schema}.{renamed_test_table} rename to {test_table};
+        """)
 
-        assert ris_db.table_exists(schema='working', table=test_table)
-        assert not ris_db.table_exists(schema='working', table=renamed_test_table)
+        assert ris_db.table_exists(schema=pg_schema, table=test_table)
+        assert not ris_db.table_exists(schema=pg_schema, table=renamed_test_table)
 
-        ris_db.query("""
-        drop table working.{};
-        drop table if exists working.{}
-        """.format(test_table, renamed_test_table))
+        ris_db.query(f"""
+        drop table {pg_schema}.{test_table};
+        drop table if exists {pg_schema}.{renamed_test_table}
+        """)
 
-        assert not ris_db.table_exists(schema='working', table=test_table)
+        assert not ris_db.table_exists(schema=pg_schema, table=test_table)
 
     def test_table_exists_pg_temp_create(self):
         ris_db.query("""create temp table bf_pytest (id integer); """)
@@ -154,9 +155,9 @@ class TestTableExistsMS():
     def test_table_exists_ms_create(self):
         sql.drop_table(schema=sql.default_schema, table=test_table)
 
-        sql.query("""
-            create table {} (id integer) 
-        """.format(test_table))
+        sql.query(f"""
+            create table {test_table} (id integer) 
+        """)
 
         assert sql.table_exists(test_table)
 
@@ -168,15 +169,15 @@ class TestTableExistsMS():
         sql.drop_table(schema=sql.default_schema, table=renamed_test_table)
         sql.drop_table(schema=sql.default_schema, table=test_table)
 
-        sql.query("""
-            create table {} (id integer) 
-        """.format(test_table))
+        sql.query(f"""
+            create table {test_table} (id integer) 
+        """)
 
         assert sql.table_exists(test_table)
 
-        sql.query("""
-            sp_rename {}, {}
-        """.format(test_table, renamed_test_table))
+        sql.query(f"""
+            sp_rename {test_table}, {renamed_test_table}
+        """)
 
         assert not sql.table_exists(test_table)
         assert sql.table_exists(renamed_test_table)
@@ -190,17 +191,17 @@ class TestTableExistsMS():
         sql.drop_table(schema=sql.default_schema, table=test_table)
         sql.drop_table(schema=sql.default_schema, table=renamed_test_table)
 
-        sql.query("""
-            create table {} (id integer) 
-        """.format(renamed_test_table))
+        sql.query(f"""
+            create table {renamed_test_table} (id integer) 
+        """)
 
         assert not sql.table_exists(test_table)
         assert sql.table_exists(renamed_test_table)
 
-        sql.query("""
-            sp_rename {}, {};
-            drop table {};
-        """.format(renamed_test_table, test_table, test_table))
+        sql.query(f"""
+            sp_rename {renamed_test_table}, {test_table};
+            drop table {test_table};
+        """)
 
         assert not sql.table_exists(test_table)
 

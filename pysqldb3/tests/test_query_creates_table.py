@@ -282,7 +282,6 @@ class TestQueryCreatesTablesSql():
                     drop table temp1
                     end
                 """
-        print(query.Query.query_creates_table(query_string, 'dbo', MS))
         assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None, None, 'dbo','temp1')]
 
     def test_query_creates_table_temp_table(self):
@@ -728,7 +727,6 @@ class TestQueryCreatesTablesPgSql():
                                     end;
                                     $$;
                                    """
-        print(query.Query.query_creates_table(query_string, 'public', PG))
         assert query.Query.query_creates_table(query_string, 'public', PG) == []
 
     def test_query_creates_table_temp_table(self):
@@ -758,7 +756,6 @@ class TestQueryCreatesTablesPgSql():
                INTO working.test2
                FROM working.test1
            """
-        print(query.Query.query_creates_table(query_string, 'public', PG))
         assert query.Query.query_creates_table(query_string, 'public', PG) == [(None, None, 'working','test2')]
 
         query_string = """
