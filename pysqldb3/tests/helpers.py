@@ -250,33 +250,6 @@ def clean_up_feature_class():
     # os.remove(os.path.join(fldr, gdb))
     os.rmdir(fldr)
 
-# def set_up_fc_and_shapefile():
-#     """
-#     Builds file gdb with a feature class with sample data
-#     Builds a shapefile for import
-#     :return:
-#     """
-#     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-#     set_up_feature_class()
-#
-#     print 'Deleting any existing shp'
-#     shp = 'test_feature_class.shp'
-#     Delete_management(os.path.join(fldr, shp))
-#
-#     print 'Building shapefile'
-#     FeatureClassToShapefile_conversion(["test_feature_class"], fldr)
-#
-#
-# def clean_up_fc_and_shapefile():
-#     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
-#     gdb = "fGDB.gdb"
-#     shp = 'test_feature_class.shp'
-#
-#     Delete_management(os.path.join(fldr, gdb))
-#     Delete_management(os.path.join(fldr, shp))
-#     print 'Deleted ESRI sample files'
-#
-#
 def set_up_shapefile():
     data = {
         'gid': {0: 1, 1: 2},
