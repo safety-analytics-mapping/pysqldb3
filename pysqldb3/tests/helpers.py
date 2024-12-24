@@ -100,20 +100,20 @@ def set_up_test_table_sql(sql, schema='dbo'):
 
     Uses random to make randomly generated inputs.
     """
-    table_name = 'sql_test_table_{}'.format(sql.user)
+    table_name = f'sql_test_table_{sql.user}'
 
     if sql.table_exists(table=table_name, schema=schema):
         return
 
-    sql.query("""
-    create table {s}.{t} (test_col1 int, test_col2 int, geom geometry);
-    insert into {s}.{t} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-    insert into {s}.{t} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
-    """.format(s=schema, t=table_name))
+    sql.query(f"""
+    create table {schema}.{table_name} (test_col1 int, test_col2 int, geom geometry);
+    insert into {schema}.{table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+    insert into {schema}.{table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+    """)
 
 
 def clean_up_test_table_sql(sql, schema='dbo'):
-    table_name = 'sql_test_table_{}'.format(sql.user)
+    table_name = f'sql_test_table_{sql.user}'
     sql.drop_table(table=table_name, schema=schema)
 
 
@@ -123,14 +123,14 @@ def set_up_test_table_pg(db, schema='working'):
 
     Uses random to make randomly generated inputs.
     """
-    table_name = 'pg_test_table_{}'.format(db.user)
+    table_name = f'pg_test_table_{db.user}'
 
     if db.table_exists(table=table_name, schema=schema):
         return
 
-    db.query("""
-    create table {}.{}(id int, test_col1 int, test_col2 int, geom geometry);
-    """.format(schema, table_name))
+    db.query(f"""
+    create table {schema}.{table_name}(id int, test_col1 int, test_col2 int, geom geometry);
+    """)
 
     for i in range(0, 1000):
         c1 = random.randint(0, 10000)
@@ -142,14 +142,14 @@ def set_up_test_table_pg(db, schema='working'):
         lat = 40.7 + dec_lat
         lon = -74 + dec_lon
 
-        db.query("""
-        INSERT INTO {}.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
-        """.format(schema, table_name, i, c1, c2, lat, lon))
+        db.query(f"""
+        INSERT INTO {schema}.{table_name} values
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat}, {lon}), 4326))
+        """)
 
 
 def clean_up_test_table_pg(db):
-    table_name = 'pg_test_table_{}'.format(db.user)
+    table_name = f'pg_test_table_{db.user}'
     db.drop_table(table=table_name, schema='working')
 
 
@@ -159,8 +159,8 @@ def set_up_two_test_tables_pg(db):
 
     Uses random to make randomly generated inputs.
     """
-    table_name = 'pg_test_table_{}'.format(db.user)
-    table_name2 = 'pg_test_table_{}_2'.format(db.user)
+    table_name = f'pg_test_table_{db.user}'
+    table_name2 = f'pg_test_table_{db.user}_2'
 
     if db.table_exists(table=table_name, schema='working') and \
             db.table_exists(table=table_name2, schema='working'):
@@ -169,13 +169,13 @@ def set_up_two_test_tables_pg(db):
         db.drop_table(table=table_name, schema='working')
         db.drop_table(table=table_name2, schema='working')
 
-    db.query("""
-    create table working.{}(id int, test_col1 int, test_col2 int, geom geometry);
-    """.format(table_name))
+    db.query(f"""
+    create table working.{table_name}(id int, test_col1 int, test_col2 int, geom geometry);
+    """)
 
-    db.query("""
-    create table working.{}(id int, test_col1 int, test_col2 int, geom geometry);
-    """.format(table_name2))
+    db.query(f"""
+    create table working.{table_name2}(id int, test_col1 int, test_col2 int, geom geometry);
+    """)
 
     for i in range(0, 10000):
         c1 = random.randint(0, 10000)
@@ -193,15 +193,15 @@ def set_up_two_test_tables_pg(db):
         lat2 = 40.7 + dec_lat2
         lon2 = -74 + dec_lon2
 
-        db.query("""
-        INSERT INTO working.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
-        """.format(table_name, i, c1, c2, lat, lon))
+        db.query(f"""
+        INSERT INTO working.{table_name} values
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat}, {lon}), 4326))
+        """)
 
-        db.query("""
-        INSERT INTO working.{} values
-        ({}, {}, {}, ST_SetSRID(ST_MakePoint({}, {}), 4326))
-        """.format(table_name2, i, c1, c2, lat2, lon2))
+        db.query(f"""
+        INSERT INTO working.{table_name2} values
+        ({i}, {c1}, {c2}, ST_SetSRID(ST_MakePoint({lat2}, {lon2}), 4326))
+        """)
 
 
 def clean_up_two_test_tables_pg(db):
