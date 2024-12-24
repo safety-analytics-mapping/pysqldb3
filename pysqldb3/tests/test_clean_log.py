@@ -20,333 +20,279 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-test_clean_up_new_table = 'test_new_table_testing_{}'.format(db.user)
-test_clean_up_new_table2 = 'test_new_table_testing_{}_2'.format(db.user)
-
+test_clean_up_new_table = f'test_new_table_testing_{db.user}'
+test_clean_up_new_table2 = f'test_new_table_testing_{db.user}_2'
+pg_schema = 'public'
+ms_schema = sql.default_schema
 
 class TestCleanUpNewTablesPg:
     def test_clean_up_new_tables_basic(self):
-        schema = 'public'
-        # make sure table doesnt exists
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        # make sure table doesnt exist
+        db.drop_table(table=test_clean_up_new_table, schema=pg_schema)
         # create table
-        db.query("""
-            CREATE TABLE {} (
+        db.query(f"""
+            CREATE TABLE {test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-        """.format(test_clean_up_new_table))
+        """)
         # make sure table was created
-        assert db.table_exists(test_clean_up_new_table, schema=schema)
+        assert db.table_exists(test_clean_up_new_table, schema=pg_schema)
         # make sure table was added to log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert db.data
         # drop table
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        db.drop_table(table=test_clean_up_new_table, schema=pg_schema)
         # check table is no longer in the log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not db.data
 
     def test_clean_up_new_tables_schema(self):
-        schema = 'public'
-        # make sure table doesnt exists
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        # make sure table doesnt exist
+        db.drop_table(table=test_clean_up_new_table, schema=pg_schema)
         # create table
-        db.query("""
-            CREATE TABLE {}.{} (
+        db.query(f"""
+            CREATE TABLE {pg_schema}.{test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-        """.format(schema, test_clean_up_new_table))
+        """)
         # make sure table was created
-        assert db.table_exists(test_clean_up_new_table, schema=schema)
+        assert db.table_exists(test_clean_up_new_table, schema=pg_schema)
         # make sure table was added to log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert db.data
         # drop table
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        db.drop_table(table=test_clean_up_new_table, schema=ms_schema)
         # check table is no longer in the log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table
-        ))
+        db.query(f"select * from {ms_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not db.data
 
     def test_clean_up_new_tables_schema_single_statement(self):
-        schema = 'public'
         # create table-drop-create
-        db.query("""
-            drop table if exists {s}.{t};
-            CREATE TABLE {s}.{t} (
+        db.query(f"""
+            drop table if exists {pg_schema}.{test_clean_up_new_table};
+            CREATE TABLE {pg_schema}.{test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-            drop table if exists {s}.{t};
-        """.format(s=schema, t=test_clean_up_new_table))
+            drop table if exists {pg_schema}.{test_clean_up_new_table};
+        """)
         # make sure table was dropped
-        assert not db.table_exists(test_clean_up_new_table, schema=schema)
+        assert not db.table_exists(test_clean_up_new_table, schema=pg_schema)
         # check table is no longer in the log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not db.data
 
     def test_clean_up_new_tables_rename(self):
-        schema = 'public'
-        # make sure table doesnt exists
-        db.drop_table(table=test_clean_up_new_table, schema=schema)
+        # make sure table doesnt exist
+        db.drop_table(table=test_clean_up_new_table, schema=pg_schema)
         # create table
-        db.query("""
-            CREATE TABLE {} (
+        db.query(f"""
+            CREATE TABLE {test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-        """.format(test_clean_up_new_table))
+        """)
         # make sure table was created
-        assert db.table_exists(test_clean_up_new_table, schema=schema)
+        assert db.table_exists(test_clean_up_new_table, schema=pg_schema)
         # make sure table was added to log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert db.data
         # rename table
-        db.drop_table(schema, test_clean_up_new_table2)
-        db.query("alter table {s}.{t1} rename to {t2}".format(s=schema, t1=test_clean_up_new_table,
-                                                              t2=test_clean_up_new_table2))
+        db.drop_table(pg_schema, test_clean_up_new_table2)
+        db.query(f"alter table {pg_schema}.{test_clean_up_new_table} rename to {test_clean_up_new_table2}" )
         # make sure table was created
-        assert db.table_exists(test_clean_up_new_table2, schema=schema)
+        assert db.table_exists(test_clean_up_new_table2, schema=pg_schema)
         # make sure log was updated
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not db.data
 
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table2
-        ))
-        print(db.queries[-1].renamed_tables)
-        print(db.data)
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table2}'")
         assert db.data
 
         # drop table
-        db.drop_table(table=test_clean_up_new_table2, schema=schema)
+        db.drop_table(table=test_clean_up_new_table2, schema=pg_schema)
         # check table is no longer in the log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=test_clean_up_new_table2
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table2}'")
         assert not db.data
 
     def test_clean_up_new_tables_temp(self):
-        schema = 'public'
-        table_name = 'test_new_table_92820_testing'
-        db.query("""
-            CREATE TEMPORARY TABLE {} (
+        db.query(f"""
+            CREATE TEMPORARY TABLE {test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-        """.format(table_name))
-        db.query(""" INSERT INTO {}
+        """)
+        db.query(f""" INSERT INTO {test_clean_up_new_table}
             VALUES (1, 'test', now())
-            """.format(table_name))
+            """)
 
         # make sure table was created - table exists wont work on temp tables
-        db.query("select * from %s" % table_name)
+        db.query(f"select * from %s" % test_clean_up_new_table)
         assert db.data
         # make sure table was not added to log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=table_name
-        ))
+        db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not db.data
 
     def test_clean_up_rename_tables_temp(self):
-        schema = 'public'
-        table_name = 'test_new_table_92820_testing'
-        db.query("drop table if exists %s" % table_name)
-        db.query("""
-            CREATE TEMPORARY TABLE {} (
+
+        db.query("drop table if exists %s" % test_clean_up_new_table)
+        db.query(f"""
+            CREATE TEMPORARY TABLE {test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 timestamp
             );
-        """.format(table_name))
-        db.query(""" INSERT INTO {}
+        """)
+        db.query(f""" INSERT INTO {test_clean_up_new_table}
             VALUES (1, 'test', now())
-            """.format(table_name))
+            """)
 
         # make sure table was created - table exists wont work on temp tables
-        db.query("select * from %s" % table_name)
+        db.query("select * from %s" % test_clean_up_new_table)
         assert db.data
         # make sure table was not added to log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=table_name
-        ))
+        db.query(f"select * from {ms_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not db.data
 
         # rename table
-        db.query("alter table {} rename to {}".format(table_name, table_name+'_2'))
+        db.query(f"alter table {test_clean_up_new_table} rename to {test_clean_up_new_table2}")
         # make sure table was created - table exists wont work on temp tables
-        db.query("select * from %s" % table_name+'_2')
+        db.query(f"select * from %s" % test_clean_up_new_table2)
         assert db.data
         # make sure table was not added to log
-        db.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=db.user, t=table_name+'_2'
-        ))
+        db.query(f"select * from {ms_schema}.__temp_log_table_{db.user}__ where table_name = '{test_clean_up_new_table2}'")
         assert not db.data
 
+    def cleanup_tables():
+        db.cleanup_new_tables()
 
 class TestCleanUpNewTablesMs:
     def test_clean_up_new_tables_basic(self):
-        schema = sql.default_schema
-        # make sure table doesnt exists
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        # make sure table doesnt exist
+        sql.drop_table(table=test_clean_up_new_table, schema=ms_schema)
         # create table
-        sql.query("""
-            CREATE TABLE {} (
+        sql.query(f"""
+            CREATE TABLE {test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-        """.format(test_clean_up_new_table))
+        """)
         # make sure table was created
-        assert sql.table_exists(test_clean_up_new_table, schema=schema)
+        assert sql.table_exists(test_clean_up_new_table, schema=ms_schema)
         # make sure table was added to log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert sql.data
         # drop table
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        sql.drop_table(table=test_clean_up_new_table, schema=ms_schema)
         # check table is no longer in the log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not sql.data
 
     def test_clean_up_new_tables_schema(self):
-        schema = sql.default_schema
-        # make sure table doesnt exists
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        # make sure table doesnt exist
+        sql.drop_table(table=test_clean_up_new_table, schema=ms_schema)
         # create table
-        sql.query("""
-            CREATE TABLE {}.{} (
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-        """.format(schema, test_clean_up_new_table))
+        """)
         # make sure table was created
-        assert sql.table_exists(test_clean_up_new_table, schema=schema)
+        assert sql.table_exists(test_clean_up_new_table, schema=ms_schema)
         # make sure table was added to log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert sql.data
         # drop table
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+        sql.drop_table(table=test_clean_up_new_table, schema=ms_schema)
         # check table is no longer in the log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not sql.data
 
     def test_clean_up_new_tables_rename(self):
-        schema=sql.default_schema
-        # make sure table doesnt exists
-        sql.drop_table(table=test_clean_up_new_table, schema=schema)
+
+        # make sure table doesnt exist
+        sql.drop_table(table=test_clean_up_new_table, schema=ms_schema)
         # create table
-        sql.query("""
-            CREATE TABLE {} (
+        sql.query(f"""
+            CREATE TABLE {test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-        """.format(test_clean_up_new_table))
+        """)
         # make sure table was created
-        assert sql.table_exists(test_clean_up_new_table, schema=schema)
+        assert sql.table_exists(test_clean_up_new_table, schema=ms_schema)
         # make sure table was added to log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert sql.data
         # rename table
-        sql.drop_table(schema, test_clean_up_new_table2)
-        sql.query("exec sp_rename '{s}.{t1}', '{t2}'".format(s=schema, t1=test_clean_up_new_table,
-                                                             t2=test_clean_up_new_table2))
+        sql.drop_table(ms_schema, test_clean_up_new_table2)
+        sql.query(f"exec sp_rename '{ms_schema}.{test_clean_up_new_table}', '{test_clean_up_new_table2}'")
 
         # make sure log was updated
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not sql.data
 
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table2
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table2}'")
         assert sql.data
 
         # drop table
-        sql.drop_table(table=test_clean_up_new_table2, schema=schema)
+        sql.drop_table(table=test_clean_up_new_table2, schema=ms_schema)
         # check table is no longer in the log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table2
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table2}'")
         assert not sql.data
 
     def test_clean_up_new_tables_temp(self):
-        schema=sql.default_schema
-        table_name = 'test_new_table_92820_testing'
-        sql.query("""
-            CREATE TABLE #{} (
+        sql.query(f"""
+            CREATE TABLE #{test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-        """.format(table_name))
-        sql.query(""" INSERT INTO #{}
+        """)
+        sql.query(f""" INSERT INTO #{test_clean_up_new_table}
             VALUES (1, 'test', current_timestamp)
-            """.format(table_name))
+            """)
 
         # make sure table was created - table exists wont work on temp tables
-        sql.query("select * from #%s" % table_name)
+        sql.query("select * from #%s" % test_clean_up_new_table)
         assert sql.data
         # make sure table was not added to log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=table_name
-        ))
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not sql.data
 
     def test_clean_up_new_tables_schema_single_statement(self):
-        schema = sql.default_schema
+        
         # create initial table
-        sql.query("""
-                   CREATE TABLE {s}.{t} (
+        sql.query(f"""
+                   CREATE TABLE {ms_schema}.{test_clean_up_new_table} (
                        id int
-                   );""".format(s=schema, t=test_clean_up_new_table))
+                   );""")
         # create table-drop-create
-        sql.query("""
-            drop table {s}.{t};
-            CREATE TABLE {s}.{t} (
+        sql.query(f"""
+            drop table {ms_schema}.{test_clean_up_new_table};
+            CREATE TABLE {ms_schema}.{test_clean_up_new_table} (
                 id int,
                 column2 text,
                 column3 datetime
             );
-            drop table {s}.{t};
-        """.format(s=schema, t=test_clean_up_new_table))
+            drop table {ms_schema}.{test_clean_up_new_table};
+        """)
         # make sure table was dropped
-        assert not sql.table_exists(test_clean_up_new_table, schema=schema)
+        assert not sql.table_exists(test_clean_up_new_table, schema=ms_schema)
         # check table is no longer in the log
-        sql.query("select * from {schema}.__temp_log_table_{uname}__ where table_name = '{t}'".format(
-            schema=schema, uname=sql.user, t=test_clean_up_new_table
-        ))
-        print(sql.data)
+        sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_clean_up_new_table}'")
         assert not sql.data
+
+    def cleanup_tables():
+        sql.cleanup_new_tables()
