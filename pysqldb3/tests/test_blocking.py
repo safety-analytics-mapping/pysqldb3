@@ -27,32 +27,32 @@ db3 = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                         user=config.get('PG_DB', 'DB_USER'),
                         password=config.get('PG_DB', 'DB_PASSWORD'))
 
-pg_table_name = 'pg_test_table_{}'.format(db.user)
-pg_table_name2 = 'pg_test_table_{}_2'.format(db.user)
-create_table_name = 'long_time_table_{}'.format(db.user)
-
+pg_table_name = f'pg_test_table_{db.user}'
+pg_table_name2 = f'pg_test_table_{db.user}_2'
+create_table_name = f'long_time_table_{db.user}'
+pg_schema = 'working'
 
 def blockfunc1():
     """
     This function intentionally uses a cartesian join to take a long time.
     """
     try:
-        db.query("""
+        db.query(f"""
         --IntentionalBlockingQuery    
-        insert into working.{}  
+        insert into {pg_schema}.{create_table_name}  
         select distinct n.id
         from (
-        select * 
-        from working.{}
-        limit 10000
-        ) l 
+            select * 
+            from {pg_schema}.{pg_table_name}
+            limit 10000
+            ) l 
         join (
-        select * 
-        from working.{}
-        limit 10000
-        ) n
+            select * 
+            from {pg_schema}.{pg_table_name2}
+            limit 10000
+            ) n
         on st_intersects(l.geom, n.geom);
-       """.format(create_table_name, pg_table_name, pg_table_name2))
+       """)
     except Exception as e:
         print(e)
 
@@ -62,12 +62,12 @@ def blockfunc2():
     This function intentionally uses a lock to try to cause a block.
     """
     time.sleep(1)
-    db2.query("""
-    LOCK TABLE working.{} IN ACCESS EXCLUSIVE MODE;
+    db2.query(f"""
+    LOCK TABLE {pg_schema}.{create_table_name} IN ACCESS EXCLUSIVE MODE;
 
     select * 
-    from working.{}
-    """.format(create_table_name, create_table_name))
+    from {pg_schema}.{create_table_name}
+    """)
 
 
 def blockfunc3(q):
@@ -108,23 +108,23 @@ class TestBlocking:
         Create new shell of table
         """
         q = Queue()
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
-        db.query("""
-        create table working.{} as 
+        db.query(f"""
+        create table {pg_schema}.{create_table_name} as 
         select distinct n.id
         from (
-        select * 
-        from working.{}
-        limit 1
-        ) l 
+            select * 
+            from {pg_schema}.{pg_table_name}
+            limit 1
+            ) l 
         join (
-        select * 
-        from working.{}
-        limit 1
-        ) n
+            select * 
+            from {pg_schema}.{pg_table_name2}
+            limit 1
+            ) n
         on st_intersects(l.geom, n.geom);
-        """.format(create_table_name, pg_table_name, pg_table_name2))
+        """)
 
         """
         Run queries in parallel
@@ -154,7 +154,7 @@ class TestBlocking:
         """
         Cleanup
         """
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema= pg_schema, table=create_table_name)
 
     def test_kill_blocks(self):
         """
@@ -168,23 +168,23 @@ class TestBlocking:
         Create new shell of table
         """
         q = Queue()
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
-        db.query("""
-        create table working.{} as 
+        db.query(f"""
+        create table {pg_schema}.{create_table_name} as 
         select distinct n.id
         from (
-        select * 
-        from working.{}
-        limit 1
-        ) l 
+            select * 
+            from {pg_schema}.{ pg_table_name}
+            limit 1
+            ) l 
         join (
-        select * 
-        from working.{}
-        limit 1
-        ) n
+            select * 
+            from {pg_schema}.{pg_table_name2}
+            limit 1
+            ) n
         on st_intersects(l.geom, n.geom);
-        """.format(create_table_name, pg_table_name, pg_table_name2))
+        """)
 
         """
         Run queries in parallel
@@ -214,13 +214,13 @@ class TestBlocking:
         """
         Confirms no records were added to created table, meaning the insert query was killed successfully.
         """
-        end_result_df = db.dfquery("""select * from working.{}""".format(create_table_name))
+        end_result_df = db.dfquery(f"""select * from {pg_schema}.{create_table_name}""")
         assert len(end_result_df) <= 1
 
         """
         Cleanup
         """
-        db.drop_table(schema='working', table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     @classmethod
     def teardown_class(cls):
