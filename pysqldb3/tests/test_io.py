@@ -1529,13 +1529,18 @@ class TestSqlToSqlQry:
 
         geometry_table = sql.dfquery(f"""
 
-                create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4), geom geometry);
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
+                create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4), ogr_geometry geometry);
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
 
-                select * from {test_org_schema}.{test_sql_to_sql_tbl_from};
+                select  test_col1,
+                        test_col2,
+                        test_col3,
+                        ogr_geometry.STX long,
+                        ogr_geometry.STY lat
+                        from {test_org_schema}.{test_sql_to_sql_tbl_from};
                 """)
         
         # assert that the new table is created
@@ -1548,13 +1553,16 @@ class TestSqlToSqlQry:
                         org_table = test_sql_to_sql_tbl_from,
                         dest_schema = test_dest_schema,
                         dest_table = test_sql_to_sql_tbl_to,
+                        spatial = True,
                         print_cmd = True)
 
         # assert that resulting sql table was created
         assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema=test_dest_schema)
 
         # geom field moved to 1st column by gdal or sql default behavior so set column order
-        output_table = sql2.dfquery(f"select test_col1, test_col2, test_col3, geom from {test_dest_schema}.{test_sql_to_sql_tbl_to};")
+        output_table = sql2.dfquery(f"""
+                                        select test_col1, test_col2, test_col3,  ogr_geometry.STX long, ogr_geometry.STY lat
+                                        from {test_dest_schema}.{test_sql_to_sql_tbl_to};""")
 
         # assert that the input and output tables are the same
         assert set(geometry_table.columns) == set(output_table.columns)
@@ -1575,14 +1583,17 @@ class TestSqlToSqlQry:
 
         # create table
         reference_table = sql.dfquery(f"""
-            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, [t.txt] text, [1t txt] text, [t_txt] text, dte datetime, geom geometry);
+            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, [t.txt] text, [1t txt] text, [t_txt] text, dte datetime, ogr_geometry geometry);
 
             INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
-            (id, [t.txt], [1t txt], [t_txt], dte, geom)
+            (id, [t.txt], [1t txt], [t_txt], dte, ogr_geometry)
             VALUES (1, 'test text','test text','test text', CURRENT_TIMESTAMP,
             geometry::Point(1015329.1, 213793.1, 2263 ));
 
-            select * from {test_org_schema}.{test_sql_to_sql_tbl_from};
+            select id, [t.txt], [1t txt], [t_txt], dte, 
+                ogr_geometry.STX long,
+                ogr_geometry.STY lat
+              from {test_org_schema}.{test_sql_to_sql_tbl_from};
         """)
 
         # confirm that input table exists
@@ -1595,13 +1606,20 @@ class TestSqlToSqlQry:
                         org_table = test_sql_to_sql_tbl_from,
                         dest_schema = test_dest_schema,
                         dest_table = test_sql_to_sql_tbl_to,
+                          spatial = True,                    
                         print_cmd = True)
         
         # assert that the output table is successfully created and exists
         assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema = test_dest_schema)
 
         # create python object called output_table
-        output_table = sql2.dfquery(f"select id, [t.txt], [1t txt], [t_txt], dte, geom from {test_dest_schema}.{test_sql_to_sql_tbl_to}") 
+        output_table = sql2.dfquery(f"""
+                                    select id, [t.txt], [1t txt], [t_txt],
+                                            dte,
+                                            ogr_geometry.STX long,
+                                            ogr_geometry.STY lat
+                                    from {test_dest_schema}.{test_sql_to_sql_tbl_to}
+                                    """) 
 
         # assert that the output and input tables are the same based on shape, column names, and data overall
         assert reference_table.shape == output_table.shape
@@ -1631,13 +1649,20 @@ class TestSqlToSqlQry:
             [text@name-two~three four five six seven] text,
             current_date_time datetime,
             [x-coord] float,
-            geom geometry);
+            ogr_geometry geometry);
 
             INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
             VALUES (1, 'test text', 'test text', CURRENT_TIMESTAMP,
             123.456, geometry::Point(1015329.1, 213793.1, 2263 ));
 
-            SELECT * FROM {test_org_schema}.{test_sql_to_sql_tbl_from};
+            SELECT id_name_one,
+                    [123text name one],
+                    [text@name-two~three four five six seven],
+                    current_date_time,
+                    [x-coord],
+                    ogr_geometry.STX long,
+                    ogr_geometry.STY lat
+            FROM {test_org_schema}.{test_sql_to_sql_tbl_from};
         """)
 
         # confirm that the table is correctly created
@@ -1658,8 +1683,13 @@ class TestSqlToSqlQry:
 
         # call the table but remove the ogr_fid field that gets created
         output_table = sql2.dfquery(f"""
-            select id_name_one, [123text name one], [text@name-two~three four five six seven], 
-                current_date_time, [x-coord], geom 
+            select id_name_one,
+                    [123text name one],
+                    [text@name-two~three four five six seven],
+                    current_date_time,
+                    [x-coord],
+                    ogr_geometry.STX long,
+                    ogr_geometry.STY lat
                 from {test_dest_schema}.{test_sql_to_sql_tbl_to};""")
 
         # assert that the tables are the same based on the column names, the shape, and values overall
@@ -1685,7 +1715,7 @@ class TestSqlToSqlQry:
 
         # create table
         sql.query(f"""
-            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, txt text, dte datetime, geom geometry);
+            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, txt text, dte datetime, ogr_geometry geometry);
 
             INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
                  VALUES (1, 'test text', cast(CURRENT_TIMESTAMP as datetime), geometry::Point(1015329.1, 213793.1, 2263 ));
@@ -1706,8 +1736,8 @@ class TestSqlToSqlQry:
         # assert that sql_to_sql_qry output created
         assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema= test_dest_schema)
 
-        ref_table = sql.dfquery(f"select top (0) * from {test_org_schema}.{test_sql_to_sql_tbl_from}")
-        output_table = sql2.dfquery(f"select * from {test_dest_schema}.{test_sql_to_sql_tbl_to}").drop(['ogr_fid'], axis = 1)
+        ref_table = sql.dfquery(f"select top (0) id , txt, dte, ogr_geometry.STX long, ogr_geometry.STY lat from {test_org_schema}.{test_sql_to_sql_tbl_from}")
+        output_table = sql2.dfquery(f"select  id , txt, dte, ogr_geometry.STX long, ogr_geometry.STY lat from {test_dest_schema}.{test_sql_to_sql_tbl_to}")
 
         # check that the output table returns as expected (empty table)
         assert set(ref_table.columns) == set(output_table.columns)
