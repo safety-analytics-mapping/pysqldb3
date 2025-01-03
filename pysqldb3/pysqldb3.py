@@ -526,7 +526,7 @@ class DbConnect:
         if not schema:
             schema = self.default_schema
 
-        return self.dfquery(f"select * from {schema}.{self.log_table}")
+        return self.dfquery(f"select * from {schema}.{self.log_table}", internal = True)
 
     def check_table_in_log(self, table_name, schema=None):
         """
@@ -536,10 +536,10 @@ class DbConnect:
         """
         if not schema:
             schema = self.default_schema
-        self.query(f"select * from {schema}.{self.log_table} where table_name = '{table_name}'")
+        self.query(f"select * from {schema}.{self.log_table} where table_name = '{table_name}'", internal = True)
 
         self.check_conn()
-        return self.data
+        return self.internal_data
 
     def cleanup_new_tables(self):
         # type: (DbConnect) -> None
@@ -565,7 +565,7 @@ class DbConnect:
         if self.type == MS:
             print('Aborting...attempting to run a Postgres-only command on a Sql Server DbConnect instance.')
 
-        return self.dfquery(PG_BLOCKING_QUERY % self.user)
+        return self.dfquery(PG_BLOCKING_QUERY % self.user, internal = True)
 
     def kill_blocks(self):
         # type: (DbConnect) -> None
@@ -599,7 +599,7 @@ class DbConnect:
             print('Aborting...attempting to run a Postgres-only command on a SQL Server/Azure DbConnect instance.')
             return
 
-        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user))
+        return self.dfquery(PG_MY_TABLES_QUERY.format(s=schema, u=self.user, internal = True))
 
     def schema_tables(self, schema=None):
         # type: (DbConnect, str) -> Optional[pd.DataFrame, None]
@@ -628,7 +628,7 @@ class DbConnect:
 	            left outer join {schema}.__temp_log_table_{self.user}__ l
 	            on i.TABLE_NAME = l.table_name
 	            where i.TABLE_SCHEMA = '{schema}'
-            """)
+            """, internal = True)
 
         elif self.type == 'PG':
             return self.dfquery(f"""
@@ -641,7 +641,7 @@ class DbConnect:
                 left outer join {schema}.__temp_log_table_{self.user}__ l
                     on i.tablename = l.table_name
                 where i.schemaname='{schema}'
-            """)
+            """, internal = True)
 
 
 
