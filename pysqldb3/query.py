@@ -138,8 +138,7 @@ class Query:
         _serv, _dab, schema, new_table = parse_table_string(new_schema_table, self.dbo.default_schema, self.dbo.type)
 
         if self.dbo.table_exists(self.dbo.log_table, schema=schema, internal=True):
-            self.dbo.query("update {s}.{l} set table_name = '{nt}' where table_name = '{ot}'".format(
-                s=schema, l=self.dbo.log_table, nt=new_table, ot=old_table), internal=True, strict=False)
+            self.dbo.query(f"update {schema}.{self.dbo.log_table} set table_name = '{new_table}' where table_name = '{old_table}'", internal=True, strict=False)
             self.dbo.check_conn()
 
     def __run_query(self, internal):

@@ -269,7 +269,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
         if permission == True:
-            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;") 
+            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True) 
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -374,7 +374,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
         if permission == True:
-            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;") 
+            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True) 
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -469,7 +469,7 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
         if permission == True:
-            to_sql.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
+            to_sql.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -524,7 +524,7 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
     for c in cols.keys():
         if '-' in c:
             # GDAL sanitizes `-` out of column names this will put them back so the start/end tables match
-            to_sql.query(f"""EXEC sp_rename '{dest_schema}.{dest_table}.{c.replace('-', '_')}', '{c}', 'COLUMN';""")
+            to_sql.query(f"""EXEC sp_rename '{dest_schema}.{dest_table}.{c.replace('-', '_')}', '{c}', 'COLUMN';""", internal = True)
             cols_to = to_sql.get_table_columns(dest_table, schema=dest_schema)
             cols_to = {_[0]: _[1] for _ in cols_to}
         if cols[c] != cols_to[c]:
@@ -598,7 +598,7 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
         
         if permission == True:
-            to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
+            to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
         
         print(ogr_response)
     except subprocess.CalledProcessError as e:
@@ -674,7 +674,7 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
         
         if permission:
-            to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;")
+            to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
         
         print(ogr_response)
     except subprocess.CalledProcessError as e:
