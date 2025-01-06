@@ -180,7 +180,7 @@ class TestPgToSql:
 
     def test_pg_to_sql_spatial_table(self):
         """
-        Copy a table with spatial data in Postgres to MS SQL Server
+        Copy a table with spatial data in Postgres to MS SQL Server.
         """
 
         # assert that output tables dropped
@@ -427,7 +427,7 @@ class TestSqlToPgQry:
 
         # create temp table in sql
         sql.query(f"""
-            drop table if exists ##{test_sql_to_pg_qry_spatial_table};
+            drop table if exists ##{test_sql_to_pg_qry_table};
             create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);
             insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (1, 2);
             insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (3, 4);
@@ -467,6 +467,7 @@ class TestSqlToPgQry:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
+        sql.query(f"drop table if exists ##{test_sql_to_pg_qry_table};")
         # don't remove sql temp table as it is used in the subsequent test
 
     def test_sql_to_pg_qry_basic_with_comments_table(self):
@@ -478,6 +479,14 @@ class TestSqlToPgQry:
         # Assert pg table doesn't exist
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
         assert not db.table_exists(table=test_sql_to_pg_qry_table)
+
+        # create temp table in sql
+        sql.query(f"""
+            drop table if exists ##{test_sql_to_pg_qry_table};
+            create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (1, 2);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (3, 4);
+        """)
 
         # run sql_to_pg_qry
         data_io.sql_to_pg_qry(sql, db, query=f"""
@@ -517,6 +526,7 @@ class TestSqlToPgQry:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
+        sql.query(f"drop table if exists ##{test_sql_to_pg_qry_table};")
 
     def test_sql_to_pg_qry_spatial(self):
         """
@@ -581,6 +591,14 @@ class TestSqlToPgQry:
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
         assert not db.table_exists(schema=pg_schema, table=test_sql_to_pg_qry_table)
 
+        # create temp table in sql
+        sql.query(f"""
+            drop table if exists ##{test_sql_to_pg_qry_table};
+            create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (1, 2);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (3, 4);
+        """)
+
         # run sql_to_pg_qry
         data_io.sql_to_pg_qry(sql, db, query=f"""
                                                 -- comments within the query
@@ -618,17 +636,29 @@ class TestSqlToPgQry:
 
         # Clean up
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
+        sql.query(f"drop table if exists ##{test_sql_to_pg_qry_table}")
 
     def test_sql_to_pg_qry_no_dest_table_input(self):
 
         """
         Copy a SQL query to a Postgres table where the destination table name has not been defined.
         The name should default to '_{user}_{date}'
+        TEST NOT WORKING
         """
         
+        default_table_name = f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}"
+
         # Assert output tables dropped
-        db.drop_table(schema=pg_schema, table=f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
-        assert not db.table_exists(schema=pg_schema, table = f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
+        db.drop_table(schema=pg_schema, table = default_table_name)
+        assert not db.table_exists(schema=pg_schema, table = default_table_name)
+
+        # create temp table in sql
+        sql.query(f"""
+            drop table if exists ##{test_sql_to_pg_qry_table};
+            create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (1, 2);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (3, 4);
+        """)
 
         # sql_to_pg_qry
         data_io.sql_to_pg_qry(sql, db, query=f"""
@@ -640,7 +670,7 @@ class TestSqlToPgQry:
         
         # assert that the table exists
         assert db.table_exists(schema = pg_schema,
-                               table = f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
+                               table = default_table_name)
 
         # assert that sql and pg tables are equal
         sql_df = sql.dfquery(f"""
@@ -649,18 +679,16 @@ class TestSqlToPgQry:
         """).infer_objects().replace('\s+', '', regex=True)
 
         pg_df = db.dfquery(f"""
-        select * from {pg_schema}._{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}
+        select * from {pg_schema}.{default_table_name}
              order by test_col1
         """).infer_objects().replace('\s+', '', regex=True)
 
-        print(sql_df)
-        print(pg_df)
-
-        pd.testing.assert_frame_equal(sql_df, pg_df.drop(['ogc_fid'], axis = 1), check_column_type=False,
-                                      check_dtype=False)
+        pd.testing.assert_frame_equal(sql_df, pg_df.drop('ogc_fid', axis = 1), check_column_type=False, check_dtype=False)
 
         # drop tables
-        db.drop_table(schema = pg_schema, table =  f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
+        db.drop_table(schema = pg_schema, table =  default_table_name)
+        assert not db.table_exists(schema = pg_schema, table =  default_table_name)
+        sql.query(f"drop table if exists ##{test_sql_to_pg_qry_table}")
 
     def test_sql_to_pg_qry_empty_query_error(self):
         """
@@ -684,9 +712,6 @@ class TestSqlToPgQry:
 
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
 
-    def test_sql_to_pg_qry_empty_wrong_layer_error(self):
-        return
-
     def test_sql_to_pg_qry_empty_overwrite_error(self):
         """
         Return an error if a SQL query creates a PG table with the same name as an existing table.
@@ -695,6 +720,15 @@ class TestSqlToPgQry:
         # Assert output tables dropped
         db.drop_table(table=test_sql_to_pg_qry_table, schema = pg_schema)
         assert not db.table_exists(table=test_sql_to_pg_qry_table, schema = pg_schema)
+
+        # create a sql temp table
+        sql.query(f"""
+            drop table if exists ##{test_sql_to_pg_qry_table};
+            create table ##{test_sql_to_pg_qry_table} (test_col1 int, test_col2 int);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (1, 2);
+            insert into ##{test_sql_to_pg_qry_table} (test_col1, test_col2) VALUES (3, 4);
+        """)
+
 
         # create an existing pg table
         db.query(f"""
@@ -853,9 +887,6 @@ class TestSqlToPg:
 
     def test_sql_to_pg_spatial(self):
         # TODO: when adding spatial features like SRID via a_srs, test spatial
-        return
-
-    def test_sql_to_pg_wrong_layer_error(self):
         return
 
     def test_sql_to_pg_error(self):
@@ -1241,10 +1272,13 @@ class TestPgToPgQry:
         Run a SQL query in one database and copy the output table to PG database
         with no defined destination table name.
         """
+        
+        default_table_name = f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}"
+        
         # drop output tables if they already exist
-        db.drop_table(schema = pg_schema, table =  f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
+        db.drop_table(schema = pg_schema, table = default_table_name)
         ris.drop_table(schema = pg_schema, table = test_pg_to_pg_qry_table)
-        assert not db.table_exists(schema = pg_schema, table =  f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
+        assert not db.table_exists(schema = pg_schema, table =  default_table_name)
         assert not ris.table_exists(schema = pg_schema, table = test_pg_to_pg_qry_table)
         
         # create postgres table query to be copied and run pg_to_pg_qry
@@ -1257,10 +1291,10 @@ class TestPgToPgQry:
                 dest_schema=pg_schema, print_cmd=True)
 
         # assert that the output table exists
-        assert db.table_exists(schema = pg_schema, table = f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
+        assert db.table_exists(schema = pg_schema, table = default_table_name)
 
         # drop output tables
-        db.drop_table(schema = pg_schema, table =  f"_{db.user}_{datetime.datetime.now().strftime('%Y%m%d%H%M')}")
+        db.drop_table(schema = pg_schema, table =  default_table_name)
         ris.drop_table(schema = pg_schema, table = test_pg_to_pg_qry_table)
 
 
@@ -1291,10 +1325,7 @@ class TestPgToPgQry:
         # drop tables if they somehow got written
         db.drop_table(schema = pg_schema, table = test_pg_to_pg_qry_table)
         ris.drop_table(schema = pg_schema, table = test_pg_to_pg_qry_table)
-        
-
-    def test_pg_to_pg_qry_empty_wrong_layer_error(self):
-        return
+    
 
     @classmethod
     def teardown_class(cls):
@@ -1519,6 +1550,7 @@ class TestSqlToSqlQry:
 
         """
         Copy a table whose name already exists in the destination database. It should overwrite it.
+        TEST DOES NOT WORK DUE TO GEOMETRY COLUMN
         """
 
         # remove org table and replace with a table with a geometry column
@@ -1529,17 +1561,16 @@ class TestSqlToSqlQry:
 
         geometry_table = sql.dfquery(f"""
 
-                create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4), ogr_geometry geometry);
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
-                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, ogr_geometry) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
+                create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4), geom geometry);
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
+                insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
 
                 select  test_col1,
                         test_col2,
                         test_col3,
-                        ogr_geometry.STX long,
-                        ogr_geometry.STY lat
+                        geom
                         from {test_org_schema}.{test_sql_to_sql_tbl_from};
                 """)
         
@@ -1561,7 +1592,7 @@ class TestSqlToSqlQry:
 
         # geom field moved to 1st column by gdal or sql default behavior so set column order
         output_table = sql2.dfquery(f"""
-                                        select test_col1, test_col2, test_col3,  ogr_geometry.STX long, ogr_geometry.STY lat
+                                        select test_col1, test_col2, test_col3, geom
                                         from {test_dest_schema}.{test_sql_to_sql_tbl_to};""")
 
         # assert that the input and output tables are the same
@@ -1575,6 +1606,11 @@ class TestSqlToSqlQry:
 
     def test_sql_to_sql_funky_field_names(self):
 
+        """
+        Test complicated field names
+        TEST DOES NOT WORK DUE TO GEOMETRY COLUMN
+        """
+
         # remove org table and replace with funky field names table
         sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
         sql2.drop_table(schema = test_dest_schema, table = test_sql_to_sql_tbl_to)
@@ -1583,17 +1619,14 @@ class TestSqlToSqlQry:
 
         # create table
         reference_table = sql.dfquery(f"""
-            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, [t.txt] text, [1t txt] text, [t_txt] text, dte datetime, ogr_geometry geometry);
+            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, [t.txt] text, [1t txt] text, [t_txt] text, dte datetime, geom geometry);
 
             INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
-            (id, [t.txt], [1t txt], [t_txt], dte, ogr_geometry)
+            (id, [t.txt], [1t txt], [t_txt], dte, geom)
             VALUES (1, 'test text','test text','test text', CURRENT_TIMESTAMP,
             geometry::Point(1015329.1, 213793.1, 2263 ));
 
-            select id, [t.txt], [1t txt], [t_txt], dte, 
-                ogr_geometry.STX long,
-                ogr_geometry.STY lat
-              from {test_org_schema}.{test_sql_to_sql_tbl_from};
+            select id, [t.txt], [1t txt], [t_txt], dte, geom from {test_org_schema}.{test_sql_to_sql_tbl_from};
         """)
 
         # confirm that input table exists
@@ -1616,8 +1649,7 @@ class TestSqlToSqlQry:
         output_table = sql2.dfquery(f"""
                                     select id, [t.txt], [1t txt], [t_txt],
                                             dte,
-                                            ogr_geometry.STX long,
-                                            ogr_geometry.STY lat
+                                            geom
                                     from {test_dest_schema}.{test_sql_to_sql_tbl_to}
                                     """) 
 
@@ -1634,6 +1666,7 @@ class TestSqlToSqlQry:
         
         """
         Test copying a SQL table with long column names
+        TEST DOES NOT WORK DUE TO GEOMETRY COLUMN
         """
 
         # drop any output tables
@@ -1649,20 +1682,11 @@ class TestSqlToSqlQry:
             [text@name-two~three four five six seven] text,
             current_date_time datetime,
             [x-coord] float,
-            ogr_geometry geometry);
+            geom geometry);
 
             INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
             VALUES (1, 'test text', 'test text', CURRENT_TIMESTAMP,
             123.456, geometry::Point(1015329.1, 213793.1, 2263 ));
-
-            SELECT id_name_one,
-                    [123text name one],
-                    [text@name-two~three four five six seven],
-                    current_date_time,
-                    [x-coord],
-                    ogr_geometry.STX long,
-                    ogr_geometry.STY lat
-            FROM {test_org_schema}.{test_sql_to_sql_tbl_from};
         """)
 
         # confirm that the table is correctly created
@@ -1688,8 +1712,7 @@ class TestSqlToSqlQry:
                     [text@name-two~three four five six seven],
                     current_date_time,
                     [x-coord],
-                    ogr_geometry.STX long,
-                    ogr_geometry.STY lat
+                    geom
                 from {test_dest_schema}.{test_sql_to_sql_tbl_to};""")
 
         # assert that the tables are the same based on the column names, the shape, and values overall
@@ -1705,6 +1728,7 @@ class TestSqlToSqlQry:
 
         """
         Test that an empty table is created if that is what the query outlines
+        TEST DOES NOT WORK DUE TO GEOMETRY COLUMN
         """
 
         # drop tables
@@ -1715,7 +1739,7 @@ class TestSqlToSqlQry:
 
         # create table
         sql.query(f"""
-            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, txt text, dte datetime, ogr_geometry geometry);
+            CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id int, txt text, dte datetime, geom geometry);
 
             INSERT INTO {test_org_schema}.{test_sql_to_sql_tbl_from}
                  VALUES (1, 'test text', cast(CURRENT_TIMESTAMP as datetime), geometry::Point(1015329.1, 213793.1, 2263 ));
@@ -1736,8 +1760,8 @@ class TestSqlToSqlQry:
         # assert that sql_to_sql_qry output created
         assert sql2.table_exists(table = test_sql_to_sql_tbl_to, schema= test_dest_schema)
 
-        ref_table = sql.dfquery(f"select top (0) id , txt, dte, ogr_geometry.STX long, ogr_geometry.STY lat from {test_org_schema}.{test_sql_to_sql_tbl_from}")
-        output_table = sql2.dfquery(f"select  id , txt, dte, ogr_geometry.STX long, ogr_geometry.STY lat from {test_dest_schema}.{test_sql_to_sql_tbl_to}")
+        ref_table = sql.dfquery(f"select top (0) id , txt, dte, geom from {test_org_schema}.{test_sql_to_sql_tbl_from}")
+        output_table = sql2.dfquery(f"select  id , txt, dte, geom from {test_dest_schema}.{test_sql_to_sql_tbl_to}")
 
         # check that the output table returns as expected (empty table)
         assert set(ref_table.columns) == set(output_table.columns)
