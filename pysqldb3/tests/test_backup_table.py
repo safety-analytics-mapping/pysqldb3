@@ -25,19 +25,15 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-test_pg_to_backup = 'test_pg_to_backup_{}'.format(db.user)
-test_pg_from_backup = 'test_pg_from_backup_{}'.format(db.user)
-test_sql_to_backup = 'test_sql_to_backup_{}'.format(db.user)
-test_sql_from_backup = 'test_sql_from_backup_{}'.format(db.user)
+test_pg_to_backup = f'test_pg_to_backup_{db.user}'
+test_pg_from_backup = f'test_pg_from_backup_{db.user}'
+test_sql_to_backup = f'test_sql_to_backup_{db.user}'
+test_sql_from_backup = f'test_sql_from_backup_{db.user}'
 
 ms_schema = 'dbo'
 pg_schema = 'working'
 
 test_back_file = test_data_dir+'/backup.sql'
-
-
-# org_table = 'daylighting_old_turn_calming_20240626'
-# org_schema= 'minireports'
 
 class TestBackupTablesPg:
     def test_backup_tables_basic(self):
@@ -220,14 +216,7 @@ class TestBackupTablesPg:
 
         # clean up
         db.cleanup_new_tables()
-        # assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
-        # db.query(f"""
-        # SELECT EXISTS (
-        # SELECT 1
-        # FROM pg_catalog.pg_tables
-        # WHERE schemaname = '{pg_schema}'
-        # AND tablename = '{new_backup_name}'
-        # """)
+        assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
         assert not db.table_exists(new_backup_name, schema=pg_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
@@ -235,9 +224,6 @@ class TestBackupTablesPg:
 
     def test_messy_table(self):
         # base messy case
-        # schema = 'minireports'
-        # table_name = 'daylighting_old_turn_calming_20240626'
-
 
         db.drop_table(pg_schema, "4_table name")
         # table schema
@@ -530,8 +516,6 @@ class TestBackupTablesMs:
 
     def test_messy_table(self):
         # base messy case
-        # schema = 'minireports'
-        # table_name = 'daylighting_old_turn_calming_20240626'
 
         sql.drop_table(ms_schema, "4_table name")
         # table schema
@@ -574,5 +558,4 @@ class TestBackupTablesMs:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        sql.cleanup_new_tables()
 

@@ -21,8 +21,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-test_table = 'pytest_{}'.format(db.user)
-test_table2 = 'Pytest_{}'.format(db.user)
+test_table = f'pytest_{db.user}'
+test_table2 = f'Pytest_{db.user}'
 pg_schema = 'working'
 sql_schema ='dbo'
 

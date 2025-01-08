@@ -5,11 +5,6 @@ from . import helpers
 import shlex
 import subprocess
 
-#################################################################################
-                        # only doing basic tests since it just calls
-                        # query_to_gpkg and that is already tested
-#################################################################################
-
 
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
@@ -29,12 +24,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-# ldap_sql = pysqldb.DbConnect(type='MS',
-#                              database='CLION',
-#                              server='DOTGISSQL01',
-#                              ldap=True)
-
-test_table = '__testing_query_to_gpkg_{}__'.format(db.user)
+test_table = f'__testing_query_to_gpkg_{db.user}__'
 ms_schema = 'risadmin'
 pg_schema = 'working'
 
@@ -425,7 +415,6 @@ class TestTableTogpkgMs:
     def test_table_to_gpkg_basic_brackets(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = test_table+'.gpkg'
-        # sql.drop_table(table=test_table, schema=ms_schema)
 
         # create table
         sql.query(f"""
@@ -453,4 +442,3 @@ class TestTableTogpkgMs:
         helpers.clean_up_test_table_sql(sql, schema=ms_schema)
         sql.query(f"drop table {ms_schema}.{sql.log_table}")
         sql.cleanup_new_tables()
-        # helpers.clean_up_schema(sql, schema=ms_schema)

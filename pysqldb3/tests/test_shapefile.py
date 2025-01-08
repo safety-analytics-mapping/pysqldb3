@@ -6,11 +6,6 @@ from .. import pysqldb3 as pysqldb
 from ..shapefile import Shapefile
 from . import helpers
 
-
-# todo - issues #######################################################################
-# MS tests are failing becuase the odbc 17 driver seems unable to read geometry fields
-# #####################################################################################
-
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
@@ -25,8 +20,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         database=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
-                        allow_temp_tables=True,
-                        # use_native_driver=False # this is needed for spatial data types
+                        allow_temp_tables=True
                         )
 
 pg_table_name = f'pg_test_table_{db.user}'

@@ -22,52 +22,48 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'),
                         allow_temp_tables=True)
 
-# ldap_sql = pysqldb.DbConnect(type='MS',
-#                              database='CLION',
-#                              server='DOTGISSQL01',
-#                              ldap=True)
 
 
 class TestQueryToMapPg:
-    # def test_query_to_map_builtin_precinct(self):
-    #     try:
-    #         db.query_to_map(query="select precinct, random()*100 as count from districts_police_precincts",
-    #                         value_column='count')
-    #     except Exception as e:
-    #         print(e)
-    #         assert False
-    #
-    #     assert True
-    #
-    # def test_query_to_map_builtin_nta(self):
-    #     try:
-    #         db.query_to_map(query="select ntacode, random()*100 as val from districts_nta",
-    #                         value_column='val')
-    #     except Exception as e:
-    #         print(e)
-    #         assert False
-    #
-    #     assert True
-    #
-    # def test_query_to_map_query_geom_1(self):
-    #     try:
-    #         db.query_to_map(query="select random()*100 count, objectid, geom from districts_community_boards",
-    #                         value_column='count', geom_column='geom', id_column='objectid')
-    #     except Exception as e:
-    #         print(e)
-    #         assert False
-    #
-    #     assert True
-    #
-    # def test_query_to_map_query_geom_2(self):
-    #     try:
-    #         db.query_to_map(query="select random()*100 count, assemdist, geom from districts_state_assembly",
-    #                         value_column='count', geom_column='geom', id_column='assemdist')
-    #     except Exception as e:
-    #         print(e)
-    #         assert False
-    #
-    #     assert True
+    def test_query_to_map_builtin_precinct(self):
+        try:
+            db.query_to_map(query="select precinct, random()*100 as count from districts_police_precincts",
+                            value_column='count')
+        except Exception as e:
+            print(e)
+            assert False
+    
+        assert True
+    
+    def test_query_to_map_builtin_nta(self):
+        try:
+            db.query_to_map(query="select ntaname, random()*100 as val from districts_neighborhood_tabulation_areas",
+                            value_column='val')
+        except Exception as e:
+            print(e)
+            assert False
+    
+        assert True
+    
+    def test_query_to_map_query_geom_1(self):
+        try:
+            db.query_to_map(query="select random()*100 count, ogc_fid, geom from districts_community_districts",
+                            value_column='count', geom_column='geom', id_column='ogc_fid')
+        except Exception as e:
+            print(e)
+            assert False
+    
+        assert True
+    
+    def test_query_to_map_query_geom_2(self):
+        try:
+            db.query_to_map(query="select random()*100 count, assemdist, geom from districts_state_assembly",
+                            value_column='count', geom_column='geom', id_column='assemdist')
+        except Exception as e:
+            print(e)
+            assert False
+    
+        assert True
 
     def test_query_to_map_error(self):
         try:

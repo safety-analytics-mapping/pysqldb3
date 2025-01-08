@@ -1726,7 +1726,7 @@ class DbConnect:
     def query_to_map(self, query, value_column, geom_column=None, id_column=None):
         """
         Function to output simple Plotly Choropleth Map
-        If no geom_column is specified, and the results contain columns named precinct, nta, ntacode, boro, borough, or
+        If no geom_column is specified, and the results contain columns named precinct, nta, ntaname, boro, borough, or
         borocode, it will automatically link to precinct, NTA, or borough, respectively.
         :param query: a query to map
         :param value_column: the column with the value that is being mapped
@@ -1769,8 +1769,8 @@ class DbConnect:
                 id_column = 'nta'
                 map_type = 'NTA'
 
-            if 'ntacode' in [c.lower() for c in list(query_df.columns)]:
-                id_column = 'ntacode'
+            if 'ntaname' in [c.lower() for c in list(query_df.columns)]:
+                id_column = 'ntaname'
                 map_type = 'NTA'
 
             if 'borough' in [c.lower() for c in list(query_df.columns)]:
@@ -1786,7 +1786,7 @@ class DbConnect:
                 map_type = 'BOROUGH'
 
         if id_column and not geom_column:
-            if self.database.lower() == 'ris':
+            if self.database.lower() == 'ris3':
                 geom_map = {
                     "PRECINCT": ("precinct", "districts_police_precincts"),
                     "NTA": ("ntacode", "districts_neighborhood_tabulation_areas"),
