@@ -35,8 +35,9 @@ pg_table_name = f'pg_test_table_{db.user}'
 test_read_gpkg_table_name = f'test_read_gpkg_table_{db.user}'
 test_write_gpkg_table_name = f'test_write_gpkg_table_{db.user}'
 test_reuploaded_table_name = f'test_write_reuploaded_{db.user}'
-test_layer1 = 't:est_layer1'
-test_layer2 = 'test_layer2!?'
+test_layer1 = f'test_layer1_{db.user}'
+test_layer2 = f'test_layer2_{db.user}'
+
 
 ms_schema = 'dbo'
 pg_schema = 'working'
@@ -44,7 +45,7 @@ pg_schema = 'working'
 class TestReadgpkgPG:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_geopackage()
+        helpers.set_up_geopackage(db.user)
         helpers.set_up_test_table_pg(db)
 
     def test_read_gpkg_basic(self):
@@ -95,31 +96,33 @@ class TestReadgpkgPG:
         """
         Test for multiple tables within a geopackage
         """
+
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data/'
         gpkg_name = "testgpkg.gpkg"
 
         # Assert successful
+        # Assert successful
         assert gpkg_name in os.listdir(fp)
-        db.drop_table(schema=pg_schema, table='test_layer1')
-        db.drop_table(schema=pg_schema, table='test_layer2')
+        db.drop_table(schema=pg_schema, table=test_layer1)
+        db.drop_table(schema=pg_schema, table=test_layer2)
 
         # no gpkg_tbl argument so that it bulk uploads
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
         s.read_gpkg_bulk(dbo=db, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
-        assert db.table_exists(schema=pg_schema, table = 'test_layer1')
-        assert db.table_exists(schema=pg_schema, table = 'test_layer2')
+        assert db.table_exists(schema=pg_schema, table = test_layer1)
+        assert db.table_exists(schema=pg_schema, table = test_layer2)
 
         table_df = db.dfquery(f"""
-                                select * from {pg_schema}.test_layer1
+                                select * from {pg_schema}.{test_layer1}
                                 """)
 
         assert set(table_df.columns) == {'gid', 'some_value', 'fid', 'geom'}
         assert len(table_df) == 2
 
         table_df2 = db.dfquery(f"""
-                                select * from {pg_schema}.test_layer2
+                                select * from {pg_schema}.{test_layer2}
                                 """)
         assert set(table_df2.columns) == {'gid', 'some_value', 'fid', 'geom'}
         assert len(table_df2) == 2
@@ -135,7 +138,7 @@ class TestReadgpkgPG:
             union
             select 2 as id, st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
         ) raw_inputs
-        join {pg_schema}.test_layer1 end_table
+        join {pg_schema}.{test_layer1} end_table
                     on raw_inputs.id=end_table.gid::int
         """)
 
@@ -151,7 +154,7 @@ class TestReadgpkgPG:
             union
             select 2 as id, st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
         ) raw_inputs
-        join {pg_schema}.test_layer2 end_table
+        join {pg_schema}.{test_layer2} end_table
                     on raw_inputs.id=end_table.gid::int
         """)
 
@@ -236,7 +239,7 @@ class TestReadgpkgPG:
 class TestReadgpkgMS:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_geopackage()
+        helpers.set_up_geopackage(db.user)
 
     def test_read_gpkg_basic(self):
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
@@ -290,27 +293,27 @@ class TestReadgpkgMS:
 
         # Assert successful
         assert gpkg_name in os.listdir(fp)
-        sql.query(f"drop table if exists {ms_schema}.test_layer1")
-        sql.query(f"drop table if exists {ms_schema}.test_layer2")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # no gpkg_tbl argument so that it bulk uploads
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
         s.read_gpkg_bulk(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
-        assert sql.table_exists(schema = ms_schema, table = 'test_layer1')
-        assert sql.table_exists(schema = ms_schema, table = 'test_layer2')
+        assert sql.table_exists(schema = ms_schema, table = test_layer1)
+        assert sql.table_exists(schema = ms_schema, table = test_layer2)
 
         # test contents
-        table_df1 = sql.dfquery(f'select * from {ms_schema}.test_layer1')
-        table_df2 = sql.dfquery(f'select * from {ms_schema}.test_layer2')
+        table_df1 = sql.dfquery(f'select * from {ms_schema}.{test_layer1}')
+        table_df2 = sql.dfquery(f'select * from {ms_schema}.{test_layer2}')
 
         assert set(table_df1.columns) == set(table_df2.columns)
         assert len(table_df1) == len(table_df2)
 
         # Cleanup
-        sql.query(f"drop table if exists {ms_schema}.test_layer1")
-        sql.query(f"drop table if exists {ms_schema}.test_layer2")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
     def test_read_gpkg_no_table(self):
         fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
@@ -320,21 +323,21 @@ class TestReadgpkgMS:
         assert gpkg_name in os.listdir(fp)
 
         # drop temp table if exists
-        sql.query(f"drop table if exists {ms_schema}.test_layer1")
-        sql.query(f"drop table if exists {ms_schema}.test_layer2")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # Read gpkg to new, test table
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
         s.read_gpkg_bulk(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
-        assert sql.table_exists(schema=ms_schema, table= 'test_layer1')
-        table_df = sql.dfquery(f'select * from {ms_schema}.test_layer1')
+        assert sql.table_exists(schema=ms_schema, table= test_layer1)
+        table_df = sql.dfquery(f'select * from {ms_schema}.{test_layer1}')
         assert set(table_df.columns) == {'fid', 'gid', 'some_value', 'geom'}
         assert len(table_df) == 2
 
-        assert sql.table_exists(schema=ms_schema, table= 'test_layer2')
-        table_df2 = sql.dfquery(f'select * from {ms_schema}.test_layer2')
+        assert sql.table_exists(schema=ms_schema, table= test_layer2)
+        table_df2 = sql.dfquery(f'select * from {ms_schema}.{test_layer2}')
         assert set(table_df2.columns) == {'fid', 'gid', 'some_value', 'geom'}
         assert len(table_df2) == 2
 
@@ -347,7 +350,7 @@ class TestReadgpkgMS:
             union all
             (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
-        join {ms_schema}.test_layer1 end_table
+        join {ms_schema}.{test_layer1} end_table
         on raw_inputs.id=cast(end_table.gid as int)
         """)
         assert len(diff_df) == 1
@@ -360,15 +363,15 @@ class TestReadgpkgMS:
             union all
             (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
-        join {ms_schema}.test_layer2 end_table
+        join {ms_schema}.{test_layer2} end_table
         on raw_inputs.id=cast(end_table.gid as int)
         """)
         assert len(diff_df2) == 1
         assert int(diff_df2.iloc[0]['distance']) == 0
 
         # Cleanup
-        sql.query(f'drop table if exists {ms_schema}.test_layer1')
-        sql.query(f'drop table if exists {ms_schema}.test_layer2')
+        sql.query(f'drop table if exists {ms_schema}.{test_layer1}')
+        sql.query(f'drop table if exists {ms_schema}.{test_layer2}')
 
 
     def test_read_gpkg_no_schema(self):
@@ -416,17 +419,17 @@ class TestReadgpkgMS:
         assert gpkg_name in os.listdir(fp)
 
         # remove temp table from MS SQL Server if it already exists
-        sql.query(f"drop table if exists {ms_schema}.test_layer1")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
         # Read gpkg to new, test table
         s = Geopackage(path=fp, gpkg_name=gpkg_name, gpkg_tbl = test_layer1)
         s.read_gpkg(dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
-        assert sql.table_exists(schema = ms_schema, table= 'test_layer1')
+        assert sql.table_exists(schema = ms_schema, table= test_layer1)
 
         # todo: this fails because odbc 17 driver isnt supporting geometry
-        table_df = sql.dfquery(f'select * from {ms_schema}.test_layer1')
+        table_df = sql.dfquery(f'select * from {ms_schema}.{test_layer1}')
 
         assert set(table_df.columns) == {'fid', 'gid', 'some_value', 'geom'}
         assert len(table_df) == 2
@@ -440,7 +443,7 @@ class TestReadgpkgMS:
             union all
             (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
         ) raw_inputs
-        join {ms_schema}.test_layer1 end_table
+        join {ms_schema}.{test_layer1} end_table
         on raw_inputs.id=end_table.gid
         """)
 
@@ -448,7 +451,7 @@ class TestReadgpkgMS:
         assert int(diff_df.iloc[0]['distance']) == 0
 
         # Cleanup
-        sql.query(f"drop table if exists {ms_schema}.test_layer1")
+        sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
     # def test_read_gpkg_precision(self):
     #     return
@@ -1154,7 +1157,7 @@ class TestGpkgShpConversion:
         
     def test_convert_gpkg_to_shp_file(self):
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
@@ -1195,7 +1198,7 @@ class TestGpkgShpConversion:
     
     def test_convert_gpkg_to_shp_custom_path(self):
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
@@ -1215,14 +1218,14 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(fp, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s.gpkg_to_shp_bulk(export_path = fp + '/test_data/')
+        s.gpkg_to_shp_bulk(export_path = fp )
         
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
-        assert os.path.isfile(os.path.join(fp + '/test_data/', test_write_gpkg_table_name + '.shp'))
+        assert os.path.isfile(os.path.join(fp , test_write_gpkg_table_name + '.shp'))
 
         # check that the shapefile and gpkg have the same output
         cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo {"./test_data/" + test_write_gpkg_table_name + ".shp"} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo { test_write_gpkg_table_name + ".shp"} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1232,11 +1235,11 @@ class TestGpkgShpConversion:
         # remove geopackage and shape files
         os.remove(os.path.join(fp, gpkg_name))
         for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fp + '/test_data/', test_write_gpkg_table_name + '.' + ext))
+            os.remove(os.path.join(fp, test_write_gpkg_table_name + '.' + ext))
 
     def test_convert_gpkg_to_shp_file_bulk(self):
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
@@ -1283,8 +1286,10 @@ class TestGpkgShpConversion:
         ogr_response_gpkg2 = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
         ogr_response_shp2 = subprocess.check_output(shlex.split(cmd_shp2), stderr=subprocess.STDOUT)
         
-        assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg) and 'test_col1 (Integer) = 1' in str(ogr_response_shp), "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
-        assert 'test_col5 (Integer) = 5' in str(ogr_response_gpkg2) and 'test_col5 (Integer) = 5' in str(ogr_response_shp2), "cannot find 'test_col5 (Integer) = 5' statement in both the shapefile and gpkg queries"
+        assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg) and 'test_col1 (Integer) = 1' in str(ogr_response_shp), \
+            "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
+        assert 'test_col5 (Integer) = 5' in str(ogr_response_gpkg2) and 'test_col5 (Integer) = 5' in str(ogr_response_shp2), \
+            "cannot find 'test_col5 (Integer) = 5' statement in both the shapefile and gpkg queries"
 
         # remove geopackage and shape files
         os.remove(os.path.join(fp, gpkg_name))
@@ -1296,7 +1301,7 @@ class TestGpkgShpConversion:
         # don't delete test_write_gpkg_table_name.shp as it will be used in the subsequent test
 
     def test_convert_shp_to_gpkg_file(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
         shp_name = f'{test_write_gpkg_table_name}.shp'
 
@@ -1327,7 +1332,7 @@ class TestGpkgShpConversion:
         # copy the same shp file as an additional table in the gpkg
         # this test confirms that the update function for the gpkg is working correctly
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
         shp_name = f'{test_write_gpkg_table_name}.shp'
 

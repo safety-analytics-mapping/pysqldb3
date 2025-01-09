@@ -425,7 +425,7 @@ class TestLogging:
 
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df.to_csv(fp)
-        db.csv_to_table(input_file=fp, schema='working', table=table_for_testing_logging)
+        db.csv_to_table(input_file=fp, schema='working', table=table_for_testing_logging, overwrite=True)
 
         after_log_df = db.dfquery("""
                     SELECT *
