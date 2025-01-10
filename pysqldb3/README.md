@@ -53,7 +53,7 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 1. [`create_table_from_backup`](#create_table_from_backup): Creates table in database from backup sql file.
 1. [`get_table_indexes`](#get_table_indexes): Gets create index queries from existing database tables
 
-Data IO functions
+#### Data IO functions:
 1. [`pg_to_sql`](#pg_to_sql): Convert PG table to a SQL table
 1. [`pg_to_sql_qry`](#pg_to_sql_qry): Convert the output of a PG query to a SQL table
 1. [`sql_to_pg`](#pg_to_sql): Convert SQL table to a PG table
@@ -63,7 +63,7 @@ Data IO functions
 1. [`pg_to_pg`](#pg_to_pg): Copy a PG table to a different PG database or schema
 1. [`pg_to_pg_qry`](#pg_to_pg_qry): Copy an output table from a PG query to a different PG database or schema
 
-Geopackage functions
+#### Geopackage functions:
 1. [`list_gpkg_tables`](#list_gpkg_tables): View a list of all the tables in the Geopackage file to help isolate tables of interest
 1. [`gpkg_to_shp`](#gpkg_to_shp): Convert a specific table in a Geopackage to an ESRI Shapefile
 1. [`gpkg_to_shp_bulk`](#gpkg_to_shp): Convert ALL tables in a Geopackage to ESRI Shapefiles
@@ -1259,7 +1259,7 @@ Copy a table from a PG database to a database in SQL
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 
@@ -1291,7 +1291,7 @@ Copy the table output of a query from a PG database to a database in SQL
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 ### sql_to_pg
@@ -1326,7 +1326,7 @@ Copy a table from a SQL database to a database in PG
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 ### sql_to_pg_qry
@@ -1361,7 +1361,7 @@ Copy the table output of a query from a SQL database to a database in PG
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 ### sql_to_sql
@@ -1397,7 +1397,7 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 ### sql_to_sql_qry
@@ -1432,7 +1432,7 @@ Copy a table from one SQL database/schema to another SQL database/schema
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 
@@ -1465,7 +1465,7 @@ Copy a table from one PG database/schema to another PG database/schema
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 ### pg_to_pg_qry
@@ -1496,7 +1496,7 @@ Copy the output table from a query in one PG database/schema to another PG datab
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#data-io-functions)
 <br>
 
 
@@ -1515,7 +1515,7 @@ There are no parameters
 
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
 
 ### gpkg_to_shp
@@ -1539,7 +1539,7 @@ The output Shapefile name will match the name of the geopackage table to be copi
 ```
 
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
 
 ### gpkg_to_shp_bulk
@@ -1559,7 +1559,7 @@ The output Shapefile name will match the name of the geopackage table to be copi
 >>> cindys_geopackage.gpkg_to_shp(export_path = 'C:/Users/Documents/Username/Shapefiles_Folder/')
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
 
 
@@ -1588,7 +1588,7 @@ Exports query results to a geopackage (.gpkg) file.
 >>> db.query_to_gpkg(query = "select * from working.test_table_1", gpkg_tbl = 'test_table_cchen1', gpkg_name= 'cindy_test.gpkg')
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
 
 
@@ -1621,7 +1621,7 @@ Reads a single geopackage table into SQL or Postgresql as a table
 >>> cindys_geopackage.read_gpkg(dbo = db, schema = 'working', table = 'community_districts', gpkg_tbl = 'community_districts_2024',)
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
 
 ### read_gpkg_bulk
@@ -1650,7 +1650,7 @@ Reads a single geopackage table into SQL or Postgresql as a table
 ```
 
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
 
 
@@ -1671,7 +1671,7 @@ Reads a single geopackage table into SQL or Postgresql as a table
 >>> nyc_gpkg.shp_to_gpkg(shp_name = 'NYC_boros.shp', gpkg_tbl = 'boroughs', overwrite = True)
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
 
 
@@ -1700,5 +1700,5 @@ Exports table to a geopackage file.
 
 ```
 
-[Back to Table of Contents](#pysqldb3-public-functions)
+[Back to Table of Contents](#geopackage-functions)
 <br>
