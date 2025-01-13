@@ -1157,7 +1157,7 @@ class TestGpkgShpConversion:
         
     def test_convert_gpkg_to_shp_file(self):
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
@@ -1168,6 +1168,8 @@ class TestGpkgShpConversion:
                 insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
                 insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
                 """)
+        
+        assert sql.table_exists(schema = ms_schema, table = test_write_gpkg_table_name)
 
         # write geopackage file
         s = Geopackage(path = fp, gpkg_name=gpkg_name)
@@ -1183,8 +1185,8 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(fp, test_write_gpkg_table_name + '.shp'))
 
         # check that the shapefile and gpkg have the same output
-        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo {test_write_gpkg_table_name + ".shp"} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo "{fp}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{fp}/{test_write_gpkg_table_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1195,10 +1197,12 @@ class TestGpkgShpConversion:
         os.remove(os.path.join(fp, gpkg_name))
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, test_write_gpkg_table_name + '.' + ext))
+
+        sql.drop_table(schema = ms_schema, table = test_write_gpkg_table_name)
     
     def test_convert_gpkg_to_shp_custom_path(self):
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
@@ -1216,16 +1220,15 @@ class TestGpkgShpConversion:
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, gpkg_name))
-        
         # run function to convert geopackage to shape file
-        s.gpkg_to_shp_bulk(export_path = fp )
-        
+        s.gpkg_to_shp_bulk(export_path = fp)
+ 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
         assert os.path.isfile(os.path.join(fp , test_write_gpkg_table_name + '.shp'))
 
         # check that the shapefile and gpkg have the same output
-        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo { test_write_gpkg_table_name + ".shp"} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo "{fp}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{fp}/{test_write_gpkg_table_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1237,9 +1240,11 @@ class TestGpkgShpConversion:
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, test_write_gpkg_table_name + '.' + ext))
 
+        sql.drop_table(schema = ms_schema, table = test_write_gpkg_table_name)
+
     def test_convert_gpkg_to_shp_file_bulk(self):
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
@@ -1261,6 +1266,10 @@ class TestGpkgShpConversion:
                 insert into {ms_schema}.{test_write_gpkg_table_name}_2 VALUES(5, 6, geometry::Point(985830.79200444, 203371.60461367, 2263));
                 insert into {ms_schema}.{test_write_gpkg_table_name}_2 VALUES(7, 8, geometry::Point(985830.79200444, 203371.60461367, 2263));
                 """)
+        
+        assert sql.table_exists(schema = ms_schema, table = test_write_gpkg_table_name)
+        assert sql.table_exists(schema = ms_schema, table = f"{test_write_gpkg_table_name}_2")
+
         s = Geopackage(path = fp, gpkg_name=gpkg_name)
         s.write_gpkg(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2', print_cmd=True) # this will append 
 
@@ -1276,10 +1285,10 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(fp, test_write_gpkg_table_name + '_2.shp'))
 
         # check that the shapefile and gpkg have the same output
-        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo {test_write_gpkg_table_name + ".shp"} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_gpkg2 = f'ogrinfo {gpkg_name} -sql "SELECT test_col5 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
-        cmd_shp2 = f'ogrinfo {test_write_gpkg_table_name + "_2.shp"} -sql "SELECT test_col5 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo "{fp}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{fp}/{test_write_gpkg_table_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_gpkg2 = f'ogrinfo "{fp}/{gpkg_name}" -sql "SELECT test_col5 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
+        cmd_shp2 = f'ogrinfo "{fp}/{test_write_gpkg_table_name}_2.shp" -sql "SELECT test_col5 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1296,28 +1305,43 @@ class TestGpkgShpConversion:
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2")
         for ext in ('dbf', 'prj', 'shx', 'shp'):
+            os.remove(os.path.join(fp, test_write_gpkg_table_name + '.' + ext))
             os.remove(os.path.join(fp, test_write_gpkg_table_name + '_2.' + ext))
 
-        # don't delete test_write_gpkg_table_name.shp as it will be used in the subsequent test
-
     def test_convert_shp_to_gpkg_file(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
-        shp_name = f'{test_write_gpkg_table_name}.shp'
+        shp_name = test_write_gpkg_table_name
 
-        # Check table in folder
-        assert os.path.isfile(os.path.join(fp, shp_name))
+        # create shapefile (we don't import Shapefile.py so we create a GPKG, convert to SHP, and then delete the GPKG)
+        sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name};
+                create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
+                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+                """)
+
+        # write geopackage file
+        s = Geopackage(path = fp, gpkg_name=gpkg_name)
+        s.write_gpkg(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
+        s.gpkg_to_shp(export_path = fp, gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+
+        # drop SQL table and GPKG
+        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
+        os.remove(os.path.join(fp, gpkg_name))
+
+        assert os.path.exists(os.path.join(fp, gpkg_name)) == False # confirm that the gpkg is removed
+        assert os.path.isfile(os.path.join(fp, shp_name + '.shp')) # confirm that the shp file exists
 
         # run function to convert Shapefile to GPKG
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.shp_to_gpkg(gpkg_tbl = test_write_gpkg_table_name, shp_name = shp_name, print_cmd = True)
+        s.shp_to_gpkg(gpkg_tbl = test_write_gpkg_table_name, shp_name = shp_name + '.shp', print_cmd = True)
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # assert that the data is the same
-        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo {shp_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo "{fp}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{fp}/{shp_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1332,23 +1356,23 @@ class TestGpkgShpConversion:
         # copy the same shp file as an additional table in the gpkg
         # this test confirms that the update function for the gpkg is working correctly
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'\\test_data'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
         gpkg_name = 'gpkg_to_shp.gpkg'
-        shp_name = f'{test_write_gpkg_table_name}.shp'
+        shp_name = test_write_gpkg_table_name
 
         # Check table in folder
-        assert os.path.isfile(os.path.join(fp, shp_name))
+        assert os.path.isfile(os.path.join(fp, shp_name) + '.shp')
 
         # run function to convert Shapefile to GPKG
         s = Geopackage(path=fp, gpkg_name=gpkg_name)
-        s.shp_to_gpkg(shp_name = shp_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2')
+        s.shp_to_gpkg(shp_name = shp_name + '.shp', gpkg_tbl = f'{test_write_gpkg_table_name}_2')
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(fp, gpkg_name))
 
         # assert that the data is the same
-        cmd_gpkg = f'ogrinfo {gpkg_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
-        cmd_shp = f'ogrinfo {shp_name} -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo "{fp}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{fp}/{shp_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
 
         ogr_response_gpkg_2 = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp_2 = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1357,10 +1381,10 @@ class TestGpkgShpConversion:
 
         # remove shape file
         for ext in ('.dbf', '.prj', '.shx', '.shp'):
-                try:
-                    os.remove(os.path.join(fp, shp_name.replace('.shp', ext)))
-                except Exception as e:
-                    print(e)
+            try:
+                os.remove(os.path.join(fp, shp_name + ext))
+            except Exception as e:
+                print(e)
 
         # remove gpkg output
         os.remove(os.path.join(fp, gpkg_name))
@@ -1368,4 +1392,3 @@ class TestGpkgShpConversion:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()
-
