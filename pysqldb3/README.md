@@ -1508,11 +1508,14 @@ There are no parameters
 
 **Sample**
 ```
->>> from pysqldb3 import pysqldb3
->>> g = Geopackage(path = 'C:/Users/Documents/Usernames/Geopackages_Folder/', gpkg_name = 'lion') # set Geopackage object
+>>> from pysqldb3 import pysqldb3, geopackage
+>>> g = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'lion.gpkg') # set Geopackage object
 >>> g.list_gpkg_tables()
 
-
+# list all tables in the geopackage
+['cindy_test',
+ 'nycc',
+ 'nypp']
 ```
 
 [Back to Table of Contents](#geopackage-functions)
@@ -1532,10 +1535,11 @@ The output Shapefile name will match the name of the geopackage table to be copi
 **Sample**
 
 ```
->>> from pysqldb3 import pysqldb3
->>> cindys_geopackage = Geopackage(path = 'C:/Users/Documents/Usernames/Geopackages_Folder/', gpkg_name = 'lion')
->>> cindys_geopackage.gpkg_to_shp('boroughs', export_path = 'C:/Users/Documents/Username/Shapefiles_Folder/')
+>>> from pysqldb3 import pysqldb3, geopackage
+>>> cindys_geopackage = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'lion')
+>>> cindys_geopackage.gpkg_to_shp('boroughs', export_path = 'C:/Usernames/Shapefiles_Folder/')
 
+b'Warning 1: Value 113325976.682999998 of field shape_area of feature 6 not successfully written. Possibly due t...'
 ```
 
 
@@ -1554,9 +1558,11 @@ The output Shapefile name will match the name of the geopackage table to be copi
 
 **Sample**
 ```
->>> from pysqldb3 import pysqldb3
->>> cindys_geopackage = Geopackage(path = 'C:/Users/Documents/Usernames/Geopackages_Folder/', gpkg_name = 'lion')
->>> cindys_geopackage.gpkg_to_shp(export_path = 'C:/Users/Documents/Username/Shapefiles_Folder/')
+>>> from pysqldb3 import pysqldb3, geopackage
+>>> cindys_geopackage = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'lion')
+>>> cindys_geopackage.gpkg_to_shp(export_path = 'C:/Username/Shapefiles_Folder/')
+
+b'Warning 6: Field created create as date field, though DateTime requested.\r\n.....'
 ```
 
 [Back to Table of Contents](#geopackage-functions)
@@ -1585,7 +1591,12 @@ Exports query results to a geopackage (.gpkg) file.
 ```
 >>> from pysqldb3 import pysqldb3
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
->>> db.query_to_gpkg(query = "select * from working.test_table_1", gpkg_tbl = 'test_table_cchen1', gpkg_name= 'cindy_test.gpkg')
+>>> db.query_to_gpkg(query = "select masterid from working.test_table_1", path = 'C:/Usernames/Downloads/', gpkg_tbl = 'test_table_cchen1', gpkg_name= 'cindy_test.gpkg')
+
+b''
+cindy_test.gpkg geopackage 
+written to: C:/Usernames/Downloads/
+generated from: select \"masterid\" from (select masterid from working.test_table_1) q 
 ```
 
 [Back to Table of Contents](#geopackage-functions)
@@ -1615,10 +1626,12 @@ Reads a single geopackage table into SQL or Postgresql as a table
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> cindys_geopackage = Geopackage(path = 'C:/Users/Documents/Usernames/Geopackages_Folder/', gpkg_name = 'lion')
+>>> cindys_geopackage = geopackage.Geopackage(path = 'C://Usernames/Geopackages_Folder/', gpkg_name = 'lion')
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 
->>> cindys_geopackage.read_gpkg(dbo = db, schema = 'working', table = 'community_districts', gpkg_tbl = 'community_districts_2024',)
+>>> cindys_geopackage.read_gpkg(dbo = db, schema = 'working', table = 'community_districts', gpkg_tbl = 'community_districts_2024')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
 
 [Back to Table of Contents](#geopackage-functions)
@@ -1644,9 +1657,15 @@ Reads a single geopackage table into SQL or Postgresql as a table
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> sample_gpkg = Geopackage(path = 'C:/Users/Documents/Usernames/Geopackages_Folder/', gpkg_name = 'sample_gpkg.gpkg')\
+>>> sample_gpkg = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'sample_gpkg.gpkg')\
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> sample_gpkg.read_gpkg_bulk(dbo = db, schema = 'working')
+
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+{'nypppp': 'nypppp',
+ 'table_2': 'table_2',
+ 'table_3!': 'table_3!'}
 ```
 
 
@@ -1667,8 +1686,10 @@ Reads a single geopackage table into SQL or Postgresql as a table
 
 ```
 >>> from pysqldb3 import pysqldb3
->>> nyc_gpkg = Geopackage(path = 'C:/Users/Documents/Usernames/Geopackages_Folder/', gpkg_name = 'NYC_attributes.gpkg')
+>>> nyc_gpkg = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'NYC_attributes.gpkg')
 >>> nyc_gpkg.shp_to_gpkg(shp_name = 'NYC_boros.shp', gpkg_tbl = 'boroughs', overwrite = True)
+
+b'Warning 1: A geometry of type MULTIPOLYGON is inserted into layer nypppp of geometry type POLYGON, which is not allowed. This warning will no longer be emitted for this combination of layer and feature geometry type.\r\n'
 ```
 
 [Back to Table of Contents](#geopackage-functions)
@@ -1696,8 +1717,12 @@ Exports table to a geopackage file.
 ```
 >>> from pysqldb3 import pysqldb3
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
->>> db.table_to_gpkg(table = 'boro_lookup', gpkg_name = 'NYC.gpkg', gpkg_tbl = 'borough_lookup', schema = 'working')
+>>> db.table_to_gpkg(table = 'boro_lookup', gpkg_name = 'NYC.gpkg', gpkg_tbl = 'borough_lookup', schema = 'working', path = 'C:/Usernames/Downloads/')
 
+b''
+NYC.gpkg geopackage 
+written to: C:/Usernames/Downloads
+generated from: select \"borocode\" , \"abbreviation\" , \"label\" from (select * from working.boro_lookup) q 
 ```
 
 [Back to Table of Contents](#geopackage-functions)
