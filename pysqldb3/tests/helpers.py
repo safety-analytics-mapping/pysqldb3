@@ -400,7 +400,7 @@ def set_up_xls():
     _df.to_excel(DIR + "\\xls_kwargs_test.xlsx", index=False)
 
 
-def set_up_geopackage():
+def set_up_geopackage(user):
 
     # SET UP FIRST TABLE
     data = {
@@ -412,7 +412,7 @@ def set_up_geopackage():
     df.to_csv(os.path.join(DIR, "sample.csv"), index=False)
     fle = os.path.join(DIR, "sample.csv")
 
-    cmd = f'''ogr2ogr -f "GPKG" {DIR}\\testgpkg.gpkg -nln t:est_layer1 -dialect sqlite -sql 
+    cmd = f'''ogr2ogr -f "GPKG" {DIR}\\testgpkg.gpkg -nln  test_layer1_{user} -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326) as geom, some_value FROM sample" {fle}'''
     os.system(cmd.replace('\n', ' '))
 
@@ -421,7 +421,7 @@ def set_up_geopackage():
     
     ## SET UP SECOND TABLE (fine that the data is the exact same) ##
 
-    cmd = f'''ogr2ogr -f "GPKG" -update {DIR}\\testgpkg.gpkg -nln test_layer2!? -dialect sqlite -sql 
+    cmd = f'''ogr2ogr -f "GPKG" -update {DIR}\\testgpkg.gpkg -nln test_layer2_{user} -dialect sqlite -sql 
     "SELECT gid, GeomFromText(WKT, 4326) as geom, some_value FROM sample" {fle}'''
     os.system(cmd.replace('\n', ' '))
 

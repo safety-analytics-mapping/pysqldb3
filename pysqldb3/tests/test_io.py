@@ -1676,7 +1676,7 @@ class TestSqlToSqlQry:
         assert not sql.table_exists(schema= test_org_schema, table = test_sql_to_sql_tbl_from)
 
         # create table to be copied (has geoms)
-        reference_table = sql.dfquery(f"""
+        sql.query(f"""
             CREATE TABLE {test_org_schema}.{test_sql_to_sql_tbl_from} (id_name_one int,
             [123text name one] text,
             [text@name-two~three four five six seven] text,
@@ -1688,6 +1688,7 @@ class TestSqlToSqlQry:
             VALUES (1, 'test text', 'test text', CURRENT_TIMESTAMP,
             123.456, geometry::Point(1015329.1, 213793.1, 2263 ));
         """)
+        reference_table = sql.dfquery(f"select * from {test_org_schema}.{test_sql_to_sql_tbl_from}")
 
         # confirm that the table is correctly created
         assert sql.table_exists(schema=test_org_schema, table = test_sql_to_sql_tbl_from)

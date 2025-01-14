@@ -128,11 +128,12 @@ class TestDropTableMS:
 
         assert not sql.table_exists(test_for_drop_table, schema=schema)
 
+
     def test_remove_table_from_log(self):
         table_name = f'sql_test_table_{sql.user}'  # from helper.py
         query_string = f"""
 
-        IF OBJECT_ID(dbo.{test_for_drop_table}, 'u') IS NOT NULL
+        IF OBJECT_ID('dbo.{test_for_drop_table}', 'u') IS NOT NULL
         DROP TABLE dbo.{test_for_drop_table};
 
         SELECT 'a' as col1, 'b' as col2

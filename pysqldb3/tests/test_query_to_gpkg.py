@@ -37,11 +37,13 @@ test_table = f'__testing_query_to_gpkg_{db.user}__'
 ms_schema = 'risadmin'
 pg_schema = 'working'
 
+FOLDER_PATH = helpers.DIR
+
 
 class TestQueryToGpkgPg:
 
     def test_query_to_gpkg_basic(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -55,23 +57,22 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table, gpkg_name=gpkg, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table, gpkg_name=gpkg, path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # Manually check SRID of projection file and verify it contains 2263
-        cmd = r'gdalsrsinfo {}\{}'.format(fldr, gpkg).replace('\\', '/')
+        cmd = r'gdalsrsinfo {}\{}'.format(FOLDER_PATH, gpkg).replace('\\', '/')
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
         assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
 
         # clean up
         db.drop_table(pg_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_multitable(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -86,29 +87,29 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # add first table
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True, srid=2263)
         # add second table to the same gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # Check that both tables appear in geopackage
-        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table}_2 LIMIT 1" -q'
-        cmd_gpkg2 = f'ogrinfo  ./test_data/{gpkg} -sql "SELECT id FROM {test_table}_2 LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table}_2 LIMIT 1" -q'
+        cmd_gpkg2 = f'ogrinfo  {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table}_2 LIMIT 1" -q'
 
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
-        ogr_response_gpkg2 = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg.replace('\\', '/')), stderr=subprocess.STDOUT)
+        ogr_response_gpkg2 = subprocess.check_output(shlex.split(cmd_gpkg2.replace('\\', '/')), stderr=subprocess.STDOUT)
         
         assert 'id (Integer) = 1' in str(ogr_response_gpkg) and 'id (Integer) = 1' in str(ogr_response_gpkg2), "Geopackage does not contain multiple tables"
 
         # clean up
         db.drop_table(pg_schema, test_table)
         db.drop_table(pg_schema, test_table + '_2')
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_overwrite(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -122,7 +123,7 @@ class TestQueryToGpkgPg:
         
         assert db.table_exists(test_table, schema=pg_schema)
 
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # create table
         db.query(f"""
@@ -134,28 +135,28 @@ class TestQueryToGpkgPg:
          """)
         
         # overwrite the table
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}_2", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}_2", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # this should fail
-        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        cmd_gpkg = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg.replace('\\', '/')), stderr=subprocess.STDOUT)
         assert 'ERROR' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # check that the overwritten table works
-        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id2 FROM {test_table} LIMIT 1" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        cmd_gpkg2 = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id2 FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2.replace('\\', '/')), stderr=subprocess.STDOUT)
         assert 'id2 (Integer) = 2' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # clean up
         db.drop_table(pg_schema, test_table)
         db.drop_table(pg_schema, test_table + '_2')
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -169,17 +170,16 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=fldr+'\\'+gpkg, gpkg_tbl = test_table, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=os.path.join(FOLDER_PATH, gpkg), gpkg_tbl = test_table, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         db.drop_table(pg_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth_and_gpkg(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -193,22 +193,23 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr+'\\'+gpkg, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
+                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # Manually check SRID of projection file and verify it contains 2263
-        cmd = f'ogrinfo {fldr}\\{gpkg} -sql "SELECT geom FROM {test_table}"'.replace('\\', '/')
-        ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
+        cmd = f'ogrinfo {os.path.join(FOLDER_PATH, gpkg)} -sql "SELECT geom FROM {test_table}"'.replace('\\', '/')
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\\', '/')), stderr=subprocess.STDOUT)
         assert b'"EPSG","2263"' in ogr_response
 
         # clean up
         db.drop_table(pg_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -222,18 +223,17 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
         
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=fldr+'\\'+gpkg, gpkg_tbl = test_table, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=os.path.join(FOLDER_PATH, gpkg), gpkg_tbl = test_table, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         db.drop_table(pg_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth_and_gpkg(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -248,17 +248,16 @@ class TestQueryToGpkgPg:
 
         # table to gpkg - make sure gpkg_tbl overwrites any gpkg in the path
         db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
-                        path=fldr+'\\'+'test_'+gpkg, print_cmd=True)
+                        path=os.path.join(FOLDER_PATH, 'test_'+gpkg) , print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         db.drop_table(pg_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_quotes(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -272,17 +271,16 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_funky_field_names(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -296,17 +294,16 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_long_names(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -324,18 +321,16 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_no_data(self):
-
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -349,18 +344,17 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table} limit 0", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table} limit 0", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
 
     def test_query_to_gpkg_data(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -382,13 +376,13 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(path=fldr, gpkg_tbl=test_table, table = test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
+        db.gpkg_to_table(path=FOLDER_PATH, gpkg_tbl=test_table, table = test_table + 'QA', schema=pg_schema, gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
         select
@@ -408,10 +402,10 @@ class TestQueryToGpkgPg:
         db.drop_table(schema=pg_schema, table=test_table)
         db.drop_table(schema=pg_schema, table=test_table + 'QA')
 
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
         
     def test_query_to_gpkg_data_longcolumn(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -433,13 +427,13 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # import gpkg to db to compare
-        db.gpkg_to_table(path=fldr, gpkg_tbl = test_table, table = test_table + 'QA', schema=pg_schema,
+        db.gpkg_to_table(path=FOLDER_PATH, gpkg_tbl = test_table, table = test_table + 'QA', schema=pg_schema,
                         gpkg_name=gpkg, print_cmd=True)
 
         db.query(f"""
@@ -460,20 +454,19 @@ class TestQueryToGpkgPg:
         db.drop_table(schema=pg_schema, table=test_table)
         db.drop_table(schema=pg_schema, table=test_table + 'QA')
 
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_bad_query(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg'
 
         # This should fail
         try:
-            db.query_to_gpkg(query="select * from table_does_not_exist", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+            db.query_to_gpkg(query="select * from table_does_not_exist", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
         except:
             Failed = True
         # check table in not folder
         assert Failed
-        assert not os.path.isfile(os.path.join(fldr, gpkg))
+        assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
 
 class TestQueryToGpkgMs:
@@ -482,7 +475,6 @@ class TestQueryToGpkgMs:
         helpers.set_up_schema(sql, ms_schema=ms_schema)
 
     def test_query_to_gpkg_basic(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=ms_schema, table=test_table)
 
@@ -498,23 +490,22 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # Manually check SRID of projection file and verify it contains 2263
-        cmd = r'gdalsrsinfo {}\{}'.format(fldr, gpkg).replace('\\', '/')
+        cmd = r'gdalsrsinfo {}\{}'.format(FOLDER_PATH, gpkg).replace('\\', '/')
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
         assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
         
     def test_query_to_gpkg_multitable(self):
-        
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=ms_schema, table=test_table)
 
@@ -528,7 +519,7 @@ class TestQueryToGpkgMs:
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
         assert sql.table_exists(test_table, schema=ms_schema)
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         sql.drop_table(schema=ms_schema, table=test_table)
         # add similar table under a different name in the same gpkg
@@ -541,26 +532,25 @@ class TestQueryToGpkgMs:
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
         assert sql.table_exists(test_table, schema=ms_schema)
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table + '_2', path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # Check that both tables appear in geopackage
-        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
-        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id3 FROM {test_table}_2 LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        cmd_gpkg2 = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id3 FROM {test_table}_2 LIMIT 1" -q'
 
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
-        ogr_response_gpkg2 = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg.replace('\\', '/')), stderr=subprocess.STDOUT)
+        ogr_response_gpkg2 = subprocess.check_output(shlex.split(cmd_gpkg2.replace('\\', '/')), stderr=subprocess.STDOUT)
         
         assert 'id (Integer) = 1' in str(ogr_response_gpkg) and 'id3 (Integer) = 3' in str(ogr_response_gpkg2), "geopackage does not contain multiple tables"
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_overwrite(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=ms_schema, table=test_table)
 
@@ -573,7 +563,7 @@ class TestQueryToGpkgMs:
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # create new, slightly different table
         sql.drop_table(schema=ms_schema, table=test_table)
@@ -588,27 +578,26 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # overwrite the same table
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True, srid=2263)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True, srid=2263)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # this should fail
-        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        cmd_gpkg = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg.replace('\\', '/')), stderr=subprocess.STDOUT)
         assert 'ERROR' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # check that the overwritten table works
-        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id3 FROM {test_table} LIMIT 1" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        cmd_gpkg2 = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id3 FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2.replace('\\', '/')), stderr=subprocess.STDOUT)
         assert 'id3 (Integer) = 3' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=ms_schema, table=test_table)
 
@@ -624,17 +613,16 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", path=fldr + '\\' + gpkg, gpkg_tbl = test_table, print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", path=os.path.join(FOLDER_PATH, gpkg), gpkg_tbl = test_table, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth_and_name(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=ms_schema, table=test_table)
 
@@ -651,22 +639,21 @@ class TestQueryToGpkgMs:
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
         sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table,
-                        path= fldr + '\\' + gpkg, print_cmd=True)
+                        path= os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # Manually check SRID of projection file and verify it contains 2263
-        cmd = r'gdalsrsinfo {}\{}'.format(fldr, gpkg).replace('\\', '/')
+        cmd = r'gdalsrsinfo {}\{}'.format(FOLDER_PATH, gpkg).replace('\\', '/')
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
         assert b'"EPSG","2263"' in ogr_response
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=ms_schema, table=test_table)
 
@@ -682,17 +669,17 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", path=fldr + '\\' + gpkg, gpkg_tbl = test_table, print_cmd=True)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", path=os.path.join(FOLDER_PATH, gpkg), gpkg_tbl = test_table, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_pth_and_name(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=ms_schema, table=test_table)
 
@@ -709,18 +696,17 @@ class TestQueryToGpkgMs:
 
         # table to gpkg - make sure gpkg_name overwrites any gpkg in the path
         sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, 
-                        path=fldr + '\\' + gpkg, print_cmd=True)
+                        path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_brackets(self):
         schema = 'dbo'
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=schema, table=test_table)
 
@@ -736,18 +722,17 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         sql.drop_table(schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
 
     def test_query_to_gpkg_basic_funky_field_names(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         # create table
@@ -762,18 +747,17 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         sql.drop_table(ms_schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_long_names(self):
         schema = 'dbo'
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=schema, table=test_table)
 
@@ -793,18 +777,18 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         sql.drop_table(schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_basic_no_data(self):
         schema = 'dbo'
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
         sql.drop_table(schema=schema, table=test_table)
         assert not sql.table_exists(table=test_table, schema=schema)
@@ -820,18 +804,18 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select top 0 * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(f"select top 0 * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # clean up
         sql.drop_table(schema, test_table)
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_data(self):
         schema = 'dbo'
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
         gpkg = 'testgpkg.gpkg'
 
         sql.drop_table(schema, test_table)
@@ -855,13 +839,13 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg(query = f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(path=FOLDER_PATH, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         # fld6 automatically becomes renamed as geom when gpkg_to_table is run
         # t1 field should remain fld6 because that is how the table was created directly in 
@@ -883,11 +867,10 @@ class TestQueryToGpkgMs:
         sql.drop_table(schema, test_table)
         sql.drop_table(schema, test_table + 'QA')
 
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
             
     def test_query_to_gpkg_data_long(self):
         schema = 'dbo'
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'testgpkg.gpkg'
 
         sql.drop_table(schema, test_table)
@@ -911,13 +894,13 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=schema)
 
         # table to gpkg
-        sql.query_to_gpkg(query = f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=fldr, print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {schema}.{test_table}", gpkg_name=gpkg, gpkg_tbl = test_table, path=FOLDER_PATH, print_cmd=True)
 
         # check table in folder
-        assert os.path.isfile(os.path.join(fldr, gpkg))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # import gpkg to db to compare
-        sql.gpkg_to_table(path=fldr, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
+        sql.gpkg_to_table(path=FOLDER_PATH, gpkg_tbl = test_table, table=test_table + 'QA', schema=schema, gpkg_name=gpkg, print_cmd=True)
 
         sql.query(f"""
         select
@@ -937,20 +920,19 @@ class TestQueryToGpkgMs:
         sql.drop_table(schema, test_table)
         sql.drop_table(schema, test_table + 'QA')
 
-        os.remove(os.path.join(fldr, gpkg))
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
 
     def test_query_to_gpkg_bad_query(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         gpkg = 'test'
 
         # This should fail
         try:
-            sql.query_to_gpkg(query="select * from table_does_not_exist", gpkg_name=gpkg, gpkg_tbl = 'table_does_not_exist', path=fldr, print_cmd=True)
+            sql.query_to_gpkg(query="select * from table_does_not_exist", gpkg_name=gpkg, gpkg_tbl = 'table_does_not_exist', path=FOLDER_PATH, print_cmd=True)
         except:
             Failed = True
         # check table in not folder
         assert Failed
-        assert not os.path.isfile(os.path.join(fldr, gpkg))
+        assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
     @classmethod
     def teardown_class(cls):
