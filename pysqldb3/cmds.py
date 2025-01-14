@@ -101,7 +101,7 @@ READ_GPKG_CMD_MS = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_
  "{gpkg_name}" {gpkg_tbl} -nln {schema}.{tbl_name} {perc} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
 """.replace('\n', ' ')
 
-WRITE_SHP_CMD_GPKG = r'ogr2ogr -f GPKG {_update} {gpkg_name} "{full_path}\{shp_name}" -nln {gpkg_tbl}'
+WRITE_SHP_CMD_GPKG = r'ogr2ogr -f GPKG {_update} "{full_path}\{gpkg_name}" "{full_path}\{shp_name}" -nln {gpkg_tbl}'
 
 WRITE_GPKG_CMD_SHP = r'ogr2ogr -f "ESRI Shapefile" "{export_path}\{gpkg_tbl}.shp" "{full_path}\{gpkg_name}" {gpkg_tbl}'
 
