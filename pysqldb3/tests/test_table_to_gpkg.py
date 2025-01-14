@@ -37,7 +37,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 test_table = '__testing_query_to_gpkg_{}__'.format(db.user)
 ms_schema = 'risadmin'
 pg_schema = 'working'
-
+FOLDER_PATH = helpers.DIR
 
 class TestTableToGpkgPg:
     def test_table_to_gpkg_basic(self):
@@ -147,13 +147,13 @@ class TestTableToGpkgPg:
         db.table_to_gpkg(table = test_table, schema=pg_schema, gpkg_name=gpkg, path=fldr, print_cmd=True)
 
         # this should fail
-        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        cmd_gpkg = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg.replace('\\','/')), stderr=subprocess.STDOUT)
         assert 'ERROR' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # check that the overwritten table works
-        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id2 FROM {test_table} LIMIT 2" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        cmd_gpkg2 = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id2 FROM {test_table} LIMIT 2" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2.replace('\\','/')), stderr=subprocess.STDOUT)
         assert 'id2 (Integer) = 2' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # clean up
@@ -306,11 +306,11 @@ class TestTableTogpkgMs:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # check the number of tables within the geopackage
-        cmd_gpkg_1 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q '
-        cmd_gpkg_2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id_test FROM {test_table}_2 LIMIT 1" -q'
+        cmd_gpkg_1 = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q '
+        cmd_gpkg_2 = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id_test FROM {test_table}_2 LIMIT 1" -q'
 
-        ogr_response_gpkg_1 = subprocess.check_output(shlex.split(cmd_gpkg_1), stderr=subprocess.STDOUT)
-        ogr_response_gpkg_2 = subprocess.check_output(shlex.split(cmd_gpkg_2), stderr=subprocess.STDOUT)
+        ogr_response_gpkg_1 = subprocess.check_output(shlex.split(cmd_gpkg_1.replace('\\','/')), stderr=subprocess.STDOUT)
+        ogr_response_gpkg_2 = subprocess.check_output(shlex.split(cmd_gpkg_2.replace('\\','/')), stderr=subprocess.STDOUT)
 
         assert 'id (Integer) = 1' in str(ogr_response_gpkg_1) and 'id_test (Integer) = 2' in str(ogr_response_gpkg_2), "Cannot find 2 tables in the same geopackage"
 
@@ -355,13 +355,13 @@ class TestTableTogpkgMs:
         assert os.path.isfile(os.path.join(fldr, gpkg))
 
         # this should fail
-        cmd_gpkg = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        cmd_gpkg = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg.replace('\\','/')), stderr=subprocess.STDOUT)
         assert 'ERROR' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # check that the overwritten table works
-        cmd_gpkg2 = f'ogrinfo ./test_data/{gpkg} -sql "SELECT id3 FROM {test_table} LIMIT 1" -q'
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2), stderr=subprocess.STDOUT)
+        cmd_gpkg2 = f'ogrinfo {FOLDER_PATH}/{gpkg} -sql "SELECT id3 FROM {test_table} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2.replace('\\','/')), stderr=subprocess.STDOUT)
         assert 'id3 (Integer) = 3' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # clean up
