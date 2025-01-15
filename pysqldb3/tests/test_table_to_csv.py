@@ -418,19 +418,20 @@ class Test_Table_to_CSV_MS:
         sql.drop_table(schema=schema, table=create_table_name)
 
         # create table
-        sql.query("""
-            CREATE TABLE {s}.{t} (
+        sql.query(f"""
+            CREATE TABLE {schema}.{create_table_name} (
                 objectid int,
                 nd int,
                 street1 text
             );
 
-            insert into {s}.{t}
+            insert into {schema}.{create_table_name}
             values
                 (1, 2, 'Mulberry'),
                 (2, 3, 'Canal'),
                 (3, 4, 'Fifth Ave.')
-        """.format(s=schema, t=create_table_name))
+        """)
+
         assert sql.table_exists(table=create_table_name, schema=schema)
 
         # table to csv
@@ -454,13 +455,13 @@ class Test_Table_to_CSV_MS:
         if sql.table_exists(schema=schema, table=create_table_name):
             sql.drop_table(schema=schema, table=create_table_name)
 
-        sql.query("""
-            CREATE TABLE {s}.{t} (
+        sql.query(f"""
+            CREATE TABLE {schema}.{create_table_name} (
                 id int,
                 name varchar(50)
             );
 
-            insert into {s}.{t}
+            insert into {schema}.{create_table_name}
             values
                 (1,'seth'),
                 (2,'hisa'),
@@ -471,7 +472,7 @@ class Test_Table_to_CSV_MS:
                 (7,'bryant'),
                 (8,'chris'),
                 (9,'james')
-        """.format(s=schema, t=create_table_name))
+        """)
         assert sql.table_exists(create_table_name, schema=schema)
 
         # table to csv
@@ -495,13 +496,13 @@ class Test_Table_to_CSV_MS:
         if sql.table_exists(schema=schema, table=create_table_name):
             sql.drop_table(schema=schema, table=create_table_name)
 
-        sql.query("""
-            CREATE TABLE {s}.{t} (
+        sql.query(f"""
+            CREATE TABLE {schema}.{create_table_name} (
                 id int,
                 name varchar(50)
             );
 
-            insert into {s}.{t}
+            insert into {schema}.{create_table_name}
             values
                 (1,'seth'),
                 (2,'hisa'),
@@ -512,11 +513,11 @@ class Test_Table_to_CSV_MS:
                 (7,'bryant'),
                 (8,'chris'),
                 (9,'james')
-        """.format(s=schema, t=create_table_name))
+        """)
         assert sql.table_exists(create_table_name, schema=schema)
 
         # get df of table in db
-        dbdf = sql.dfquery("select * from {s}.{t}".format(s=schema, t=create_table_name))
+        dbdf = sql.dfquery(f"select * from {schema}.{create_table_name}")
 
         # table to csv
         sql.table_to_csv(create_table_name,
@@ -539,24 +540,24 @@ class Test_Table_to_CSV_MS:
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
 
         # create table
-        sql.query("""
-                CREATE TABLE {s}.{t} (
+        sql.query(f"""
+                CREATE TABLE {schema}.{create_table_name} (
                 OBJECTID int,
                 nd int,
                 street1 varchar(16)
             );
 
-            insert into {s}.{t}
+            insert into {schema}.{create_table_name}
             values
                 (1, 1, 'Atlantic'),
                 (2, 2, 'Flatbush'),
                 (3, 3, 'Canal')
-        """.format(s=schema, t=create_table_name))
+        """)
 
         assert sql.table_exists(create_table_name, schema=schema)
 
         # get df of table in db
-        dbdf = sql.dfquery("select * from {s}.{t}".format(s=schema, t=create_table_name))
+        dbdf = sql.dfquery(f"select * from {schema}.{create_table_name}")
 
         # table to csv
         sql.table_to_csv(create_table_name,

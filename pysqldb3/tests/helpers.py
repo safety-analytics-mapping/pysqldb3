@@ -26,12 +26,12 @@ def set_up_test_csv():
             'neighborhood': {0: 'Corona', 1: 'Kensington', 2: 'Morris Heights', 3: 'Bayside', 4: 'Inwood'},
             'sale date': {0: '1/1/2015', 1: '2/25/2012', 2: '7/9/2018', 3: '12/2/2021', 4: '11/13/1995'}}
     df = pd.DataFrame(data)
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test.csv", index=False)
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test2.csv", index=False, sep='|')
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test3.csv", index=False, header=False)
+    df.to_csv(DIR+"\\test.csv", index=False)
+    df.to_csv(DIR+"\\test2.csv", index=False, sep='|')
+    df.to_csv(DIR+"\\test3.csv", index=False, header=False)
 
     data['neighborhood'][0] = data['neighborhood'][0] * 500
-    df.to_csv(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\varchar.csv", index=False, header=False)
+    df.to_csv(DIR+"\\varchar.csv", index=False, header=False)
 
     # add csv with extra header line
     data2 = [
@@ -41,7 +41,45 @@ def set_up_test_csv():
         [9, 9, 9]
     ]
 
-    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test4.csv", 'w', newline='') as csvfile:
+    # simple csv with empty column
+    df = pd.DataFrame({"id": {1: 1, 2: 2, 3: 3},
+                       "col1": {1: 'a', 2: 'b'},
+                       "col3": {1: None, 2: None},
+                       "col2": {1: 35, 2: 0},
+                       })
+    df.to_csv(DIR + "\\test6.csv", index=False)
+
+    # bulk csv with empty column
+    data3 = [
+        ["id",  "col1", "col3", 'col2'],
+        [1,2,None,100],
+        [2, 3,None, 9],
+        [35,36,None, 37]
+    ]
+    for i in range(1000):
+        data3.append([2+i, 2, None, 0])
+
+    # bulk csv with sparse column - int column with 1 text value
+    data4 = [
+        ["id", "col1", "col3", 'col2'],
+        [1, 2, None, 100],
+        [2, 3, None, 9],
+        [35, 36, None, 37]
+    ]
+    for i in range(100000):
+        data4.append([2 + i, 2, None, 0])
+        i+=1
+    data4.append([2 + i, 'U', None, 0])
+    for j in range(1000):
+        data4.append([2 + i, 2, None, 0])
+        i += 1
+
+    with open(DIR+"\\test8.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data4:
+            w.writerow(row)
+
+    with open(DIR+"\\test4.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data2:
             w.writerow(row)
@@ -50,7 +88,7 @@ def set_up_test_csv():
     for i in range(1000):
         data2.append([1, 2, 3])
 
-    with open(os.path.dirname(os.path.abspath(__file__)) + "\\test_data\\test5.csv", 'w', newline='') as csvfile:
+    with open(DIR+"\\test5.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data2:
             w.writerow(row)
@@ -361,3 +399,44 @@ def set_up_xls():
     _df = pd.read_excel(DIR + "\\xls_kwargs_test.xls")
     _df.to_excel(DIR + "\\xls_kwargs_test.xlsx", index=False)
 
+
+def set_up_geopackage(user):
+
+    # SET UP FIRST TABLE
+    data = {
+        'gid': {0: 1, 1: 2},
+        'WKT': {0: 'POINT(-73.88782477721676 40.75343453961836)', 1: 'POINT(-73.88747073046778 40.75149365677327)'},
+        'some_value': {0: 'test1', 1: 'test2'}
+    }
+    df = pd.DataFrame(data)
+    df.to_csv(os.path.join(DIR, "sample.csv"), index=False)
+    fle = os.path.join(DIR, "sample.csv")
+
+    cmd = f'''ogr2ogr -f "GPKG" {DIR}\\testgpkg.gpkg -nln  test_layer1_{user} -dialect sqlite -sql 
+    "SELECT gid, GeomFromText(WKT, 4326) as geom, some_value FROM sample" {fle}'''
+    os.system(cmd.replace('\n', ' '))
+
+    # asser that a Geopackage file exists now 
+    assert os.path.isfile(f'{DIR}\\testgpkg.gpkg'), "Geopackage was not created correctly"
+    
+    ## SET UP SECOND TABLE (fine that the data is the exact same) ##
+
+    cmd = f'''ogr2ogr -f "GPKG" -update {DIR}\\testgpkg.gpkg -nln test_layer2_{user} -dialect sqlite -sql 
+    "SELECT gid, GeomFromText(WKT, 4326) as geom, some_value FROM sample" {fle}'''
+    os.system(cmd.replace('\n', ' '))
+
+    # assert that a Geopackage file exists now 
+    assert os.path.isfile(f'{DIR}\\testgpkg.gpkg'), "Second layer in Geopackage was not created correctly"
+
+    print ('Sample geopackage ready...')
+
+def clean_up_geopackage():
+    fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+    
+    for _filename in ('testgpkg', 'test_write', 'gpkg_to_shp'):
+        _fle = f'{fldr}\\test_data\\{_filename}.gpkg'
+        
+        if os.path.isfile(_fle):
+            os.remove(_fle)
+
+    print ('Deleting any existing gpkg')

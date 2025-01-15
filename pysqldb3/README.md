@@ -20,7 +20,7 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 #### pysqldb3 public functions:
 
 
-1. [`connect`](#connect): Connects to database
+1. [`DbConnect`](#connect): Connects to database
 1. [`disconnect`](#disconnect): Disconnects from database.  
 1. [`check_conn`](#check_conn): Checks and reconnects to connection if not currently connected.
 1. [`log_temp_table`](#log_temp_table): Writes tables to temp log to be deleted after expiration date.
@@ -49,35 +49,64 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 1. [`table_to_csv`](#table_to_csv): Exports database table to a csv file.
 1. [`shp_to_table`](#shp_to_table): Imports ESRI Shapefile to database, uses GDAL to generate the table.
 1. [`feature_class_to_table`](#feature_class_to_table): Imports shape file feature class to database, uses GDAL to generate the table.
+1. [`backup_table`](#backup_table): Creates backup sql file from table.
+1. [`create_table_from_backup`](#create_table_from_backup): Creates table in database from backup sql file.
+1. [`get_table_indexes`](#get_table_indexes): Gets create index queries from existing database tables
 
+#### Data IO functions:
+1. [`pg_to_sql`](#pg_to_sql): Convert PG table to a SQL table
+1. [`pg_to_sql_qry`](#pg_to_sql_qry): Convert the output of a PG query to a SQL table
+1. [`sql_to_pg`](#pg_to_sql): Convert SQL table to a PG table
+1. [`sql_to_pg_qry`](#sql_to_pg_qry): Convert the output of a SQL query to a PG table
+1. [`sql_to_sql`](#sql_to_sql): Copy a SQL table to a different SQL database or schema
+1. [`sql_to_sql_qry`](#sql_to_sql_qry): Copy an output table from a SQL query to a different SQL database or schema
+1. [`pg_to_pg`](#pg_to_pg): Copy a PG table to a different PG database or schema
+1. [`pg_to_pg_qry`](#pg_to_pg_qry): Copy an output table from a PG query to a different PG database or schema
 
-
-
-
+#### Geopackage functions:
+1. [`list_gpkg_tables`](#list_gpkg_tables): View a list of all the tables in the Geopackage file to help isolate tables of interest
+1. [`gpkg_to_shp`](#gpkg_to_shp): Convert a specific table in a Geopackage to an ESRI Shapefile
+1. [`gpkg_to_shp_bulk`](#gpkg_to_shp): Convert ALL tables in a Geopackage to ESRI Shapefiles
+1. [`query_to_gpkg`](#query_to_gpkg): Exports query results to an Geopackage file.
+1. [`read_gpkg`](#read_gpkg): Imports Geopackage tables to database. This uses pandas datatypes to generate the table schema.
+1. [`read_gpkg_bulk`](#read_gpkg_bulk): Read all tables in a Geopackage into a database (SQL/PG)
+1. [`shp_to_gpkg`](#shp_to_gpkg): Add or convert a Shapefile as a table in a Geopackage database
+1. [`table_to_gpkg`](#table_to_gpkg): Exports database table to a Geopackage file
 
 
 
 ## Details 
-### connect
-**`pysqldb3.DbConnect(quiet=False)`**
+### DbConnect
+**`pysqldb3.DbConnect(user=None, password=None, ldap=False, type=None, server=None, database=None, port=5432,
+                 allow_temp_tables=False, use_native_driver=True, default=False, quiet=False,
+                 inherits_from=None)`**
 Creates database connection instance.  
 ###### Parameters:
+ - **`user`: string**: Username needed for database connection. When left blank will generate promt for user to enter
+ - **`password`: string**: Password needed for database connection. When left blank will generate promt for user to enter
+ - **`ldap`: bool, default False**: When true will use windows login for database connection
+ - **`type`: string**: Database type (MS, PG, AZ), needed for database connection. When left blank will generate promt for user to enter
+ - **`server`: string**: Server/host path, needed for database connection. When left blank will generate promt for user to enter
+ - **`database`: string**: Database name, needed for database connection. When left blank will generate promt for user to enter
+ - **`port`: int default 5432**: Database port, needed for database connection.
+ - **`allow_temp_tables`: bool default False**: When true, allows for continued connection to database, which is needed for createing and accessing temp tables with different queries
+ - **`default`: bool default False**: When true, database connection parameters are taken from config and not needed to be passed. Does not include username/password.
  - **`quiet`: bool, default False**: When true, does not print database connection information.
+ - **`inherits_from`: object**: Uses another pysqldb3.DbConnect instance to reuse any database connection parameters not explicity passed
  
  
 **Sample** 
 ```
 >>> from pysqldb3 import pysqldb3
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
-
-
->>> db.connect()
-
 Database connection (PG) to ris on dotdevrhpgsql01 - user: user_name
 Connection established 2023-01-13 09:41:52, /
 - ris version 0.0.3 -
 
->>> db.connect(quiet = True)) #nothing will return
+>>> db2.connect(inherits_from = db, user='new_user', password='new_password'))
+Database connection (PG) to ris on dotdevrhpgsql01 - user: new_user
+Connection established 2023-01-13 09:42:52, /
+- ris version 0.0.3 -
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
@@ -277,7 +306,10 @@ Checks if table exists in the database
 ###### Parameters:
  - **`table`: str** Table name 
  - **`schema`: str, default Database's default schema**: Database schema name 
- 
+ - **`server`: str, default database connection's server**: Database server name 
+ - **`internal`: bool, default False**: internal query
+ - **`case_sensitive`: bool, default False**: Specify if table name is case sensitive 
+
 **Sample**
 ```
 >>> from pysqldb3 import pysqldb3
@@ -285,6 +317,9 @@ Checks if table exists in the database
 >>> db.table_exists('bike_inj', schema='working')
 
 True
+>>> db.table_exists('Bike_inj', schema='working', case_sensitive)
+
+False
 ```
 [Back to Table of Contents](#pysqldb3-public-functions)
 <br>
@@ -1112,4 +1147,583 @@ Imports feature class from ESRI file geodatabase, uses GDAL to generate the tabl
 ```
 
 [Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+-------------------------------------------------------------------------
+
+### backup_table
+**`DbConnect.backup_table(org_schema, org_table, backup_path, backup_schema, backup_table)`**
+
+Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
+as backing up to csv for large tables, but it will ensure identical schema.
+ 
+###### Parameters:
+ - **`org_schema` str**: Name of database schema of the table to be backed up
+ - **`org_table` str**: Name of database table to be backed up
+ - **`backup_path` str**:  File path where the .sql file will be written
+ - **`backup_schema` str**:  Name of database schema the backed up table will be written back to
+ - **`backup_table` str**: Name of database table the backed up table will be written back to
+
+**Sample**
+
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.backup_table('public', 'sample_table', 'c:/users/user/desktop/backup.sql', 'working', 'sample_table_backup')
+
+'working', 'sample_table_backup'
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+
+### create_table_from_backup
+**`DbConnect.create_table_from_backup(backup_path, overwrite_name=None, overwrite_schema=None)`**
+
+Creates table in the database from the backup sql file created in pysqldb3.backup_table function.
+ 
+###### Parameters:
+ - **`backup_path` str**:  File path where the .sql file will be written
+ - **`overwrite_name` bool, default None**:  Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script
+ - **`overwrite_schema` str, default None**:  Name of the database table to use for the backup table, this will overwrite the schema name used in the backup sql script
+ 
+
+**Sample**
+
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.create_table_from_backup('c:/users/user/desktop/backup.sql', 'working', 'sample_table_backup_new_name')
+
+'working.sample_table_backup_new_name'
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+### get_table_indexes
+**`DbConnect.get_table_indexes(schema, table)`**
+
+Gets create index queries from existing database tables. Intended to be used with `DbConnect.backup_table` function. 
+ 
+###### Parameters:
+ - **`schema` str**: Name of the database schema of the table to get the idexes from
+ - **`table` str**:  Name of the database table of the table to get the idexes from
+
+**Sample**
+
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.get_table_indexes('public', 'lion')
+
+CREATE INDEX mt_idx_backup ON "{schema}"."{table}" USING btree (masteridto);CREATE INDEX mf_idx_backup ON "{schema}"."{table}" USING btree (masteridfrom);CREATE INDEX nt_idx_backup ON "{schema}"."{table}" USING btree (nodeidto);CREATE INDEX nf_idx_backup ON "{schema}"."{table}" USING btree (nodeidfrom);CREATE INDEX mft_idx_backup ON "{schema}"."{table}" USING btree (mft);CREATE INDEX seg_idx_backup ON "{schema}"."{table}" USING btree (segmentid);CREATE INDEX lion_seg_idx_backup ON "{schema}"."{table}" USING btree (segmentid);CREATE INDEX lion_shape_geom_idx_backup ON "{schema}"."{table}" USING gist (geom);CREATE UNIQUE INDEX lion_pkey_backup ON "{schema}"."{table}" USING btree (objectid)
+
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+## Data IO Functions
+
+### pg_to_sql
+**`data_io.pg_to_sql(pg, ms, org_table, LDAP = False, spatial = True, org_schema=None,
+        dest_schema=None, dest_table=None, print_cmd=False, temp=True)`**
+
+Copy a table from a PG database to a database in SQL
+
+###### Parameters:
+- **`pg` obj**:  PG database connection
+- **`ms` obj**:  SQL database connection
+- **`org_table` str**: PG table to be copied to SQL
+- **`LDAP` bool, default False**: When true will use windows login for database connection
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`org_schema` str, default None**:  Database schema for the "origin" PG table
+- **`dest_schema` str, default None**:  Database schema for the "destination" SQL table
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original PG table name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='STREETASSESSMENT', user='user_name', password='*******')
+>>> data_io.pg_to_sql(db, ms, org_table = 'large_pg_table', org_schema = 'working', dest_schema = 'dbo', dest_table = 'large_sql_table')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+
+### pg_to_sql_qry
+**`data_io.pg_to_sql_qry(pg, ms, query, LDAP = False, spatial = True, dest_schema = None, dest_table = None,
+        print_cmd = False, temp = True)`**
+
+Copy the table output of a query from a PG database to a database in SQL
+
+###### Parameters:
+- **`pg` obj**:  PG database connection
+- **`ms` obj**:  SQL database connection
+- **`query` str**:  PG query that generates a table output
+- **`LDAP`: bool, default False**: When true will use windows login for database connection
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`dest_schema` str, default None**:  Database schema for the "destination" SQL table
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original PG table name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
+>>> data_io.pg_to_sql_qry(db, ms, query = "select * from test_new_crashes where id = 10283", dest_schema = 'dbo', dest_table = 'test_new_crashes')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+### sql_to_pg
+**`data_io.sql_to_pgg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, print_cmd=False,
+              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True)`**
+ 
+Copy a table from a SQL database to a database in PG
+
+##### Parameters:
+- **`ms` obj**:  SQL database connection
+- **`pg` obj**:  PG database connection
+- **`org_table` str**: SQL table to be copied into PG
+- **`LDAP`: bool, default False**: When true will use windows login for database connection
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`org_schema` str, default None**:  Database schema for the "origin" SQL table
+- **`dest_schema` str, default None**:  Database schema for the "destination" PG table
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original SQL table name
+- **`gdal_data_loc` str, default GDLA_DATA_LOC**: Local computer's GDAL location
+- **`pg_encoding` str, default UTF8**: Encoding
+- **`permission` bool, default True**: Grant permissions for the public to view table
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> data_io.sql_to_pg(ms, pg, org_schema = 'dbo', org_table = 'test_table_cchen1', dest_schema = 'working', dest_table = 'test_table_cchen2')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+### sql_to_pg_qry
+**`data_io.sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
+                  dest_table=None, pg_encoding='UTF8', permission = True)`**`**
+
+Copy the table output of a query from a SQL database to a database in PG
+
+###### Parameters:
+- **`ms` obj**:  SQL database connection
+- **`pg` obj**:  PG database connection
+- **`query` str**:  SQL query that generates a table output
+- **`LDAP`: bool, default False**: When true will use windows login for database connection
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`dest_schema` str, default None**:  Database schema for the "destination" PG table
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original SQL table name
+- **`gdal_data_loc` str, default GDLA_DATA_LOC**: Local computer's GDAL location
+- **`pg_encoding` str, default UTF8**: Encoding
+- **`permission` bool, default True**: Grant permissions for the public to view table
+
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> data_io.sql_to_pg_qry(ms, pg, query = "select * from [dbo].[test_table_cchen1] where id_num > 50", dest_schema = 'working', dest_table = 'test_table_cchen2')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+### sql_to_sql
+**`data_io.sql_to_sql(from_sql, to_sql, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, print_cmd=False,
+              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True)`**
+
+Copy a table from one SQL database/schema to another SQL database/schema
+
+###### Parameters:
+- **`from_ms` obj**:  SQL database connection of the original table
+- **`to_ms` obj**:  PG database connection for the copied table
+- **`org_table` str**: SQL table to be copied
+- **`LDAP`: bool, default False**: When true will use windows login for database connection
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`org_schema` str, default None**:  Database schema for the "origin" SQL table
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original SQL table name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_schema` str, default None**:  Database schema for the "destination" SQL table
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+- **`gdal_data_loc` str, default GDLA_DATA_LOC**: Local computer's GDAL location
+- **`pg_encoding` str, default UTF8**: Encoding
+- **`permission` bool, default True**: Grant permissions for the public to view table
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms1 = pysqldb3.DbConnect(type='ms', server=server_address, database='RISCRASHDATA', user='user_name', password='*******')
+>>> ms2 = pysqldb3.DbConnect(type='ms', server=server_address, database='STREETASSESSMENT', user='user_name', password='*******')
+>>> data_io.sql_to_sql(ms1, ms2, org_schema = 'dbo', org_table = 'test_table_cchen1', dest_schema = 'rb1', dest_table = 'test_table_cchen1', spatial = False)
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+### sql_to_sql_qry
+**`data_io.sql_to_sql(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
+                   print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False)`**
+
+Copy a table from one SQL database/schema to another SQL database/schema
+
+###### Parameters:
+- **`from_ms` obj**: SQL database connection of the query
+- **`to_ms` obj**:  SQL database connection for the copied table
+- **`qry` str**: SQL query that generates a table output
+- **`LDAP`: bool, default False**: When true will use windows login for database connection
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original SQL table name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_schema` str, default None**:  Database schema for the "destination" SQL table
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+- **`gdal_data_loc` str, default GDLA_DATA_LOC**: Local computer's GDAL location
+- **`pg_encoding` str, default UTF8**: Encoding
+- **`permission` bool, default True**: Grant permissions for the public to view table
+
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms1 = pysqldb3.DbConnect(type='ms', server=server_address, database='RISCRASHDATA', user='user_name', password='*******')
+>>> ms2 = pysqldb3.DbConnect(type='ms', server=server_address, database='STREETASSESSMENT', user='user_name', password='*******')
+>>> data_io.sql_to_sql_qry(ms1, m2, query = "select top (10) * from [dbo].[test_table_cchdn1] where id = 1", dest_schema = 'working', dest_table = 'test_table_cchen1')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+
+### pg_to_pg
+**`data_io.pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
+             spatial=True, temp=True, permission = True)`**
+
+Copy a table from one PG database/schema to another PG database/schema
+
+###### Parameters:
+- **`from_pg` obj**: PG database connection of the original table
+- **`to_pg` obj**:  PG database connection for the copied table
+- **`org_table` str, default None**:  PG table to be copied
+- **`org_schema` str, default None**:  Database schema for the "origin" PG table
+- **`dest_schema` str, default None**:  Database schema for the "destination" PG table
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original PG table name
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+- **`permission` bool, default True**: Grant permissions for the public to view table
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db2 = pysqldb3.DbConnect(type='pg', server=server_address, database='ris3', user='user_name', password='*******')
+>>> data_io.pg_to_pg(db, db2, org_schema = 'public', org_table = 'wc_accident_f', dest_schema = 'working', dest_table = 'crashes_from_ris')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+### pg_to_pg_qry
+**`data_io.pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_table=None,
+             spatial=True, temp=True, permission = True)`**
+
+Copy the output table from a query in one PG database/schema to another PG database/schema
+
+###### Parameters:
+- **`from_pg` obj**: PG database connection of the original table
+- **`to_pg` obj**:  PG database connection for the copied table
+- **`query` str**: PG query that generates a table output
+- **`dest_schema` str, default None**:  Database schema for the "destination" PG table
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original PG table name
+- **`spatial` bool, default True**:  Boolean (True/False) if the table contains geometry data
+- **`temp` bool, default True**: If False overrides default behavior where new tables will be logged for deletion at a future date
+- **`permission` bool, default True**: Grant permissions for the public to view table
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db2 = pysqldb3.DbConnect(type='pg', server=server_address, database='ris3', user='user_name', password='*******')
+>>> data_io.pg_to_pg_qry(db, db2, query = "select id, boro from working.cindys_boros limit 5", dest_schema = 'working', dest_table = 'crashes_from_ris')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+
+### list_gpkg_tables
+**`list_gpkg_tables()`**
+
+###### Parameters:
+There are no parameters
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3, geopackage
+>>> g = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'lion.gpkg') # set Geopackage object
+>>> g.list_gpkg_tables()
+
+# list all tables in the geopackage
+['cindy_test',
+ 'nycc',
+ 'nypp']
+```
+
+[Back to Table of Contents](#geopackage-functions)
+<br>
+
+### gpkg_to_shp
+**`gpkg_to_shp(gpkg_tbl, export_path = None, print_cmd = False)`**
+
+Converts a Geopackage to a Shapefile.
+The output Shapefile name will match the name of the geopackage table to be copied.
+
+###### Parameters:
+- **`gpkg_tbl` str**: Name of table in Geopackage file to be converted to Shapefile. Use function (#list_gpkg_tables) to view table names.
+- **`export_path` str, default None**: File directory for exported Shapefile
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, geopackage
+>>> cindys_geopackage = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'lion')
+>>> cindys_geopackage.gpkg_to_shp('boroughs', export_path = 'C:/Usernames/Shapefiles_Folder/')
+
+b'Warning 1: Value 113325976.682999998 of field shape_area of feature 6 not successfully written. Possibly due t...'
+```
+
+
+[Back to Table of Contents](#geopackage-functions)
+<br>
+
+### gpkg_to_shp_bulk
+**`gpkg_to_shp_bulk(export_path = None, print_cmd = False)`**
+
+Converts an entire Geopackage (all tables) to a Shapefile.
+The output Shapefile name will match the name of the geopackage table to be copied.
+
+###### Parameters:
+- **`export_path` str, default None**: File directory for exported Shapefile
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3, geopackage
+>>> cindys_geopackage = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'lion')
+>>> cindys_geopackage.gpkg_to_shp(export_path = 'C:/Username/Shapefiles_Folder/')
+
+b'Warning 6: Field created create as date field, though DateTime requested.\r\n.....'
+```
+
+[Back to Table of Contents](#geopackage-functions)
+<br>
+
+
+### query_to_gpkg
+**`query_to_gpkg(query, gpkg_tbl, gpkg_name = '', path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
+                     print_cmd=False, srid=2263)`**
+
+Exports query results to a geopackage (.gpkg) file.
+
+###### Parameters:
+- **`query` str**: Table name in the Geopackage file
+- **`gpkg_tbl` str**: Exported table name in the Geopackage file
+- **`gpkg_name` str, default ''**: Name of Geopackage file to export the table
+- **`path` str, default None**: File path to the Geopackage
+- **`cmd` str, default None**: Write your own ogr2ogr command if desired
+- **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`srid` int, default 2263**: SRID to manually set output 
+
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.query_to_gpkg(query = "select masterid from working.test_table_1", path = 'C:/Usernames/Downloads/', gpkg_tbl = 'test_table_cchen1', gpkg_name= 'cindy_test.gpkg')
+
+b''
+cindy_test.gpkg geopackage 
+written to: C:/Usernames/Downloads/
+generated from: select \"masterid\" from (select masterid from working.test_table_1) q 
+```
+
+[Back to Table of Contents](#geopackage-functions)
+<br>
+
+
+### read_gpkg
+**`Geopackage.read_gpkg(dbo, table = None, gpkg_tbl = None, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
+                    precision=False, private=False, gpkg_encoding=None, print_cmd=False)`**
+
+Reads a single geopackage table into SQL or Postgresql as a table
+
+###### Parameters:
+- **`dbo` obj**: Database connection into which the single Geopackage table will be bulk uploaded
+- **`table` str**: Name of the new database table output
+- **`gpkg_tbl` str**: Table name in the Geopackage file
+- **`schema` str, default None**: Database schema to copy a specific table in the Geopackage file
+- **`port`: int default 5432**: Database port, needed for database connection.
+- **`srid` int, default 2263**: SRID to manually set output to
+- **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+- **`precision` bool, default False**:  Sets precision flag in ogr (defaults to `-lco precision=NO`)
+- **`private` bool, default False**: Flag for permissions output table in database (Defaults to False - will grant select to public)
+- **`gpkg_encoding` str, default None**: If not None, sets the PG client encoding while uploading the GPKG file. Options inlude `LATIN1` or `UTF-8`.
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> cindys_geopackage = geopackage.Geopackage(path = 'C://Usernames/Geopackages_Folder/', gpkg_name = 'lion')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+
+>>> cindys_geopackage.read_gpkg(dbo = db, schema = 'working', table = 'community_districts', gpkg_tbl = 'community_districts_2024')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#geopackage-functions)
+<br>
+
+### read_gpkg_bulk
+**`Geopackage.read_gpkg_bulk(dbo, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
+                    precision=False, private=False, gpkg_encoding=None, print_cmd=False)`**
+
+ Reads all tables within a geopackage file into SQL or Postgresql as tables
+
+###### Parameters:
+- **`dbo` obj**: Database connection into which the Geopackage will be bulk uploaded
+- **`schema` str, default None**: Database schema to copy all of the Geopackage's tables
+- **`port`: int default 5432**: Database port, needed for database connection.
+- **`srid` str, default '2263'**: SRID to manually set output to
+- **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+- **`precision` bool, default False**:  Sets precision flag in ogr (defaults to `-lco precision=NO`)
+- **`private` bool, default False**: Flag for permissions output table in database (Defaults to False - will grant select to public)
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> sample_gpkg = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'sample_gpkg.gpkg')\
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> sample_gpkg.read_gpkg_bulk(dbo = db, schema = 'working')
+
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+{'nypppp': 'nypppp',
+ 'table_2': 'table_2',
+ 'table_3!': 'table_3!'}
+```
+
+
+[Back to Table of Contents](#geopackage-functions)
+<br>
+
+
+### shp_to_gpkg
+**`shp_to_gpkg(shp_name, gpkg_tbl = None, overwrite = False, print_cmd = False)`**
+
+###### Parameters:
+- **`shp_name` str**: ESRI Shapefile name to be copied into a Geopackage file
+- **`gpkg_tbl` str, default None**: Name of copied table in the Geopackage file destination. Defaults to the same name as the Shapefile
+- **`overwrite` str, defaults False**: Overwrite the existing table in the Geopackage with the same destination name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> nyc_gpkg = geopackage.Geopackage(path = 'C:/Usernames/Geopackages_Folder/', gpkg_name = 'NYC_attributes.gpkg')
+>>> nyc_gpkg.shp_to_gpkg(shp_name = 'NYC_boros.shp', gpkg_tbl = 'boroughs', overwrite = True)
+
+b'Warning 1: A geometry of type MULTIPOLYGON is inserted into layer nypppp of geometry type POLYGON, which is not allowed. This warning will no longer be emitted for this combination of layer and feature geometry type.\r\n'
+```
+
+[Back to Table of Contents](#geopackage-functions)
+<br>
+
+
+### table_to_gpkg
+**`DbConnect.table_to_gpkg(table, gpkg_name, gpkg_tbl = None, schema=None, path=None, cmd=None,
+                     gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263)`**
+
+Exports table to a geopackage file.
+
+###### Parameters:
+- **`table` str**: Database table name to be copied to a Geopackage output file
+- **`gpkg_name` str**: Geopackage database name to which to copy the output. If adding a table to an existing Geopackage, the input is the existing Geopackage name.
+- **`gpkg_tbl` str, default None**: Output table name. Defaults to the same name as the Database table.
+- **`schema` str, default None**: Database schema to be copied to a Geopackage output file
+- **`cmd` str, default None**: Write your own ogr2ogr command if desired
+- **`gdal_data_loc` str, default None**: Path to gdal data, if not stored in system env correctly
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`srid` int, default 2263**: SRID to manually set output to
+
+
+**Sample**
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db.table_to_gpkg(table = 'boro_lookup', gpkg_name = 'NYC.gpkg', gpkg_tbl = 'borough_lookup', schema = 'working', path = 'C:/Usernames/Downloads/')
+
+b''
+NYC.gpkg geopackage 
+written to: C:/Usernames/Downloads
+generated from: select \"borocode\" , \"abbreviation\" , \"label\" from (select * from working.boro_lookup) q 
+```
+
+[Back to Table of Contents](#geopackage-functions)
 <br>

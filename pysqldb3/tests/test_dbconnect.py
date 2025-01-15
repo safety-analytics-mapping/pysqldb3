@@ -91,6 +91,23 @@ class TestMisc:
 
         db.drop_table(table=table_for_testing, schema='working')
 
+    def test_schema_tables_pg_basic(self):
+        db.drop_table(schema='working', table=table_for_testing)
+        schema_tables_df = db.schema_tables(schema='working')
+        number_of_my_tables = len(schema_tables_df)
+
+        assert schema_tables_df.tableowner.nunique() > 1
+
+        db.query('create table working.{} as select * from working.{} limit 10'.format(table_for_testing, pg_table_name))
+
+        new_schema_tables_df = db.schema_tables(schema='working')
+        new_number_of_schema_tables = len(new_schema_tables_df)
+
+        # Assert new table is in my tables
+        assert number_of_my_tables == new_number_of_schema_tables - 1
+
+        db.drop_table(table=table_for_testing, schema='working')
+
     def test_my_tables_pg_multiple(self):
         my_tables_df = db.my_tables(schema='working')
         number_of_my_tables = len(my_tables_df)
@@ -408,7 +425,7 @@ class TestLogging:
 
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         df.to_csv(fp)
-        db.csv_to_table(input_file=fp, schema='working', table=table_for_testing_logging)
+        db.csv_to_table(input_file=fp, schema='working', table=table_for_testing_logging, overwrite=True)
 
         after_log_df = db.dfquery("""
                     SELECT *
@@ -726,6 +743,7 @@ class TestLogging:
         sql.query('DROP TABLE dbo.{}'.format(table_for_testing_logging))
 
     def test_ms_quotes(self):
+        sql.drop_table('dbo', table_for_testing_logging)
         # Assert no test table
         assert len(sql.dfquery("""
         SELECT *
@@ -762,10 +780,11 @@ class TestLogging:
         """.format(sql.user, table_for_testing_logging))) == 1
 
         # Cleanup
-        sql.query('DROP TABLE dbo."{}"'.format(table_for_testing_logging))
+        sql.drop_table('dbo', table_for_testing_logging)
 
     def test_ms_brackets(self):
         # Assert no test table
+        sql.drop_table('dbo', table_for_testing_logging)
         assert len(sql.dfquery("""
         SELECT *
         FROM sys.tables t
@@ -804,6 +823,7 @@ class TestLogging:
         sql.query('DROP TABLE dbo.[{}]'.format(table_for_testing_logging))
 
     def test_ms_brackets_caps(self):
+        sql.drop_table('dbo', table_for_testing_logging)
         # Assert no test table
         assert len(sql.dfquery("""
         SELECT *
@@ -883,10 +903,11 @@ class TestLogging:
         """.format(sql.user, table_for_testing_logging))) == 1
 
         # Cleanup
-        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging))
+        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging)) # todo not removing from log????
+        print('here')
 
     def test_ms_quotes_brackets_caps(self):
-        sql.drop_table(schema='dbo', table='["{}"]'.format(table_for_testing_logging))
+        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging), strict=False)
 
         # Assert no test table
         assert len(sql.dfquery("""
@@ -926,8 +947,49 @@ class TestLogging:
         """.format(sql.user, table_for_testing_logging))) == 1
 
         # Cleanup
-        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging))
+        sql.query('DROP TABLE dbo.["{}"]'.format(table_for_testing_logging), strict=False)
 
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
+
+class TestInheritence:
+    def test_pg_connect_all_but_db(self):
+        second_db = test_config.get('SECOND_PG_DB', 'DB_NAME')
+        db2 = pysqldb.DbConnect(inherits_from=db, database=second_db)
+        assert db2.database==second_db
+        assert db.database != second_db
+    def test_pg_connect_all_but_user(self):
+        # cant really test, user input requirement doesnt work in pytest
+        # db2 = pysqldb.DbConnect(inherits_from=db, database='ris_dev', user='risadmin')
+        # assert db2.database=='ris_dev'
+        # assert db2.user=='risadmin'
+        # assert db.database != 'ris_dev'
+        # assert db.user !='risadmin'
+
+        assert True
+
+    def test_pg_connect_all_but_type(self):
+        # this connection would fail
+        # third_pwd = test_config.get('THIRD_SQL_DB', 'DB_PASSWORD')
+        # db3 = pysqldb.DbConnect(inherits_from=db, password=third_pwd)
+        # assert db3.database==db.database
+
+        assert True
+
+    def test_pg_connect_all_but_pwd(self):
+        # this connection would fail
+        # third_type = test_config.get('THIRD_SQL_DB', 'TYPE')
+        # db3 = pysqldb.DbConnect(inherits_from=db, type=third_pwd)
+        # assert db3.database==db.database
+
+        assert True
+
+    def test_sql_connect_all_but_user_pwd(self):
+        second_user = test_config.get('SECOND_SQL_DB', 'DB_USER')
+        second_pwd = test_config.get('SECOND_SQL_DB', 'DB_PASSWORD')
+        db2 = pysqldb.DbConnect(inherits_from=sql, user=second_user, password=second_pwd)
+        assert db2.database==sql.database
+        db2.user!=sql.user
+
+

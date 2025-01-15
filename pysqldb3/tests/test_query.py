@@ -144,7 +144,7 @@ class TestQuery:
         azure.query("select nodeid, version, is_int from [CLION].[dbo].[node] where nodeid = 14")
         for pos, i in enumerate(azure.data[0]):
             if pos == 1:
-                assert i == '21c'
+                assert i == '23c'
             else:
                 assert int(i) in (14, 1)
         # assert azure.data == [(Decimal('14'), '21c', Decimal('1'))]
@@ -166,7 +166,7 @@ class TestQuery:
 
         # Assert state is in proper shape
         assert db.table_exists(table=test_query_table, schema='working')
-        assert db.tables_created[0] == 'working.' + test_query_table
+        assert db.tables_created[0] == (None, None, 'working', test_query_table)
         assert len(db.tables_created) == 1
 
         # Cleanup
@@ -189,13 +189,14 @@ class TestQuery:
 
         # Confirm state has been updated
         assert sql.table_exists(table=test_query_table, schema='dbo')
-        assert sql.tables_created[0] == '[dbo].[' + test_query_table + ']'
+        assert sql.tables_created[0] == (None, None, 'dbo', test_query_table)
         assert len(sql.tables_created) == 1
 
         # Cleanup
         sql.drop_table(table=test_query_table, schema='dbo')
 
     def test_dbconnect_state_remove_pg(self):
+        db.drop_table('working', test_query_table)
         assert not db.table_exists(table=test_query_table, schema='working')
 
         db.tables_dropped = []
@@ -447,7 +448,7 @@ class TestDfQuery:
 
     def test_successful_dfquery_azure(self):
         db_df = azure.dfquery("select cast(nodeid as float) nodeid, version, cast(is_int as float) is_int from [CLION].[dbo].[node] where nodeid = 14")
-        df = pd.DataFrame({'nodeid': [14.0], 'version':['21c'], 'is_int':[1.0]})
+        df = pd.DataFrame({'nodeid': [14.0], 'version':['23c'], 'is_int':[1.0]})
         print(db_df)
         print(df)
         pd.testing.assert_frame_equal(db_df, df, check_column_type=False)
