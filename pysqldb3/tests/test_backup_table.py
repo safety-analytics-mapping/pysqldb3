@@ -394,8 +394,8 @@ class TestBackupTablesPg:
                    values ('{{"!!??", "!test/@", ";"}}', '{{4321}}', '{{"cool", "kool"}}')
                """)
 
+        # back up and create table
         db.backup_table(pg_schema, "table_with_array_contents", test_back_file, pg_schema, 'table_with_array_contents_backup')
-
         db.create_table_from_backup(test_back_file)
 
         # validate table exists
@@ -407,6 +407,19 @@ class TestBackupTablesPg:
         pd.testing.assert_frame_equal(orig_table, backup_table,
                                       check_dtype=True,
                                       check_exact=True)
+
+        # unnest arrays and make sure they match
+        db.query(f'select unnest(column1) from {pg_schema}.table_with_array_contents limit 1')
+        assert db.data[0][0] == '!!??'
+        db.query(f'select unnest(column1) from {pg_schema}.table_with_array_contents_backup limit 1')
+        assert db.data[0][0] == '!!??'
+        
+        # check that both of these tables show 4321
+        db.query(f'select unnest(column2) from {pg_schema}.table_with_array_contents limit 1')
+        assert db.data[0][0] == 4321
+
+        db.query(f'select unnest(column2) from {pg_schema}.table_with_array_contents_backup limit 1')
+        assert db.data[0][0] == 4321
 
         # clean up
         db.cleanup_new_tables()
