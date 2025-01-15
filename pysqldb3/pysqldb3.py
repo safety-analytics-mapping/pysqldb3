@@ -2365,8 +2365,11 @@ class DbConnect:
                 find_array_size = self.dfquery(f'select * from "{org_schema}"."{org_table}"', internal=True)
                 boxes = len(find_array_size[col][0])
 
+                # identify the array type
+                array_type = self.get_table_columns(schema = backup_schema, table = backup_table)['array_type'][:-2]
+
                 # change dtype if applicable
-                dtyp = 'text ARRAY[' + str(boxes) + ']'
+                dtyp = array_type + ' ARRAY[' + str(boxes) + ']'
 
             _create_qry += f'\n"{col}" {dtyp},'
         _create_qry=_create_qry[:-1]+');\n'
