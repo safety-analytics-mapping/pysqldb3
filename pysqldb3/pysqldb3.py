@@ -2365,6 +2365,19 @@ class DbConnect:
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
             _create_qry += f'\n"{col}" {dtyp},'
+            
+            if dtyp == 'ARRAY': # if dtype is ARRAY, we needs its dimension
+
+                # query the data (to find out the length of the array)
+                find_array_size = self.dfquery(f'select * from "{org_schema}"."{org_table}"', internal=True)
+                boxes = len(find_array_size[col][0])
+
+                # identify the array type
+                array_type = self.get_table_columns(schema = backup_schema, table = backup_table)['array_type'][:-2]
+
+                # change dtype if applicable
+                dtyp = array_type + ' ARRAY[' + str(boxes) + ']'
+
         _create_qry=_create_qry[:-1]+');\n'
 
         # INSERT INTO TABLE QUERY
@@ -2378,6 +2391,11 @@ class DbConnect:
                     r += f"NULL,"
                 elif type(col) == str:
                     r += f"""'{col.replace("'","''")}',"""
+                elif type(col) == list:
+                    new_col = str(col).replace('[', '{')
+                    new_col = str(new_col).replace(']', '}')
+                    new_col = new_col.replace("'", '"')
+                    r += f"""'{new_col}',"""
                 else:
                     r += f"'{col}',"
             r = r[:-1] + '),'
