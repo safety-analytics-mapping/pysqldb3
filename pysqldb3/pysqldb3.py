@@ -980,7 +980,7 @@ class DbConnect:
                 )
         """
 
-        self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days, internal = True)
+        self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema
 
     def dataframe_to_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
