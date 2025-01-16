@@ -746,12 +746,13 @@ class DbConnect:
                 column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then 
                       DATA_TYPE || ' ('|| cast(CHARACTER_MAXIMUM_LENGTH as varchar) ||')'
                        when DATA_TYPE = 'USER-DEFINED' then udt_name 
+                       when DATA_TYPE = 'ARRAY' then array_type::varchar
                       else DATA_TYPE end as DATA_TYPE
                       """
             else:
                 columns = """
                     column_name, case 
-					   when DATA_TYPE = 'text' then DATA_TYPE
+                       when DATA_TYPE = 'text' then DATA_TYPE
                     when CHARACTER_MAXIMUM_LENGTH is not null 
                     then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' 
                     when CHARACTER_MAXIMUM_LENGTH >= 3000 then DATA_TYPE + ' (3000)' 
@@ -760,10 +761,15 @@ class DbConnect:
 
         if self.type == PG:
             self.query(f"""
-            SELECT {columns}
-            FROM information_schema.columns
-            WHERE table_schema = '{schema}' 
+            with t as (
+                select *, 
+                udt_name::regtype array_type 
+                FROM information_schema.columns
+                WHERE table_schema = '{schema}' 
                 AND table_name = '{table}'
+            )
+            SELECT {columns}
+            FROM t
             ORDER BY ordinal_position;
             """, timeme=False, internal=True)
 
