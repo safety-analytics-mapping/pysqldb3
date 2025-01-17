@@ -746,12 +746,13 @@ class DbConnect:
                 column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then 
                       DATA_TYPE || ' ('|| cast(CHARACTER_MAXIMUM_LENGTH as varchar) ||')'
                        when DATA_TYPE = 'USER-DEFINED' then udt_name 
+                       when DATA_TYPE = 'ARRAY' then array_type::varchar
                       else DATA_TYPE end as DATA_TYPE
                       """
             else:
                 columns = """
                     column_name, case 
-					   when DATA_TYPE = 'text' then DATA_TYPE
+                       when DATA_TYPE = 'text' then DATA_TYPE
                     when CHARACTER_MAXIMUM_LENGTH is not null 
                     then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' 
                     when CHARACTER_MAXIMUM_LENGTH >= 3000 then DATA_TYPE + ' (3000)' 
@@ -760,10 +761,15 @@ class DbConnect:
 
         if self.type == PG:
             self.query(f"""
-            SELECT {columns}
-            FROM information_schema.columns
-            WHERE table_schema = '{schema}' 
+            with t as (
+                select *, 
+                udt_name::regtype array_type 
+                FROM information_schema.columns
+                WHERE table_schema = '{schema}' 
                 AND table_name = '{table}'
+            )
+            SELECT {columns}
+            FROM t
             ORDER BY ordinal_position;
             """, timeme=False, internal=True)
 
@@ -2359,6 +2365,19 @@ class DbConnect:
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
             _create_qry += f'\n"{col}" {dtyp},'
+            
+            if dtyp == 'ARRAY': # if dtype is ARRAY, we needs its dimension
+
+                # query the data (to find out the length of the array)
+                find_array_size = self.dfquery(f'select * from "{org_schema}"."{org_table}"', internal=True)
+                boxes = len(find_array_size[col][0])
+
+                # identify the array type
+                array_type = self.get_table_columns(schema = backup_schema, table = backup_table)['array_type'][:-2]
+
+                # change dtype if applicable
+                dtyp = array_type + ' ARRAY[' + str(boxes) + ']'
+
         _create_qry=_create_qry[:-1]+');\n'
 
         # INSERT INTO TABLE QUERY
@@ -2372,6 +2391,11 @@ class DbConnect:
                     r += f"NULL,"
                 elif type(col) == str:
                     r += f"""'{col.replace("'","''")}',"""
+                elif type(col) == list:
+                    new_col = str(col).replace('[', '{')
+                    new_col = str(new_col).replace(']', '}')
+                    new_col = new_col.replace("'", '"')
+                    r += f"""'{new_col}',"""
                 else:
                     r += f"'{col}',"
             r = r[:-1] + '),'
