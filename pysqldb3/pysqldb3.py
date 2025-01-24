@@ -17,8 +17,7 @@ config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
 from .query import *
-from .shapefile import *
-from .geopackage import *
+from .geospatial import *
 from .data_io import *
 from .__init__ import __version__
 
@@ -1819,17 +1818,20 @@ class DbConnect:
         fig.show()
         return
 
-    def query_to_shp(self, query,  gpkg_tbl = None, path=None, shp_name=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+
+    def query_to_geospatial(self, gpkg_to_shp, query, gpkg_tbl = None, file_name = '', path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263, shp = True):
         """
-        Exports query results to a shp file.
+        Exports query results to a geospatial file (.gpkg or .shp).
+
+        :param gpkg_to_shp: 
         :param query: SQL query as string type
-        :param gpkg_tbl: Argument only if this function is run for gpkg
-        :param path: folder path for output shp
-        :param shp_name: filename for shape (should end in .shp); can also be used for gpkg (should end in .gpkg)
+        :param gpkg_tbl (str): Table name to be written in the Geopackage output if it exists
+        :param path (str): folder path for output gpkg
+        :param gpkg_name: filename for shape (should end in .gpkg)
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
-        :param print_cmd: boolean to print ogr command (without password)
+        :param print_cmd: (bool): print ogr command (without password)
         :param srid: SRID to manually set output to; defaults to 2263
         :param shp: Boolean for whether the query is to be exported as a shp or gpkg. Defaults to Shp.
         :return:
@@ -1838,7 +1840,10 @@ class DbConnect:
         # Temporarily sets temp flag to True
         original_temp_flag = self.allow_temp_tables
         self.allow_temp_tables = True
-
+        
+        gpkg_or_shp = gpkg_or_shp.lower()
+        assert gpkg_or_shp == 'gpkg' or gpkg_or_shp == 'shp', "the gpkg_or_shp input should be either 'GPKG' or 'SHP'"
+       
         # Makes a temp table name
         tmp_table_name = f"tmp_query_to_shp_{self.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
 
@@ -1941,14 +1946,14 @@ class DbConnect:
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         new_query = f"select {return_cols} from ({query}) q "
 
-        if shp == True:
-            Query.query_to_shp(self, new_query, path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+        if gpkg_to_shp == 'shp':
+            Query.query_to_geospatial(self, new_query, path=path, file_name=file_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                            print_cmd=print_cmd, srid=srid)
         else:
             # gpkg
             # shp_name = geopackage name
             # gpkg_tbl argument would be filled in
-            Query.query_to_gpkg(self, query = new_query, path=path, gpkg_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+            Query.query_to_geospatial(self, query = new_query, path=path, file_name=file_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
                             gpkg_tbl = gpkg_tbl, print_cmd=print_cmd, srid=srid)
 
         # Drop the temp table
@@ -1961,29 +1966,7 @@ class DbConnect:
         self.last_query = new_query
         self.allow_temp_tables = original_temp_flag
 
-    def table_to_shp(self, table, schema=None, strict=True, path=None, shp_name=None, cmd=None,
-                     gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
-        """
-        Exports table to a shp file. Generates query to query_to_shp.
-        :param table: Database table name as string type
-        :param schema: Database table's schema (defults to db default schema)
-        :param strict: If True, will run sys.exit on failed query attempts; defaults to True
-        :param path: folder path for output shp
-        :param shp_name: filename for shape (should end in .shp)
-        :param cmd: GDAL command to overwrite default
-        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
-        :param print_cmd: Boolean flag to print the OGR command
-        :param srid: SRID to manually set output to; defaults to 2263
-        :return:
-        """
-        if not schema:
-            schema = self.default_schema
-
-        path, shp_name = parse_shp_path(path, shp_name)
-
-        return self.query_to_shp(f"select * from {schema}.{table}",
-                                 path=path, shp_name=shp_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
-                                 print_cmd=print_cmd, srid=srid)
+    
 
     def table_to_csv(self, table, schema=None, strict=True, output_file=None, open_file=False, sep=',',
                      quote_strings=True):
@@ -2030,58 +2013,7 @@ class DbConnect:
         if not self.allow_temp_tables:
             self.disconnect(True)
 
-    def shp_to_table(self, path=None, table=None, schema=None, shp_name=None, cmd=None,
-                     srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
-                     shp_encoding=None, print_cmd=False, days=7, zip=False):
-        """
-        Imports shape file to database. This uses GDAL to generate the table.
-        :param path: File path of the shapefile
-        :param table: Table name to use in the database
-        :param schema: Schema to use in the database (defaults to db's default schema)
-        :param shp_name: Shapefile name (ends in .shp)
-        :param cmd: Optional ogr2ogr command to overwrite default
-        :param srid:  SRID to use (defaults to 2263)
-        :param port:
-        :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
-        :param precision:  Sets precision flag in ogr (defaults to -lco precision=NO)
-        :param private: Flag for permissions in database (Defaults to False - will only grant select to public)
-        :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
-        :param shp_encoding: Defaults to None; if not None, sets the PG client encoding while uploading the shpfile.
-        Options inlude LATIN1, UTF-8.
-        :param print_cmd: Defaults to False; if True prints the cmd
-        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
-        :param zip: Flag to use if importing from a sipped file (defaults to False)
-        :return:
-        """
-        if not schema:
-            schema = self.default_schema
-
-        if not port:
-            port = self.port
-
-        path, shp = parse_shp_path(path, shp_name)
-        if not shp_name:
-            shp_name = shp
-
-        if not all([path, shp_name]):
-            filename = file_loc('file', 'Missing file info - Opening search dialog...')
-            shp_name = os.path.basename(filename)
-            path = os.path.dirname(filename)
-
-        if not table:
-            table = shp_name.replace('.shp', '').lower()
-
-        table = table.lower()
-
-        shp = Shapefile(dbo=self, path=path, table=table, schema=schema, shp_name=shp_name,
-                        cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
-
-        shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
-
-        self.tables_created.append(f"{schema}.{table}")
-
-        if temp:
-            self.__run_table_logging([schema + "." + table], days=days)
+    
 
     def feature_class_to_table(self, path, table = None, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
                                srid=2263, private=False, temp=True, fc_encoding=None, print_cmd=False,
@@ -2115,7 +2047,7 @@ class DbConnect:
 
         table = table.lower()
 
-        shp = Shapefile(dbo=self, path=path, table=table, schema=schema, query=None,
+        shp = Geospatial(dbo=self, gpkg_or_shp = 'shp', path=path, table=table, schema=schema, query=None,
                         shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,
                         skip_failures=skip_failures)
 
@@ -2123,34 +2055,15 @@ class DbConnect:
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
-
-
-    def query_to_gpkg(self, query, gpkg_tbl, gpkg_name = '', path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
-                     print_cmd=False, srid=2263):
-        """
-        Exports query results to a geopackage (.gpkg) file.
-        :param query: SQL query as string type
-        :param gpkg_tbl (str): Table name to be written in the Geopackage output
-        :param path (str): folder path for output gpkg
-        :param gpkg_name: filename for shape (should end in .gpkg)
-        :param cmd: GDAL command to overwrite default
-        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
-        :param print_cmd: (bool): print ogr command (without password)
-        :param srid: SRID to manually set output to; defaults to 2263
-        :return:
-        """
-            
-        self.query_to_shp(query, gpkg_tbl = gpkg_tbl, path = path, shp_name = gpkg_name, cmd = cmd, 
-                          gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
         
 
-    def table_to_gpkg(self, table, gpkg_name, gpkg_tbl = None, schema=None, path=None, cmd=None,
+    def table_to_geospatial(self, table, file_name, gpkg_tbl = None, schema=None, path=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
-        Exports table to a geopackage file. Generates query to query_to_gpkg.
+        Exports table to a geospatial file. Generates query to query_to_gpkg.
         :param table: Db table name as string type
         :param schema: Db table's schema (defults to db default schema)
-        :param geopackage_name: filename for geopackage (should end in .gpkg)
+        :param file_name: filename for geospatial file (should end in .gpkg or .shp)
         :param gpkg_tbl: (Optional) name of the table to be written as the Geopackage output.
                         If blank, the output table will match the name of the db table.
         :param strict: If True, will run sys.exit on failed query attempts; defaults to True
@@ -2165,23 +2078,77 @@ class DbConnect:
             schema = self.default_schema
 
         # check the file extension
-        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
+        assert file_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
 
-        path, gpkg_name = parse_gpkg_path(path, gpkg_name)
+        path, file_name = parse_geospatial_file_path(path, file_name)
 
         if not gpkg_tbl:
             gpkg_tbl = table
 
-        return self.query_to_gpkg(f"select * from {schema}.{table}",
-                                 path=path, gpkg_name=gpkg_name, cmd=cmd, gdal_data_loc=gdal_data_loc, gpkg_tbl = gpkg_tbl,
+        return self.query_to_geospatial(f"select * from {schema}.{table}",
+                                 path=path, file_name=file_name, cmd=cmd, gdal_data_loc=gdal_data_loc, gpkg_tbl = gpkg_tbl,
                                  print_cmd=print_cmd, srid=srid)
     
-    def gpkg_to_table(self, gpkg_name, gpkg_tbl, path=None, schema=None, table =None, 
+    def shp_to_table(self, path=None, table=None, schema=None, shp_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
-                     gpkg_encoding=None, print_cmd=False, days=7, bulk_upload = False):
+                     shp_encoding=None, print_cmd=False, days=7, zip=False):
+        """
+        Imports shape file to database. This uses GDAL to generate the table.
+        :param path: File path of the shapefile
+        :param table: Table name to use in the database
+        :param schema: Schema to use in the database (defaults to db's default schema)
+        :param shp_name: Shapefile name (ends in .shp)
+        :param cmd: Optional ogr2ogr command to overwrite default
+        :param srid:  SRID to use (defaults to 2263)
+        :param port:
+        :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
+        :param precision:  Sets precision flag in ogr (defaults to -lco precision=NO)
+        :param private: Flag for permissions in database (Defaults to False - will only grant select to public)
+        :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
+        :param shp_encoding: Defaults to None; if not None, sets the PG client encoding while uploading the shpfile.
+        Options inlude LATIN1, UTF-8.
+        :param print_cmd: Defaults to False; if True prints the cmd
+        :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param zip: Flag to use if importing from a sipped file (defaults to False)
+        :return:
+        """
+        if not schema:
+            schema = self.default_schema
+
+        if not port:
+            port = self.port
+
+        path, shp = parse_geospatial_file_path(path, shp_name)
+        if not shp_name:
+            shp_name = shp
+
+        if not all([path, shp_name]):
+            filename = file_loc('file', 'Missing file info - Opening search dialog...')
+            shp_name = os.path.basename(filename)
+            path = os.path.dirname(filename)
+
+        if not table:
+            table = shp_name.replace('.shp', '').lower()
+
+        table = table.lower()
+
+        shp = Shapefile(dbo=self, path=path, table=table, schema=schema, shp_name=shp_name,
+                        cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
+
+        shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
+
+        self.tables_created.append(f"{schema}.{table}")
+
+        if temp:
+            self.__run_table_logging([schema + "." + table], days=days)
+
+
+    def geospatial_to_table(self, file_name, gpkg_tbl, path=None, schema=None, table =None, 
+                     srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
+                     encoding=None, print_cmd=False, days=7, bulk_upload = False):
         """
         Imports single geopackage table to database. This uses GDAL to generate the table.
-        :param gpkg_name: Geopackage name (ends in .gpkg)
+        :param file_name: Geopackage name (ends in .gpkg)
         :param gpkg_tbl: Input table name from Geopackage.
         :param path: File path of the geopackage
         :param schema: Schema to use in the database (defaults to db's default schema)
@@ -2191,15 +2158,15 @@ class DbConnect:
         :param precision:  Sets precision flag in ogr (defaults to -lco precision=NO)
         :param private: Flag for permissions in database (Defaults to False - will only grant select to public)
         :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
-        :param gpkg_encoding: Defaults to None; if not None, sets the PG client encoding while uploading the gpkgfile.
+        :param encoding: Defaults to None; if not None, sets the PG client encoding while uploading the gpkgfile.
         Options inlude LATIN1, UTF-8.
         :param print_cmd: Defaults to False; if True prints the cmd
         :param days: if temp=Tue, the number of days that the temp table will be kept. Defaults to 7.
-        :param bulk_upload: Defaults to False. Use gpkg_to_table_bulk() to load all tables within a geopackage.
+        :param bulk_upload: Defaults to False. Use input_gpkg_bulk() to load all tables within a geopackage.
         :return:
         """
 
-        assert gpkg_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
+        assert file_name[-5:] == '.gpkg', "The input file should end with .gpkg . Please check your input."
 
         if not schema:
             schema = self.default_schema
@@ -2207,23 +2174,23 @@ class DbConnect:
         if not port:
             port = 5432
 
-        path, gpkg = parse_gpkg_path(path, gpkg_name)
-        if not gpkg_name:
-            gpkg_name = gpkg
+        path, gpkg = parse_geospatial_file_path(path, file_name)
+        if not file_name:
+            file_name = gpkg
 
-        if not all([path, gpkg_name]):
+        if not all([path, file_name]):
             filename = file_loc('file', 'Missing file info - Opening search dialog...')
-            gpkg_name = os.path.basename(filename)
+            file_name = os.path.basename(filename)
             path = os.path.dirname(filename)
 
-        gpkg = Geopackage(path=path, gpkg_name=gpkg_name, gpkg_tbl = gpkg_tbl)
+        geospatial = Geospatial(path=path, file_name=file_name, gpkg_tbl = gpkg_tbl)
 
         if not table:
-            table = gpkg_tbl.replace('.gpkg', '').lower() # if the gpkg_table is left blank, we will populate the name using read_gpkg
+            table = gpkg_tbl.replace('.gpkg', '').lower() # if the gpkg_table is left blank, we will populate the name using input_gpkg
         
         if bulk_upload == True:
             # bulk upload
-            output_table_names = gpkg.read_gpkg_bulk(dbo = self, schema = schema, gpkg_encoding = gpkg_encoding, srid = srid,
+            output_table_names = geospatial.input_gpkg_bulk(dbo = self, schema = schema, encoding = encoding, srid = srid,
                             gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
             
             for table in output_table_names.values():
@@ -2264,7 +2231,7 @@ class DbConnect:
 
         else:
         
-            gpkg.read_gpkg(dbo = self, schema = schema, table = table, gpkg_tbl = gpkg_tbl, gpkg_encoding = gpkg_encoding, srid = srid,
+            geospatial.input_geospatial_file(dbo = self, schema = schema, table = table, gpkg_tbl = gpkg_tbl, encoding = encoding, srid = srid,
                        gdal_data_loc=gdal_data_loc, precision = precision, private = private, print_cmd = print_cmd)
             
             if self.type == "MS":
@@ -2300,13 +2267,13 @@ class DbConnect:
             if temp:
                 self.__run_table_logging([schema + "." + table], days=days)
 
-    def gpkg_to_table_bulk(self, gpkg_name,  path=None, schema=None,
+    def gpkg_to_table_bulk(self, file_name,  path=None, schema=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      gpkg_encoding=None, print_cmd=False, days=7):
 
         """
         Imports geopackage file to database. This uses GDAL to generate the table.
-        :param gpkg_name: Geopackage name (ends in .gpkg)
+        :param file_name: Geopackage name (ends in .gpkg)
         :param path: File path of the geopackage
         :param schema: Schema to use in the database (defaults to db's default schema)
         :param srid:  SRID to use (defaults to 2263)
@@ -2322,7 +2289,7 @@ class DbConnect:
         :return:
         """
          
-        self.gpkg_to_table( gpkg_name = gpkg_name, gpkg_tbl = '',
+        self.geospatial_to_table( file_name = file_name, gpkg_tbl = '',
                             path=path,
                             schema= schema,
                             srid=srid,
@@ -2441,3 +2408,4 @@ class DbConnect:
         self.query(read_data, temp=temp)
         assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
         return schema_table_name
+
