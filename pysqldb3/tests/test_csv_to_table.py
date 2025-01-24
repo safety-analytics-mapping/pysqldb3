@@ -150,7 +150,7 @@ class TestCsvToTablePG:
         db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
 
         fp = helpers.DIR + "\\test_dates.csv"
-        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, column_type_overrides={'false Date':'int'})
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, column_type_overrides={'false_date':'int'})
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -671,7 +671,7 @@ class TestCsvToTableMS:
 
         fp = helpers.DIR + "\\test_dates.csv"
         sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema,
-                        column_type_overrides={'false Date': 'int'})
+                        column_type_overrides={'false_date': 'int'})
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
@@ -948,7 +948,7 @@ class TestBulkCSVToTableMS:
         # bulk_csv_to_table
         sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
 
-        fp = helpers.DIR + "\\test7.csv"
+        fp = helpers.DIR + "\\test8.csv"
         input_schema = sql.dataframe_to_table_schema(df=pd.read_csv(fp), table=create_table_name, schema=sql_schema)
         sql._bulk_csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, table_schema=input_schema)
 
