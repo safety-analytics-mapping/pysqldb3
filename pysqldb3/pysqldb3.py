@@ -971,10 +971,13 @@ class DbConnect:
             if 'date' in col_name.lower() and col_type in ('int', 'bigint', 'float'):
                 col_type = 'varchar(500)'
 
+            #clean col_name to check against overrides and insert
+            col_name=clean_column(col_name)
+
             if column_type_overrides and col_name in column_type_overrides.keys():
-                input_schema.append([clean_column(col_name), column_type_overrides[col_name]])
+                input_schema.append([col_name, column_type_overrides[col_name]])
             else:
-                input_schema.append([clean_column(col_name), col_type])
+                input_schema.append([col_name, col_type])
 
         if overwrite:
             self.drop_table(schema=schema, table=table, cascade=False)
@@ -1249,11 +1252,13 @@ class DbConnect:
         for col in data.schema:
             col_name, col_type = col.name, type_decoder_pyarrow(col.type, varchar_length=allowed_length)
 
+            # clean col_name to check against overrides and insert
+            col_name = clean_column(col_name)
 
             if column_type_overrides and col_name in column_type_overrides.keys():
-                input_schema.append([clean_column(col_name), column_type_overrides[col_name]])
+                input_schema.append([col_name, column_type_overrides[col_name]])
             else:
-                input_schema.append([clean_column(col_name), col_type])
+                input_schema.append([col_name, col_type])
 
         if overwrite:
             self.drop_table(schema=schema, table=table, cascade=False)
