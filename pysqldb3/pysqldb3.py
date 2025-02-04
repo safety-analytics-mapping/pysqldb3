@@ -338,8 +338,9 @@ class DbConnect:
                 if str(e) != 'Connection is closed.':
                     print(e)
                 self.connect(True)
-                print(f'Database connection ({self.type}) to {self.database} on {self.server} - user: {self.user} \nConnection established {self.connection_start}, /' \
-                '\n- ris version {__version__} - ')
+                if self.connection_count == 1:
+                    print(f'Database connection ({self.type}) to {self.database} on {self.server} - user: '\
+                            f'{self.user} \nConnection established {self.connection_start}, \n- ris version {__version__} - ')
         else:
             if self.conn.closed:
                 self.connect(True)
