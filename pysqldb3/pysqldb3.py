@@ -240,7 +240,8 @@ class DbConnect:
         try:
             self.conn = pymssql.connect(**self.params)
         except Exception as e:
-            print(e)
+            if e != 'Connection is closed.':
+                print(e)
             # Revert to SQL driver and show warning
 
             # deprecated
