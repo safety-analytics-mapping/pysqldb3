@@ -335,7 +335,8 @@ class DbConnect:
             try:
                 self.conn._conn.connected
             except Exception as e:
-                print(e)
+                if e != 'Connection is closed.':
+                    print(e)
                 self.connect(True)
         else:
             if self.conn.closed:
