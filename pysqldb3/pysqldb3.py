@@ -80,6 +80,7 @@ class DbConnect:
         self.last_query = None
         self.default_schema = None
         self.connection_count = 0
+        self.connection_print_count = 0
         self.__set_type()
 
         # Connect and clean logs
@@ -338,9 +339,10 @@ class DbConnect:
                 if str(e) != 'Connection is closed.':
                     print(e)
                 self.connect(True)
-                if self.connection_count == 1:
+                if self.connection_print_count == 0:
                     print(f'Database connection ({self.type}) to {self.database} on {self.server} - user: '\
                             f'{self.user} \nConnection established {self.connection_start}, \n- ris version {__version__} - ')
+                    self.connection_print_count += 1
         else:
             if self.conn.closed:
                 self.connect(True)
