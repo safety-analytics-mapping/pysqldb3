@@ -240,8 +240,7 @@ class DbConnect:
         try:
             self.conn = pymssql.connect(**self.params)
         except Exception as e:
-            if e != 'Connection is closed.':
-                print(e)
+            print(e)
             # Revert to SQL driver and show warning
 
             # deprecated
@@ -339,6 +338,8 @@ class DbConnect:
                 if str(e) != 'Connection is closed.':
                     print(e)
                 self.connect(True)
+                print(f'Database connection ({self.type}) to {self.database} on {self.server} - user: {self.user} \nConnection established {self.connection_start}, /' \
+                '\n- ris version {__version__} - ')
         else:
             if self.conn.closed:
                 self.connect(True)
