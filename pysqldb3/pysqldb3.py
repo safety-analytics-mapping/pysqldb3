@@ -938,7 +938,7 @@ class DbConnect:
     """
 
     def dataframe_to_table_schema(self, df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
-                                  column_type_overrides=None, days=7):
+                                  column_type_overrides=None, days=7, temp_table=False):
 
         """
         Translates Pandas DataFrame into empty database table.
@@ -952,6 +952,7 @@ class DbConnect:
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, the table made from the dataframe will be a temporary table
         :return: Table schema that was created from DataFrame
         """
         if not schema:
@@ -989,8 +990,14 @@ class DbConnect:
             self.drop_table(schema=schema, table=table, cascade=False)
 
         # Create table in database
+        if temp_table:
+            t='temporary'
+            table_schema = table
+        else:
+            t = ''
+            table_schema = f"{schema}.{table}"
         qry = f"""
-                CREATE TABLE {schema}.{table} (
+                CREATE {t} TABLE {table_schema} (
                 {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
                 )
         """
@@ -999,7 +1006,7 @@ class DbConnect:
         return input_schema
 
     def dataframe_to_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
-                           allow_max_varchar=False, column_type_overrides=None, days=7):
+                           allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False):
         """
         Adds data from Pandas DataFrame to existing table
         :param df: Pandas DataFrame to be added to database
@@ -1014,6 +1021,7 @@ class DbConnect:
                 detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True and table schema needs to be created, the number of days that the temp table will be
                      kept. Defaults to 7.
+        :param temp_table: if True, dataframe created as a temporary table, which will be lost when db connection is closed
         :return: None
         """
 
@@ -1024,27 +1032,32 @@ class DbConnect:
             table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                           allow_max_varchar=allow_max_varchar,
                                                           column_type_overrides=column_type_overrides,
-                                                          days=days)
+                                                          days=days, temp_table=temp_table)
 
         # Insert data
         print('Reading data into Database\n')
-
+        if temp_table:
+            schema_table = table
+        else:
+            schema_table = f"{schema}.{table}"
         for _, row in tqdm(df.iterrows()):
             # Clean up empty cells and prime for input into db
             row = row.replace({np.nan: None})
-            row_values = ",".join([clean_cell(i) for i in row.values])
-            row_values = row_values.replace('None', 'NULL')
+            row_list = [clean_cell(i) for i in row.values]
+            # convert ints stored as decimals to string ints if column type is big int
+            bigints = [i for i, x in enumerate(table_schema) if x[1] == 'bigint']
+            row_values = ",".join([c.replace('.0','') if p in bigints else c for p, c in enumerate(row_list)]).replace('None', 'NULL')
 
             self.query(f"""
-                INSERT INTO {schema}.{table} ({str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", '')})
+                INSERT INTO {schema_table} ({str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", '')})
                 VALUES ({row_values})
             """, strict=False, timeme=False, internal = True)
 
-        df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema}.{table}", timeme=False, internal = True)
-        print(f'\n{df.cnt.values[0]} rows added to {schema}.{table}\n')
+        df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema_table}", timeme=False, internal = True)
+        print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
+                     long_varchar_check=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -1058,6 +1071,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, Uploads csv to temporary table, which will be lost when db connection is closed
         :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
         :return:
         """
@@ -1109,10 +1123,11 @@ class DbConnect:
         table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                       allow_max_varchar=allow_max,
                                                       column_type_overrides=column_type_overrides,
-                                                      days=days)
+                                                      days=days, temp_table=temp_table)
 
         # For larger files use GDAL to import
-        if df.shape[0] > 999:
+        # if temp table cant use bulk import - gdal has its own connection thread
+        if df.shape[0] > 999 and not temp_table:
             try:
                 temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
 
@@ -1142,7 +1157,7 @@ class DbConnect:
         else:
             # Calls dataframe_to_table fn
             self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
-                                    temp=temp, days=days)
+                                    temp=temp, days=days, temp_table=temp_table)
 
     def _bulk_csv_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
         """

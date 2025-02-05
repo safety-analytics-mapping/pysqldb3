@@ -15,6 +15,14 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
+dbt = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
+                       server=config.get('PG_DB', 'SERVER'),
+                       database=config.get('PG_DB', 'DB_NAME'),
+                       user=config.get('PG_DB', 'DB_USER'),
+                       password=config.get('PG_DB', 'DB_PASSWORD'),
+                        allow_temp_tables=True)
+
+
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         database=config.get('SQL_DB', 'DB_NAME'),
@@ -1073,10 +1081,55 @@ class TestBulkCSVToTableMS:
     def teardown_class(cls):
         sql.cleanup_new_tables()
 
-# def test_sample_date():
-#     db.csv_to_table(input_file=r'E:\RIS\Data\AFinalDatasets\CrashData\NYSDOT\Recieved\2021\ApparentFactor.csv',
-#                     schema='working', table=test_csv_name, overwrite=True, sep=';')
-#     for i in db.get_table_columns(test_csv_name, schema='working'):
-#         if 'date' in i[0]:
-#             print(i)
-#             assert i[1] =='character varying'
+
+class TestCsvToTablePGTemp:
+    @classmethod
+    def setup_class(cls):
+        # helpers.set_up_test_table_pg(db)
+        helpers.set_up_test_csv()
+
+    def test_basic_csv_to_table_tmp(self):
+        # csv_to_table
+        dbt.query('drop table if exists {}'.format(create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        dbt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name, schema=pg_schema)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {create_table_name}", strict=False)
+        assert not db.data
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {create_table_name}", strict=False)
+        assert not dbt.data
+
+    def test_big_csv_to_table_tmp(self):
+        # csv_to_table
+        dbt.query('drop table if exists {}'.format(create_table_name))
+
+        fp = helpers.DIR+"\\test8.csv"
+        dbt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 1000
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name, schema=pg_schema)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {create_table_name}", strict=False)
+        assert not db.data
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {create_table_name}", strict=False)
+        assert not dbt.data
