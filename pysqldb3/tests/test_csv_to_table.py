@@ -15,12 +15,7 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
-dbt = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
-                       server=config.get('PG_DB', 'SERVER'),
-                       database=config.get('PG_DB', 'DB_NAME'),
-                       user=config.get('PG_DB', 'DB_USER'),
-                       password=config.get('PG_DB', 'DB_PASSWORD'),
-                        allow_temp_tables=True)
+dbt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=db)
 
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
@@ -28,6 +23,8 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         database=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
+
+sqlt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=sql)
 
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 create_table_name = 'sample_acs_test_csv_to_table_{}'.format(db.user)
@@ -1093,13 +1090,13 @@ class TestCsvToTablePGTemp:
         dbt.query('drop table if exists {}'.format(create_table_name))
 
         fp = helpers.DIR + "\\test.csv"
-        dbt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+        dbt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
 
         # Check to see if table is in database
         dbt.query(f"select * from {create_table_name}")
         assert len(dbt.data) == 5
         # check its not a real table
-        assert not dbt.table_exists(table=create_table_name, schema=pg_schema)
+        assert not dbt.table_exists(table=create_table_name)
 
         # check it cant be accessed from another connection
         db.query(f"select * from {create_table_name}", strict=False)
@@ -1116,7 +1113,7 @@ class TestCsvToTablePGTemp:
         dbt.query('drop table if exists {}'.format(create_table_name))
 
         fp = helpers.DIR+"\\test8.csv"
-        dbt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+        dbt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
 
         # Check to see if table is in database
         dbt.query(f"select * from {create_table_name}")
@@ -1133,3 +1130,56 @@ class TestCsvToTablePGTemp:
         dbt.connect(quiet=True)
         dbt.query(f"select * from {create_table_name}", strict=False)
         assert not dbt.data
+
+
+class TestCsvToTableMSTemp:
+    @classmethod
+    def setup_class(cls):
+        # helpers.set_up_test_table_pg(db)
+        helpers.set_up_test_csv()
+
+    def test_basic_csv_to_table_tmp(self):
+        # csv_to_table
+        sqlt.query('drop table {}'.format(create_table_name), strict=False)
+
+        fp = helpers.DIR + "\\test.csv"
+        sqlt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{create_table_name}")
+        assert len(sqlt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check it can also be accessed from another connection
+        sql.query(f"select * from ##{create_table_name}", strict=False)
+        assert len(sql.data) == 5
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{create_table_name}", strict=False)
+        assert not sqlt.data
+
+    def test_big_csv_to_table_tmp(self):
+        # csv_to_table
+        sqlt.query('drop table {}'.format(create_table_name), strict=False)
+
+        fp = helpers.DIR+"\\test8.csv"
+        sqlt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{create_table_name}")
+        assert len(sqlt.data) == 1000
+        # check its not a real table
+        assert not sqlt.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check it can also be accessed from another connection
+        sql.query(f"select * from ##{create_table_name}", strict=False)
+        assert len(sql.data) == 1000
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{create_table_name}", strict=False)
+        assert not sqlt.data

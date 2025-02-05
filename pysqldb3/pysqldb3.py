@@ -990,9 +990,13 @@ class DbConnect:
             self.drop_table(schema=schema, table=table, cascade=False)
 
         # Create table in database
-        if temp_table:
+        if temp_table and self.type==PG:
             t='temporary'
             table_schema = table
+        elif temp_table and self.type==MS:
+            t = ''
+            # setting as global temp - if we want private temps will need additional parmeters
+            table_schema = f"##{table}"
         else:
             t = ''
             table_schema = f"{schema}.{table}"
@@ -1036,10 +1040,14 @@ class DbConnect:
 
         # Insert data
         print('Reading data into Database\n')
-        if temp_table:
+        if temp_table and self.type==PG:
             schema_table = table
+        elif temp_table and self.type==MS:
+            # setting as global temp - if we want private temps will need additional parmeters
+            schema_table = f"##{table}"
         else:
             schema_table = f"{schema}.{table}"
+
         for _, row in tqdm(df.iterrows()):
             # Clean up empty cells and prime for input into db
             row = row.replace({np.nan: None})
