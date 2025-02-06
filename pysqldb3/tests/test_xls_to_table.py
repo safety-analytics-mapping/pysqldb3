@@ -752,7 +752,7 @@ class TestXlsToTablePGTemp:
 
     def test_xls_to_table_basic(self):
         # xls_to_table
-        dbt.query('drop table if exists {}'.format(xls_table_name))
+        dbt.query(f'drop table if exists {xls_table_name}')
         fp = helpers.DIR + "\\test_xls.xls"
 
         dbt.xls_to_table(
@@ -791,7 +791,7 @@ class TestXlsToTablePGTemp:
 
         # bulk_xls_to_table
         if dbt.table_exists(schema=pg_schema, table=xls_table_name):
-            dbt.query('drop table if exists {}'.format(xls_table_name))
+            dbt.query(f'drop table if exists {xls_table_name}')
 
         # Make large XLSX file
         data = []
@@ -825,7 +825,7 @@ class TestXlsToTableMSTemp:
 
     def test_xls_to_table_basic(self):
         # xls_to_table
-        sqlt.query('drop table if exists {}'.format(xls_table_name))
+        sqlt.query(f'drop table if exists {xls_table_name}')
         fp = helpers.DIR + "\\test_xls.xls"
 
         sqlt.xls_to_table(
@@ -863,7 +863,7 @@ class TestXlsToTableMSTemp:
 
         # bulk_xls_to_table
         if sqlt.table_exists(schema=pg_schema, table=xls_table_name):
-            sqlt.query('drop table ##{}'.format(xls_table_name), strict=False)
+            sqlt.query(f'drop table ##{xls_table_name}', strict=False)
 
         # Make large XLSX file
         data = []

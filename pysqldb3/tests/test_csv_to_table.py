@@ -1087,7 +1087,7 @@ class TestCsvToTablePGTemp:
 
     def test_basic_csv_to_table_tmp(self):
         # csv_to_table
-        dbt.query('drop table if exists {}'.format(create_table_name))
+        dbt.query(f'drop table if exists {create_table_name}')
 
         fp = helpers.DIR + "\\test.csv"
         dbt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
@@ -1110,7 +1110,7 @@ class TestCsvToTablePGTemp:
 
     def test_csv_to_table_basic_pyarrow(self):
         # csv_to_table
-        dbt.query('drop table if exists {}'.format(create_table_name))
+        dbt.query(f'drop table if exists {create_table_name}')
 
         fp = helpers.DIR + "\\test.csv"
         dbt.csv_to_table_pyarrow(input_file=fp, table=create_table_name, temp_table=True)
@@ -1134,7 +1134,7 @@ class TestCsvToTablePGTemp:
 
     def test_big_csv_to_table_tmp(self):
         # csv_to_table
-        dbt.query('drop table if exists {}'.format(create_table_name))
+        dbt.query(f'drop table if exists {create_table_name}')
 
         fp = helpers.DIR+"\\test8.csv"
         dbt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
@@ -1164,7 +1164,7 @@ class TestCsvToTableMSTemp:
 
     def test_basic_csv_to_table_tmp(self):
         # csv_to_table
-        sqlt.query('drop table {}'.format(create_table_name), strict=False)
+        sqlt.query(f'drop table {create_table_name}', strict=False)
 
         fp = helpers.DIR + "\\test.csv"
         sqlt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
@@ -1187,7 +1187,7 @@ class TestCsvToTableMSTemp:
 
     def test_csv_to_table_basic_pyarrow(self):
         # csv_to_table
-        sqlt.query('drop table {}'.format(create_table_name), strict=False)
+        sqlt.query(f'drop table {create_table_name}', strict=False)
 
         fp = helpers.DIR + "\\test.csv"
         sqlt.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
@@ -1210,7 +1210,7 @@ class TestCsvToTableMSTemp:
 
     def test_big_csv_to_table_tmp(self):
         # csv_to_table
-        sqlt.query('drop table {}'.format(create_table_name), strict=False)
+        sqlt.query(f'drop table {create_table_name}', strict=False)
 
         fp = helpers.DIR+"\\test8.csv"
         sqlt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
