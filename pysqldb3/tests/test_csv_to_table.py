@@ -1098,6 +1098,12 @@ class TestCsvToTablePGTemp:
         # check its not a real table
         assert not dbt.table_exists(table=create_table_name)
 
+        # velidate data
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [i.replace(' ', '_') for i in csv_df.columns]
+        db_df = dbt.dfquery(f"select * from {create_table_name}")
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
         # check it cant be accessed from another connection
         db.query(f"select * from {create_table_name}", strict=False)
         assert not db.data
@@ -1178,6 +1184,13 @@ class TestCsvToTableMSTemp:
         # check it can also be accessed from another connection
         sql.query(f"select * from ##{create_table_name}", strict=False)
         assert len(sql.data) == 5
+
+        # velidate data
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [i.replace(' ', '_') for i in csv_df.columns]
+        db_df = sqlt.dfquery(f"select * from ##{create_table_name}")
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
 
         # disconnect and check table is no longer there
         sqlt.disconnect(quiet=True)
