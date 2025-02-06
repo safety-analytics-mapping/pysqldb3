@@ -1580,7 +1580,7 @@ class DbConnect:
 
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
-                     column_type_overrides=None, days=7, **kwargs):
+                     column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
         Imports xls/x file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -1593,6 +1593,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, Uploads xls/x file to temporary table, which will be lost when db connection is closed
         :return:
         """
 
@@ -1641,7 +1642,7 @@ class DbConnect:
             if 'ogc_fid' in df.columns:
                 df = df.drop('ogc_fid', 1)
 
-            if df.shape[0] > 100:
+            if df.shape[0] > 100 and not temp_table:
                 try:
                     table_schema = self.dataframe_to_table_schema(df, table,
                                                                   schema=schema,
@@ -1670,7 +1671,8 @@ class DbConnect:
                     raise AssertionError('Bulk file loading failed.'.format(schema, table))
             else:
                 self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
-                                        column_type_overrides=column_type_overrides, days=days)
+                                        column_type_overrides=column_type_overrides, days=days,
+                                        temp_table=temp_table)
         except Exception as e:
             print(e)
 
