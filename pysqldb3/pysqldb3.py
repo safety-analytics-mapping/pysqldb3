@@ -1183,7 +1183,7 @@ class DbConnect:
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
 
     def csv_to_table_pyarrow(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
+                     long_varchar_check=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
         Imports csv file to database. This uses pyarrow datatypes to generate the table schema.
 
@@ -1200,6 +1200,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, Uploads csv to temporary table, which will be lost when db connection is closed
         :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
         :return:
         """
@@ -1232,26 +1233,31 @@ class DbConnect:
                                                               temp=temp,
                                                               allow_max_varchar=allow_max,
                                                               column_type_overrides=column_type_overrides,
-                                                              days=days)
+                                                              days=days,
+                                                              temp_table=temp_table)
         # Default to bulk importer
-
-        try:
-            success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
-                                              table_schema=table_schema, days=days)
-
-            if not success:
-                raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
-
-        except Exception as e:
-            print(e)
-            # fall back to pandas dataframe to table
-            # Calls dataframe_to_table fn
+        if temp_table:
             self.dataframe_to_table(data.to_pandas(), table, table_schema=table_schema, overwrite=overwrite,
                                     schema=schema,
-                                    temp=temp, days=days)
+                                    temp=temp, days=days, temp_table=temp_table)
+        else:
+            try:
+                success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
+                                                  table_schema=table_schema, days=days)
+
+                if not success:
+                    raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
+
+            except Exception as e:
+                print(e)
+                # fall back to pandas dataframe to table
+                # Calls dataframe_to_table fn
+                self.dataframe_to_table(data.to_pandas(), table, table_schema=table_schema, overwrite=overwrite,
+                                        schema=schema,
+                                        temp=temp, days=days)
 
     def dataframe_to_table_schema_pyarrow(self, data, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
-                                          column_type_overrides=None, days=7):
+                                          column_type_overrides=None, days=7, temp_table=False):
 
         """
         Translates Pandas DataFrame into empty database table.
@@ -1265,6 +1271,7 @@ class DbConnect:
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, dataframe created as a temporary table, which will be lost when db connection is closed
         :return: Table schema that was created from DataFrame
         """
         if not schema:
@@ -1293,11 +1300,21 @@ class DbConnect:
             self.drop_table(schema=schema, table=table, cascade=False)
 
         # Create table in database
+        if temp_table and self.type == PG:
+            t = 'temporary'
+            table_schema = table
+        elif temp_table and self.type == MS:
+            t = ''
+            # setting as global temp - if we want private temps will need additional parmeters
+            table_schema = f"##{table}"
+        else:
+            t = ''
+            table_schema = f"{schema}.{table}"
         qry = f"""
-                CREATE TABLE {schema}.{table} (
-                {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
-                )
-        """
+                   CREATE {t} TABLE {table_schema} (
+                   {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
+                   )
+           """
 
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema

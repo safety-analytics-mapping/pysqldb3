@@ -1108,6 +1108,30 @@ class TestCsvToTablePGTemp:
         dbt.query(f"select * from {create_table_name}", strict=False)
         assert not dbt.data
 
+    def test_csv_to_table_basic_pyarrow(self):
+        # csv_to_table
+        dbt.query('drop table if exists {}'.format(create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        dbt.csv_to_table_pyarrow(input_file=fp, table=create_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {create_table_name}", strict=False)
+        assert not db.data
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {create_table_name}", strict=False)
+        assert not dbt.data
+
+
     def test_big_csv_to_table_tmp(self):
         # csv_to_table
         dbt.query('drop table if exists {}'.format(create_table_name))
@@ -1144,6 +1168,29 @@ class TestCsvToTableMSTemp:
 
         fp = helpers.DIR + "\\test.csv"
         sqlt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{create_table_name}")
+        assert len(sqlt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check it can also be accessed from another connection
+        sql.query(f"select * from ##{create_table_name}", strict=False)
+        assert len(sql.data) == 5
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{create_table_name}", strict=False)
+        assert not sqlt.data
+
+    def test_csv_to_table_basic_pyarrow(self):
+        # csv_to_table
+        sqlt.query('drop table {}'.format(create_table_name), strict=False)
+
+        fp = helpers.DIR + "\\test.csv"
+        sqlt.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
 
         # Check to see if table is in database
         sqlt.query(f"select * from ##{create_table_name}")
