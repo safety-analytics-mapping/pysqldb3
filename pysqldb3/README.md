@@ -645,7 +645,7 @@ Prints latest query run with basic formatting.
 
 ### dataframe_to_table_schema
 **`DbConnect.dataframe_to_table_schema(df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
-                                  column_type_overrides=None, days=7)`**
+                                  column_type_overrides=None, days=7, temp_table=False)`**
 
 Translates Pandas DataFrame into empty database table. Generates an empty database table using the column names and panda's datatype inferences.
 Returns table schema that was created from DataFrame.
@@ -661,7 +661,8 @@ Returns table schema that was created from DataFrame.
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
  - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
- 
+ - **`temp_table` bool, default False**: Boolean to allow import data as temporary table 
+
 **Sample**
 
 ```
@@ -685,7 +686,7 @@ Index: []
 
 ### dataframe_to_table
 **`DbConnect.dataframe_to_table(df, table, table_schema=None, schema=None, overwrite=False, temp=True,
-                           allow_max_varchar=False, column_type_overrides=None, days=7)`**
+                           allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False)`**
 
 Translates Pandas DataFrame into populated database table. This uses dataframe_to_table_schema to generate an empty database table 
 and then inserts the dataframe's data into it. 
@@ -702,7 +703,7 @@ and then inserts the dataframe's data into it.
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
  - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
- 
+ - **`temp_table` bool, default False**: Boolean to allow import data as temporary table
 **Sample**
 
 
@@ -748,8 +749,9 @@ Imports csv file to database. This uses pandas datatypes to generate the table s
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
  - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
- 
-**Sample**
+- **`temp_table` bool, default False**: Boolean to allow import data as temporary table 
+- **`kwargs`**: Dict, allows passing kward arguments to pandas on read (ex skiprows)
+- **Sample**
 
 ```
 >>> from pysqldb3 import pysqldb3
@@ -776,7 +778,7 @@ Reading data into Database
 
 #### xls_to_table
 **`DbConnect.xls_to_table(input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
-                     column_type_overrides=None, days=7)`**
+                     column_type_overrides=None, days=7, temp_table, **kwargs`**
 
 Imports xls file to database. This uses pandas datatypes to generate the table schema.
 ###### Parameters:
@@ -790,7 +792,8 @@ Imports xls file to database. This uses pandas datatypes to generate the table s
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
  - **`days` int, default 7**: Defines the lifespan (number of days) of any tables created in the query, before they are automatically deleted  
- 
+ - **`temp_table` bool, default False**: Boolean to allow import data as temporary table 
+ - **`kwargs`**: Dict, allows passing kward arguments to pandas on read (ex skiprows)
 **Sample**
 
 ```
