@@ -15,11 +15,16 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
+dbt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=db)
+
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         database=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
+
+sqlt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=sql)
+
 
 xls_table_name = 'sample_test_xls_to_table_{}'.format(db.user)
 pg_schema='working'
@@ -738,3 +743,149 @@ class TestBulkXLSToTableMS:
     @classmethod
     def teardown_class(cls):
         sql.cleanup_new_tables()
+
+
+class TestXlsToTablePGTemp:
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_xls()
+
+    def test_xls_to_table_basic(self):
+        # xls_to_table
+        dbt.query(f'drop table if exists {xls_table_name}')
+        fp = helpers.DIR + "\\test_xls.xls"
+
+        dbt.xls_to_table(
+            input_file=fp,
+            table=xls_table_name,
+            temp_table=True
+        )
+        # Check to see if table is in database
+        dbt.query(f"select * from {xls_table_name}")
+        assert len(dbt.data) == 3
+        # check its not a real table
+        assert not dbt.table_exists(table=xls_table_name)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {xls_table_name}", strict=False)
+        assert not db.data
+
+
+        # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
+        xls_df = pd.read_excel(fp).rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df.columns = [c.lower().strip().replace(' ', '_').replace('.', '_').replace(':', '_') for c in
+                          xls_df.columns]
+
+        # Assert df equality, including dtypes and columns
+        db_df = dbt.dfquery(f"select * from {xls_table_name}")
+        pd.testing.assert_frame_equal(db_df, xls_df)
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {xls_table_name}", strict=False)
+        assert not dbt.data
+
+    def test_big_xls_to_table_tmp(self):
+        fp = helpers.DIR + "\\Test.xlsx"
+
+        # bulk_xls_to_table
+        if dbt.table_exists(schema=pg_schema, table=xls_table_name):
+            dbt.query(f'drop table if exists {xls_table_name}')
+
+        # Make large XLSX file
+        data = []
+        for i in range(0, 100000):
+            data.append((i, i + 1))
+
+        pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
+
+        dbt.xls_to_table(input_file=fp, table=xls_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        dbt.query(f"select * from {xls_table_name}")
+        assert len(dbt.data) == 100000
+        # check its not a real table
+        assert not dbt.table_exists(table=xls_table_name, schema=pg_schema)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {xls_table_name}", strict=False)
+        assert not db.data
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {xls_table_name}", strict=False)
+        assert not dbt.data
+
+class TestXlsToTableMSTemp:
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_xls()
+
+    def test_xls_to_table_basic(self):
+        # xls_to_table
+        sqlt.query(f'drop table if exists {xls_table_name}')
+        fp = helpers.DIR + "\\test_xls.xls"
+
+        sqlt.xls_to_table(
+            input_file=fp,
+            table=xls_table_name,
+            temp_table=True
+        )
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{xls_table_name}")
+        assert len(sqlt.data) == 3
+        # check its not a real table
+        assert not sqlt.table_exists(table=xls_table_name)
+
+        # check it cant be accessed from another connection
+        sql.query(f"select * from ##{xls_table_name}", strict=False)
+        assert sql.data
+
+        # Get xls df via pd.read_excel; pd/ogr handle unnamed columns differently (: vs _)
+        xls_df = pd.read_excel(fp).rename(columns={"Unnamed: 0": "unnamed__0"})
+        xls_df.columns = [c.lower().strip().replace(' ', '_').replace('.', '_').replace(':', '_') for c in
+                          xls_df.columns]
+
+        # Assert df equality, including dtypes and columns
+        db_df = sqlt.dfquery(f"select * from ##{xls_table_name}")
+        pd.testing.assert_frame_equal(db_df, xls_df)
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{xls_table_name}", strict=False)
+        assert not sqlt.data
+
+    def test_big_xls_to_table_tmp(self):
+        fp = helpers.DIR + "\\Test.xlsx"
+
+        # bulk_xls_to_table
+        if sqlt.table_exists(schema=pg_schema, table=xls_table_name):
+            sqlt.query(f'drop table ##{xls_table_name}', strict=False)
+
+        # Make large XLSX file
+        data = []
+        for i in range(0, 100000):
+            data.append((i, i + 1))
+
+        pd.DataFrame(data, columns=['ogr_ex_col_1', 'ogr_ex_col_2']).to_excel(fp, index=False)
+
+        sqlt.xls_to_table(input_file=fp, table=xls_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{xls_table_name}")
+        assert len(sqlt.data) == 100000
+        # check its not a real table
+        assert not sqlt.table_exists(table=xls_table_name, schema=sql_schema)
+
+        # check it can be accessed from another connection
+        sql.query(f"select * from ##{xls_table_name}", strict=False)
+        assert len(sql.data) == 100000
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{xls_table_name}", strict=False)
+        assert not sqlt.data

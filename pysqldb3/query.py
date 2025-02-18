@@ -330,7 +330,7 @@ class Query:
                 (({encaps} | {nonencaps})\.){sds}
                 (\[?\#{temp_mark}){tmp_time}
                 (({encapst} | {nonencaps})\s*){tbl_time}
-            )((as\s+select)|(\())\s?
+            )((as\s+(with|select))|(\())\s?
         """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
                           encapst=RE_ENCAPSULATED_TABLE_NAME,
                           sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
@@ -344,6 +344,7 @@ class Query:
         new_tables+=tables
 
         # don't run "into pattern/table" if the query creates a function
+
         if not re.findall(re.compile('create[\s\w]+function\s+', re.VERBOSE | re.IGNORECASE), query_string):
             into_pattern = r"""
                 (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
