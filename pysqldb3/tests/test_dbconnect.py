@@ -956,7 +956,7 @@ class TestLogging:
 class TestInheritence:
     def test_pg_connect_all_but_db(self):
         second_db = test_config.get('SECOND_PG_DB', 'DB_NAME')
-        db2 = pysqldb.DbConnect(inherits_from=db, database=second_db)
+        db2 = pysqldb.DbConnect(inherits_from=db, database=second_db, server='dotdevrhpgsql01')
         assert db2.database==second_db
         assert db.database != second_db
     def test_pg_connect_all_but_user(self):
