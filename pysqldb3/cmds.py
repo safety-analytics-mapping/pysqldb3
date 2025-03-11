@@ -188,3 +188,11 @@ dbname={to_pg_database} user={to_pg_user} password={to_pg_pass}" PG:"host={from_
 dbname={from_pg_database}  user={from_pg_user} password={from_pg_pass}"  -sql "{sql_select}"
 -lco OVERWRITE=yes -nln {to_pg_schema}.{to_pg_name} {nlt_spatial} -progress
 """.replace('\n', ' ')
+
+PG_TO_CSV_CMD = """
+ogr2ogr --config GDAL_DATA "{gdal_data}"
+-f CSV "{output_csv}" 
+PG:"host={from_pg_host} port={from_pg_port} dbname={from_pg_database} user={from_pg_user} password={from_pg_pass}" 
+-sql "{sql_select}"
+-lco GEOMETRY=AS_WKT
+""".replace('\n', ' ')

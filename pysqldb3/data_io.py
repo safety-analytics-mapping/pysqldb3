@@ -1,3 +1,5 @@
+import getpass
+import os
 import subprocess
 import shlex
 import pysqldb3
@@ -181,6 +183,80 @@ def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, des
 
     if temp:
         ms.log_temp_table(dest_schema, dest_table, ms.user)
+
+def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
+    """
+    Migrates query from Postgres to SQL Server, generates spatial tables in MS if spatial in PG.
+    :param pg: DbConnect instance connecting to PostgreSQL source database
+    :param ms: DbConnect instance connecting to SQL Server destination database
+    :param query: query in PG
+    :param LDAP: Flag for using LDAP credentials (defaults to False)
+    :param spatial: Flag for spatial table (defaults to True)
+    :param dest_table: Table name of final migrated table in SQL Server database
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :return:
+    """
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=ms.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', '', query)
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    cmd = PG_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_pg_host=pg.server,
+        from_pg_port=pg.port,
+        from_pg_database=pg.database,
+        from_pg_user=pg.user,
+        from_pg_pass=pg.password,
+        sql_select=query
+    )
+    if print_cmd:
+        print(print_cmd_string([ms.password, pg.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
+
+    # import data to temp table
+    ms.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+
+    # clean up csv
+    os.remove(temp_csv)
+
+
+def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_cmd=False):
+    """
+    Migrates query from Postgres to SQL Server, generates spatial tables in MS if spatial in PG.
+    :param pg: DbConnect instance connecting to PostgreSQL source database
+    :param ms: DbConnect instance connecting to SQL Server destination database
+    :param table:
+    :param org_schema:
+    :param LDAP: Flag for using LDAP credentials (defaults to False)
+    :param spatial: Flag for spatial table (defaults to True)
+    :param dest_table: Table name of final migrated table in SQL Server database
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :return:
+    """
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=ms.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f"select * from {sch}{table}"
+    pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=dest_table, print_cmd=print_cmd)
+
 
 
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
@@ -485,7 +561,6 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
         to_sql.log_temp_table(dest_schema, dest_table, to_sql.user)
 
 
-
 def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
                print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
     """
@@ -537,9 +612,6 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
     to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
-
-
-
 
 
 def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
