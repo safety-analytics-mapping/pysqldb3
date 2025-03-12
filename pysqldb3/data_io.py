@@ -230,6 +230,15 @@ def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
     # import data to temp table
     ms.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
 
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        # add geom column
+        ms.query(f"alter table ##{dest_table} add [geom] [geometry];")
+        # update from wkt
+        ms.query(f"update ##{dest_table} set geom=geometry::STGeomFromText(wkt, 2263);")
+        # drop wkt col
+        ms.query(f"alter table  ##{dest_table} drop column wkt")
+
     # clean up csv
     os.remove(temp_csv)
 
@@ -249,7 +258,7 @@ def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_c
     """
 
     if not dest_table:
-        dest_table = '_{u}_{d}'.format(u=ms.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+        dest_table = table
     if org_schema:
         sch = f"{org_schema}."
     else:

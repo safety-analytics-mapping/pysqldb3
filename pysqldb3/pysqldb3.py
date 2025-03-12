@@ -1102,7 +1102,7 @@ class DbConnect:
         if not table:
             table = os.path.basename(input_file).split('.')[0]
 
-        if not overwrite and self.table_exists(schema=schema, table=table):
+        if not overwrite and self.table_exists(schema=schema, table=table) and not temp_table:
             print('Must set overwrite=True; table already exists.')
             return
 

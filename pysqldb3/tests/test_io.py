@@ -282,7 +282,7 @@ class TestPgToSqlTemp:
         """).infer_objects()
 
         sql_df = sql.dfquery(f"""
-        select id, test_col1, test_col2, geometry::STGeomFromText(wkt, 2263) as geom
+        select *
         from ##{test_pg_to_sql_table}
         order by id
         """).infer_objects()
@@ -298,7 +298,6 @@ class TestPgToSqlTemp:
         # Clean up
         db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
 
-
     def test_pg_to_sql_naming(self):
 
         """
@@ -307,10 +306,13 @@ class TestPgToSqlTemp:
 
         # assert that output tables are not created
         dest_name = f'another_tst_name_{db.user}'
+        sql.query(f"""
+           IF OBJECT_ID(N'tempdb..##{dest_name}', N'U') IS NOT NULL
+           DROP TABLE ##{dest_name};
+       """)
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_table)
-        sql.drop_table(table=dest_name, schema = sql.default_schema)
         assert not db.table_exists(schema=pg_schema, table=test_pg_to_sql_table)
-        assert not sql.table_exists(table=dest_name)
+
 
         # create table in pg
         db.query(f"""
@@ -325,13 +327,7 @@ class TestPgToSqlTemp:
         assert db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
 
         # Run pg_to_sql
-        data_io.pg_to_sql(db, sql,
-                          org_schema=pg_schema, org_table=test_pg_to_sql_table,
-                          dest_table=dest_name,
-                          print_cmd=True)
-
-        # Assert created properly in sql with names
-        assert sql.table_exists(table=dest_name, schema=sql.default_schema)
+        data_io.pg_to_sql_temp_tbl(db, sql, test_pg_to_sql_table, org_schema=pg_schema, dest_table=dest_name)
 
         # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
         pg_df = db.dfquery(f"""
@@ -341,10 +337,10 @@ class TestPgToSqlTemp:
         """).infer_objects()
 
         sql_df = sql.dfquery(f"""
-                select *
-                from {dest_name}
+                select * 
+                from ##{dest_name}
                 order by id
-        """).infer_objects()
+                """).infer_objects()
 
         # Assert that tables are the same
         shared_non_geom_cols = list(set(pg_df.columns).intersection(set(sql_df.columns)) - {'geom'})
@@ -354,7 +350,6 @@ class TestPgToSqlTemp:
                                       check_datetimelike_compat=True)
 
         # Clean up
-        sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
         db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
 
     def test_pg_to_sql_spatial_table(self):
@@ -415,7 +410,6 @@ class TestPgToSqlTemp:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
-        helpers.clean_up_test_table_sql(sql)
 
 
 class TestPgtoSqlQry:
@@ -735,8 +729,8 @@ class TestPgtoSqlQryTemp:
         sql_df = sql.dfquery(f"""select * from ##{test_pg_to_sql_qry_spatial_table}""")
         sql_df = sql.dfquery(f"""
                 select test_col1, test_col2, 
-                geometry::STGeomFromText(wkt, 2263).STX test_lat, 
-                geometry::STGeomFromText(wkt, 2263).STY test_long
+                geom.STX test_lat, 
+                geom.STY test_long
                 from ##{test_pg_to_sql_qry_spatial_table}
                 order by test_col1
         """)
