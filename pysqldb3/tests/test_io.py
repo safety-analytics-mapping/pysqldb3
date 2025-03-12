@@ -20,10 +20,11 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
 
 # should be RIS DB as the second database in db_config
 ris = pysqldb.DbConnect(type=config.get('SECOND_PG_DB', 'TYPE'),
-                            server=config.get('SECOND_PG_DB', 'SERVER'),
-                            database=config.get('SECOND_PG_DB', 'DB_NAME'),
-                            user=config.get('SECOND_PG_DB', 'DB_USER'),
-                            password=config.get('SECOND_PG_DB', 'DB_PASSWORD'))
+                        server=config.get('SECOND_PG_DB', 'SERVER'),
+                        database=config.get('SECOND_PG_DB', 'DB_NAME'),
+                        user=config.get('SECOND_PG_DB', 'DB_USER'),
+                        password=config.get('SECOND_PG_DB', 'DB_PASSWORD'),
+                        allow_temp_tables=True)
 
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
@@ -57,7 +58,7 @@ test_dest_schema = 'dbo'
 test_sql_to_sql_tbl_to = f'tst_sql_to_sql_to_tbl_{db.user}'
 test_sql_to_sql_tbl_from = f'tst_sql_to_sql_from_tbl_{db.user}'
 
-
+# PG to SQL ##########################################################################################################
 class TestPgToSql:
     @classmethod
     def setup_class(cls):
@@ -239,180 +240,7 @@ class TestPgToSql:
         helpers.clean_up_test_table_sql(sql)
 
 
-class TestPgToSqlTemp:
-    @classmethod
-    def setup_class(cls):
-        helpers.set_up_test_table_pg(db)
-
-    def test_pg_to_sql_basic(self):
-
-        """
-        Copy an existing Postgres table to MS SQL Server, maintaining the name of the original table
-        """
-
-        # assert that output tables are droped
-        sql.query(f"""
-                    IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_table}', N'U') IS NOT NULL
-                    DROP TABLE ##{test_pg_to_sql_table};
-                """)
-        db.drop_table(schema=pg_schema, table=test_pg_to_sql_table)
-        assert not db.table_exists(schema=pg_schema, table=test_pg_to_sql_table)
-
-        # create table in pg
-        db.query(f"""
-        create table {pg_schema}.{test_pg_to_sql_table} as
-
-        select *
-        from {pg_schema}.{pg_table_name}
-        limit 10
-        """)
-
-        # Assert table created correctly
-        assert db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
-
-        # Run pg_to_sql
-        data_io.pg_to_sql_temp_tbl(db, sql, test_pg_to_sql_table, org_schema=pg_schema)
-
-        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
-
-        pg_df = db.dfquery(f"""
-        select *
-        from {pg_schema}.{test_pg_to_sql_table}
-        order by id
-        """).infer_objects()
-
-        sql_df = sql.dfquery(f"""
-        select *
-        from ##{test_pg_to_sql_table}
-        order by id
-        """).infer_objects()
-
-        # Assert that data columns are equal
-        shared_non_geom_cols = list(set(pg_df.columns).intersection(set(sql_df.columns)) - {'geom'})
-
-        pd.testing.assert_frame_equal(pg_df[shared_non_geom_cols], sql_df[shared_non_geom_cols],
-                                      check_dtype=False,
-                                      check_exact=False,
-                                      check_datetimelike_compat=True)
-
-        # Clean up
-        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
-
-    def test_pg_to_sql_naming(self):
-
-        """
-        Copy an existing Postgres table to MS SQL Server, and change the name of the copied table.
-        """
-
-        # assert that output tables are not created
-        dest_name = f'another_tst_name_{db.user}'
-        sql.query(f"""
-           IF OBJECT_ID(N'tempdb..##{dest_name}', N'U') IS NOT NULL
-           DROP TABLE ##{dest_name};
-       """)
-        db.drop_table(schema=pg_schema, table=test_pg_to_sql_table)
-        assert not db.table_exists(schema=pg_schema, table=test_pg_to_sql_table)
-
-
-        # create table in pg
-        db.query(f"""
-           drop table if exists {pg_schema}.{test_pg_to_sql_table};
-           create table {pg_schema}.{test_pg_to_sql_table} as
-            select *
-            from {pg_schema}.{pg_table_name}
-            limit 10
-        """)
-
-        # Assert table created correctly
-        assert db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
-
-        # Run pg_to_sql
-        data_io.pg_to_sql_temp_tbl(db, sql, test_pg_to_sql_table, org_schema=pg_schema, dest_table=dest_name)
-
-        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
-        pg_df = db.dfquery(f"""
-                select *
-                from {pg_schema}.{test_pg_to_sql_table}
-                order by id
-        """).infer_objects()
-
-        sql_df = sql.dfquery(f"""
-                select * 
-                from ##{dest_name}
-                order by id
-                """).infer_objects()
-
-        # Assert that tables are the same
-        shared_non_geom_cols = list(set(pg_df.columns).intersection(set(sql_df.columns)) - {'geom'})
-        pd.testing.assert_frame_equal(pg_df[shared_non_geom_cols], sql_df[shared_non_geom_cols],
-                                      check_dtype=False,
-                                      check_exact=False,
-                                      check_datetimelike_compat=True)
-
-        # Clean up
-        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
-
-    def test_pg_to_sql_spatial_table(self):
-        """
-        Copy a table with spatial data in Postgres to MS SQL Server.
-        """
-
-        # assert that output tables dropped
-        sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
-        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
-        assert not sql.table_exists(schema=sql.default_schema, table=test_pg_to_sql_table)
-        assert not db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
-
-        # create table in pg
-        db.query(f"""
-           drop table if exists {pg_schema}.{test_pg_to_sql_table};
-           create table {pg_schema}.{test_pg_to_sql_table} as
-
-           select 'hello' as c, st_transform(geom, 4326) as geom
-           from {pg_schema}.{pg_table_name}
-           limit 10
-        """)
-
-        # Assert table created correctly
-        assert db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
-
-        # Assert neither table in SQL Server yet
-        assert not sql.table_exists(table=test_pg_to_sql_table)
-
-        # run pg_to_sql, with different spatial flags
-        data_io.pg_to_sql(db, sql, org_table=test_pg_to_sql_table, org_schema=pg_schema, dest_table=test_pg_to_sql_table, spatial=True,
-                          print_cmd=True)
-
-        # Assert move worked and output tables were created
-        assert sql.table_exists(table=test_pg_to_sql_table)
-
-        # assert that the SQL dataframes are the same
-        spatial_df = sql.dfquery(f"""
-        select c, geom.STX test_lat, geom.STY test_long
-        from {test_pg_to_sql_table}
-        """).infer_objects()
-
-        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
-        pg_df = db.dfquery(f"""
-        select c, ST_X(geom) test_lat, ST_Y(geom) test_long
-        from {pg_schema}.{test_pg_to_sql_table}
-        """).infer_objects()
-
-        pd.testing.assert_frame_equal(pg_df, spatial_df,
-                                      check_dtype=False,
-                                      check_exact=False,
-                                      check_datetimelike_compat=True)
-
-        # Clean up
-        sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
-        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
-
-    @classmethod
-    def teardown_class(cls):
-        helpers.clean_up_test_table_pg(db)
-
-
-class TestPgtoSqlQry:
+class TestPgToSqlQry:
 
     @classmethod
     def setup_class(cls):
@@ -587,7 +415,180 @@ class TestPgtoSqlQry:
         helpers.clean_up_test_table_sql(sql)
 
 
-class TestPgtoSqlQryTemp:
+class TestPgToSqlTemp:
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_test_table_pg(db)
+
+    def test_pg_to_sql_basic(self):
+
+        """
+        Copy an existing Postgres table to MS SQL Server, maintaining the name of the original table
+        """
+
+        # assert that output tables are droped
+        sql.query(f"""
+                    IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_table}', N'U') IS NOT NULL
+                    DROP TABLE ##{test_pg_to_sql_table};
+                """)
+        db.drop_table(schema=pg_schema, table=test_pg_to_sql_table)
+        assert not db.table_exists(schema=pg_schema, table=test_pg_to_sql_table)
+
+        # create table in pg
+        db.query(f"""
+        create table {pg_schema}.{test_pg_to_sql_table} as
+
+        select *
+        from {pg_schema}.{pg_table_name}
+        limit 10
+        """)
+
+        # Assert table created correctly
+        assert db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
+
+        # Run pg_to_sql
+        data_io.pg_to_sql_temp_tbl(db, sql, test_pg_to_sql_table, org_schema=pg_schema)
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+
+        pg_df = db.dfquery(f"""
+        select *
+        from {pg_schema}.{test_pg_to_sql_table}
+        order by id
+        """).infer_objects()
+
+        sql_df = sql.dfquery(f"""
+        select *
+        from ##{test_pg_to_sql_table}
+        order by id
+        """).infer_objects()
+
+        # Assert that data columns are equal
+        shared_non_geom_cols = list(set(pg_df.columns).intersection(set(sql_df.columns)) - {'geom'})
+
+        pd.testing.assert_frame_equal(pg_df[shared_non_geom_cols], sql_df[shared_non_geom_cols],
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
+
+    def test_pg_to_sql_naming(self):
+
+        """
+        Copy an existing Postgres table to MS SQL Server, and change the name of the copied table.
+        """
+
+        # assert that output tables are not created
+        dest_name = f'another_tst_name_{db.user}'
+        sql.query(f"""
+           IF OBJECT_ID(N'tempdb..##{dest_name}', N'U') IS NOT NULL
+           DROP TABLE ##{dest_name};
+       """)
+        db.drop_table(schema=pg_schema, table=test_pg_to_sql_table)
+        assert not db.table_exists(schema=pg_schema, table=test_pg_to_sql_table)
+
+
+        # create table in pg
+        db.query(f"""
+           drop table if exists {pg_schema}.{test_pg_to_sql_table};
+           create table {pg_schema}.{test_pg_to_sql_table} as
+            select *
+            from {pg_schema}.{pg_table_name}
+            limit 10
+        """)
+
+        # Assert table created correctly
+        assert db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
+
+        # Run pg_to_sql
+        data_io.pg_to_sql_temp_tbl(db, sql, test_pg_to_sql_table, org_schema=pg_schema, dest_table=dest_name)
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+        pg_df = db.dfquery(f"""
+                select *
+                from {pg_schema}.{test_pg_to_sql_table}
+                order by id
+        """).infer_objects()
+
+        sql_df = sql.dfquery(f"""
+                select * 
+                from ##{dest_name}
+                order by id
+                """).infer_objects()
+
+        # Assert that tables are the same
+        shared_non_geom_cols = list(set(pg_df.columns).intersection(set(sql_df.columns)) - {'geom'})
+        pd.testing.assert_frame_equal(pg_df[shared_non_geom_cols], sql_df[shared_non_geom_cols],
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
+
+    def test_pg_to_sql_spatial_table(self):
+        """
+        Copy a table with spatial data in Postgres to MS SQL Server.
+        """
+
+        # assert that output tables dropped
+        sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
+        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
+        assert not sql.table_exists(schema=sql.default_schema, table=test_pg_to_sql_table)
+        assert not db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
+
+        # create table in pg
+        db.query(f"""
+           drop table if exists {pg_schema}.{test_pg_to_sql_table};
+           create table {pg_schema}.{test_pg_to_sql_table} as
+
+           select 'hello' as c, st_transform(geom, 4326) as geom
+           from {pg_schema}.{pg_table_name}
+           limit 10
+        """)
+
+        # Assert table created correctly
+        assert db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
+
+        # Assert neither table in SQL Server yet
+        assert not sql.table_exists(table=test_pg_to_sql_table)
+
+        # run pg_to_sql, with different spatial flags
+        data_io.pg_to_sql(db, sql, org_table=test_pg_to_sql_table, org_schema=pg_schema, dest_table=test_pg_to_sql_table, spatial=True,
+                          print_cmd=True)
+
+        # Assert move worked and output tables were created
+        assert sql.table_exists(table=test_pg_to_sql_table)
+
+        # assert that the SQL dataframes are the same
+        spatial_df = sql.dfquery(f"""
+        select c, geom.STX test_lat, geom.STY test_long
+        from {test_pg_to_sql_table}
+        """).infer_objects()
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+        pg_df = db.dfquery(f"""
+        select c, ST_X(geom) test_lat, ST_Y(geom) test_long
+        from {pg_schema}.{test_pg_to_sql_table}
+        """).infer_objects()
+
+        pd.testing.assert_frame_equal(pg_df, spatial_df,
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
+        db.drop_table(table=test_pg_to_sql_table, schema=pg_schema)
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_test_table_pg(db)
+
+
+class TestPgToSqlQryTemp:
 
     @classmethod
     def setup_class(cls):
@@ -746,6 +747,7 @@ class TestPgtoSqlQryTemp:
         helpers.clean_up_test_table_pg(db)
 
 
+# SQL to PG ##########################################################################################################
 class TestSqlToPgQry:
 
 
@@ -1231,6 +1233,158 @@ class TestSqlToPg:
         helpers.clean_up_test_table_pg(db)
 
 
+class TestSqlToPgTemp:
+
+    def test_sql_to_pg_basic(self):
+
+        """
+        Copy an existing MS SQL Server to Postgres table , maintaining the name of the original table
+        """
+
+        # assert that output tables are droped
+        db.query(f"drop table if exists {test_sql_to_pg_table}")
+        sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
+        assert not sql.table_exists(schema=sql_schema, table=test_sql_to_pg_table)
+
+        # create table in src
+        sql.query(f"""
+            create table {sql_schema}.{test_sql_to_pg_table} (test_col1 int, test_col2 int, test_col3 varchar(4));
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (1, 2, 'ABCD');
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (3, 4, 'DE*G');
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (5, 60, 'HIj_');
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (-3, 24271, 'zhyw');
+            """)
+
+        # Assert table created correctly
+        assert sql.table_exists(table=test_sql_to_pg_table, schema=sql_schema)
+
+        # Run pg_to_sql
+        data_io.sql_to_pg_temp_tbl(sql, db, test_sql_to_pg_table, org_schema=sql_schema)
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+
+        pg_df = db.dfquery(f"""
+        select *
+        from {test_sql_to_pg_table}
+        order by test_col1
+        """).infer_objects()
+
+        sql_df = sql.dfquery(f"""
+        select *
+        from {sql_schema}.{test_sql_to_pg_table}
+        order by test_col1
+        """).infer_objects()
+
+        # # Assert that data columns are equal
+        # shared_non_geom_cols = list(set(pg_df.columns).intersection(set(sql_df.columns)) - {'geom'})
+
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        sql.drop_table(table=test_sql_to_pg_table, schema=sql_schema)
+
+    def test_sql_to_pg_naming(self):
+
+        """
+        Copy an existing MS SQL Server to Postgres temp table, and change the name of the copied table.
+        """
+
+        # assert that output tables are not created
+        dest_name = f'another_tst_name_{db.user}'
+        db.query(f"drop table if exists {dest_name}")
+        sql.drop_table(schema=sql_schema, table=test_pg_to_sql_table)
+        assert not db.table_exists(schema=pg_schema, table=test_sql_to_pg_table)
+
+
+        # create table in src
+        sql.query(f"""
+           create table {sql_schema}.{test_sql_to_pg_table} (test_col1 int, test_col2 int, test_col3 varchar(4));
+           insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (1, 2, 'ABCD');
+           insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (3, 4, 'DE*G');
+           insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (5, 60, 'HIj_');
+           insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3) VALUES (-3, 24271, 'zhyw');
+           """)
+
+        # Assert table created correctly
+        assert sql.table_exists(table=test_sql_to_pg_table, schema=sql_schema)
+
+        # Run pg_to_sql
+        data_io.sql_to_pg_temp_tbl(sql, db, test_sql_to_pg_table, org_schema=sql_schema, dest_table=dest_name)
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+        pg_df = db.dfquery(f"""
+                select *
+                from {dest_name}
+                order by test_col1
+        """).infer_objects()
+
+        sql_df = sql.dfquery(f"""
+                select * 
+                from {sql_schema}.{test_sql_to_pg_table}
+                order by test_col1
+                """).infer_objects()
+
+        # Assert that tables are the same
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        sql.drop_table(table=test_sql_to_pg_table, schema=sql_schema)
+
+    def test_pg_to_sql_spatial_table(self):
+        """
+        Copy a table with spatial data in MS SQL Server to Postgres temp table.
+        """
+
+        # assert that output tables dropped
+        sql.drop_table(schema=sql_schema, table=test_sql_to_pg_table)
+        db.query(f"drop table if exists {test_sql_to_pg_table}")
+        assert not sql.table_exists(schema=sql_schema, table=test_pg_to_sql_table)
+
+
+        # create table in src
+        sql.query(f"""
+            create table {sql_schema}.{test_sql_to_pg_table} (test_col1 int, test_col2 int, test_col3 varchar(4), geom geometry);
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3, geom) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3, geom) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3, geom) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
+            insert into {sql_schema}.{test_sql_to_pg_table} (test_col1, test_col2, test_col3, geom) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
+        """)
+
+        # Assert table created correctly
+        assert sql.table_exists(table=test_sql_to_pg_table, schema=sql_schema)
+
+        # copy data over
+        data_io.sql_to_pg_temp_tbl(sql, db, test_sql_to_pg_table, org_schema=sql_schema,
+                                    dest_table=test_sql_to_pg_table)
+
+        # assert that the SQL dataframes are the same
+        spatial_df = sql.dfquery(f"""
+        select test_col1, geom.STX test_lat, geom.STY test_long
+        from {sql_schema}.{test_sql_to_pg_table}
+        """).infer_objects()
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+        pg_df = db.dfquery(f"""
+        select test_col1, ST_X(geom) test_lat, ST_Y(geom) test_long
+        from {test_sql_to_pg_table}
+        """).infer_objects()
+
+        pd.testing.assert_frame_equal(pg_df, spatial_df,
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        sql.drop_table(schema=sql.default_schema, table=test_pg_to_sql_table)
+
+
+# PG to PG ##########################################################################################################
 class TestPgToPg:
     @classmethod
     def setup_class(cls):
@@ -1665,6 +1819,324 @@ class TestPgToPgQry:
         helpers.clean_up_test_table_pg(db)
 
 
+class TestPgToPgTemp:
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_test_table_pg(db)
+
+    def test_pg_to_sql_basic(self):
+
+        """
+        Copy an existing Postgres table to Postgres temp table, maintaining the name of the original table
+        """
+
+        # assert that output tables are droped
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
+        assert not db.table_exists(schema=pg_schema, table=test_pg_to_pg_tbl)
+        ris.query(f"drop table if exists {test_pg_to_pg_tbl}")
+
+        # create table in src
+        db.query(f"""
+        create table {pg_schema}.{test_pg_to_pg_tbl} as
+
+        select *
+        from {pg_schema}.{pg_table_name}
+        limit 10
+        """)
+
+        # Assert table created correctly
+        assert db.table_exists(table=test_pg_to_pg_tbl, schema=pg_schema)
+
+        # Run pg_to_sql
+        data_io.pg_to_pg_temp_tbl(db, ris, test_pg_to_pg_tbl, org_schema=pg_schema)
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+
+        pg_df = db.dfquery(f"""
+        select *
+        from {pg_schema}.{test_pg_to_pg_tbl}
+        order by id
+        """).infer_objects()
+
+        dest_df = ris.dfquery(f"""
+        select *
+        from {test_pg_to_pg_tbl}
+        order by id
+        """).infer_objects()
+
+        # Assert that data columns are equal
+        shared_non_geom_cols = list(set(pg_df.columns).intersection(set(dest_df.columns)) - {'geom'})
+
+        pd.testing.assert_frame_equal(pg_df[shared_non_geom_cols], dest_df[shared_non_geom_cols],
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        db.drop_table(table=test_pg_to_pg_tbl, schema=pg_schema)
+
+    def test_pg_to_pg_naming(self):
+
+        """
+        Copy an existing Postgres table to Postgres temp table, and change the name of the copied table.
+        """
+
+        # assert that output tables are not created
+        dest_name = f'another_tst_name_{db.user}'
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
+        assert not db.table_exists(schema=pg_schema, table=test_pg_to_pg_tbl)
+        ris.query(f"drop table if exists {dest_name}")
+
+
+        # create table in src
+        db.query(f"""
+           drop table if exists {pg_schema}.{test_pg_to_pg_tbl};
+           create table {pg_schema}.{test_pg_to_pg_tbl} as
+            select *
+            from {pg_schema}.{pg_table_name}
+            limit 10
+        """)
+
+        # Assert table created correctly
+        assert db.table_exists(table=test_pg_to_pg_tbl, schema=pg_schema)
+
+        # Run pg_to_sql
+        data_io.pg_to_pg_temp_tbl(db, ris, test_pg_to_pg_tbl, org_schema=pg_schema, dest_table=dest_name)
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+        pg_df = db.dfquery(f"""
+                select *
+                from {pg_schema}.{test_pg_to_pg_tbl}
+                order by id
+        """).infer_objects()
+
+        dest_df = ris.dfquery(f"""
+                select * 
+                from {dest_name}
+                order by id
+                """).infer_objects()
+
+        # Assert that tables are the same
+        shared_non_geom_cols = list(set(pg_df.columns).intersection(set(dest_df.columns)) - {'geom'})
+        pd.testing.assert_frame_equal(pg_df[shared_non_geom_cols], dest_df[shared_non_geom_cols],
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        db.drop_table(table=test_pg_to_pg_tbl, schema=pg_schema)
+
+    def test_pg_to_pg_spatial_table(self):
+        """
+        Copy a table with spatial data in Postgres to MS SQL Server.
+        """
+
+        # assert that output tables dropped
+        db.drop_table(table=test_pg_to_pg_tbl, schema=pg_schema)
+        assert not db.table_exists(table=test_pg_to_sql_table, schema=pg_schema)
+        ris.query(f"drop table if exists {test_pg_to_pg_tbl}")
+
+        # create table in pg
+        db.query(f"""
+           drop table if exists {pg_schema}.{test_pg_to_pg_tbl};
+           create table {pg_schema}.{test_pg_to_pg_tbl} as
+
+           select 'hello' as c, st_transform(geom, 4326) as geom
+           from {pg_schema}.{pg_table_name}
+           limit 10
+        """)
+
+        # Assert table created correctly
+        assert db.table_exists(table=test_pg_to_pg_tbl, schema=pg_schema)
+
+
+        # copy data
+        data_io.pg_to_pg_temp_tbl(db, ris, test_pg_to_pg_tbl, org_schema=pg_schema)
+
+        # assert that the SQL dataframes are the same
+        spatial_df = ris.dfquery(f"""
+        select c, ST_X(geom) test_lat, ST_Y(geom) test_long
+        from {test_pg_to_pg_tbl}
+        """).infer_objects()
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+        pg_df = db.dfquery(f"""
+        select c, ST_X(geom) test_lat, ST_Y(geom) test_long
+        from {pg_schema}.{test_pg_to_pg_tbl}
+        """).infer_objects()
+
+        pd.testing.assert_frame_equal(pg_df, spatial_df,
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+        # Clean up
+        db.drop_table(table=test_pg_to_pg_tbl, schema=pg_schema)
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_test_table_pg(db)
+
+
+class TestPgToPgQryTemp:
+
+    @classmethod
+    def setup_class(cls):
+        helpers.set_up_test_table_pg(db)
+
+    def test_pg_to_sql_qry_basic_table_temp(self):
+
+        """
+        Copy a query from Postgres to an output table in SQL
+        """
+
+        # drop output tables if they exist
+        db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
+        assert not db.table_exists(schema = pg_schema, table = test_pg_to_sql_qry_table)
+        sql.query(f"""
+            IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_table}', N'U') IS NOT NULL
+            DROP TABLE ##{test_pg_to_sql_qry_table};
+        """)
+
+        # create pg table
+        db.query(f"""
+                    create table {pg_schema}.{test_pg_to_sql_qry_table} (test_col1 int, test_col2 int);
+                    insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(1, 2);
+                    insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(3, 4);
+        """)
+
+        # run pg_to_sql_qry
+        data_io.pg_to_sql_qry_temp_tbl(db, sql, query=
+                             f"""
+                             select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
+                             """,
+                             dest_table=test_pg_to_sql_qry_table)
+
+        # Assert df equality
+        pg_df = db.dfquery(f"""
+        select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        sql_df = sql.dfquery(f"""
+        select test_col1, test_col2 from ##{test_pg_to_sql_qry_table}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # Assert
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
+
+    def test_pg_to_sql_qry_basic_with_comments_table_temp(self):
+
+        """
+        Copy a query full of text comments from Postgres to an output table in SQL.
+        """
+
+        # assert that output table dropped
+        sql.query(f"""
+                    IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_table}', N'U') IS NOT NULL
+                    DROP TABLE ##{test_pg_to_sql_qry_table};
+                """)
+
+        # run pg_to_sql_qry
+        data_io.pg_to_sql_qry_temp_tbl(db, sql, query=f"""
+                                -- testing out comments
+                                select id, test_col1, test_col2 from /* what if there are comments here too */
+                                {pg_schema}.{pg_table_name} -- table name
+                                order by test_col1
+                                -- another comment
+                                limit 10; -- limit to 10 rows
+                                """,
+                                       dest_table=test_pg_to_sql_qry_table)
+
+        # Assert df equality
+        pg_df = db.dfquery(f"""
+        select id, test_col1, test_col2 from {pg_schema}.{pg_table_name}
+        order by test_col1
+        limit 10
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # hardcoded the columns because they go in a different order when uploaded
+        sql_df = sql.dfquery(f"""
+        select id, test_col1, test_col2 from ##{test_pg_to_sql_qry_table}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # Assert that dataframes are equal
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                    check_dtype=False,
+                                      check_column_type=False)
+
+    def test_pg_to_sql_qry_spatial(self):
+
+        """
+        Copy a spatial query from Postgres to SQL
+        """
+
+        # confirm that output tables are dropped
+        sql.query(f"""
+                    IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_spatial_table}', N'U') IS NOT NULL
+                    DROP TABLE ##{test_pg_to_sql_qry_spatial_table};
+                """)
+        db.drop_table(schema = pg_schema, table = test_pg_to_sql_qry_spatial_table)
+        assert not db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
+
+
+        # create spatial table
+        db.query(f"""
+            create table {pg_schema}.{test_pg_to_sql_qry_spatial_table}
+                (test_col1 int, test_col2 int, test_geom geometry);
+            insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
+                 VALUES (1, 2, ST_SetSRID(ST_MAKEPOINT(-71.10434, 42.31506), 2236));
+            insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
+                VALUES (3, 4, ST_SetSRID(ST_MAKEPOINT(91.2763, 11.9434), 2236));
+        """)
+
+        # make sure data is in source
+        assert len(db.dfquery(
+            f'select test_col1, test_col2, test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
+
+        # run pg_to_sql_qry
+        data_io.pg_to_sql_qry_temp_tbl(db, sql, query=f"""
+                                               SELECT test_col1, test_col2, test_geom --comments within the query
+                                                FROM {pg_schema}.{test_pg_to_sql_qry_spatial_table} -- geom here
+                                                -- end here""",
+                                       dest_table=test_pg_to_sql_qry_spatial_table)
+
+        # doing it by long / lat was the only way the data frames would be equivalent
+        pg_df = db.dfquery(f"""
+        select test_col1, test_col2, ST_X(test_geom) test_lat, ST_Y(test_geom) test_long
+        from {pg_schema}.{test_pg_to_sql_qry_spatial_table}
+        order by test_col1
+        """)
+
+        sql_df = sql.dfquery(f"""select * from ##{test_pg_to_sql_qry_spatial_table}""")
+        sql_df = sql.dfquery(f"""
+                select test_col1, test_col2, 
+                geom.STX test_lat, 
+                geom.STY test_long
+                from ##{test_pg_to_sql_qry_spatial_table}
+                order by test_col1
+        """)
+
+        # check the first 2 columns using assert_frame_equal
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
+
+        # clean up tables
+        db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_spatial_table)
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_test_table_pg(db)
+
+# SQL to SQL ##########################################################################################################
 class TestSqlToSqlQry:
 
     def test_sql_to_sql_basic_table(self):
@@ -2109,6 +2581,7 @@ class TestSqlToSqlQry:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql)
+
 
 class TestSqlToSqlTemp:
 

@@ -8,6 +8,7 @@ from .cmds import *
 from .util import *
 
 
+# PG to SQL ##########################################################################################################
 def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, dest_table=None,
               print_cmd=False, temp=True):
     """
@@ -186,12 +187,10 @@ def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, des
 
 def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
     """
-    Migrates query from Postgres to SQL Server, generates spatial tables in MS if spatial in PG.
+    Migrates query from Postgres to SQL Server temp table.
     :param pg: DbConnect instance connecting to PostgreSQL source database
     :param ms: DbConnect instance connecting to SQL Server destination database
     :param query: query in PG
-    :param LDAP: Flag for using LDAP credentials (defaults to False)
-    :param spatial: Flag for spatial table (defaults to True)
     :param dest_table: Table name of final migrated table in SQL Server database
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :return:
@@ -218,7 +217,7 @@ def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
         sql_select=query
     )
     if print_cmd:
-        print(print_cmd_string([ms.password, pg.password], cmd))
+        print(print_cmd_string([pg.password, pg.password], cmd))
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
         print(ogr_response)
@@ -245,13 +244,11 @@ def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
 
 def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_cmd=False):
     """
-    Migrates query from Postgres to SQL Server, generates spatial tables in MS if spatial in PG.
+    Migrates table from Postgres to SQL Server temp table.
     :param pg: DbConnect instance connecting to PostgreSQL source database
     :param ms: DbConnect instance connecting to SQL Server destination database
-    :param table:
-    :param org_schema:
-    :param LDAP: Flag for using LDAP credentials (defaults to False)
-    :param spatial: Flag for spatial table (defaults to True)
+    :param table: PG table to migrate
+    :param org_schema: PostgreSQL schema for origin table (defaults to orig db's default schema)
     :param dest_table: Table name of final migrated table in SQL Server database
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :return:
@@ -267,6 +264,7 @@ def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_c
     pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=dest_table, print_cmd=print_cmd)
 
 
+# SQL to PG ##########################################################################################################
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
                   dest_table=None, pg_encoding='UTF8', permission = True):
     """
@@ -367,7 +365,6 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
 
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
-
 
 def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, print_cmd=False,
               dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True):
@@ -473,7 +470,91 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
 
+def sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=None, LDAP_from=False, print_cmd=False):
+    """
+        Migrates query from SQL Server to Postgres temp table.
+        :param ms: DbConnect instance connecting to SQL Server source database
+        :param pg: DbConnect instance connecting to PostgreSQL destination database
+        :param query: query in SQL
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
 
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=pg.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', '', query)
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(
+        getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    if LDAP_from:
+        from_user = ''
+        from_password = ''
+    cmd = SQL_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_server=ms.server,
+        from_database=ms.database,
+        from_user=ms.user,
+        from_pass=ms.password,
+        sql_select=query
+    )
+
+    if print_cmd:
+        print(print_cmd_string([ms.password, ms.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, ms.password], cmd), returncode=1)
+
+    # import data to temp table
+    pg.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        if not _df.WKT.isnull().all():
+            # add geom column
+            pg.query(f"alter table {dest_table} add geom geometry;")
+            # update from wkt
+            pg.query(f"update {dest_table} set geom=st_setsrid(st_geomfromtext(wkt), 2263);")
+        # drop wkt col
+        pg.query(f"alter table {dest_table} drop column wkt")
+
+    # clean up csv
+    os.remove(temp_csv)
+
+
+def sql_to_pg_temp_tbl(ms, pg, table, dest_table=None, org_schema=None, LDAP_from=False, print_cmd=False):
+    """
+        Migrates table from SQL Server to Postgres temp table.
+        :param ms: DbConnect instance connecting to SQL Server source database
+        :param pg: DbConnect instance connecting to PostgreSQL destination database
+        :param table: SQL table to migrate
+        :param org_schema: SQL Server schema for origin table (defaults to orig db's default schema)
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
+
+    if not dest_table:
+        dest_table = table
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f"select * from {sch}{table}"
+
+    sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=dest_table, LDAP_from=LDAP_from, print_cmd=print_cmd)
+
+# SQL to SQL ##########################################################################################################
 def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
                    print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
     """
@@ -623,7 +704,15 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
 
 
 def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=False, print_cmd=False):
-    # TODO add doc strings
+    """
+           Migrates query from SQL Server to SQL Server temp table.
+           :param from_sql: DbConnect instance connecting to SQL Server source database
+           :param to_sql: DbConnect instance connecting to SQL Server destination database
+           :param query: query in SQL Server
+           :param dest_table: Table name of final migrated table in SQL Server database
+           :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+           :return:
+           """
 
     if not dest_table:
         dest_table = '_{u}_{d}'.format(u=to_sql.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
@@ -674,8 +763,18 @@ def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=
     # clean up csv
     os.remove(temp_csv)
 
+
 def sql_to_sql_temp_tbl(from_sql, to_sql, table, dest_table=None, org_schema=None, LDAP_from=False, print_cmd=False):
-    # TODO add doc strings
+    """
+            Migrates table from SQL Server to SQL Server temp table.
+            :param from_sql: DbConnect instance connecting to SQL Server source database
+            :param to_sql: DbConnect instance connecting to SQL Server destination database
+            :param table: SQL table to migrate
+            :param org_schema: SQL Server schema for origin table (defaults to orig db's default schema)
+            :param dest_table: Table name of final migrated table in PG database
+            :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+            :return:
+            """
 
     if not dest_table:
         dest_table = table
@@ -688,8 +787,7 @@ def sql_to_sql_temp_tbl(from_sql, to_sql, table, dest_table=None, org_schema=Non
     sql_to_sql_qry_temp_tbl(from_sql, to_sql, query,dest_table=dest_table, LDAP_from=LDAP_from, print_cmd=print_cmd)
 
 
-
-
+# PG to PG ##########################################################################################################
 def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
              spatial=True, temp=True, permission = True):
     """
@@ -837,3 +935,82 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
 
     if temp:
         to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)
+
+
+def pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=None, print_cmd=False):
+    """
+        Migrates query from Postgres to Postgres temp table.
+        :param from_pg: DbConnect instance connecting to PostgreSQL source database
+        :param to_pg: DbConnect instance connecting to PostgreSQL destination database
+        :param query: query in PostgreSQL
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=to_pg.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', '', query)
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    cmd = PG_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_pg_host=from_pg.server,
+        from_pg_port=from_pg.port,
+        from_pg_database=from_pg.database,
+        from_pg_user=from_pg.user,
+        from_pg_pass=from_pg.password,
+        sql_select=query
+    )
+    if print_cmd:
+        print(print_cmd_string([from_pg.password, from_pg.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([to_pg.password, from_pg.password], cmd), returncode=1)
+
+    # import data to temp table
+    to_pg.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        # add geom column
+        to_pg.query(f"alter table {dest_table} add geom geometry;")
+        # update from wkt
+        to_pg.query(f"update {dest_table} set geom=st_setsrid(st_geomfromtext(wkt), 2263);")
+        # drop wkt col
+        to_pg.query(f"alter table {dest_table} drop column wkt")
+
+    # clean up csv
+    os.remove(temp_csv)
+
+
+def pg_to_pg_temp_tbl(from_pg, to_pg, table, org_schema=None, dest_table=None, print_cmd=False):
+    """
+        Migrates table from Postgres to Postgres temp table.
+        :param from_pg: DbConnect instance connecting to PostgreSQL source database
+        :param to_pg: DbConnect instance connecting to PostgreSQL destination database
+        :param table: PostgreSQL table to migrate
+        :param org_schema: PostgreSQL schema for origin table (defaults to orig db's default schema)
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
+
+    if not dest_table:
+        dest_table = table
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f"select * from {sch}{table}"
+    pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=dest_table, print_cmd=print_cmd)
