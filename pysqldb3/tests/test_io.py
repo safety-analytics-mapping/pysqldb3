@@ -640,7 +640,6 @@ class TestPgtoSqlQryTemp:
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
 
-
     def test_pg_to_sql_qry_basic_with_comments_table_temp(self):
 
         """
@@ -681,7 +680,6 @@ class TestPgtoSqlQryTemp:
         pd.testing.assert_frame_equal(pg_df, sql_df,
                                     check_dtype=False,
                                       check_column_type=False)
-
 
     def test_pg_to_sql_qry_spatial(self):
 
@@ -743,11 +741,9 @@ class TestPgtoSqlQryTemp:
         # clean up tables
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_spatial_table)
 
-
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
-
 
 
 class TestSqlToPgQry:
@@ -1668,6 +1664,7 @@ class TestPgToPgQry:
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
 
+
 class TestSqlToSqlQry:
 
     def test_sql_to_sql_basic_table(self):
@@ -2112,3 +2109,260 @@ class TestSqlToSqlQry:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql)
+
+class TestSqlToSqlTemp:
+
+    def test_sql_to_sql_basic_table(self):
+        """
+        Copy a SQL table to another SQL database
+        """
+
+        # drop output tables if they exist
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+        assert not sql.table_exists(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+        sql.query(f"""
+                           IF OBJECT_ID(N'tempdb..##{test_sql_to_sql_tbl_to}', N'U') IS NOT NULL
+                           DROP TABLE ##{test_sql_to_sql_tbl_to};
+                       """)
+
+        # create table
+        sql.query(f"""
+                    create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4));
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (1, 2, 'ABCD');
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (3, 4, 'DE*G');
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (5, 60, 'HIj_');
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3) VALUES (-3, 24271, 'zhyw');
+                    """)
+
+        # run sql_to_sql
+        data_io.sql_to_sql_temp_tbl(sql, sql2, test_sql_to_sql_tbl_from, org_schema=test_org_schema, dest_table=test_sql_to_sql_tbl_to)
+
+        # check that the tables are the same.
+        # list out columns to avoid the ogr_fid and null fields in the output table
+        first_table = sql2.dfquery(f"select * from ##{test_sql_to_sql_tbl_to} order by test_col1;")
+
+        second_table = sql.dfquery(f"select * from {test_org_schema}.{test_sql_to_sql_tbl_from} order by test_col1")
+
+        # check for the same dimensions and columns
+        assert first_table.shape == second_table.shape
+        assert list(first_table.columns) == list(second_table.columns)
+        assert first_table.equals(second_table) # this fails because there are dtype issues
+
+
+        # drop ouptut table
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+
+    def test_sql_to_sql_spatial_table(self):
+        """
+                Copy a SQL table to another SQL database with geometry
+                """
+
+        # drop output tables if they exist
+        sql.drop_table(schema=test_org_schema, table=test_sql_to_sql_tbl_from)
+        assert not sql.table_exists(schema=test_org_schema, table=test_sql_to_sql_tbl_from)
+        sql.query(f"""
+                                   IF OBJECT_ID(N'tempdb..##{test_sql_to_sql_tbl_to}', N'U') IS NOT NULL
+                                   DROP TABLE ##{test_sql_to_sql_tbl_to};
+                               """)
+
+        # create table
+        sql.query(f"""
+            create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4), geom geometry);
+            insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
+            insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
+            insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
+            insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
+        """)
+
+        # run sql_to_sql
+        data_io.sql_to_sql_temp_tbl(sql, sql2, test_sql_to_sql_tbl_from, org_schema=test_org_schema,
+                                    dest_table=test_sql_to_sql_tbl_to)
+
+        # check that the tables are the same.
+        # list out columns to avoid the ogr_fid and null fields in the output table
+        first_table = sql2.dfquery(f"select * from ##{test_sql_to_sql_tbl_to} order by test_col1;")
+
+        second_table = sql.dfquery(f"select * from {test_org_schema}.{test_sql_to_sql_tbl_from} order by test_col1")
+
+        # check for the same dimensions and columns
+        assert first_table.shape == second_table.shape
+        assert list(first_table.columns) == list(second_table.columns)
+        assert first_table.equals(second_table)
+
+        # assert that the SQL dataframes are the same
+        first_table_geo = sql2.dfquery(f"""
+               select test_col1, geom.STX test_lat, geom.STY test_long
+               from ##{test_sql_to_sql_tbl_to}
+               order by test_col1
+               """).infer_objects()
+
+        # Assert df equality -- some types need to be coerced from the Pandas df for the equality assertion to hold
+        second_table_geo = sql.dfquery(f"""
+               select test_col1, geom.STX test_lat, geom.STY test_long
+               from {test_org_schema}.{test_sql_to_sql_tbl_from}
+               order by test_col1
+               """).infer_objects()
+
+        pd.testing.assert_frame_equal(first_table_geo, second_table_geo,
+                                      check_dtype=False,
+                                      check_exact=False,
+                                      check_datetimelike_compat=True)
+
+
+        # drop ouptut table
+        sql.drop_table(schema=test_org_schema, table=test_sql_to_sql_tbl_from)
+
+
+class TestSqltoSqlQryTemp:
+
+    def test_sql_to_sql_qry_basic_table_temp(self):
+
+        """
+        Copy a query from SQL to a temp output table in SQL
+        """
+
+        # drop output tables if they exist
+        sql.drop_table(schema=test_org_schema, table=test_sql_to_sql_tbl_from)
+        assert not sql.table_exists(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+        sql2.query(f"""
+            IF OBJECT_ID(N'tempdb..##{test_sql_to_sql_tbl_to}', N'U') IS NOT NULL
+            DROP TABLE ##{test_sql_to_sql_tbl_to};
+        """)
+
+        # create from table
+        sql.query(f"""
+                    create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int);
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} VALUES(1, 2);
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} VALUES(3, 4);
+        """)
+
+        # run pg_to_sql_qry
+        data_io.sql_to_sql_qry_temp_tbl(sql, sql2, query=
+                             f"""
+                             select test_col1, test_col2 from {test_org_schema}.{test_sql_to_sql_tbl_from}
+                             """,
+                             dest_table=test_sql_to_sql_tbl_to)
+
+        # Assert df equality
+        sql1_df = sql.dfquery(f"""
+        select test_col1, test_col2 from {test_org_schema}.{test_sql_to_sql_tbl_from}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        sql2_df = sql2.dfquery(f"""
+        select test_col1, test_col2 from ##{test_sql_to_sql_tbl_to}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # Assert
+        pd.testing.assert_frame_equal(sql1_df, sql2_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
+
+        # Cleanup
+        sql.drop_table(schema=test_org_schema, table=test_sql_to_sql_tbl_from)
+
+    def test_sql_to_sql_qry_basic_with_comments_table_temp(self):
+
+        """
+        Copy a query full of text comments from Postgres to an output table in SQL.
+        """
+
+        # assert that output table dropped
+        sql2.query(f"""
+                    IF OBJECT_ID(N'tempdb..##{test_sql_to_sql_tbl_to}', N'U') IS NOT NULL
+                    DROP TABLE ##{test_sql_to_sql_tbl_to};
+                """)
+
+        # create from table
+        sql.drop_table(schema=test_org_schema, table=test_sql_to_sql_tbl_from)
+        sql.query(f"""
+                            create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int);
+                            insert into {test_org_schema}.{test_sql_to_sql_tbl_from} VALUES(1, 2);
+                            insert into {test_org_schema}.{test_sql_to_sql_tbl_from} VALUES(3, 4);
+                """)
+
+        # run pg_to_sql_qry
+        data_io.sql_to_sql_qry_temp_tbl(sql, sql2, query=f"""
+                                -- testing out comments
+                                select test_col1, test_col2 from /* what if there are comments here too */
+                                {test_org_schema}.{test_sql_to_sql_tbl_from} -- table name
+                                order by test_col1
+                                -- another comment; -- limit to 10 rows
+                                """,
+                                       dest_table=test_sql_to_sql_tbl_to)
+
+        # Assert df equality
+        sq1_df = sql.dfquery(f"""
+        select test_col1, test_col2 from {test_org_schema}.{test_sql_to_sql_tbl_from}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # hardcoded the columns because they go in a different order when uploaded
+        sql2_df = sql2.dfquery(f"""
+        select test_col1, test_col2 from ##{test_sql_to_sql_tbl_to}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # Assert that dataframes are equal
+        pd.testing.assert_frame_equal(sq1_df, sql2_df,
+                                    check_dtype=False,
+                                      check_column_type=False)
+
+    def test_sql_to_sql_qry_spatial(self):
+        """
+        Copy a spatial query from SQL to SQL temp
+        """
+
+        # confirm that output tables are dropped
+        sql2.query(f"""
+                    IF OBJECT_ID(N'tempdb..##{test_sql_to_sql_tbl_to}', N'U') IS NOT NULL
+                    DROP TABLE ##{test_sql_to_sql_tbl_to};
+                """)
+        sql.drop_table(schema = test_org_schema, table = test_sql_to_sql_tbl_from)
+        assert not db.table_exists(table=test_sql_to_sql_tbl_from, schema = pg_schema)
+
+
+        # create spatial table
+        sql.query(f"""
+                    create table {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1 int, test_col2 int, test_col3 varchar(4), geom geometry);
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (1, 2, 'ABCD', geometry::Point(1015329.1, 213793.1, 2263));
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (3, 4, 'DE*G', geometry::Point(1015329.1, 213793.1, 2263));
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (5, 60, 'HIj_', geometry::Point(1015329.1, 213793.1, 2263));
+                    insert into {test_org_schema}.{test_sql_to_sql_tbl_from} (test_col1, test_col2, test_col3, geom) VALUES (-3, 24271, 'zhyw', geometry::Point(1015329.1, 213793.1, 2263));
+                """)
+
+        # make sure data is in source
+        assert len(sql.dfquery(
+            f'select test_col1, test_col2, geom from {test_org_schema}.{test_sql_to_sql_tbl_from}')) == 4
+
+        # run pg_to_sql_qry
+        data_io.sql_to_sql_qry_temp_tbl(sql, sql2, query=f"""
+                                               SELECT test_col1, test_col2, geom --comments within the query
+                                                FROM {test_org_schema}.{test_sql_to_sql_tbl_from} -- geom here
+                                                -- end here""",
+                                       dest_table=test_sql_to_sql_tbl_to)
+
+        # doing it by long / lat was the only way the data frames would be equivalent
+        sql1_df = sql.dfquery(f"""
+        select test_col1, test_col2, geom.STX test_lat, geom.STY test_long
+        from {test_org_schema}.{test_sql_to_sql_tbl_from}
+        order by test_col1
+        """)
+
+
+        sql2_df = sql.dfquery(f"""
+                select test_col1, test_col2, 
+                geom.STX test_lat, 
+                geom.STY test_long
+                from ##{test_sql_to_sql_tbl_to}
+                order by test_col1
+        """)
+
+        # check the first 2 columns using assert_frame_equal
+        pd.testing.assert_frame_equal(sql1_df, sql2_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
+
+        # clean up tables
+        sql.drop_table(schema=test_org_schema, table=test_sql_to_sql_tbl_from)

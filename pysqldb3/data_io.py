@@ -267,7 +267,6 @@ def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_c
     pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=dest_table, print_cmd=print_cmd)
 
 
-
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
                   dest_table=None, pg_encoding='UTF8', permission = True):
     """
@@ -621,6 +620,74 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
     to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
+
+
+def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=False, print_cmd=False):
+    # TODO add doc strings
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=to_sql.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', '', query)
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    if LDAP_from:
+        from_user = ''
+        from_password = ''
+    cmd = SQL_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_server=from_sql.server,
+        from_database=from_sql.database,
+        from_user=from_sql.user,
+        from_pass=from_sql.password,
+        sql_select=query
+    )
+
+    if print_cmd:
+        print(print_cmd_string([from_sql.password, from_sql.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([from_sql.password, from_sql.password], cmd), returncode=1)
+
+    # import data to temp table
+    to_sql.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        if not _df.WKT.isnull().all():
+            # add geom column
+            to_sql.query(f"alter table ##{dest_table} add [geom] [geometry];")
+            # update from wkt
+            to_sql.query(f"update ##{dest_table} set geom=geometry::STGeomFromText(wkt, 2263);")
+        # drop wkt col
+        to_sql.query(f"alter table  ##{dest_table} drop column wkt")
+
+    # clean up csv
+    os.remove(temp_csv)
+
+def sql_to_sql_temp_tbl(from_sql, to_sql, table, dest_table=None, org_schema=None, LDAP_from=False, print_cmd=False):
+    # TODO add doc strings
+
+    if not dest_table:
+        dest_table = table
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f"select * from {sch}{table}"
+
+    sql_to_sql_qry_temp_tbl(from_sql, to_sql, query,dest_table=dest_table, LDAP_from=LDAP_from, print_cmd=print_cmd)
+
+
 
 
 def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,

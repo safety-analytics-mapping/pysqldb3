@@ -196,3 +196,12 @@ PG:"host={from_pg_host} port={from_pg_port} dbname={from_pg_database} user={from
 -sql "{sql_select}"
 -lco GEOMETRY=AS_WKT
 """.replace('\n', ' ')
+
+SQL_TO_CSV_CMD = """
+ogr2ogr --config GDAL_DATA "{gdal_data}"
+--config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO 
+-f CSV "{output_csv}" 
+"MSSQL:server={from_server};database={from_database};UID={from_user};PWD={from_pass}" "MSSQLSpatial"
+-sql "{sql_select}" 
+-lco GEOMETRY=AS_WKT
+""".replace('\n', ' ')
