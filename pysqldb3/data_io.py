@@ -131,7 +131,7 @@ def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, des
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     if LDAP:
         cmd = PG_TO_SQL_QRY_CMD.format(
@@ -203,7 +203,7 @@ def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     # write data to local csv
     temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
@@ -301,7 +301,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     if LDAP:
         cmd = SQL_TO_PG_LDAP_QRY_CMD.format(
@@ -488,7 +488,7 @@ def sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=None, LDAP_from=False, prin
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     # write data to local csv
     temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(
@@ -721,7 +721,7 @@ def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     # write data to local csv
     temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
@@ -894,7 +894,7 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     cmd = PG_TO_PG_QRY_CMD.format(
         from_pg_host=from_pg.server,
@@ -955,7 +955,7 @@ def pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=None, print_cmd=Fals
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     # write data to local csv
     temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))

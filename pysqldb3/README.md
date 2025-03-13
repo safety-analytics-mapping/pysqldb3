@@ -1516,7 +1516,7 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 
 [Back to Table of Contents](#data-io-functions)
 <br>
-### sql_to_sql
+### sql_to_sql_temp_table
 **`data_io.sql_to_sql_temp_tbl(from_sql, to_sql, org_table, LDAP_from=False, org_schema=None, print_cmd=False, dest_table=None)`**
 
 Copy a table from one SQL database/schema to a temporary table in another SQL database/schema, uses `##` global temp table
@@ -1641,7 +1641,7 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 [Back to Table of Contents](#data-io-functions)
 <br>
 
-### pg_to_pg
+### pg_to_pg_temp_tbl
 **`data_io.pg_to_pg_temp_tbl(from_pg, to_pg, org_table, org_schema=None, print_cmd=False, dest_table=None)`**
 
 Copy a table from one PG database/schema to a temporary tabble in another PG database/schema
@@ -1699,7 +1699,7 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 [Back to Table of Contents](#data-io-functions)
 <br>
 
-### pg_to_pg_qry
+### pg_to_pg_qry_temp_tbl
 **`data_io.pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, print_cmd=False, dest_table=None)`**
 
 Copy the output table from a query in one PG database/schema to a temporary table in another PG database/schema
