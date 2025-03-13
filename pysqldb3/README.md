@@ -55,13 +55,21 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 
 #### Data IO functions:
 1. [`pg_to_sql`](#pg_to_sql): Convert PG table to a SQL table
+1. [`pg_to_sql_temp_tbl`](#pg_to_sql_temp_tbl): Convert PG table to a SQL temporary table
 1. [`pg_to_sql_qry`](#pg_to_sql_qry): Convert the output of a PG query to a SQL table
-1. [`sql_to_pg`](#pg_to_sql): Convert SQL table to a PG table
+1. [`pg_to_sql_qry_temp_tbl`](#pg_to_sql_qry_temp_tbl): Convert the output of a PG query to a SQL temporary table
+1. [`sql_to_pg`](#sql_to_pg): Convert SQL table to a PG table
+1. [`sql_to_pg_temp_tbl`](#sql_to_pg_temp_tbl): Convert SQL table to a PG temporary table
 1. [`sql_to_pg_qry`](#sql_to_pg_qry): Convert the output of a SQL query to a PG table
+1. [`sql_to_pg_qry_temp_tbl`](#sql_to_pg_qry_temp_tbl): Convert the output of a SQL query to a PG temporary table
 1. [`sql_to_sql`](#sql_to_sql): Copy a SQL table to a different SQL database or schema
+1. [`sql_to_sql_temp_tbl`](#sql_to_sql_temp_tbl): Copy a SQL table to a different SQL database or schema to temporary table
 1. [`sql_to_sql_qry`](#sql_to_sql_qry): Copy an output table from a SQL query to a different SQL database or schema
+1. [`sql_to_sql_qry_temp_tbl`](#sql_to_sql_qry_temp_tbl): Copy an output table from a SQL query to a different SQL database or schema to temporary table
 1. [`pg_to_pg`](#pg_to_pg): Copy a PG table to a different PG database or schema
+1. [`pg_to_pg_temp_tbl`](#pg_to_pg_temp_tbl): Copy a PG table to a different PG database or schema to temporary table
 1. [`pg_to_pg_qry`](#pg_to_pg_qry): Copy an output table from a PG query to a different PG database or schema
+1. [`pg_to_pg_qry_temp_tbl`](#pg_to_pg_qry_temp_tbl): Copy an output table from a PG query to a different PG database or schema to temporary table
 
 #### Geopackage functions:
 1. [`list_gpkg_tables`](#list_gpkg_tables): View a list of all the tables in the Geopackage file to help isolate tables of interest
@@ -1265,6 +1273,33 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 [Back to Table of Contents](#data-io-functions)
 <br>
 
+### pg_to_sql_temp_tbl
+**`data_io.pg_to_sql_temp_tbl(pg, ms, org_table, org_schema=None, dest_table=None, print_cmd=False)`**
+
+Copy a table from a PG database to a temp table in a database in SQL, uses `##` for global temp table 
+
+###### Parameters:
+- **`pg` obj**:  PG database connection
+- **`ms` obj**:  SQL database connection
+- **`org_table` str**: PG table to be copied to SQL
+- **`org_schema` str, default None**:  Database schema for the "origin" PG table
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original PG table name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='STREETASSESSMENT', user='user_name', password='*******')
+>>> data_io.pg_to_sql_temp_tbl(db, ms, org_table = 'large_pg_table', org_schema = 'working', dest_table = 'large_sql_table')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
 
 ### pg_to_sql_qry
 **`data_io.pg_to_sql_qry(pg, ms, query, LDAP = False, spatial = True, dest_schema = None, dest_table = None,
@@ -1290,6 +1325,33 @@ Copy the table output of a query from a PG database to a database in SQL
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
 >>> data_io.pg_to_sql_qry(db, ms, query = "select * from test_new_crashes where id = 10283", dest_schema = 'dbo', dest_table = 'test_new_crashes')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+
+### pg_to_sql_qry_temp_tbl
+**`data_io.pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table = None, print_cmd = False)`**
+
+Copy the table output of a query from a PG database to a temp table in a database in SQL, uses `##` for global temp table 
+
+###### Parameters:
+- **`pg` obj**:  PG database connection
+- **`ms` obj**:  SQL database connection
+- **`query` str**:  PG query that generates a table output
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original PG table name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
+>>> data_io.pg_to_sql_qry_temp_tbl(db, ms, query = "select * from test_new_crashes where id = 10283", dest_table = 'test_new_crashes')
 
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
@@ -1332,6 +1394,33 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 [Back to Table of Contents](#data-io-functions)
 <br>
 
+### sql_to_pg_temp_tbl
+**`data_io.sql_to_pg_temp_tbl(ms, pg, org_table, org_schema=None, print_cmd=False, dest_table=None)`**
+ 
+Copy a table from a SQL database to a temp table in a PG database
+
+##### Parameters:
+- **`ms` obj**:  SQL database connection
+- **`pg` obj**:  PG database connection
+- **`org_table` str**: SQL table to be copied into PG
+- **`org_schema` str, default None**:  Database schema for the "origin" SQL table
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original SQL table name
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> data_io.sql_to_pg_temp_tbl(ms, pg, org_schema = 'dbo', org_table = 'test_table_cchen1', dest_table = 'test_table_cchen2')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
 ### sql_to_pg_qry
 **`data_io.sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
                   dest_table=None, pg_encoding='UTF8', permission = True)`**`**
@@ -1360,6 +1449,31 @@ Copy the table output of a query from a SQL database to a database in PG
 >>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> data_io.sql_to_pg_qry(ms, pg, query = "select * from [dbo].[test_table_cchen1] where id_num > 50", dest_schema = 'working', dest_table = 'test_table_cchen2')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+### sql_to_pg_qry_temp_tbl
+**`data_io.sql_to_pg_qry_temp_tbl(ms, pg, query, print_cmd=False, dest_table=None)`**`**
+
+Copy the table output of a query from a SQL database to a temp table in a PG database
+
+###### Parameters:
+- **`ms` obj**:  SQL database connection
+- **`pg` obj**:  PG database connection
+- **`query` str**:  SQL query that generates a table output
+- - **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original SQL table name
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms = pysqldb3.DbConnect(type='ms', server=server_address, database='StreetAssessment', user='user_name', password='*******')
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> data_io.sql_to_pg_qry_temp_tbl(ms, pg, query = "select * from [dbo].[test_table_cchen1] where id_num > 50", dest_table = 'test_table_cchen2')
 
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
@@ -1395,6 +1509,34 @@ Copy a table from one SQL database/schema to another SQL database/schema
 >>> ms1 = pysqldb3.DbConnect(type='ms', server=server_address, database='RISCRASHDATA', user='user_name', password='*******')
 >>> ms2 = pysqldb3.DbConnect(type='ms', server=server_address, database='STREETASSESSMENT', user='user_name', password='*******')
 >>> data_io.sql_to_sql(ms1, ms2, org_schema = 'dbo', org_table = 'test_table_cchen1', dest_schema = 'rb1', dest_table = 'test_table_cchen1', spatial = False)
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+### sql_to_sql
+**`data_io.sql_to_sql_temp_tbl(from_sql, to_sql, org_table, LDAP_from=False, org_schema=None, print_cmd=False, dest_table=None)`**
+
+Copy a table from one SQL database/schema to a temporary table in another SQL database/schema, uses `##` global temp table
+
+###### Parameters:
+- **`from_ms` obj**:  SQL database connection of the original table
+- **`to_ms` obj**:  PG database connection for the copied table
+- **`org_table` str**: SQL table to be copied
+- **`LDAP_from`: bool, default False**: When true will use windows login for database connection
+- **`org_schema` str, default None**:  Database schema for the "origin" SQL table
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original SQL table name
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms1 = pysqldb3.DbConnect(type='ms', server=server_address, database='RISCRASHDATA', user='user_name', password='*******')
+>>> ms2 = pysqldb3.DbConnect(type='ms', server=server_address, database='STREETASSESSMENT', user='user_name', password='*******')
+>>> data_io.sql_to_sql_temp_tbl(ms1, ms2, org_schema = 'dbo', org_table = 'test_table_cchen1', dest_table = 'test_table_cchen1')
 
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
@@ -1438,6 +1580,34 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 [Back to Table of Contents](#data-io-functions)
 <br>
 
+### sql_to_sql_qry_temp_tbl
+**`data_io.sql_to_sql_qry_temp_tbl(from_sql, to_sql, qry, LDAP_from=False, org_schema=None, dest_table=None,
+                   print_cmd=False, dest_table=None)`**
+
+Copy a table from one SQL database/schema to a temporary table in another SQL database/schema, uses `##` global temp
+
+###### Parameters:
+- **`from_sql` obj**: SQL database connection of the query
+- **`to_sql` obj**:  SQL database connection for the copied table
+- **`qry` str**: SQL query that generates a table output
+- **`LDAP_from`: bool, default False**: When true will use windows login for database connection
+- **`dest_table` str, default None**: Name of the copied SQL table. If set to None, it will default to the original SQL table name
+
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> ms1 = pysqldb3.DbConnect(type='ms', server=server_address, database='RISCRASHDATA', user='user_name', password='*******')
+>>> ms2 = pysqldb3.DbConnect(type='ms', server=server_address, database='STREETASSESSMENT', user='user_name', password='*******')
+>>> data_io.sql_to_sql_qry_temp_tbl(ms1, m2, query = "select top (10) * from [dbo].[test_table_cchdn1] where id = 1", dest_table = 'test_table_cchen1')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
 
 ### pg_to_pg
 **`data_io.pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
@@ -1471,6 +1641,33 @@ b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 [Back to Table of Contents](#data-io-functions)
 <br>
 
+### pg_to_pg
+**`data_io.pg_to_pg_temp_tbl(from_pg, to_pg, org_table, org_schema=None, print_cmd=False, dest_table=None)`**
+
+Copy a table from one PG database/schema to a temporary tabble in another PG database/schema
+
+###### Parameters:
+- **`from_pg` obj**: PG database connection of the original table
+- **`to_pg` obj**:  PG database connection for the copied table
+- **`org_table` str, default None**:  PG table to be copied
+- **`org_schema` str, default None**:  Database schema for the "origin" PG table
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original PG table name
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db2 = pysqldb3.DbConnect(type='pg', server=server_address, database='ris3', user='user_name', password='*******')
+>>> data_io.pg_to_pg_temp_tbl(db, db2, org_schema = 'public', org_table = 'wc_accident_f', dest_table = 'crashes_from_ris')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
 ### pg_to_pg_qry
 **`data_io.pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_table=None,
              spatial=True, temp=True, permission = True)`**
@@ -1495,6 +1692,32 @@ Copy the output table from a query in one PG database/schema to another PG datab
 >>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
 >>> db2 = pysqldb3.DbConnect(type='pg', server=server_address, database='ris3', user='user_name', password='*******')
 >>> data_io.pg_to_pg_qry(db, db2, query = "select id, boro from working.cindys_boros limit 5", dest_schema = 'working', dest_table = 'crashes_from_ris')
+
+b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
+```
+
+[Back to Table of Contents](#data-io-functions)
+<br>
+
+### pg_to_pg_qry
+**`data_io.pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, print_cmd=False, dest_table=None)`**
+
+Copy the output table from a query in one PG database/schema to a temporary table in another PG database/schema
+
+###### Parameters:
+- **`from_pg` obj**: PG database connection of the original table
+- **`to_pg` obj**:  PG database connection for the copied table
+- **`query` str**: PG query that generates a table output
+- **`print_cmd` str, default False**: Option to print ogr command (without password)
+- **`dest_table` str, default None**: Name of the copied PG table. If set to None, it will default to the original PG table name
+
+**Sample**
+
+```
+>>> from pysqldb3 import pysqldb3, data_io
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> db2 = pysqldb3.DbConnect(type='pg', server=server_address, database='ris3', user='user_name', password='*******')
+>>> data_io.pg_to_pg_qry_temp_tbl(db, db2, query = "select id, boro from working.cindys_boros limit 5", dest_table = 'crashes_from_ris')
 
 b'0...10...20...30...40...50...60...70...80...90...100 - done.\r\n'
 ```
