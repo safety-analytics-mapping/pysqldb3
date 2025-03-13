@@ -7,6 +7,7 @@ import pysqldb3
 from .cmds import *
 from .util import *
 
+# TODO: standardize this into db to db (table, query, temp table) DRY up code and simplify
 
 # PG to SQL ##########################################################################################################
 def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, dest_table=None,
