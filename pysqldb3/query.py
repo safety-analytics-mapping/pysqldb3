@@ -611,14 +611,13 @@ class Query:
             print(_)
 
     @staticmethod
-    def query_to_geospatial(dbo, gpkg_or_shp, query, path, gpkg_tbl = None, file_name = '', cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
+    def query_to_geospatial(dbo, query, path, output_file, gpkg_tbl = None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
         :param dbo: Database connection for the query
-        :param gpkg_or_shp: Input either 'gpkg' or 'shp' based on what the output file format should be.
         :param query:
         :param path:
-        :param file_name: Name of geopackage or shapefile
+        :param output_file: Name of geopackage or shapefile. Must end with .gpkg or .shp
         :param gpkg_tbl: If a Geopackage, input the table name to be created in the Geopackage file
         :param cmd:
         :param gdal_data_loc:
@@ -627,20 +626,19 @@ class Query:
         :return:
         """
 
-        geospatial = Geospatial(path=path,
-                        gpkg_or_shp = gpkg_or_shp.lower(),
-                        file_name=file_name,
-                        gpkg_tbl = gpkg_tbl)
-        
-        if gpkg_or_shp == 'gpkg':
-            assert gpkg_tbl is not None, "Since you 'GPKG' ou must fill the gpkg_tbl input with the desired gpkg_tbl name"
+        assert output_file.endswith('.gpkg') or output_file.endswith('.shp'), "Output file must end with .gpkg or .shp"
+
+        geospatial = Geospatial(path=path)
+
+        if output_file.endswith('gpkg'):
+            assert gpkg_tbl is not None, "Since the output file is '.gpkg', you must fill the gpkg_tbl input with the desired gpkg_tbl name"
        
         table_exists = []
 
-        if os.path.isfile(os.path.join(path, file_name)) == True and gpkg_or_shp == 'gpkg':
+        if os.path.isfile(os.path.join(path, output_file)) == True and output_file.endswith('.gpkg'):
         
             try:
-                exists_cmd = f'ogrinfo {os.path.join(path, file_name)}'
+                exists_cmd = f'ogrinfo {os.path.join(path, output_file)}'
                 ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
                 table_exists = re.findall(f"{gpkg_tbl}", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
             
@@ -652,14 +650,16 @@ class Query:
 
                 if len(table_exists) > 0:
                     print("The table name to be exported already exists in the geopackage. Table was overwritten")
-                    geospatial.write_geospatial(dbo = dbo, query = query, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
+                    geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gpkg_tbl = gpkg_tbl,
+                                                gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
                 elif len(table_exists) == 0:
-                    geospatial.write_geospatial(dbo = dbo, query = query, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+                    geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gpkg_tbl = gpkg_tbl,
+                                                gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
         
-        elif gpkg_or_shp == 'shp':
+        elif output_file.endswith('shp'):
             
             # for Shapefiles
-            geospatial.write_geospatial(dbo = dbo, query = query, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+            geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
 
         else:
-             geospatial.write_geospatial(dbo = dbo, query = query, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+             geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
