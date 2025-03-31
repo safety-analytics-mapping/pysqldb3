@@ -628,8 +628,6 @@ class Query:
 
         assert output_file.endswith('.gpkg') or output_file.endswith('.shp'), "Output file must end with .gpkg or .shp"
 
-        geospatial = Geospatial(path=path)
-
         if output_file.endswith('gpkg'):
             assert gpkg_tbl is not None, "Since the output file is '.gpkg', you must fill the gpkg_tbl input with the desired gpkg_tbl name"
        
@@ -650,16 +648,16 @@ class Query:
 
                 if len(table_exists) > 0:
                     print("The table name to be exported already exists in the geopackage. Table was overwritten")
-                    geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gpkg_tbl = gpkg_tbl,
+                    write_geospatial(dbo = dbo, query = query, path = path, output_file = output_file, gpkg_tbl = gpkg_tbl,
                                                 gdal_data_loc = gdal_data_loc, cmd = cmd, overwrite = True, srid = srid, print_cmd= print_cmd)
                 elif len(table_exists) == 0:
-                    geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gpkg_tbl = gpkg_tbl,
+                    write_geospatial(dbo = dbo, query = query, path = path, output_file = output_file, gpkg_tbl = gpkg_tbl,
                                                 gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
         
         elif output_file.endswith('shp'):
             
             # for Shapefiles
-            geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+            write_geospatial(dbo = dbo, query = query, path = path, output_file = output_file, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
 
         else:
-             geospatial.write_geospatial(dbo = dbo, query = query, output_file = output_file, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)
+            write_geospatial(dbo = dbo, query = query, path = path, output_file = output_file, gpkg_tbl = gpkg_tbl, gdal_data_loc = gdal_data_loc, cmd = cmd, srid = srid, print_cmd= print_cmd)

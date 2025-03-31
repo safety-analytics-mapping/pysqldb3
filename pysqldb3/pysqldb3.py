@@ -1878,16 +1878,15 @@ class DbConnect:
         return
 
 
-    def query_to_geospatial(self, gpkg_to_shp, query, gpkg_tbl = None, file_name = '', path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_geospatial(self, query, output_file, gpkg_tbl = None, path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263, shp = True):
         """
         Exports query results to a geospatial file (.gpkg or .shp).
 
-        :param gpkg_to_shp: 
         :param query: SQL query as string type
+        :param output_file: filename for shape (should end in .gpkg or .shp)
         :param gpkg_tbl (str): Table name to be written in the Geopackage output if it exists
         :param path (str): folder path for output gpkg
-        :param gpkg_name: filename for shape (should end in .gpkg)
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: (bool): print ogr command (without password)
@@ -1899,9 +1898,6 @@ class DbConnect:
         # Temporarily sets temp flag to True
         original_temp_flag = self.allow_temp_tables
         self.allow_temp_tables = True
-        
-        gpkg_or_shp = gpkg_or_shp.lower()
-        assert gpkg_or_shp == 'gpkg' or gpkg_or_shp == 'shp', "the gpkg_or_shp input should be either 'GPKG' or 'SHP'"
        
         # Makes a temp table name
         tmp_table_name = f"tmp_query_to_shp_{self.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
@@ -2005,14 +2001,11 @@ class DbConnect:
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         new_query = f"select {return_cols} from ({query}) q "
 
-        if gpkg_to_shp == 'shp':
-            Query.query_to_geospatial(self, new_query, path=path, file_name=file_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+        if output_file.endswith('shp'):
+            Query.query_to_geospatial(self, new_query, path=path, output_file=output_file, cmd=cmd, gdal_data_loc=gdal_data_loc,
                            print_cmd=print_cmd, srid=srid)
         else:
-            # gpkg
-            # shp_name = geopackage name
-            # gpkg_tbl argument would be filled in
-            Query.query_to_geospatial(self, query = new_query, path=path, file_name=file_name, cmd=cmd, gdal_data_loc=gdal_data_loc,
+            Query.query_to_geospatial(self, query = new_query, path=path, output_file=output_file, cmd=cmd, gdal_data_loc=gdal_data_loc,
                             gpkg_tbl = gpkg_tbl, print_cmd=print_cmd, srid=srid)
 
         # Drop the temp table
