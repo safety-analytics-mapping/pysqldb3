@@ -595,13 +595,23 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
             print(f'Ogr2ogr command failed. The file was not read in.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
 
-    if dbo.type == 'PG':
+    if dbo.type == 'PG' and feature_class == True:
         dbo.query(FEATURE_COMMENT_QUERY.format(
             s = schema,
             t = table,
             u = dbo.user,
             d = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
         ), timeme=False, internal=True)
+    
+    elif dbo.type == 'PG' and input_file.endswith('.shp') and feature_class == False:
+        dbo.query(SHP_COMMENT_QUERY.format(
+                s=schema,
+                t=table,
+                u=dbo.user,
+                p=path,
+                shp=input_file,
+                d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+            ), timeme=False, internal=True)
 
     if not private:
         try:
