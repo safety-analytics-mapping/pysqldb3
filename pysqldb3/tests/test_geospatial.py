@@ -5,7 +5,7 @@ import subprocess
 import shlex
 
 from .. import pysqldb3 as pysqldb
-from ..geospatial import Geospatial
+from .. import geospatial as s
 from . import helpers
 
 
@@ -61,8 +61,8 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s = Geospatial(path=FOLDER_PATH, gpkg_name=gpkg_name, gpkg_tbl = test_layer1)
-        s.input_geospatial_file(dbo=db, table=test_read_gpkg_table_name, schema=pg_schema, print_cmd=True)
+        s.input_geospatial_file(path=FOLDER_PATH, dbo=db, input_file=gpkg_name, gpkg_tbl = test_layer1,
+                                table=test_read_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table = test_read_gpkg_table_name)
@@ -112,8 +112,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # no gpkg_tbl argument so that it bulk uploads
-        s = Geospatial(path=FOLDER_PATH, gpkg_name=gpkg_name)
-        s.input_gpkg_bulk(dbo=db, schema=pg_schema, print_cmd=True)
+        s.input_gpkg_bulk(path=FOLDER_PATH, dbo=db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table = test_layer1)
@@ -173,8 +172,9 @@ class TestReadgpkgPG:
     def test_list_all_gpkg_tables(self):
 
         gpkg_name = "testgpkg.gpkg"
-        s = Geospatial(path=FOLDER_PATH, gpkg_name=gpkg_name)
-        s_list = s.list_gpkg_tables()
+    
+        print(FOLDER_PATH)
+        s_list = s.list_gpkg_tables(path=FOLDER_PATH, file_name=gpkg_name)
 
         assert s_list == [test_layer1, test_layer2]
 
@@ -187,8 +187,8 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # Read gpkg to new, test table
-        s = Geospatial(path=FOLDER_PATH, gpkg_name=gpkg_name, gpkg_tbl = test_layer2)
-        s.input_geospatial_file(dbo=db, input_file = gpkg_name, table = test_read_gpkg_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo=db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_layer2,
+                                table = test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=db.default_schema, table=test_read_gpkg_table_name)
@@ -225,7 +225,7 @@ class TestReadgpkgPG:
 class TestReadgpkgMS:
     @classmethod
     def setup_class(cls):
-        helpers.set_up_Geospatial(db.user)
+        helpers.set_up_geopackage(db.user)
 
     def test_read_gpkg_basic(self):
         gpkg_name = "testgpkg.gpkg"
@@ -237,8 +237,8 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_read_gpkg_table_name}")
 
         # Read gpkg to new, test table
-        s = Geospatial(path=FOLDER_PATH)
-        s.input_geospatial_file(dbo=sql, input_file = gpkg_name, gpkg_tbl = test_layer2, table=test_read_gpkg_table_name, schema=ms_schema, print_cmd=True)
+        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_layer2,
+                                table=test_read_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table=test_read_gpkg_table_name)
@@ -284,8 +284,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # no gpkg_tbl argument so that it bulk uploads
-        s = Geospatial(path=FOLDER_PATH)
-        s.input_gpkg_bulk(dbo=sql, input_file = gpkg_name, schema=ms_schema, print_cmd=True)
+        s.input_gpkg_bulk(dbo=sql, path=FOLDER_PATH, input_file = gpkg_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table = test_layer1)
@@ -313,8 +312,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # Read gpkg to new, test table
-        s = Geospatial(path=FOLDER_PATH)
-        s.input_gpkg_bulk(input_file=gpkg_name, dbo=sql, schema=ms_schema, print_cmd=True)
+        s.input_gpkg_bulk(path=FOLDER_PATH, input_file=gpkg_name, dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table= test_layer1)
@@ -368,8 +366,7 @@ class TestReadgpkgMS:
         sql.drop_table(schema=sql.default_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s = Geospatial(path=FOLDER_PATH)
-        s.input_geospatial_file(dbo=sql, input_file=gpkg_name, gpkg_tbl = test_layer1, table=test_read_gpkg_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_layer1, table=test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=sql.default_schema, table=test_read_gpkg_table_name)
@@ -406,8 +403,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
         # Read gpkg to new, test table
-        s = Geospatial(path=FOLDER_PATH)
-        s.input_geospatial_file(input_file=gpkg_name, gpkg_tbl=test_layer1, dbo=sql, schema=ms_schema, print_cmd=True)
+        s.input_geospatial_file(path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl=test_layer1, dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table= test_layer1)
@@ -459,18 +455,17 @@ class TestWritegpkgPG:
         limit 100
         """)
 
-
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(output_file=gpkg_name, dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=FOLDER_PATH, schema=pg_schema, table = test_reuploaded_table_name, gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        db.geospatial_to_table(path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+                               schema=pg_schema, table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -515,8 +510,7 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(output_file=gpkg_name, dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -531,11 +525,11 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(output_file=gpkg_name, dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
+        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema,
+                           table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
-        db.gpkg_to_table(path=FOLDER_PATH, schema=pg_schema, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        db.geospatial_to_table(path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                          table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -581,8 +575,8 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(output_file=gpkg_name, dbo=db, schema=pg_schema, gpkg_tbl = test_reuploaded_table_name, table= test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema,
+                           gpkg_tbl = test_reuploaded_table_name, table= test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -597,13 +591,13 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s = Geospatial(path=FOLDER_PATH, gpkg_name=gpkg_name)
-        s.write_gpkg(dbo=db, schema=pg_schema, table = test_write_gpkg_table_name + '_2', gpkg_tbl = test_reuploaded_table_name + '_2', overwrite = False, print_cmd=True) # add another table
+        s.write_geospatial(dbo=db, schema=pg_schema, table = test_write_gpkg_table_name + '_2', path=FOLDER_PATH, output_file=gpkg_name,
+                           gpkg_tbl = test_reuploaded_table_name + '_2', overwrite = False, print_cmd=True) # add another table
 
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)) # assert that the table is still there
 
         # Reupload both tables from the same geopackage (since we are uploading under a different name, we can't use bulk upload function here)
-        db.gpkg_to_table_bulk(path=FOLDER_PATH, schema=pg_schema, gpkg_name=gpkg_name, print_cmd=True)
+        db.geospatial_to_table_bulk(path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -666,14 +660,14 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(output_file=gpkg_name, dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
+        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_name = gpkg_name, schema=pg_schema, table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        db.geospatial_to_table(path=FOLDER_PATH, input_file = gpkg_name, schema=pg_schema,
+                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -719,14 +713,13 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(output_file=gpkg_name, dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
+        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=os.path.join(FOLDER_PATH, 'err_'+gpkg_name), gpkg_name=gpkg_name ,schema=pg_schema,
+        db.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -764,15 +757,14 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
         s.write_geospatial(dbo=db, query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""",
-                            output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+                            path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.gpkg_to_table(path=FOLDER_PATH, gpkg_name=gpkg_name, schema=pg_schema,
+        db.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -823,14 +815,13 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(dbo=sql, schema = ms_schema, output_file=gpkg_name, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, schema = ms_schema, path=FOLDER_PATH, output_file=gpkg_name, table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=FOLDER_PATH, gpkg_name=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
+        sql.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
                           gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert equality
@@ -871,12 +862,10 @@ class TestWritegpkgMS:
         insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
-
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg. Gpkg table will be named the same as the query table
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(output_file=gpkg_name, dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -891,15 +880,15 @@ class TestWritegpkgMS:
         """)
 
         # Write gpkg. Gpkg table will be named the same as the previous table to overwrite it
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name + '_2', output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, overwrite = True, print_cmd=True)
+        s.write_geospatial(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name + '_2',
+                          path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, overwrite = True, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=FOLDER_PATH, gpkg_name=gpkg_name, schema = ms_schema,
-                          gpkg_tbl = test_write_gpkg_table_name +'_2', table=test_reuploaded_table_name, print_cmd=True)
+        sql.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema,
+                          gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name}_2 order by test_col3")
@@ -941,12 +930,11 @@ class TestWritegpkgMS:
             insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
-
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg. Gpkg table will be named the same as the query table
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(dbo=sql, schema = ms_schema, table= test_write_gpkg_table_name, output_file=gpkg_name, gpkg_tbl = test_reuploaded_table_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, schema = ms_schema, table= test_write_gpkg_table_name,
+                           path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_reuploaded_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -961,14 +949,14 @@ class TestWritegpkgMS:
         """)
 
         # Write gpkg.
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2', output_file=gpkg_name, gpkg_tbl=test_reuploaded_table_name + '_2', print_cmd=True) # add second table
+        s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2',
+                           path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl=test_reuploaded_table_name + '_2', print_cmd=True) # add second table
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as tables using bulk upload function
-        sql.gpkg_to_table_bulk(path=FOLDER_PATH, gpkg_name=gpkg_name, schema = ms_schema, print_cmd=True)
+        sql.geospatial_to_table_bulk(path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1005,60 +993,6 @@ class TestWritegpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name};")
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2;")
     
-    def test_write_gpkg_table_pth(self):
-        # drop temp table if exists 
-        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
-
-        # Add test_table
-        sql.query(f"""
-        create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
-        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
-        """)
-
-
-        gpkg_name = 'test_write.gpkg'
-
-        # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
-
-        # Assert successful
-        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
-
-        # Reupload as table
-        sql.gpkg_to_table(path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
-                            schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
-
-        # Assert equality
-        db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
-        gpkg_uploaded_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_reuploaded_table_name} order by test_col1")
-
-        assert len(db_df) == len(gpkg_uploaded_df)
-
-        # Some columns may change names since gpkgfiles have a character limit of 10
-        pd.testing.assert_frame_equal(db_df[['test_col1', 'test_col2']],
-                                      gpkg_uploaded_df[['test_col1', 'test_col2']],
-                                      check_column_type=False,
-                                      check_dtype=False)
-
-        # Assert before/after geom columns are all 0 ft from each other, even if represented differently
-        dist_df = sql.dfquery(f"""
-        select distinct b.geom.STDistance(a.geom) as distance
-        from {ms_schema}.{test_write_gpkg_table_name} b
-        join {ms_schema}.{test_reuploaded_table_name} a
-        on b.test_col1=a.test_col1
-        """)
-
-        assert len(dist_df) == 1
-        assert dist_df.iloc[0]['distance'] == 0
-
-        # Clean up
-        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
-        sql.query(f"drop table if exists {ms_schema}.{test_reuploaded_table_name}")
-
-        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
-
     def test_write_gpkg_query(self):
 
         gpkg_name = 'testgpkg.gpkg'
@@ -1072,15 +1006,14 @@ class TestWritegpkgMS:
         """)
 
         # Write gpkg
-        s = Geospatial(path=FOLDER_PATH)
         s.write_geospatial(dbo=sql, query=f"""select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1""",
-                            output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+                            path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        sql.gpkg_to_table(path=FOLDER_PATH, gpkg_name=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        sql.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1122,6 +1055,7 @@ class TestGpkgShpConversion:
     def test_convert_gpkg_to_shp_file(self):
 
         gpkg_name = 'gpkg_to_shp.gpkg'
+        shp_name = test_write_gpkg_table_name + '.shp'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
         sql.drop_table(schema=ms_schema, table=test_write_gpkg_table_name)
@@ -1135,62 +1069,22 @@ class TestGpkgShpConversion:
         assert sql.table_exists(schema = ms_schema, table = test_write_gpkg_table_name)
 
         # write geopackage file
-        s = Geospatial(path = FOLDER_PATH)
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, output_file=gpkg_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
+                           path = FOLDER_PATH, output_file=gpkg_name, print_cmd=True)
 
         # # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s.geospatial_convert(export_path = FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, output_file = 'gpkg_to_shp.shp', print_cmd = True)
+        s.geospatial_convert(input_path = FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+                             output_file = shp_name, print_cmd = True)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
-        assert os.path.isfile(os.path.join(FOLDER_PATH, test_write_gpkg_table_name + '.shp'))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
 
         # check that the shapefile and gpkg have the same output
         cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{test_write_gpkg_table_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-
-        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
-        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
-        
-        assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg) and 'test_col1 (Integer) = 1' in str(ogr_response_shp), "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
-
-        # remove geopackage and shape files
-        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
-        for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(FOLDER_PATH, test_write_gpkg_table_name + '.' + ext))
-
-        sql.drop_table(schema = ms_schema, table = test_write_gpkg_table_name)
-    
-    def test_convert_gpkg_to_shp_custom_path(self):
-
-        gpkg_name = 'gpkg_to_shp.gpkg'
-
-        # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
-
-        # write a query
-        sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name};
-                create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
-                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
-                """)
-
-        # write geopackage file
-        s = Geospatial(path = FOLDER_PATH)
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
-
-        # Check table in folder
-        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
-        # run function to convert geopackage to shape file
-        s.gpkg_to_shp_bulk(input_file=gpkg_name, export_path = FOLDER_PATH)
- 
-        # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
-        assert os.path.isfile(os.path.join(FOLDER_PATH , test_write_gpkg_table_name + '.shp'))
-
-        # check that the shapefile and gpkg have the same output
-        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{test_write_gpkg_table_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1207,6 +1101,7 @@ class TestGpkgShpConversion:
     def test_convert_gpkg_to_shp_file_bulk(self):
 
         gpkg_name = 'gpkg_to_shp.gpkg'
+        shp_name = test_write_gpkg_table_name + '.shp'
 
         # no shape file name needs to be specified because the table(s) within the gpkg are not necessarily named the same thing
 
@@ -1218,8 +1113,7 @@ class TestGpkgShpConversion:
                 """)
 
         # write geopackage file
-        s = Geospatial(path = FOLDER_PATH)
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, output_file=gpkg_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, path = FOLDER_PATH, output_file=gpkg_name, print_cmd=True)
 
         # add an extra table to test multiple
         sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2;
@@ -1231,23 +1125,22 @@ class TestGpkgShpConversion:
         assert sql.table_exists(schema = ms_schema, table = test_write_gpkg_table_name)
         assert sql.table_exists(schema = ms_schema, table = f"{test_write_gpkg_table_name}_2")
 
-        s = Geospatial(path = FOLDER_PATH)
-        s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2', output_file=gpkg_name, print_cmd=True) # this will append 
+        s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2',
+                           path = FOLDER_PATH, output_file=gpkg_name, print_cmd=True) # this will append 
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s = Geospatial(path = FOLDER_PATH, gpkg_name=gpkg_name)
-        s.gpkg_to_shp_bulk(print_cmd = True)
+        s.gpkg_to_shp_bulk(input_path = FOLDER_PATH, input_file=gpkg_name, print_cmd = True)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
-        assert os.path.isfile(os.path.join(FOLDER_PATH, test_write_gpkg_table_name + '.shp'))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
         assert os.path.isfile(os.path.join(FOLDER_PATH, test_write_gpkg_table_name + '_2.shp'))
 
         # check that the shapefile and gpkg have the same output
         cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{test_write_gpkg_table_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
         cmd_gpkg2 = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT test_col5 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
         cmd_shp2 = f'ogrinfo "{FOLDER_PATH}/{test_write_gpkg_table_name}_2.shp" -sql "SELECT test_col5 FROM {test_write_gpkg_table_name}_2 LIMIT 1" -q'
 
@@ -1280,10 +1173,13 @@ class TestGpkgShpConversion:
                 insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
                 """)
 
-        # write geopackage file
-        s = Geospatial(path = FOLDER_PATH)
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
-        s.geospatial_convert(export_path = FOLDER_PATH, input_file = test_write_gpkg_table_name, output_table = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+        # create shp file and then convert to geopackage file
+        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
+                           path = FOLDER_PATH, output_file = shp_name, print_cmd=True)
+        
+        s.geospatial_convert(input_path = FOLDER_PATH,
+                             input_file = shp_name,
+                             output_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
 
         # drop SQL table and GPKG
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
@@ -1293,15 +1189,15 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name)) # confirm that the shp file exists
 
         # run function to convert Shapefile to GPKG
-        s = Geospatial(path=FOLDER_PATH, gpkg_name=gpkg_name)
-        s.geospatial_convert(gpkg_tbl = test_write_gpkg_table_name, input_file = shp_name, output_file = gpkg_name, print_cmd = True)
+        s.geospatial_convert(input_path=FOLDER_PATH, input_file = shp_name,
+                             output_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # assert that the data is the same
         cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
-        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}.shp" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "SELECT test_col1 FROM {test_write_gpkg_table_name} LIMIT 1" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
@@ -1317,14 +1213,14 @@ class TestGpkgShpConversion:
         # this test confirms that the update function for the gpkg is working correctly
 
         gpkg_name = 'gpkg_to_shp.gpkg'
-        shp_name = test_write_gpkg_table_name + '.shp'
+        shp_name = test_write_gpkg_table_name 
 
         # Check table in folder
-        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name) + '.shp')
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name + '.shp'))
 
         # run function to convert Shapefile to GPKG
-        s = Geospatial(path=FOLDER_PATH, gpkg_name=gpkg_name)
-        s.geospatial_convert(input_file = shp_name + '.shp', output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2')
+        s.geospatial_convert(input_path=FOLDER_PATH, input_file = shp_name + '.shp',
+                             output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2')
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1367,8 +1263,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Geospatial(dbo=db, path=fp, schema=pg_schema)
-        s.input_geospatial_file(input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
@@ -1399,11 +1294,8 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
 
     def test_read_shp_zip(self):
-        # fp = r'C:/Users/SHostetter/Desktop/GIS/nyad_21c.zip\yad_21c'
-        # fp = 'C:/Users/SHostetter/Desktop/GIS/GIS.zip'
-        # shp_name = "Hisa_yellow_10_14.shp"
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/shp_test.zip'
+        fp = FOLDER_PATH + '/shp_test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
@@ -1414,8 +1306,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Geospatial(dbo=db, path=fp, schema=pg_schema)
-        s.input_geospatial_file(input_file=shp_name, table=test_read_shp_table_name, print_cmd=True, zip=True)
+        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True, zip=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
@@ -1430,7 +1321,7 @@ class TestReadShpPG:
         diff_df = db.dfquery(f"""
         select distinct st_distance(raw_inputs.geom,
         st_transform(st_setsrid(end_table.geom, 4326),2263)
-        )::int as distance+ '.shp'
+        )::int as distance
         from (
             select 1 as id, st_setsrid(st_point(1015329.1, 213793.1), 2263) as geom
             union
@@ -1443,12 +1334,8 @@ class TestReadShpPG:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
-
-    """
-    NEED TO CHANGE TEST FILE TO CHANGE TABLE NAME
-    """
     def test_read_shp_no_table(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = "test.shp"
 
         # Assert successful
@@ -1456,8 +1343,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table="test")
 
         # Read shp to new, test table
-        s = Geospatial(dbo=db, path=fp, schema=pg_schema)
-        s.input_geospatial_file(input_file=shp_name, print_cmd=True)
+        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table='test')
@@ -1493,8 +1379,7 @@ class TestReadShpPG:
         db.drop_table(schema=db.default_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Geospatial(dbo=db, path=fp)
-        s.input_geospatial_file(input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo=db, path=fp, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=db.default_schema, table=test_read_shp_table_name)
@@ -1543,8 +1428,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Geospatial(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema)
-        s.input_geospatial_file(input_file=shp_name, print_cmd=True)
+        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table=test_read_shp_table_name)
@@ -1575,11 +1459,8 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
     def test_read_shp_zip(self):
-        # fp = r'C:/Users/SHostetter/Desktop/GIS/nyad_21c.zip\yad_21c'
-        # fp = 'C:/Users/SHostetter/Desktop/GIS/GIS.zip'
-        # shp_name = "Hisa_yellow_10_14.shp"
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/shp_test.zip'
+        fp = FOLDER_PATH + '/shp_test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
@@ -1590,8 +1471,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Geospatial(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema)
-        s.input_geospatial_file(input_file=shp_name, print_cmd=True, zip=True)
+        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True, zip=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table=test_read_shp_table_name)
@@ -1617,11 +1497,8 @@ class TestReadShpMS:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
-    """
-    NEED TO CHANGE TEST FILE TO CHANGE TABLE NAME
-    """
     def test_read_shp_no_table(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = "test.shp"
 
         # Assert successful
@@ -1629,8 +1506,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table='test')
 
         # Read shp to new, test table
-        s = Geospatial(dbo=sql, path=fp, schema=ms_schema)
-        s.input_geospatial_file(input_file=shp_name, print_cmd=True)
+        s.input_geospatial_file(dbo=sql, path=fp, schema=ms_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table='test')
@@ -1657,7 +1533,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table='test')
 
     def test_read_shp_no_schema(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = "test.shp"
 
         # Assert successful
@@ -1665,8 +1541,7 @@ class TestReadShpMS:
         sql.drop_table(schema=sql.default_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s = Geospatial(dbo=sql, path=fp, table=test_read_shp_table_name)
-        s.input_geospatial_file(input_file=shp_name, print_cmd=True)
+        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=sql.default_schema, table=test_read_shp_table_name)
@@ -1714,72 +1589,17 @@ class TestWriteShpPG:
         limit 100
         """)
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        fp = FOLDER_PATH
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Geospatial(dbo=db, path=fp, table=test_write_shp_table_name, schema=pg_schema)
-        s.write_geospatial(output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=db, path=fp, table=test_write_shp_table_name, schema=pg_schema, output_file=shp_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
-
-        # Assert equality
-        db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
-        shp_uploaded_df = db.dfquery(f"select * from {pg_schema}.{test_reuploaded_table_name} order by id")
-
-        assert len(db_df) == len(shp_uploaded_df)
-
-        # Some columns changed names since shpfiles have a character limit of 10
-        mutual_columns = set(db_df.columns).intersection(shp_uploaded_df.columns) - {'ogc_fid', 'geom'}
-        pd.testing.assert_frame_equal(db_df[list(mutual_columns)], shp_uploaded_df[list(mutual_columns)],
-                                      check_like=True, check_names=False, check_dtype=False,
-                                      check_datetimelike_compat=True)
-
-        # Assert before/after geom columns are all 0 ft from each other, even if represented differently
-        dist_df = db.dfquery(f"""
-        select distinct st_distance(st_setsrid(b.geom, 2263), a.geom) as distance
-        from {pg_schema}.{pg_table_name} b
-        join {pg_schema}.{test_reuploaded_table_name} a
-        on b.id=a.id
-        """)
-
-        assert len(dist_df) == 1
-        assert dist_df.iloc[0]['distance'] == 0
-
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
-        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
-
-        # clean up
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
-        for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
-
-    def test_write_shp_table_pth(self):
-        db.drop_table(pg_schema, test_write_shp_table_name)
-        db.query(f"""
-        create table {pg_schema}.{test_write_shp_table_name} as
-        select *
-        from {pg_schema}.{pg_table_name}
-        order by id
-        limit 100
-        """)
-
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-        shp_name = 'test_write.shp'
-
-        # Write shp
-        s = Geospatial(dbo=db, path=fp, table=test_write_shp_table_name, schema=pg_schema)
-        s.write_geospatial(output_file=shp_name, print_cmd=True)
-
-        # Assert successful
-        assert os.path.isfile(os.path.join(fp, shp_name))
-
-        # Reupload as table
-        db.shp_to_table(path=fp+'\\'+shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.geospatial_to_table(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1823,18 +1643,16 @@ class TestWriteShpPG:
         limit 100
         """)
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Geospatial(dbo=db, path=fp, table=test_write_shp_table_name, schema=pg_schema)
-        s.write_geospatial(output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=db, path=FOLDER_PATH, table=test_write_shp_table_name, schema=pg_schema, output_file=shp_name, print_cmd=True)
 
         # Assert successful
-        assert os.path.isfile(os.path.join(fp, shp_name))
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp+'\\'+'err_'+shp_name, input_file=shp_name ,schema=pg_schema,
+        db.geospatial_to_table(path=FOLDER_PATH, input_file=shp_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1866,22 +1684,21 @@ class TestWriteShpPG:
         # clean up
         db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
+            os.remove(os.path.join(FOLDER_PATH, shp_name.replace('shp', ext)))
 
     def test_write_shp_query(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        fp = FOLDER_PATH
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Geospatial(dbo=db, path=fp,
-                      query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""")
-        s.write_geospatial(output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=db, path=fp,
+                      query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""", output_file=shp_name, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.shp_to_table(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.geospatial_to_table(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1911,7 +1728,7 @@ class TestWriteShpPG:
 
         # clean up
         for ext in ('dbf', 'prj', 'shx', 'shp'):
-            os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
+            os.remove(os.path.join(FOLDER_PATH, shp_name.replace('shp', ext)))
 
     @classmethod
     def teardown_class(cls):
@@ -1933,14 +1750,13 @@ class TestWriteShpMS:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s = Geospatial(dbo=sql, path=fp, table=test_write_shp_table_name, schema=ms_schema)
-        s.write_geospatial(output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, path=fp, table=test_write_shp_table_name, schema=ms_schema, output_file=shp_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.shp_to_table(path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.geospatial_to_table(path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -1975,64 +1791,8 @@ class TestWriteShpMS:
             except Exception as e:
                 print(e)
 
-    def test_write_shp_table_pth(self):
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
-
-        # Add test_table
-        sql.query(f"""
-        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, test_col2 int, geom geometry);
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
-        """)
-
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-        shp_name = 'test_write.shp'
-
-        # Write shp
-        s = Geospatial(dbo=sql, path=fp, table=test_write_shp_table_name, schema=ms_schema)
-        s.write_geospatial(output_file=shp_name, print_cmd=True)
-
-        # Assert successful
-        assert os.path.isfile(os.path.join(fp, shp_name))
-
-        # Reupload as table
-        sql.shp_to_table(path=fp+'\\'+shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
-
-        # Assert equality
-        db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
-        shp_uploaded_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_reuploaded_table_name} order by test_col1")
-
-        assert len(db_df) == len(shp_uploaded_df)
-
-        # Some columns may change names since shpfiles have a character limit of 10
-        pd.testing.assert_frame_equal(db_df[['test_col1', 'test_col2']],
-                                      shp_uploaded_df[['test_col1', 'test_col2']],
-                                      check_column_type=False,
-                                      check_dtype=False)
-
-        # Assert before/after geom columns are all 0 ft from each other, even if represented differently
-        dist_df = sql.dfquery(f"""
-        select distinct b.geom.STDistance(a.geom) as distance
-        from {ms_schema}.{test_write_shp_table_name} b
-        join {ms_schema}.{test_reuploaded_table_name} a
-        on b.test_col1=a.test_col1
-        """)
-
-        assert len(dist_df) == 1
-        assert dist_df.iloc[0]['distance'] == 0
-
-        # Clean up
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
-        sql.drop_table(schema=ms_schema, table=test_reuploaded_table_name)
-
-        for ext in ('dbf', 'prj', 'shx', 'shp'):
-            try:
-                os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
-            except Exception as e:
-                print(e)
-
     def test_write_shp_query(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = 'test_write.shp'
         sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
 
@@ -2044,15 +1804,14 @@ class TestWriteShpMS:
         """)
 
         # Write shp
-        s = Geospatial(dbo=sql, path=fp,
-                      query=f"""select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1""")
-        s.write_geospatial(output_name=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, path=fp, query=f"""select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1""",
+               output_file=shp_name, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.shp_to_table(path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        sql.geospatial_to_table(path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
