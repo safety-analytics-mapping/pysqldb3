@@ -1109,7 +1109,7 @@ class DbConnect:
         # Use pandas to get existing data and schema
         # Check for varchar columns > 500 in length
         allow_max = False
-        if os.path.getsize(input_file) > 1000000:
+        if os.path.getsize(input_file) > 1000000 and not temp_table:
             data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep, **kwargs)
             df = data.get_chunk(1000)
 
