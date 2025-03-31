@@ -496,13 +496,17 @@ def sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=None, LDAP_from=False, prin
     if LDAP_from:
         from_user = ''
         from_password = ''
+    else:
+        from_user = ms.user
+        from_password = ms.password
+
     cmd = SQL_TO_CSV_CMD.format(
         gdal_data=GDAL_DATA_LOC,
         output_csv=temp_csv,
         from_server=ms.server,
         from_database=ms.database,
-        from_user=ms.user,
-        from_pass=ms.password,
+        from_user=from_user,
+        from_pass=from_password,
         sql_select=query
     )
 
@@ -728,13 +732,16 @@ def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=
     if LDAP_from:
         from_user = ''
         from_password = ''
+    else:
+        from_user = from_sql.user
+        from_password = from_sql.password
     cmd = SQL_TO_CSV_CMD.format(
         gdal_data=GDAL_DATA_LOC,
         output_csv=temp_csv,
         from_server=from_sql.server,
         from_database=from_sql.database,
-        from_user=from_sql.user,
-        from_pass=from_sql.password,
+        from_user=from_user,
+        from_pass=from_password,
         sql_select=query
     )
 
