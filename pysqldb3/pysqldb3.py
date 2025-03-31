@@ -2001,7 +2001,7 @@ class DbConnect:
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         new_query = f"select {return_cols} from ({query}) q "
 
-        if output_file.endswith('shp'):
+        if output_file.endswith('.shp') or output_file.endswith('.dbf'):
             Query.query_to_geospatial(self, new_query, path=path, output_file=output_file, cmd=cmd, gdal_data_loc=gdal_data_loc,
                            print_cmd=print_cmd, srid=srid)
         else:
@@ -2064,7 +2064,6 @@ class DbConnect:
 
         if not self.allow_temp_tables:
             self.disconnect(True)
-
 
     def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
         """
