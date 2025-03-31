@@ -613,10 +613,10 @@ class Query:
     @staticmethod
     def query_to_geospatial(dbo, query, path, output_file, gpkg_tbl = None, cmd=None, gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
-        Writes results of the query to a gpkg file by calling Geopackage ogr command's in write_gpkg fn
+        Writes results of the query to a geospatial file by calling write_geospatial
         :param dbo: Database connection for the query
-        :param query:
-        :param path:
+        :param query: Query
+        :param path: Export file path
         :param output_file: Name of geopackage or shapefile. Must end with .gpkg or .shp
         :param gpkg_tbl: If a Geopackage, input the table name to be created in the Geopackage file
         :param cmd:
@@ -626,7 +626,7 @@ class Query:
         :return:
         """
 
-        assert output_file.endswith('.gpkg') or output_file.endswith('.shp'), "Output file must end with .gpkg or .shp"
+        assert output_file.endswith('.gpkg') or output_file.endswith('.shp') or output_file.endswith('.dbf'), "Output file must end with .gpkg, .shp, or .dbf"
 
         if output_file.endswith('gpkg'):
             assert gpkg_tbl is not None, "Since the output file is '.gpkg', you must fill the gpkg_tbl input with the desired gpkg_tbl name"

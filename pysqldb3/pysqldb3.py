@@ -1879,19 +1879,18 @@ class DbConnect:
 
 
     def query_to_geospatial(self, query, output_file, gpkg_tbl = None, path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
-                     print_cmd=False, srid=2263, shp = True):
+                     print_cmd=False, srid=2263):
         """
         Exports query results to a geospatial file (.gpkg or .shp).
 
         :param query: SQL query as string type
-        :param output_file: filename for shape (should end in .gpkg or .shp)
+        :param output_file: filename for shape (should end in .gpkg, .dbf, or .shp)
         :param gpkg_tbl (str): Table name to be written in the Geopackage output if it exists
         :param path (str): folder path for output gpkg
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: (bool): print ogr command (without password)
         :param srid: SRID to manually set output to; defaults to 2263
-        :param shp: Boolean for whether the query is to be exported as a shp or gpkg. Defaults to Shp.
         :return:
         """
 
