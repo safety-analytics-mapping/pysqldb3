@@ -996,7 +996,7 @@ class DbConnect:
         elif temp_table and self.type==MS:
             t = ''
             # setting as global temp - if we want private temps will need additional parmeters
-            table_schema = f"##{table}"
+            table_schema = f"[##{table}]"
         else:
             t = ''
             table_schema = f"{schema}.{table}"
@@ -1044,7 +1044,7 @@ class DbConnect:
             schema_table = table
         elif temp_table and self.type==MS:
             # setting as global temp - if we want private temps will need additional parmeters
-            schema_table = f"##{table}"
+            schema_table = f"[##{table}]"
         else:
             schema_table = f"{schema}.{table}"
 

@@ -50,6 +50,8 @@ test_sql_to_pg_table = f'tst_sql_to_pg_table_{db.user}'
 test_pg_to_pg_tbl = f'tst_pg_to_pg_tbl_{db.user}'
 test_pg_to_pg_qry_table = f'tst_pg_to_pg_qry_table_{db.user}'
 
+test_io_table_funky_name = 'Test db to db table'
+
 pg_schema = 'working'
 sql_schema = 'dbo'
 
@@ -640,6 +642,53 @@ class TestPgToSqlQryTemp:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
+
+    def test_pg_to_sql_qry_basic_table_funky_name_temp(self):
+
+        """
+        Copy a query from Postgres to an output table in SQL
+        """
+
+        # drop output tables if they exist
+        db.drop_table(schema=pg_schema, table=f'"{test_io_table_funky_name}"')
+        assert not db.table_exists(schema = pg_schema, table = f'"{test_io_table_funky_name}"')
+        sql.query(f"""
+            IF OBJECT_ID(N'tempdb..[##{test_pg_to_sql_qry_table}]', N'U') IS NOT NULL
+            DROP TABLE [##{test_pg_to_sql_qry_table}];
+        """)
+
+        # create pg table
+        db.query(f"""
+                    create table {pg_schema}."{test_io_table_funky_name}" (test_col1 int, test_col2 int);
+                    insert into {pg_schema}."{test_io_table_funky_name}" VALUES(1, 2);
+                    insert into {pg_schema}."{test_io_table_funky_name}" VALUES(3, 4);
+        """)
+
+        # run pg_to_sql_qry
+        data_io.pg_to_sql_qry_temp_tbl(db, sql, query=
+                             f"""
+                             select test_col1, test_col2 from {pg_schema}."{test_io_table_funky_name}"
+                             """,
+                             dest_table=test_io_table_funky_name)
+
+        # Assert df equality
+        pg_df = db.dfquery(f"""
+        select test_col1, test_col2 from {pg_schema}."{test_io_table_funky_name}"
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        sql_df = sql.dfquery(f"""
+        select test_col1, test_col2 from [##{test_io_table_funky_name}]
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # Assert
+        pd.testing.assert_frame_equal(pg_df, sql_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=f'"{test_io_table_funky_name}"')
 
     def test_pg_to_sql_qry_basic_with_comments_table_temp(self):
 

@@ -205,6 +205,10 @@ def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
     # comments with /* */ do not need to be filtered out from the query
     query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
+    # account for "table name"
+    if '"' in query:
+        query = query.replace('"', r'\"')
+
     # write data to local csv
     temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
     cmd = PG_TO_CSV_CMD.format(
@@ -228,7 +232,7 @@ def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
     # import data to temp table
-    ms.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+    ms.csv_to_table(input_file=temp_csv, table=f'{dest_table}', temp_table=True)
 
     _df = pd.read_csv(temp_csv)
     if 'WKT' in _df.columns:
