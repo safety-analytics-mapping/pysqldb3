@@ -547,7 +547,7 @@ class DbConnect:
         self.check_conn()
         return self.internal_data
 
-    def cleanup_new_tables(self):
+    def cleanup_new_tables(self, cascade=False):
         # type: (DbConnect) -> None
         """
         Drops all newly created tables from this DbConnect object
@@ -555,7 +555,7 @@ class DbConnect:
         """
         for tbl in self.tables_created:
             server, database, schema, table = parse_table_string(tbl, self.default_schema, self.type)
-            self.drop_table(schema, table)
+            self.drop_table(schema, table, cascade)
 
         print('Dropped %i tables' % len(self.tables_created))
 
@@ -2395,6 +2395,46 @@ class DbConnect:
                             days=days,
                             bulk_upload = True)
 
+    def _get_table_constraints(self, schema, table):
+        """
+        Gets constraints for a given table
+        :param schema: table schema
+        :param table: table name
+        :return: List of constraints [name of constraint, table schema, table name, column constraint is on, constraint defintion]
+        """
+        if self.type == PG:
+            self.query(f"""
+                select distinct 
+                    pgc.conname||'_backup' as constraint_name,
+                    i.table_schema,
+                    i.table_name, 
+                    i.column_name, 
+                    pg_get_constraintdef(pgc.oid)  
+                from pg_constraint pgc
+                join information_schema.key_column_usage i
+                on pgc.conname = i.constraint_name
+                where 
+                    i.table_name = '{table}'
+                    and i.table_schema = '{schema}'
+                order by 1;
+            """, internal=True, timeme=False)
+            return self.internal_data
+        elif self.type==MS:
+            _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
+            # results in 2 rows :(
+            # row 1 name row 2 constraint
+            names = [i for i in _df.constraint_name if i!=' ']
+            c_type = [i for i in _df.constraint_type if i!=' ']
+            c_keys = [i for i in _df.constraint_keys if i!=' ']
+            constraints = []
+            for i, j in enumerate(_df.constraint_keys):
+                if i % 2:
+                    # c_name, _tbl, _sch, _col, c_details
+                    constraints.append([names[i-1]+'_backup'+' ' +c_type[i-1]+' ('+c_keys[i-1]+') ', table, schema,names[i-1], j])
+            return constraints
+        else:
+            return None
+
     def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
         """
         Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
@@ -2410,9 +2450,10 @@ class DbConnect:
         # TODO
         #  - think about bulk tables?
 
-
-
         tbl_schema = self.get_table_columns(org_table, schema=org_schema)
+
+        # get table constraints
+        constraints = self._get_table_constraints(org_schema, org_table)
 
         # CREATE TABLE QUERY
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
@@ -2430,7 +2471,10 @@ class DbConnect:
 
                 # change dtype if applicable
                 dtyp = array_type + ' ARRAY[' + str(boxes) + ']'
-
+        if constraints:
+            for constraint in constraints:
+                c_name, _tbl, _sch, _col, c_details = constraint
+                _create_qry+= f'\nCONSTRAINT {c_name} {c_details},'
         _create_qry=_create_qry[:-1]+');\n'
 
         # INSERT INTO TABLE QUERY
