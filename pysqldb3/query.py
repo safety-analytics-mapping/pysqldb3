@@ -256,9 +256,9 @@ class Query:
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
-                        if (server, database, sch,org_table) in self.dbo.tables_created:
+                        if (server, database, sch, org_table) in self.dbo.tables_created:
                             # self.dbo.tables_created.remove(org_table)
-                            self.dbo.tables_created[self.dbo.tables_created.index( (server, database, sch,org_table))] = \
+                            self.dbo.tables_created[self.dbo.tables_created.index( (server, database, sch, org_table))] = \
                                 get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
                                 tbl, self.dbo.type)
 

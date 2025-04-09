@@ -2352,8 +2352,6 @@ class DbConnect:
                         self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                 except:
                     pass
-                        
-            self.tables_created.append(f"{schema}.{table}")
 
             if temp:
                 self.__run_table_logging([schema + "." + table], days=days)

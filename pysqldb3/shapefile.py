@@ -368,6 +368,6 @@ class Shapefile:
             except:
                 pass
         rename_geom(db = self.dbo, schema = self.schema, table = self.table)
-        self.dbo.tables_created.append(self.schema + "." + self.table)
+        self.dbo.tables_created.append((self.dbo.server, self.dbo.database, self.schema, self.table))
 
     

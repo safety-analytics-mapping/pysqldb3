@@ -362,7 +362,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     clean_geom_column(pg, dest_table, dest_schema)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    pg.tables_created.append(('', '', dest_schema, dest_table))
+    pg.tables_created.append((pg.server, pg.database, dest_schema, dest_table))
 
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
@@ -466,7 +466,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     clean_geom_column(pg, dest_table, dest_schema)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    pg.tables_created.append(('', '', dest_schema, dest_table))
+    pg.tables_created.append((pg.server, pg.database, dest_schema, dest_table))
 
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
@@ -863,7 +863,7 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
     clean_geom_column(to_pg, dest_table, dest_schema)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    to_pg.tables_created.append(('', '', dest_schema, dest_table))
+    to_pg.tables_created.append((to_pg.server, to_pg.database, dest_schema, dest_table))
 
     if temp:
         to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)
@@ -939,7 +939,7 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
     clean_geom_column(to_pg, dest_table, dest_schema)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    to_pg.tables_created.append(('', '', dest_schema, dest_table))
+    to_pg.tables_created.append((to_pg.server, to_pg.database, dest_schema, dest_table))
 
     if temp:
         to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)
