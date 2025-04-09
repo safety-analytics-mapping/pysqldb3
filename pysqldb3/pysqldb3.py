@@ -2137,7 +2137,7 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
         # (None, None, 'dbo', 'dashboad_vicdim'),
-        self.tables_created.append(self.server, self.database, schema, table)
+        self.tables_created.append((self.server, self.database, schema, table))
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
