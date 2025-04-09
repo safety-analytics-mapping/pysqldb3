@@ -2274,157 +2274,203 @@ class TestPgToPgQryTemp:
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
 
-    def test_pg_to_sql_qry_basic_table_temp(self):
+    def test_pg_to_pg_qry_basic_table_temp(self):
 
         """
-        Copy a query from Postgres to an output table in SQL
+        Copy a query from Postgres to an output table in PG
         """
 
         # drop output tables if they exist
-        db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
-        assert not db.table_exists(schema = pg_schema, table = test_pg_to_sql_qry_table)
-        sql.query(f"""
-            IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_table}', N'U') IS NOT NULL
-            DROP TABLE ##{test_pg_to_sql_qry_table};
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
+        assert not db.table_exists(schema = pg_schema, table = test_pg_to_pg_qry_table)
+        ris.query(f"""
+            DROP TABLE IF EXISTS {test_pg_to_pg_qry_table};
         """)
 
         # create pg table
         db.query(f"""
-                    create table {pg_schema}.{test_pg_to_sql_qry_table} (test_col1 int, test_col2 int);
-                    insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(1, 2);
-                    insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(3, 4);
+                    create table {pg_schema}.{test_pg_to_pg_qry_table} (test_col1 int, test_col2 int);
+                    insert into {pg_schema}.{test_pg_to_pg_qry_table} VALUES(1, 2);
+                    insert into {pg_schema}.{test_pg_to_pg_qry_table} VALUES(3, 4);
         """)
 
         # run pg_to_sql_qry
-        data_io.pg_to_sql_qry_temp_tbl(db, sql, query=
+        data_io.pg_to_pg_qry_temp_tbl(db, ris, query=
                              f"""
-                             select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
+                             select test_col1, test_col2 from {pg_schema}.{test_pg_to_pg_qry_table}
                              """,
-                             dest_table=test_pg_to_sql_qry_table)
+                             dest_table=test_pg_to_pg_qry_table)
 
         # Assert df equality
         pg_df = db.dfquery(f"""
-        select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
+        select test_col1, test_col2 from {pg_schema}.{test_pg_to_pg_qry_table}
         order by test_col1
         """).infer_objects().replace(r'\s+', '', regex=True)
 
-        sql_df = sql.dfquery(f"""
-        select test_col1, test_col2 from ##{test_pg_to_sql_qry_table}
+        pg_df2 = ris.dfquery(f"""
+        select test_col1, test_col2 from {test_pg_to_pg_qry_table}
         order by test_col1
         """).infer_objects().replace(r'\s+', '', regex=True)
 
         # Assert
-        pd.testing.assert_frame_equal(pg_df, sql_df,
+        pd.testing.assert_frame_equal(pg_df, pg_df2,
                                       check_dtype=False,
                                       check_column_type=False)
 
         # Cleanup
-        db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
+        db.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)
 
-    def test_pg_to_sql_qry_basic_with_comments_table_temp(self):
-
-        """
-        Copy a query full of text comments from Postgres to an output table in SQL.
-        """
-
-        # assert that output table dropped
-        sql.query(f"""
-                    IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_table}', N'U') IS NOT NULL
-                    DROP TABLE ##{test_pg_to_sql_qry_table};
-                """)
-
-        # run pg_to_sql_qry
-        data_io.pg_to_sql_qry_temp_tbl(db, sql, query=f"""
-                                -- testing out comments
-                                select id, test_col1, test_col2 from /* what if there are comments here too */
-                                {pg_schema}.{pg_table_name} -- table name
-                                order by test_col1
-                                -- another comment
-                                limit 10; -- limit to 10 rows
-                                """,
-                                       dest_table=test_pg_to_sql_qry_table)
-
-        # Assert df equality
-        pg_df = db.dfquery(f"""
-        select id, test_col1, test_col2 from {pg_schema}.{pg_table_name}
-        order by test_col1
-        limit 10
-        """).infer_objects().replace(r'\s+', '', regex=True)
-
-        # hardcoded the columns because they go in a different order when uploaded
-        sql_df = sql.dfquery(f"""
-        select id, test_col1, test_col2 from ##{test_pg_to_sql_qry_table}
-        order by test_col1
-        """).infer_objects().replace(r'\s+', '', regex=True)
-
-        # Assert that dataframes are equal
-        pd.testing.assert_frame_equal(pg_df, sql_df,
-                                    check_dtype=False,
-                                      check_column_type=False)
-
-    def test_pg_to_sql_qry_spatial(self):
-
-        """
-        Copy a spatial query from Postgres to SQL
-        """
-
-        # confirm that output tables are dropped
-        sql.query(f"""
-                    IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_spatial_table}', N'U') IS NOT NULL
-                    DROP TABLE ##{test_pg_to_sql_qry_spatial_table};
-                """)
-        db.drop_table(schema = pg_schema, table = test_pg_to_sql_qry_spatial_table)
-        assert not db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
-
-
-        # create spatial table
-        db.query(f"""
-            create table {pg_schema}.{test_pg_to_sql_qry_spatial_table}
-                (test_col1 int, test_col2 int, test_geom geometry);
-            insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
-                 VALUES (1, 2, ST_SetSRID(ST_MAKEPOINT(-71.10434, 42.31506), 2236));
-            insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
-                VALUES (3, 4, ST_SetSRID(ST_MAKEPOINT(91.2763, 11.9434), 2236));
-        """)
-
-        # make sure data is in source
-        assert len(db.dfquery(
-            f'select test_col1, test_col2, test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
-
-        # run pg_to_sql_qry
-        data_io.pg_to_sql_qry_temp_tbl(db, sql, query=f"""
-                                               SELECT test_col1, test_col2, test_geom --comments within the query
-                                                FROM {pg_schema}.{test_pg_to_sql_qry_spatial_table} -- geom here
-                                                -- end here""",
-                                       dest_table=test_pg_to_sql_qry_spatial_table)
-
-        # doing it by long / lat was the only way the data frames would be equivalent
-        pg_df = db.dfquery(f"""
-        select test_col1, test_col2, ST_X(test_geom) test_lat, ST_Y(test_geom) test_long
-        from {pg_schema}.{test_pg_to_sql_qry_spatial_table}
-        order by test_col1
-        """)
-
-        sql_df = sql.dfquery(f"""select * from ##{test_pg_to_sql_qry_spatial_table}""")
-        sql_df = sql.dfquery(f"""
-                select test_col1, test_col2,
-                geom.STX test_lat,
-                geom.STY test_long
-                from ##{test_pg_to_sql_qry_spatial_table}
-                order by test_col1
-        """)
-
-        # check the first 2 columns using assert_frame_equal
-        pd.testing.assert_frame_equal(pg_df, sql_df,
-                                      check_dtype=False,
-                                      check_column_type=False)
-
-        # clean up tables
-        db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_spatial_table)
-
-    @classmethod
-    def teardown_class(cls):
-        helpers.clean_up_test_table_pg(db)
+    # def test_pg_to_pg_qry_basic_table_temp_funky_name(self):
+    #
+    #     """
+    #     Copy a query from Postgres to an output table in PG
+    #     """
+    #
+    #     # drop output tables if they exist
+    #     db.drop_table(schema=pg_schema, table=test_io_table_funky_name)
+    #     assert not db.table_exists(schema = pg_schema, table = test_io_table_funky_name)
+    #     sql.query(f"""
+    #         IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_table}', N'U') IS NOT NULL
+    #         DROP TABLE ##{test_pg_to_sql_qry_table};
+    #     """)
+    #
+    #     # create pg table
+    #     db.query(f"""
+    #                 create table {pg_schema}.{test_pg_to_sql_qry_table} (test_col1 int, test_col2 int);
+    #                 insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(1, 2);
+    #                 insert into {pg_schema}.{test_pg_to_sql_qry_table} VALUES(3, 4);
+    #     """)
+    #
+    #     # run pg_to_sql_qry
+    #     data_io.pg_to_sql_qry_temp_tbl(db, sql, query=
+    #                          f"""
+    #                          select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
+    #                          """,
+    #                          dest_table=test_pg_to_sql_qry_table)
+    #
+    #     # Assert df equality
+    #     pg_df = db.dfquery(f"""
+    #     select test_col1, test_col2 from {pg_schema}.{test_pg_to_sql_qry_table}
+    #     order by test_col1
+    #     """).infer_objects().replace(r'\s+', '', regex=True)
+    #
+    #     sql_df = sql.dfquery(f"""
+    #     select test_col1, test_col2 from ##{test_pg_to_sql_qry_table}
+    #     order by test_col1
+    #     """).infer_objects().replace(r'\s+', '', regex=True)
+    #
+    #     # Assert
+    #     pd.testing.assert_frame_equal(pg_df, sql_df,
+    #                                   check_dtype=False,
+    #                                   check_column_type=False)
+    #
+    #     # Cleanup
+    #     db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
+    #
+    # def test_pg_to_sql_qry_basic_with_comments_table_temp(self):
+    #
+    #     """
+    #     Copy a query full of text comments from Postgres to an output table in SQL.
+    #     """
+    #
+    #     # assert that output table dropped
+    #     sql.query(f"""
+    #                 IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_table}', N'U') IS NOT NULL
+    #                 DROP TABLE ##{test_pg_to_sql_qry_table};
+    #             """)
+    #
+    #     # run pg_to_sql_qry
+    #     data_io.pg_to_sql_qry_temp_tbl(db, sql, query=f"""
+    #                             -- testing out comments
+    #                             select id, test_col1, test_col2 from /* what if there are comments here too */
+    #                             {pg_schema}.{pg_table_name} -- table name
+    #                             order by test_col1
+    #                             -- another comment
+    #                             limit 10; -- limit to 10 rows
+    #                             """,
+    #                                    dest_table=test_pg_to_sql_qry_table)
+    #
+    #     # Assert df equality
+    #     pg_df = db.dfquery(f"""
+    #     select id, test_col1, test_col2 from {pg_schema}.{pg_table_name}
+    #     order by test_col1
+    #     limit 10
+    #     """).infer_objects().replace(r'\s+', '', regex=True)
+    #
+    #     # hardcoded the columns because they go in a different order when uploaded
+    #     sql_df = sql.dfquery(f"""
+    #     select id, test_col1, test_col2 from ##{test_pg_to_sql_qry_table}
+    #     order by test_col1
+    #     """).infer_objects().replace(r'\s+', '', regex=True)
+    #
+    #     # Assert that dataframes are equal
+    #     pd.testing.assert_frame_equal(pg_df, sql_df,
+    #                                 check_dtype=False,
+    #                                   check_column_type=False)
+    #
+    # def test_pg_to_sql_qry_spatial(self):
+    #
+    #     """
+    #     Copy a spatial query from Postgres to SQL
+    #     """
+    #
+    #     # confirm that output tables are dropped
+    #     sql.query(f"""
+    #                 IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_spatial_table}', N'U') IS NOT NULL
+    #                 DROP TABLE ##{test_pg_to_sql_qry_spatial_table};
+    #             """)
+    #     db.drop_table(schema = pg_schema, table = test_pg_to_sql_qry_spatial_table)
+    #     assert not db.table_exists(table=test_pg_to_sql_qry_spatial_table, schema = pg_schema)
+    #
+    #
+    #     # create spatial table
+    #     db.query(f"""
+    #         create table {pg_schema}.{test_pg_to_sql_qry_spatial_table}
+    #             (test_col1 int, test_col2 int, test_geom geometry);
+    #         insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
+    #              VALUES (1, 2, ST_SetSRID(ST_MAKEPOINT(-71.10434, 42.31506), 2236));
+    #         insert into {pg_schema}.{test_pg_to_sql_qry_spatial_table} (test_col1, test_col2, test_geom)
+    #             VALUES (3, 4, ST_SetSRID(ST_MAKEPOINT(91.2763, 11.9434), 2236));
+    #     """)
+    #
+    #     # make sure data is in source
+    #     assert len(db.dfquery(
+    #         f'select test_col1, test_col2, test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
+    #
+    #     # run pg_to_sql_qry
+    #     data_io.pg_to_sql_qry_temp_tbl(db, sql, query=f"""
+    #                                            SELECT test_col1, test_col2, test_geom --comments within the query
+    #                                             FROM {pg_schema}.{test_pg_to_sql_qry_spatial_table} -- geom here
+    #                                             -- end here""",
+    #                                    dest_table=test_pg_to_sql_qry_spatial_table)
+    #
+    #     # doing it by long / lat was the only way the data frames would be equivalent
+    #     pg_df = db.dfquery(f"""
+    #     select test_col1, test_col2, ST_X(test_geom) test_lat, ST_Y(test_geom) test_long
+    #     from {pg_schema}.{test_pg_to_sql_qry_spatial_table}
+    #     order by test_col1
+    #     """)
+    #
+    #     sql_df = sql.dfquery(f"""select * from ##{test_pg_to_sql_qry_spatial_table}""")
+    #     sql_df = sql.dfquery(f"""
+    #             select test_col1, test_col2,
+    #             geom.STX test_lat,
+    #             geom.STY test_long
+    #             from ##{test_pg_to_sql_qry_spatial_table}
+    #             order by test_col1
+    #     """)
+    #
+    #     # check the first 2 columns using assert_frame_equal
+    #     pd.testing.assert_frame_equal(pg_df, sql_df,
+    #                                   check_dtype=False,
+    #                                   check_column_type=False)
+    #
+    #     # clean up tables
+    #     db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_spatial_table)
+    #
+    # @classmethod
+    # def teardown_class(cls):
+    #     helpers.clean_up_test_table_pg(db)
 
 # # SQL to SQL ##########################################################################################################
 # class TestSqlToSqlQry:
