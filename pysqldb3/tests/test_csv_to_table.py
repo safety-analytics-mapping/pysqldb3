@@ -1147,7 +1147,7 @@ class TestCsvToTablePGTemp:
 
         # Check to see if table is in database
         dbt.query(f"select * from {create_table_name}")
-        assert len(dbt.data) == 1000
+        assert len(dbt.data) == 101004
         # check its not a real table
         assert not dbt.table_exists(table=create_table_name, schema=pg_schema)
 
@@ -1230,13 +1230,13 @@ class TestCsvToTableMSTemp:
 
         # Check to see if table is in database
         sqlt.query(f"select * from ##{create_table_name}")
-        assert len(sqlt.data) == 1000
+        assert len(sqlt.data) == 101004
         # check its not a real table
         assert not sqlt.table_exists(table=create_table_name, schema=sql_schema)
 
         # check it can also be accessed from another connection
         sql.query(f"select * from ##{create_table_name}", strict=False)
-        assert len(sql.data) == 1000
+        assert len(sql.data) == 101004
 
         # disconnect and check table is no longer there
         sqlt.disconnect(quiet=True)
