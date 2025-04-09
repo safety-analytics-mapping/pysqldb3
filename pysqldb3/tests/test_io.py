@@ -2367,47 +2367,46 @@ class TestPgToPgQryTemp:
         db.drop_table(schema=pg_schema, table=test_io_table_funky_name)
 
 
-    # def test_pg_to_sql_qry_basic_with_comments_table_temp(self):
-    #
-    #     """
-    #     Copy a query full of text comments from Postgres to an output table in SQL.
-    #     """
-    #
-    #     # assert that output table dropped
-    #     sql.query(f"""
-    #                 IF OBJECT_ID(N'tempdb..##{test_pg_to_sql_qry_table}', N'U') IS NOT NULL
-    #                 DROP TABLE ##{test_pg_to_sql_qry_table};
-    #             """)
-    #
-    #     # run pg_to_sql_qry
-    #     data_io.pg_to_sql_qry_temp_tbl(db, sql, query=f"""
-    #                             -- testing out comments
-    #                             select id, test_col1, test_col2 from /* what if there are comments here too */
-    #                             {pg_schema}.{pg_table_name} -- table name
-    #                             order by test_col1
-    #                             -- another comment
-    #                             limit 10; -- limit to 10 rows
-    #                             """,
-    #                                    dest_table=test_pg_to_sql_qry_table)
-    #
-    #     # Assert df equality
-    #     pg_df = db.dfquery(f"""
-    #     select id, test_col1, test_col2 from {pg_schema}.{pg_table_name}
-    #     order by test_col1
-    #     limit 10
-    #     """).infer_objects().replace(r'\s+', '', regex=True)
-    #
-    #     # hardcoded the columns because they go in a different order when uploaded
-    #     sql_df = sql.dfquery(f"""
-    #     select id, test_col1, test_col2 from ##{test_pg_to_sql_qry_table}
-    #     order by test_col1
-    #     """).infer_objects().replace(r'\s+', '', regex=True)
-    #
-    #     # Assert that dataframes are equal
-    #     pd.testing.assert_frame_equal(pg_df, sql_df,
-    #                                 check_dtype=False,
-    #                                   check_column_type=False)
-    #
+    def test_pg_to_pg_qry_basic_with_comments_table_temp(self):
+        """
+        Copy a query full of text comments from Postgres to an output table in SQL.
+        """
+
+        # assert that output table dropped
+        ris.query(f"""
+                    DROP TABLE IF EXISTS {test_pg_to_pg_qry_table};
+                """)
+
+        # run pg_to_sql_qry
+        data_io.pg_to_pg_qry_temp_tbl(db, ris, query=f"""
+                                -- testing out comments
+                                select id, test_col1, test_col2 from /* what if there are comments here too */
+                                {pg_schema}.{pg_table_name} -- table name
+                                order by test_col1
+                                -- another comment
+                                limit 10; -- limit to 10 rows
+                                """,
+                                       dest_table=test_pg_to_pg_qry_table)
+
+        # Assert df equality
+        pg_df = db.dfquery(f"""
+        select id, test_col1, test_col2 from {pg_schema}.{pg_table_name}
+        order by test_col1
+        limit 10
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # hardcoded the columns because they go in a different order when uploaded
+        pg_df2 = ris.dfquery(f"""
+        select id, test_col1, test_col2 from {test_pg_to_pg_qry_table}
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # Assert that dataframes are equal
+        pd.testing.assert_frame_equal(pg_df, pg_df2,
+                                    check_dtype=False,
+                                      check_column_type=False)
+
+
     # def test_pg_to_sql_qry_spatial(self):
     #
     #     """
