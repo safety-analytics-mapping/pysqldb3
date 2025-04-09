@@ -992,7 +992,7 @@ class DbConnect:
         # Create table in database
         if temp_table and self.type==PG:
             t='temporary'
-            table_schema = table
+            table_schema = f'"{table}"'
         elif temp_table and self.type==MS:
             t = ''
             # setting as global temp - if we want private temps will need additional parmeters
@@ -1001,7 +1001,7 @@ class DbConnect:
             t = ''
             table_schema = f"{schema}.{table}"
         qry = f"""
-                CREATE {t} TABLE "{table_schema}" (
+                CREATE {t} TABLE {table_schema} (
                 {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
                 )
         """

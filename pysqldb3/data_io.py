@@ -794,7 +794,7 @@ def sql_to_sql_temp_tbl(from_sql, to_sql, table, dest_table=None, org_schema=Non
         sch = f"{org_schema}."
     else:
         sch = ''
-    query = f"select * from {sch}{table}"
+    query = f"select * from {sch}[{table}]"
 
     sql_to_sql_qry_temp_tbl(from_sql, to_sql, query,dest_table=dest_table, LDAP_from=LDAP_from, print_cmd=print_cmd)
 
