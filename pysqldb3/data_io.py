@@ -237,11 +237,11 @@ def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
     _df = pd.read_csv(temp_csv)
     if 'WKT' in _df.columns:
         # add geom column
-        ms.query(f"alter table ##{dest_table} add [geom] [geometry];")
+        ms.query(f"alter table [##{dest_table}] add [geom] [geometry];", internal=True, timeme=False)
         # update from wkt
-        ms.query(f"update ##{dest_table} set geom=geometry::STGeomFromText(wkt, 2263);")
+        ms.query(f"update [##{dest_table}] set geom=geometry::STGeomFromText(wkt, 2263);", internal=True, timeme=False)
         # drop wkt col
-        ms.query(f"alter table  ##{dest_table} drop column wkt")
+        ms.query(f"alter table [##{dest_table}] drop column wkt", internal=True, timeme=False)
 
     # clean up csv
     os.remove(temp_csv)
@@ -265,7 +265,7 @@ def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_c
         sch = f"{org_schema}."
     else:
         sch = ''
-    query = f"select * from {sch}{table}"
+    query = f'select * from {sch}"{table}"'
     pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=dest_table, print_cmd=print_cmd)
 
 
@@ -531,11 +531,11 @@ def sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=None, LDAP_from=False, prin
     if 'WKT' in _df.columns:
         if not _df.WKT.isnull().all():
             # add geom column
-            pg.query(f"alter table {dest_table} add geom geometry;")
+            pg.query(f'alter table "{dest_table}" add geom geometry;')
             # update from wkt
-            pg.query(f"update {dest_table} set geom=st_setsrid(st_geomfromtext(wkt), 2263);")
+            pg.query(f'update "{dest_table}" set geom=st_setsrid(st_geomfromtext(wkt), 2263);')
         # drop wkt col
-        pg.query(f"alter table {dest_table} drop column wkt")
+        pg.query(f'alter table "{dest_table}" drop column wkt')
 
     # clean up csv
     os.remove(temp_csv)
@@ -766,11 +766,11 @@ def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=
     if 'WKT' in _df.columns:
         if not _df.WKT.isnull().all():
             # add geom column
-            to_sql.query(f"alter table ##{dest_table} add [geom] [geometry];")
+            to_sql.query(f"alter table [##{dest_table}] add [geom] [geometry];")
             # update from wkt
-            to_sql.query(f"update ##{dest_table} set geom=geometry::STGeomFromText(wkt, 2263);")
+            to_sql.query(f"update [##{dest_table}] set geom=geometry::STGeomFromText(wkt, 2263);")
         # drop wkt col
-        to_sql.query(f"alter table  ##{dest_table} drop column wkt")
+        to_sql.query(f"alter table  [##{dest_table}] drop column wkt")
 
     # clean up csv
     os.remove(temp_csv)
@@ -996,11 +996,11 @@ def pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=None, print_cmd=Fals
     _df = pd.read_csv(temp_csv)
     if 'WKT' in _df.columns:
         # add geom column
-        to_pg.query(f"alter table {dest_table} add geom geometry;")
+        to_pg.query(f'alter table "{dest_table}" add geom geometry;')
         # update from wkt
-        to_pg.query(f"update {dest_table} set geom=st_setsrid(st_geomfromtext(wkt), 2263);")
+        to_pg.query(f'update "{dest_table}" set geom=st_setsrid(st_geomfromtext(wkt), 2263);')
         # drop wkt col
-        to_pg.query(f"alter table {dest_table} drop column wkt")
+        to_pg.query(f'alter table "{dest_table}" drop column wkt')
 
     # clean up csv
     os.remove(temp_csv)
