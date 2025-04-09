@@ -3107,6 +3107,52 @@ class TestSqltoSqlQryTemp:
         # Cleanup
         sql.drop_table(schema=test_org_schema, table=test_sql_to_sql_tbl_from)
 
+    def test_sql_to_sql_qry_basic_table_temp_funky_name(self):
+        """
+        Copy a query from SQL to a temp output table in SQL
+        """
+
+        # drop output tables if they exist
+        sql.drop_table(schema=test_org_schema, table=f'[{test_io_table_funky_name}]')
+        assert not sql.table_exists(schema = test_org_schema, table = f'[{test_io_table_funky_name}]')
+        sql2.query(f"""
+            IF OBJECT_ID(N'tempdb..[##{test_io_table_funky_name}]', N'U') IS NOT NULL
+            DROP TABLE [##{test_io_table_funky_name}];
+        """)
+
+        # create from table
+        sql.query(f"""
+                    create table {test_org_schema}.[{test_io_table_funky_name}] (test_col1 int, test_col2 int);
+                    insert into {test_org_schema}.[{test_io_table_funky_name}] VALUES(1, 2);
+                    insert into {test_org_schema}.[{test_io_table_funky_name}] VALUES(3, 4);
+        """)
+
+        # run pg_to_sql_qry
+        data_io.sql_to_sql_qry_temp_tbl(sql, sql2, query=
+                             f"""
+                             select test_col1, test_col2 from {test_org_schema}.[{test_io_table_funky_name}]
+                             """,
+                             dest_table=test_io_table_funky_name)
+
+        # Assert df equality
+        sql1_df = sql.dfquery(f"""
+        select test_col1, test_col2 from {test_org_schema}.[{test_io_table_funky_name}]
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        sql2_df = sql2.dfquery(f"""
+        select test_col1, test_col2 from [##{test_io_table_funky_name}]
+        order by test_col1
+        """).infer_objects().replace(r'\s+', '', regex=True)
+
+        # Assert
+        pd.testing.assert_frame_equal(sql1_df, sql2_df,
+                                      check_dtype=False,
+                                      check_column_type=False)
+
+        # Cleanup
+        sql.drop_table(schema=test_org_schema, table=f'[{test_io_table_funky_name}]')
+
     def test_sql_to_sql_qry_basic_with_comments_table_temp(self):
 
         """
