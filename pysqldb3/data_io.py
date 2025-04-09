@@ -967,6 +967,7 @@ def pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=None, print_cmd=Fals
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
     query = re.sub('(-){2,}.*(\n|$)', ' ', query)
+    query = query.replace('"', r'\"')
 
     # write data to local csv
     temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
@@ -1024,5 +1025,5 @@ def pg_to_pg_temp_tbl(from_pg, to_pg, table, org_schema=None, dest_table=None, p
         sch = f"{org_schema}."
     else:
         sch = ''
-    query = f"select * from {sch}{table}"
+    query = f'select * from {sch}"{table}"'
     pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=dest_table, print_cmd=print_cmd)
