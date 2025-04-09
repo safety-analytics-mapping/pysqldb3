@@ -279,6 +279,7 @@ class Shapefile:
             except:
                 pass
         rename_geom(db = self.dbo, schema = self.schema, table = self.table)
+        self.dbo.tables_created.append((self.dbo.server, self.dbo.database, self.schema, self.table))
 
     def read_feature_class(self, private=False, print_cmd=False, fc_encoding=None):
         """
