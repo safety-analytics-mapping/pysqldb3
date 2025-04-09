@@ -559,7 +559,7 @@ def sql_to_pg_temp_tbl(ms, pg, table, dest_table=None, org_schema=None, LDAP_fro
         sch = f"{org_schema}."
     else:
         sch = ''
-    query = f"select * from {sch}{table}"
+    query = f"select * from {sch}[{table}]"
 
     sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=dest_table, LDAP_from=LDAP_from, print_cmd=print_cmd)
 

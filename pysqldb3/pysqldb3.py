@@ -1001,7 +1001,7 @@ class DbConnect:
             t = ''
             table_schema = f"{schema}.{table}"
         qry = f"""
-                CREATE {t} TABLE {table_schema} (
+                CREATE {t} TABLE "{table_schema}" (
                 {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
                 )
         """
@@ -1041,7 +1041,7 @@ class DbConnect:
         # Insert data
         print('Reading data into Database\n')
         if temp_table and self.type==PG:
-            schema_table = table
+            schema_table = f'"{table}"'
         elif temp_table and self.type==MS:
             # setting as global temp - if we want private temps will need additional parmeters
             schema_table = f"[##{table}]"
@@ -1102,7 +1102,7 @@ class DbConnect:
         if not table:
             table = os.path.basename(input_file).split('.')[0]
 
-        if not overwrite and self.table_exists(schema=schema, table=table) and not temp_table:
+        if not overwrite and self.table_exists(schema=schema, table=f'"{table}"') and not temp_table:
             print('Must set overwrite=True; table already exists.')
             return
 
