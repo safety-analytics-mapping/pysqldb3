@@ -378,9 +378,10 @@ def gpkg_to_shp_bulk(   input_file,
 
 
 def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_class = False, path = None, gpkg_tbl = None, port = 5432,
-                            srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, zip = False, skip_failures = '', print_cmd=False):
+                            srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, zip = False, skip_failures = '',
+                            temp = True, days = 7, print_cmd=False):
     """
-    Reads a single Geopackage table or Shapefile into SQL or Postgresql as a table
+    Imports single Geopackage table, Shp feature class, or Shp to database. This uses GDAL to generate the table.
 
     :param input_file(str): File name for input (ends with .shp, .dbf, .gpkg)
     :param dbo: Database connection
@@ -389,18 +390,20 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
     :param feature_class (bool): Import only 1 feature class (input_file must end with .shp or .dbf)
     :param path: Optional file path
     :param gpkg_tbl (str): (Optional) If the input file is a Geopackage, list the specific gpkg table to upload.
-    :param port (int): Optional port
     :param srid (str): SRID for geometry. Defaults to 2263
-    :param precision:
-    :param private:
+    :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
+    :param precision: Sets precision flag in ogr (defaults to -lco precision=NO)
+    :param private: Flag for permissions in database (Defaults to False - will only grant select to public)
     :param encoding: encoding of data within the geospatial file
     :param zip: Optional flag needed if reading from a zipped file; defaults to False
     :param skip_failures (str): Defualts to ''
+    :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
+    :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
     :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
     :return:
     """
 
-    assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file must end with .shp or .gpkg"
+    assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file should end with .gpkg, .shp, or .dbf"
 
     # Use default schema from db object
     if not schema:
@@ -412,9 +415,9 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
         precision = ''
 
     if not all([path, input_file]):
-        filename = file_loc('file', 'Missing file info - Opening search dialog...')
-        input_file = os.path.basename(filename)
-        path = os.path.dirname(filename)
+        input_file = file_loc('file', 'Missing file info - Opening search dialog...')
+        input_file = os.path.basename(input_file)
+        path = os.path.dirname(input_file)
 
     if zip:
         path = '/vsizip/' + path
@@ -431,8 +434,12 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
     elif not table and input_file.endswith('.gpkg'):
         # clean the geopackage table name
         table = re.sub(r'[^A-Za-z0-9_]+', r'', gpkg_tbl) # clean the table name in case there are special characters
+    elif not table and gpkg_tbl:
+        table = gpkg_tbl.replace('.gpkg', '').replace('.shp', '').lower()
+        # if the gpkg_table is left blank, we will populate the name using input_gpkg
     elif not table and (input_file.endswith('.shp') or input_file.endswith('.dbf')):
-        table = input_file[:-4].lower()
+        table = input_file.replace('.shp', '').lower()
+        table = input_file.replace('.dbf', '').lower()
     else:
         table = input_file[:-4].lower()
 
@@ -621,11 +628,14 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
             pass
 
     rename_geom(dbo, schema, table)
-    dbo.tables_created.append(schema + "." + table)
+    dbo.tables_created.append(dbo.server, dbo.database, schema,  table)
+
+    if temp:
+        self.__run_table_logging([schema + "." + table], days=days)
 
 
 def input_gpkg_bulk(input_file, dbo, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
-                precision=False, private=False, encoding=None, zip = False, path = None, print_cmd=False):
+                precision=False, private=False, encoding=None, zip = False, path = None, print_cmd=False, temp = True, days = 7):
 
     """
     Reads all tables within a GEOPACKAGE file into SQL or Postgresql as tables.
@@ -642,8 +652,12 @@ def input_gpkg_bulk(input_file, dbo, schema = None, port = 5432, srid = '2263', 
     :param encoding: encoding of data within Geopackage
     :param path: Optional file path
     :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
+    :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
+    :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
     :return:
     """
+
+    assert input_file.endswith('.gpkg'), "You cannot bulk upload Shapefiles, you can only bulk upload tables within a Geopackage"
 
     if not path:
         input_file = file_loc('file', 'Missing file info - Opening search dialog...')
@@ -683,8 +697,6 @@ def input_gpkg_bulk(input_file, dbo, schema = None, port = 5432, srid = '2263', 
 
         input_geospatial_file(dbo = dbo, input_file = input_file, table = table, path = path, gpkg_tbl = gpkg_tbl, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
                         precision=precision, private=private, encoding=encoding, zip = zip, print_cmd=print_cmd)
-
-    return gpkg_tbl_names
 
 
 def del_indexes(dbo, schema, table):

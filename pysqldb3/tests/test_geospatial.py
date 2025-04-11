@@ -403,7 +403,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl=test_layer1, dbo=sql, schema=ms_schema, print_cmd=True)
+        s.input_geospatial_file(db, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl=test_layer1, dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table= test_layer1)
@@ -464,7 +464,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.geospatial_to_table(path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                                schema=pg_schema, table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -529,7 +529,7 @@ class TestWritegpkgPG:
                            table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
-        db.geospatial_to_table(path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(db, path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                          table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -597,7 +597,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)) # assert that the table is still there
 
         # Reupload both tables from the same geopackage (since we are uploading under a different name, we can't use bulk upload function here)
-        db.geospatial_to_table_bulk(path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
+        s.input_gpkg_bulk(path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -666,7 +666,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.geospatial_to_table(path=FOLDER_PATH, input_file = gpkg_name, schema=pg_schema,
+        s.input_geospatial_file(db, path=FOLDER_PATH, input_file = gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -719,7 +719,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name ,schema=pg_schema,
+        s.input_geospatial_file(db, path=FOLDER_PATH, input_file=gpkg_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -764,7 +764,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        db.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, schema=pg_schema,
+        s.input_geospatial_file(db, path=FOLDER_PATH, input_file=gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -821,7 +821,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        sql.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
+        s.input_geospatial_file(sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
                           gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert equality
@@ -887,7 +887,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        sql.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema,
+        s.input_geospatial_file(sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema,
                           gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
@@ -956,7 +956,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as tables using bulk upload function
-        sql.geospatial_to_table_bulk(path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
+        s.input_gpkg_bulk(sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1013,7 +1013,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        sql.geospatial_to_table(path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1599,7 +1599,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.geospatial_to_table(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1652,7 +1652,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
 
         # Reupload as table
-        db.geospatial_to_table(path=FOLDER_PATH, input_file=shp_name ,schema=pg_schema,
+        s.input_geospatial_file(path=FOLDER_PATH, input_file=shp_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1698,7 +1698,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        db.geospatial_to_table(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1756,7 +1756,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.geospatial_to_table(path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -1811,7 +1811,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        sql.geospatial_to_table(path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
