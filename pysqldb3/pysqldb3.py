@@ -1885,7 +1885,7 @@ class DbConnect:
 
         :param query: SQL query as string type
         :param output_file: filename for shape (should end in .gpkg, .dbf, or .shp)
-        :param gpkg_tbl (str): Table name to be written in the Geopackage output if it exists
+        :param gpkg_tbl (str): Optional table name to be written in the Geopackage output
         :param path (str): folder path for output gpkg
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
