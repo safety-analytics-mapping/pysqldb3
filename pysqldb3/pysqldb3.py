@@ -2420,56 +2420,59 @@ class DbConnect:
             """, internal=True, timeme=False)
             return self.internal_data
         elif self.type == MS:
+            # PK and UNIQUE (from INFORMATION_SCHEMA)
             base_query = f"""
-                SELECT 
-                    tc.CONSTRAINT_NAME,
-                    tc.CONSTRAINT_TYPE,
-                    kcu.COLUMN_NAME,
-                    NULL AS REF_TABLE,
-                    NULL AS REF_COLUMN
-                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-                LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
-                    ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
-                WHERE tc.TABLE_NAME = '{table}'
-                  AND tc.TABLE_SCHEMA = '{schema}'
-                  AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE')
+                    SELECT 
+                        tc.CONSTRAINT_NAME,
+                        tc.CONSTRAINT_TYPE,
+                        kcu.COLUMN_NAME,
+                        NULL AS REF_TABLE,
+                        NULL AS REF_COLUMN
+                    FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                    LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                        ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                    WHERE tc.TABLE_NAME = '{table}'
+                      AND tc.TABLE_SCHEMA = '{schema}'
+                      AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE')
                 """
 
-            fk_query = f"""
-                SELECT 
-                    fk.CONSTRAINT_NAME,
-                    'FOREIGN KEY' AS CONSTRAINT_TYPE,
-                    cu.COLUMN_NAME,
-                    pk.TABLE_NAME AS REF_TABLE,
-                    pt.COLUMN_NAME AS REF_COLUMN
-                FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fk
-                JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu 
-                    ON fk.CONSTRAINT_NAME = cu.CONSTRAINT_NAME
-                JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk 
-                    ON fk.UNIQUE_CONSTRAINT_NAME = pk.CONSTRAINT_NAME
-                JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE pt
-                    ON pk.CONSTRAINT_NAME = pt.CONSTRAINT_NAME
-                WHERE cu.TABLE_NAME = '{table}'
-                  AND cu.TABLE_SCHEMA = '{schema}';
-                """
-
+            # CHECK constraints
             check_query = f"""
-                SELECT 
-                    cc.CONSTRAINT_NAME,
-                    'CHECK' AS CONSTRAINT_TYPE,
-                    cc.CHECK_CLAUSE AS COLUMN_NAME,
-                    NULL AS REF_TABLE,
-                    NULL AS REF_COLUMN
-                FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
-                JOIN INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE tc 
-                    ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-                WHERE tc.TABLE_NAME = '{table}'
-                  AND tc.TABLE_SCHEMA = '{schema}';
+                    SELECT 
+                        cc.CONSTRAINT_NAME,
+                        'CHECK' AS CONSTRAINT_TYPE,
+                        cc.CHECK_CLAUSE AS COLUMN_NAME,
+                        NULL AS REF_TABLE,
+                        NULL AS REF_COLUMN
+                    FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
+                    JOIN INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE tc 
+                        ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+                    WHERE tc.TABLE_NAME = '{table}'
+                      AND tc.TABLE_SCHEMA = '{schema}';
+                """
+
+            # FOREIGN KEY constraints using sys views
+            fk_query = f"""
+                    SELECT 
+                        fk.name AS CONSTRAINT_NAME,
+                        'FOREIGN KEY' AS CONSTRAINT_TYPE,
+                        COL_NAME(fc.parent_object_id, fc.parent_column_id) AS COLUMN_NAME,
+                        OBJECT_NAME(fk.referenced_object_id) AS REF_TABLE,
+                        COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS REF_COLUMN
+                    FROM sys.foreign_keys fk
+                    JOIN sys.foreign_key_columns fc 
+                        ON fk.object_id = fc.constraint_object_id
+                    JOIN sys.tables t 
+                        ON fk.parent_object_id = t.object_id
+                    JOIN sys.schemas s 
+                        ON t.schema_id = s.schema_id
+                    WHERE t.name = '{table}'
+                      AND s.name = '{schema}';
                 """
 
             df_pk_uk = self.dfquery(base_query, internal=True)
-            df_fk = self.dfquery(fk_query, internal=True)
             df_check = self.dfquery(check_query, internal=True)
+            df_fk = self.dfquery(fk_query, internal=True)
 
             df_all = pd.concat([df_pk_uk, df_fk, df_check], ignore_index=True)
 
@@ -2483,13 +2486,13 @@ class DbConnect:
                 ref_column = getattr(row, "REF_COLUMN")
 
                 if ctype == "FOREIGN KEY":
-                    detail = f"{name}_backup FOREIGN KEY ({column}) REFERENCES {ref_table}({ref_column})"
+                    detail = f"FOREIGN KEY ({column}) REFERENCES {ref_table}({ref_column})"
                 elif ctype == "CHECK":
-                    detail = f"{name}_backup CHECK ({column})"
+                    detail = f"CHECK ({column})"
                 else:
-                    detail = f"{name}_backup {ctype} ({column})"
+                    detail = f"{ctype} ({column})"
 
-                constraints.append([detail, table, schema, name, column])
+                constraints.append([name, table, schema, column, detail])
 
             return constraints
         else:
