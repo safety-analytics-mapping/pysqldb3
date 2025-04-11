@@ -2419,18 +2419,78 @@ class DbConnect:
                 order by 1;
             """, internal=True, timeme=False)
             return self.internal_data
-        elif self.type==MS:
-            _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
-            # results in 2 rows :(
-            # row 1 name row 2 constraint
-            names = [i for i in _df.constraint_name if i!=' ']
-            c_type = [i for i in _df.constraint_type if i!=' ']
-            c_keys = [i for i in _df.constraint_keys if i!=' ']
+        elif self.type == MS:
+            base_query = f"""
+                SELECT 
+                    tc.CONSTRAINT_NAME,
+                    tc.CONSTRAINT_TYPE,
+                    kcu.COLUMN_NAME,
+                    NULL AS REF_TABLE,
+                    NULL AS REF_COLUMN
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+                    ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+                WHERE tc.TABLE_NAME = '{table}'
+                  AND tc.TABLE_SCHEMA = '{schema}'
+                  AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE')
+                """
+
+            fk_query = f"""
+                SELECT 
+                    fk.CONSTRAINT_NAME,
+                    'FOREIGN KEY' AS CONSTRAINT_TYPE,
+                    cu.COLUMN_NAME,
+                    pk.TABLE_NAME AS REF_TABLE,
+                    pt.COLUMN_NAME AS REF_COLUMN
+                FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS fk
+                JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE cu 
+                    ON fk.CONSTRAINT_NAME = cu.CONSTRAINT_NAME
+                JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk 
+                    ON fk.UNIQUE_CONSTRAINT_NAME = pk.CONSTRAINT_NAME
+                JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE pt
+                    ON pk.CONSTRAINT_NAME = pt.CONSTRAINT_NAME
+                WHERE cu.TABLE_NAME = '{table}'
+                  AND cu.TABLE_SCHEMA = '{schema}';
+                """
+
+            check_query = f"""
+                SELECT 
+                    cc.CONSTRAINT_NAME,
+                    'CHECK' AS CONSTRAINT_TYPE,
+                    cc.CHECK_CLAUSE AS COLUMN_NAME,
+                    NULL AS REF_TABLE,
+                    NULL AS REF_COLUMN
+                FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
+                JOIN INFORMATION_SCHEMA.CONSTRAINT_TABLE_USAGE tc 
+                    ON cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+                WHERE tc.TABLE_NAME = '{table}'
+                  AND tc.TABLE_SCHEMA = '{schema}';
+                """
+
+            df_pk_uk = self.dfquery(base_query, internal=True)
+            df_fk = self.dfquery(fk_query, internal=True)
+            df_check = self.dfquery(check_query, internal=True)
+
+            df_all = pd.concat([df_pk_uk, df_fk, df_check], ignore_index=True)
+
             constraints = []
-            for i, j in enumerate(_df.constraint_keys):
-                if i % 2:
-                    # c_name, _tbl, _sch, _col, c_details
-                    constraints.append([names[i-1]+'_backup'+' ' +c_type[i-1]+' ('+c_keys[i-1]+') ', table, schema,names[i-1], j])
+
+            for row in df_all.itertuples():
+                name = getattr(row, "CONSTRAINT_NAME")
+                ctype = getattr(row, "CONSTRAINT_TYPE")
+                column = getattr(row, "COLUMN_NAME")
+                ref_table = getattr(row, "REF_TABLE")
+                ref_column = getattr(row, "REF_COLUMN")
+
+                if ctype == "FOREIGN KEY":
+                    detail = f"{name}_backup FOREIGN KEY ({column}) REFERENCES {ref_table}({ref_column})"
+                elif ctype == "CHECK":
+                    detail = f"{name}_backup CHECK ({column})"
+                else:
+                    detail = f"{name}_backup {ctype} ({column})"
+
+                constraints.append([detail, table, schema, name, column])
+
             return constraints
         else:
             return None
@@ -2562,3 +2622,6 @@ class DbConnect:
         self.query(read_data, temp=temp)
         assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
         return schema_table_name
+
+
+
