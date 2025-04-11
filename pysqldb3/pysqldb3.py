@@ -445,7 +445,7 @@ class DbConnect:
                     timeme=False, internal=True
                 )
 
-    def __run_table_logging(self, new_tables, days=7):
+    def run_table_logging(self, new_tables, days=7):
         """
         Logs new tables made in the query
         :param new_tables:
@@ -836,7 +836,7 @@ class DbConnect:
                 self.__remove_dropped_tables_from_log(qry.dropped_tables)
 
             if qry.temp and qry.new_tables:
-                self.__run_table_logging(qry.new_tables, days=days)
+                self.run_table_logging(qry.new_tables, days=days)
             self.__remove_nonexistent_tables_from_logs()
 
         if return_df:

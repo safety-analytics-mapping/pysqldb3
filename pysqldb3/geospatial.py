@@ -620,6 +620,7 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
                 d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             ), timeme=False, internal=True)
 
+    # needs to be rewritten since this is not possible in geospatial.py
     if not private:
         try:
             dbo.query(f'grant select on {schema}."{table}" to public;',
@@ -628,10 +629,10 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
             pass
 
     rename_geom(dbo, schema, table)
-    dbo.tables_created.append(dbo.server, dbo.database, schema,  table)
-
+    dbo.tables_created.append((dbo.server, dbo.database, schema,  table))
+    
     if temp:
-        self.__run_table_logging([schema + "." + table], days=days)
+        dbo.run_table_logging([schema + "." + table], days=days)
 
 
 def input_gpkg_bulk(input_file, dbo, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
