@@ -1552,7 +1552,7 @@ class TestSqlToPgQryTemp:
                     insert into {sql_schema}.{test_sql_to_pg_qry_table} VALUES(3, 4);
         """)
 
-        # run pg_to_sql_qry
+        # run sql_to_pg_qry
         data_io.sql_to_pg_qry_temp_tbl(sql, db, query=
                              f"""
                              select test_col1, test_col2 from {sql_schema}.{test_sql_to_pg_qry_table}
@@ -1597,7 +1597,7 @@ class TestSqlToPgQryTemp:
             insert into {sql_schema}.[{test_io_table_funky_name}] VALUES(3, 4);
         """)
 
-        # run pg_to_sql_qry
+        # run sql_to_pg_qry
         data_io.sql_to_pg_qry_temp_tbl(sql, db, query=
         f"""
                                      select test_col1, test_col2 from {sql_schema}.[{test_io_table_funky_name}]
@@ -2340,7 +2340,7 @@ class TestPgToPgQryTemp:
                     insert into {pg_schema}."{test_io_table_funky_name}" VALUES(3, 4);
         """)
 
-        # run pg_to_sql_qry
+        # run pg_to_pg_qry
         data_io.pg_to_pg_qry_temp_tbl(db, ris, query=
                              f"""
                              select test_col1, test_col2 from {pg_schema}."{test_io_table_funky_name}"
@@ -2434,7 +2434,7 @@ class TestPgToPgQryTemp:
         assert len(db.dfquery(
             f'select test_col1, test_col2, test_geom from {pg_schema}.{test_pg_to_sql_qry_spatial_table}')) == 2
 
-        # run pg_to_sql_qry
+        # run pg_to_pg_qry
         data_io.pg_to_pg_qry_temp_tbl(db, ris, query=f"""
                                                SELECT test_col1, test_col2, test_geom --comments within the query
                                                 FROM {pg_schema}.{test_pg_to_sql_qry_spatial_table} -- geom here
