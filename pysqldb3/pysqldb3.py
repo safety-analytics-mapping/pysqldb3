@@ -2136,7 +2136,7 @@ class DbConnect:
                         cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
-        # (None, None, 'dbo', 'dashboad_vicdim'),
+
         self.tables_created.append((self.server, self.database, schema, table))
 
         if temp:
@@ -2315,8 +2315,6 @@ class DbConnect:
                             self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                     except:
                         pass
-
-
                 if temp:
                     self.__run_table_logging([schema + "." + table], days=days)
 
