@@ -899,7 +899,7 @@ class TestSqlToPgQry:
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # assert added to tables created in dest dbo
-        assert  db.tables_created[-1] == ('', '', f'{pg_schema}', f'{test_sql_to_pg_qry_table}')
+        assert  db.tables_created[-1] == (db.server, db.database, f'{pg_schema}', f'{test_sql_to_pg_qry_table}')
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
@@ -1239,7 +1239,7 @@ class TestSqlToPg:
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # assert added to tables created in dest dbo
-        assert db.tables_created[-1] == ('', '', f'{pg_schema}', f'{test_sql_to_pg_table}')
+        assert db.tables_created[-1] == (db.server, db.database, f'{pg_schema}', f'{test_sql_to_pg_table}')
 
         # Clean up
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_table)
@@ -1682,7 +1682,7 @@ class TestPgToPg:
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_tbl}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # assert added to tables created in dest dbo
-        assert ris.tables_created == [('', '', f'{pg_schema}', f'{test_pg_to_pg_tbl}')]
+        assert ris.tables_created == [(ris.server, ris.database, f'{pg_schema}', f'{test_pg_to_pg_tbl}')]
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_tbl)
@@ -1879,7 +1879,7 @@ class TestPgToPgQry:
                             WHERE table_schema = '{pg_schema}' and table_name = '{test_pg_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
 
         # assert added to tables created in dest dbo
-        assert db.tables_created[-1] == ('', '', f'{pg_schema}', f'{test_pg_to_pg_qry_table}')
+        assert db.tables_created[-1] == (db.server, db.database, f'{pg_schema}', f'{test_pg_to_pg_qry_table}')
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_pg_qry_table)

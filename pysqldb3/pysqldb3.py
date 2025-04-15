@@ -2137,7 +2137,7 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
 
-        self.tables_created.append(f"{schema}.{table}")
+        self.tables_created.append((self.server, self.database, schema, table))
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
@@ -2315,9 +2315,6 @@ class DbConnect:
                             self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                     except:
                         pass
-                        
-                self.tables_created.append(f"{schema}.{table}")
-
                 if temp:
                     self.__run_table_logging([schema + "." + table], days=days)
 
@@ -2353,8 +2350,6 @@ class DbConnect:
                         self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                 except:
                     pass
-                        
-            self.tables_created.append(f"{schema}.{table}")
 
             if temp:
                 self.__run_table_logging([schema + "." + table], days=days)
