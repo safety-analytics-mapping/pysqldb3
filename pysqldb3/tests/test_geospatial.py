@@ -403,7 +403,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(db, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl=test_layer1, dbo=sql, schema=ms_schema, print_cmd=True)
+        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl=test_layer1, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table= test_layer1)
@@ -464,7 +464,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                                schema=pg_schema, table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -506,7 +506,6 @@ class TestWritegpkgPG:
         limit 100
         """)
 
-
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
@@ -529,7 +528,7 @@ class TestWritegpkgPG:
                            table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
-        s.input_geospatial_file(db, path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                          table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -597,7 +596,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)) # assert that the table is still there
 
         # Reupload both tables from the same geopackage (since we are uploading under a different name, we can't use bulk upload function here)
-        s.input_gpkg_bulk(path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
+        s.input_gpkg_bulk(path=FOLDER_PATH, dbo = db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -666,7 +665,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(db, path=FOLDER_PATH, input_file = gpkg_name, schema=pg_schema,
+        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file = gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -719,7 +718,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(db, path=FOLDER_PATH, input_file=gpkg_name ,schema=pg_schema,
+        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file=gpkg_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -764,7 +763,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(db, path=FOLDER_PATH, input_file=gpkg_name, schema=pg_schema,
+        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file=gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -797,7 +796,7 @@ class TestWritegpkgPG:
 
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_test_table_sql(db)
+        helpers.clean_up_test_table_sql(sql)
         helpers.clean_up_geopackage()
 
 
@@ -821,7 +820,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
+        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
                           gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert equality
@@ -887,7 +886,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema,
+        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema,
                           gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
@@ -956,7 +955,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as tables using bulk upload function
-        s.input_gpkg_bulk(sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
+        s.input_gpkg_bulk(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -992,6 +991,58 @@ class TestWritegpkgMS:
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name};")
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2;")
+
+    def test_write_gpkg_table_pth(self):
+
+        # drop temp table if exists 
+        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
+ 
+        # Add test_table
+        sql.query(f"""
+        create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
+        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        """)
+ 
+        gpkg_name = 'test_write.gpkg'
+
+        # Write gpkg
+        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
+ 
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+ 
+        # Reupload as table
+        sql.gpkg_to_table(path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+                 schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+
+        # Assert equality
+        db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
+        gpkg_uploaded_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_reuploaded_table_name} order by test_col1")
+
+        assert len(db_df) == len(gpkg_uploaded_df)
+
+        # Some columns may change names since gpkgfiles have a character limit of 10
+        pd.testing.assert_frame_equal(db_df[['test_col1', 'test_col2']],
+                                      gpkg_uploaded_df[['test_col1', 'test_col2']],
+                                      check_column_type=False,
+                                      check_dtype=False)
+ 
+        # Assert before/after geom columns are all 0 ft from each other, even if represented differently
+        dist_df = sql.dfquery(f"""
+        select distinct b.geom.STDistance(a.geom) as distance
+        from {ms_schema}.{test_write_gpkg_table_name} b
+        join {ms_schema}.{test_reuploaded_table_name} a
+        on b.test_col1=a.test_col1
+        """)
+
+        assert len(dist_df) == 1
+        assert dist_df.iloc[0]['distance'] == 0
+ 
+        # Clean up
+        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
+        sql.query(f"drop table if exists {ms_schema}.{test_reuploaded_table_name}")
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
     
     def test_write_gpkg_query(self):
 
@@ -1013,7 +1064,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1248,6 +1299,7 @@ class TestGpkgShpConversion:
     def teardown_class(cls):
         helpers.clean_up_geopackage()
 
+
 class TestReadShpPG:
     @classmethod
     def setup_class(cls):
@@ -1255,7 +1307,7 @@ class TestReadShpPG:
         helpers.set_up_test_table_pg(db)
 
     def test_read_shp_basic(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = "test.shp"
 
         # Assert successful
@@ -1371,7 +1423,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table='test')
 
     def test_read_shp_no_schema(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = "test.shp"
 
         # Assert successful
@@ -1420,7 +1472,7 @@ class TestReadShpMS:
         helpers.set_up_shapefile()
 
     def test_read_shp_basic(self):
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = "test.shp"
 
         # Assert successful
@@ -1570,7 +1622,8 @@ class TestReadShpMS:
 
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_geopackage()
+        helpers.clean_up_shapefile()
+        helpers.clean_up_test_table_sql(sql)
 
 
 class TestWriteShpPG:
@@ -1598,8 +1651,64 @@ class TestWriteShpPG:
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
+        s.input_geospatial_file(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+ 
+        # Assert equality
+        db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
+        shp_uploaded_df = db.dfquery(f"select * from {pg_schema}.{test_reuploaded_table_name} order by id")
+ 
+        assert len(db_df) == len(shp_uploaded_df)
+
+        # Some columns changed names since shpfiles have a character limit of 10
+        mutual_columns = set(db_df.columns).intersection(shp_uploaded_df.columns) - {'ogc_fid', 'geom'}
+        pd.testing.assert_frame_equal(db_df[list(mutual_columns)], shp_uploaded_df[list(mutual_columns)],
+                                      check_like=True, check_names=False, check_dtype=False,
+                                      check_datetimelike_compat=True)
+
+        # Assert before/after geom columns are all 0 ft from each other, even if represented differently
+        dist_df = db.dfquery(f"""
+        select distinct st_distance(st_setsrid(b.geom, 2263), a.geom) as distance
+        from {pg_schema}.{pg_table_name} b
+        join {pg_schema}.{test_reuploaded_table_name} a
+            on b.id=a.id
+        """)
+
+        assert len(dist_df) == 1
+        assert dist_df.iloc[0]['distance'] == 0
+ 
+        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+ 
+        for ext in ('dbf', 'prj', 'shx', 'shp'):
+            os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
+
+
+    def test_write_shp_table_pth(self):
+
+        db.drop_table(pg_schema, test_write_shp_table_name)
+
+        db.query(f"""
+        create table {pg_schema}.{test_write_shp_table_name} as
+        select *
+        from {pg_schema}.{pg_table_name}
+        order by id
+        limit 100
+        """)
+ 
+        fp = FOLDER_PATH
+        shp_name = 'test_write.shp'
+ 
+        # Write shp
+        s.write_geospatial(dbo = db, schema = pg_schema, table = test_write_shp_table_name, output_file= shp_name, print_cmd=True)
+ 
+        # Assert successful
+        assert os.path.isfile(os.path.join(fp, shp_name))
+ 
         # Reupload as table
-        s.input_geospatial_file(db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1652,7 +1761,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(path=FOLDER_PATH, input_file=shp_name ,schema=pg_schema,
+        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file=shp_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1698,7 +1807,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1733,6 +1842,7 @@ class TestWriteShpPG:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
+        helpers.clean_up_shapefile()
 
 
 class TestWriteShpMS:
@@ -1746,7 +1856,7 @@ class TestWriteShpMS:
         insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        fp = FOLDER_PATH
         shp_name = 'test_write.shp'
 
         # Write shp
@@ -1756,7 +1866,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo = sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -1791,6 +1901,63 @@ class TestWriteShpMS:
             except Exception as e:
                 print(e)
 
+    def test_write_shp_table_pth(self):
+ 
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+
+        # Add test_table
+        sql.query(f"""
+        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, test_col2 int, geom geometry);
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        """)
+
+        fp = FOLDER_PATH
+        shp_name = 'test_write.shp'
+
+        # Write shp
+        s.write_geospatial(dbo=sql, path=fp, table=test_write_shp_table_name, schema=ms_schema, output_file=shp_name, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(fp, shp_name))
+
+        # Reupload as table
+ 
+        s.input_geospatial_file(dbo=sql, path=fp+'\\'+shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+
+        # Assert equality
+        db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
+        shp_uploaded_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_reuploaded_table_name} order by test_col1")
+ 
+        assert len(db_df) == len(shp_uploaded_df)
+
+        # Some columns may change names since shpfiles have a character limit of 10
+        pd.testing.assert_frame_equal(db_df[['test_col1', 'test_col2']],
+                                      shp_uploaded_df[['test_col1', 'test_col2']],
+                                      check_column_type=False,
+                                      check_dtype=False)
+
+        # Assert before/after geom columns are all 0 ft from each other, even if represented differently
+        dist_df = sql.dfquery(f"""
+        select distinct b.geom.STDistance(a.geom) as distance
+        from {ms_schema}.{test_write_shp_table_name} b
+        join {ms_schema}.{test_reuploaded_table_name} a
+            on b.test_col1=a.test_col1
+        """)
+
+        assert len(dist_df) == 1
+        assert dist_df.iloc[0]['distance'] == 0
+
+        # Clean up
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+        sql.drop_table(schema=ms_schema, table=test_reuploaded_table_name)
+ 
+        for ext in ('dbf', 'prj', 'shx', 'shp'):
+            try:
+                os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
+            except Exception as e:
+                print(e)
+
     def test_write_shp_query(self):
         fp = FOLDER_PATH
         shp_name = 'test_write.shp'
@@ -1811,7 +1978,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.input_geospatial_file(dbo = sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -1845,3 +2012,8 @@ class TestWriteShpMS:
                 os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
             except Exception as e:
                 print(e)
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_test_table_sql(sql)
+        helpers.clean_up_shapefile()
