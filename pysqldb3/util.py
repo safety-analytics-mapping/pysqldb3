@@ -374,6 +374,26 @@ def print_cmd_string(password_list, cmd_string):
             cmd_string = cmd_string.replace(p, '*' * len(p))
     return cmd_string
 
+def parse_geospatial_file_path(path=None, file_name=None):
+    """
+    Standardizes extracting geospatial file name from path process, if file_name provided that will override anything in the path
+    :param path: folder path with or without file name
+    :param file_name: shapefile or geopackage name
+    :return: path (without file), file_name
+    """
+    # type: (str, str)
+    if not path:
+        return path, file_name
+    
+    if path.endswith('.shp'):
+        geospatial_file = os.path.basename(path)
+        path = path.replace(geospatial_file, '')
+
+    if not file_name:
+        file_name = geospatial_file
+
+    return path, file_name
+
 def rename_geom(db, schema, table):
 
     """
@@ -430,3 +450,5 @@ def rename_geom(db, schema, table):
             except SystemExit as e:
                 print(e)
                 print('Warning - could not update index name after renaming geometry. It may not exist.')
+
+
