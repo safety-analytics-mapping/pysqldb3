@@ -79,8 +79,7 @@ def gpkg_tbl_exists(gpkg_name, gpkg_tbl, path = None):
     return gpkg_tbl_exists
 
 
-def write_geospatial(dbo, 
-                        output_file, path=None, table = None, schema = None, query = None, gpkg_tbl = None,
+def write_geospatial(dbo, output_file, path=None, table = None, schema = None, query = None, gpkg_tbl = None,
                         srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
     
     """
@@ -102,10 +101,14 @@ def write_geospatial(dbo,
     :param print_cmd (bool): Optional flag to print the GDAL command being used; defaults to False
     :return:
     """
-    
+
+    ## INPUT CHECKS ##    
     # assert that a valid file format was input
     assert output_file.endswith('.gpkg') or output_file.endswith('.shp') or output_file.endswith('.dbf'), "Output file needs to be .gpkg, .shp, or .dbf format"
 
+    original_temp_flag = dbo.allow_temp_tables
+    dbo.allow_temp_tables = True
+    
     if not query and not table:
         # this would only happen if query_to_geospatial() wasn't run and instead, the user runs write_geospatial_file(), since query is required
         raise Exception('You must specify the db table to be written.')
@@ -118,7 +121,113 @@ def write_geospatial(dbo,
     elif not table and not query:
         raise Exception('Please specify the table to be written to the Geospatial file')
     else:
-        qry = f"SELECT * FROM ({query}) x"
+        # this logic is for queries
+
+        # Makes a temp table name
+        tmp_table_name = f"tmp_query_to_shp_{dbo.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
+
+        # Create temp table to get column types
+        try:
+            # Drop the temp table
+            if dbo.type == PG:
+                dbo.query(f"drop table {tmp_table_name}", internal=True, strict=False)
+            elif dbo.type == MS:
+                dbo.query(f"drop table #{tmp_table_name}", internal=True, strict=False)
+        except Exception as e:
+            print(e)
+            pass    
+        
+        if dbo.type == PG:
+            dbo.query(f"""    
+            create temp table {tmp_table_name} as     
+            select * 
+            from ({query}) q 
+            limit 10
+            """, internal=True)
+        elif dbo.type == MS:
+            dbo.query(f"""        
+            select top 10 * 
+            into #{tmp_table_name}
+            from ({query}) q 
+            """, internal=True)
+
+        # Extract column names, including datetime/timestamp types, from results
+        if dbo.type == PG:
+            col_df = dbo.dfquery(f"""
+            SELECT *
+            FROM
+            INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = '{tmp_table_name}'
+            """, internal = True)
+
+            cols = ['\\"' + c + '\\"' for c in list(col_df['column_name'])]
+            dt_col_names = ['\\"' + c + '\\"' for c in list(
+                col_df[col_df['data_type'].str.contains('datetime') | col_df['data_type'].str.contains('timestamp')][
+                    'column_name'])]
+
+        elif dbo.type == MS:
+            col_df = dbo.dfquery(f"""
+            SELECT
+                [column] = c.name,
+                [type] = t.name, 
+                c.max_length, 
+                c.precision, 
+                c.scale, 
+                c.is_nullable
+            FROM
+                tempdb.sys.columns AS c
+            LEFT JOIN
+                tempdb.sys.types AS t
+            ON
+                c.system_type_id = t.system_type_id
+                AND
+                t.system_type_id = t.user_type_id
+            WHERE
+                [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}');
+            """, internal=True)
+
+            cols = ['[' + c + ']' for c in list(col_df['column'])]
+            dt_col_names = ['[' + c + ']' for c in list(
+                col_df[col_df['type'].str.contains('datetime') | col_df['type'].str.contains('timestamp')]['column'])]
+
+        # Make string of columns to be returned by select statement
+        return_cols = ' , '.join([c for c in cols if c not in dt_col_names])
+
+        # If there are datetime/timestamp columns:
+        if len(dt_col_names) > 0:
+            if dbo.type == PG:
+                print_cols = str([str(c[2:-2]) for c in dt_col_names])
+
+            if dbo.type == MS:
+                print_cols = str([str(c[1:-1]) for c in dt_col_names])
+
+            print(f"""
+            The following columns are of type datetime/timestamp: \n
+            {print_cols}
+            
+            Shapefiles don't support datetime/timestamps with both the date and time. Each column will be split up
+            into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
+            """)
+
+            # Add the date and time (casted as a string) to the output
+            for col_name in dt_col_names:
+                if dbo.type == PG:
+                    shortened_col = col_name[2:-2][:7]
+                    return_cols += ' , cast(\\"{col}\\" as date) \\"{short_col}_dt\\", ' \
+                                   'cast(cast(\\"{col}\\" as time) as varchar) \\"{short_col}_tm\\" '.format(
+                                    col=col_name[2:-2], short_col=shortened_col)
+                elif dbo.type == MS:
+                    shortened_col = col_name[1:-1][:7]
+                    return_cols += " , cast([{col}] as date) [{short_col}_dt], cast(cast([{col}] as time) as varchar)" \
+                                   " [{short_col}_tm] ".format(
+                                    col=col_name[1:-1], short_col=shortened_col)
+
+        # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
+        qry = f"select {return_cols} from ({query}) q "
+    
+    # otherwise we check through the outputs!
+
+    path, output_file = parse_geospatial_file_path(path, output_file)
 
     if output_file.endswith('.gpkg') and "." in output_file[:-5]:
         output_file = output_file[:-5].replace(".", "_") + ".gpkg"
@@ -137,6 +246,9 @@ def write_geospatial(dbo,
         gpkg_tbl = table
         if gpkg_tbl:
             print('The gpkg_tbl argument in write_geospatial() overrides the class input for gpkg_tbl.')
+
+    if not schema:
+            schema = dbo.default_schema
 
     # overwrite vs update vs an issue has arisen
     if overwrite:
@@ -161,6 +273,7 @@ def write_geospatial(dbo,
         _update = '-update'
         _overwrite = ''
 
+    # run the final command
     if not cmd:
         if dbo.type == 'PG' and output_file.endswith('.gpkg'):
             cmd = WRITE_GPKG_CMD_PG.format(export_path=path,
@@ -258,6 +371,10 @@ def write_geospatial(dbo,
         print(f'{output_file} \nwritten to: {path}\ngenerated from: {table}')
     else:
         print(f'{output_file} geospatial file \nwritten to: {path}\ngenerated from: {query}')
+
+    # Reset the temp flag
+    dbo.last_query = qry
+    dbo.allow_temp_tables = original_temp_flag
         
 def geospatial_convert(input_file, output_file, input_path = None, export_path = None, gpkg_tbl = None, overwrite = False, print_cmd = False):
     
@@ -282,6 +399,9 @@ def geospatial_convert(input_file, output_file, input_path = None, export_path =
     assert output_file.endswith('.shp') or output_file.endswith('.gpkg') or output_file.endswith('.dbf'), "The output file must end with .shp or .gpkg"
     assert input_file[:-4] != output_file[:-4], "This function does not allow you to convert a file to the same format"
     
+    input_path, input_file = parse_geospatial_file_path(input_path, input_file)
+    export_path, output_file = parse_geospatial_file_path(export_path, output_file)
+
     if not input_path:
         input_path = file_loc('folder')
 
@@ -292,7 +412,7 @@ def geospatial_convert(input_file, output_file, input_path = None, export_path =
     # if no gpkg_tbl name given and we convert a shp file, name the table consistent with the shapefile
     if not gpkg_tbl and (input_file.endswith('.shp') or input_file.endswith('.dbf')):
         gpkg_tbl = input_file.replace('.shp', '')
-        gpkg_tbl = input_file.replace('.dbf', '')
+        gpkg_tbl = gpkg_tbl.replace('.dbf', '')
 
     # set variables
     _overwrite = ''
@@ -377,18 +497,18 @@ def gpkg_to_shp_bulk(   input_file,
     return
 
 
-def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_class = False, path = None, gpkg_tbl = None, port = 5432,
+def input_geospatial_file(dbo, input_file = None, schema = None, table = None, feature_class = False, path = None, gpkg_tbl = None, port = 5432,
                             srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, zip = False, skip_failures = '',
                             temp = True, days = 7, print_cmd=False):
     """
     Imports single Geopackage table, Shp feature class, or Shp to database. This uses GDAL to generate the table.
 
-    :param input_file(str): File name for input (ends with .shp, .dbf, .gpkg)
+    :param input_file (str): Optional file name for input (ends with .shp, .dbf, .gpkg); if none, fill in path
     :param dbo: Database connection
     :param schema (str): Schema that the imported geospatial data will be found
     :param table (str): (Optional) name for the uploaded db table. If blank, it will default to the gpkg_tbl or shp file name.
     :param feature_class (bool): Import only 1 feature class (input_file must end with .shp or .dbf)
-    :param path: Optional file path
+    :param path: Optional file path (required if input_file is missing)
     :param gpkg_tbl (str): (Optional) If the input file is a Geopackage, list the specific gpkg table to upload.
     :param srid (str): SRID for geometry. Defaults to 2263
     :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
@@ -404,6 +524,8 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
     """
 
     assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file should end with .gpkg, .shp, or .dbf"
+
+    path, input_file = parse_geospatial_file_path(path, input_file)
 
     # Use default schema from db object
     if not schema:
@@ -439,7 +561,7 @@ def input_geospatial_file(input_file, dbo, schema = None, table = None, feature_
         # if the gpkg_table is left blank, we will populate the name using input_gpkg
     elif not table and (input_file.endswith('.shp') or input_file.endswith('.dbf')):
         table = input_file.replace('.shp', '').lower()
-        table = input_file.replace('.dbf', '').lower()
+        table = table.replace('.dbf', '').lower()
     else:
         table = input_file[:-4].lower()
 
