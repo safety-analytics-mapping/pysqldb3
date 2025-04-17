@@ -796,7 +796,7 @@ class TestWritegpkgPG:
 
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_test_table_sql(sql)
+        helpers.clean_up_test_table_pg(db)
         helpers.clean_up_geopackage()
 
 
@@ -1007,13 +1007,13 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
+        s.write_geospatial(dbo=sql, path = FOLDER_PATH, table= test_write_gpkg_table_name, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
  
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
  
         # Reupload as table
-        sql.gpkg_to_table(path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_name = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(dbo = sql, path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name,
                  schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1098,7 +1098,8 @@ class TestWritegpkgMS:
         
     @classmethod
     def teardown_class(cls):
-        helpers.clean_up_test_table_sql(db)
+        helpers.clean_up_test_table_sql(sql)
+        helpers.clean_up_geopackage()
 
 class TestGpkgShpConversion:
     @classmethod
@@ -1298,6 +1299,7 @@ class TestGpkgShpConversion:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()
+        helpers.clean_up_shapefile()
 
 
 class TestReadShpPG:
@@ -1675,12 +1677,10 @@ class TestWriteShpPG:
 
         assert len(dist_df) == 1
         assert dist_df.iloc[0]['distance'] == 0
- 
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
-        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
-
+        
         # clean up
         db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+        db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
  
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
@@ -1702,7 +1702,7 @@ class TestWriteShpPG:
         shp_name = 'test_write.shp'
  
         # Write shp
-        s.write_geospatial(dbo = db, schema = pg_schema, table = test_write_shp_table_name, output_file= shp_name, print_cmd=True)
+        s.write_geospatial(dbo = db, path = fp + '//' + shp_name, schema = pg_schema, table = test_write_shp_table_name, print_cmd=True)
  
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
@@ -1733,11 +1733,10 @@ class TestWriteShpPG:
         assert len(dist_df) == 1
         assert dist_df.iloc[0]['distance'] == 0
 
+        # clean up
         db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
         db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
 
-        # clean up
-        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
 
