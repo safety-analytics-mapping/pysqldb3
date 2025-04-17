@@ -365,16 +365,16 @@ def write_geospatial(dbo, output_file = None, path=None, table = None, schema = 
     dbo.last_query = qry
     dbo.allow_temp_tables = original_temp_flag
         
-def geospatial_convert(input_file, output_file, input_path = None, export_path = None, gpkg_tbl = None, overwrite = False, print_cmd = False):
+def geospatial_convert(input_file = None, output_file = None, input_path = None, export_path = None, gpkg_tbl = None, overwrite = False, print_cmd = False):
     
     """
     Converts a single Geospatial file or table to another Geospatial format.
     Please use convert_geospatial_bulk() if you want to convert an entire Geopackage file to multiple Shapefiles.
 
-    :param input_file(str): File name for input (ends with .shp, .dbf, or .gpkg)
-    :param output_file (str): File name for ouput (ends with .shp, .dbf, or .gpkg)
-    :param input_path: Optional folder director for the geospatial input.
-    :param export_path: Optional folder directory to place the geospatial output.
+    :param input_file(str): File name for input (ends with .shp, .dbf, or .gpkg). Optional if input_path has full directory.
+    :param output_file (str): File name for ouput (ends with .shp, .dbf, or .gpkg). Optional if export_path has full directory.
+    :param input_path: Optional folder director for the geospatial input (required if no input_file)
+    :param export_path: Optional folder directory to place the geospatial output (required if no output_file)
                         You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.
     :param gpkg_tbl (str):  If the input format is a SHP, this will be the output table name in the Geopackage.
                             Leave blank if you want the output table name to be the input .shp file's name.
@@ -391,12 +391,13 @@ def geospatial_convert(input_file, output_file, input_path = None, export_path =
     input_path, input_file = parse_geospatial_file_path(input_path, input_file)
     export_path, output_file = parse_geospatial_file_path(export_path, output_file)
 
-    if not input_path:
-        input_path = file_loc('folder')
-
     # set an export path to the geospatial file if it is not manually set up
     if not export_path:
         export_path = input_path
+
+    # create full paths from these outputs
+    input_full_path = os.path.join(input_path, input_file)
+    output_full_path = os.path.join(export_path, output_file)
 
     # if no gpkg_tbl name given and we convert a shp file, name the table consistent with the shapefile
     if not gpkg_tbl and (input_file.endswith('.shp') or input_file.endswith('.dbf')):
@@ -424,19 +425,16 @@ def geospatial_convert(input_file, output_file, input_path = None, export_path =
 
     # update the commandexport_path
     if (input_file.endswith('shp') or input_file.endswith('dbf')) and output_file.endswith('gpkg'):
-        cmd = WRITE_SHP_CMD_GPKG.format(shp_name = input_file,
-                                        gpkg_name = output_file,
-                                        full_path = input_path,
+        cmd = WRITE_SHP_CMD_GPKG.format(shp_path = input_full_path,
+                                        gpkg_path = output_full_path,
                                         _update = _update,
                                         _overwrite = _overwrite,
                                         gpkg_tbl = gpkg_tbl)
     
     else:
-        cmd = WRITE_GPKG_CMD_SHP.format(    full_path = input_path,
-                                            gpkg_name = input_file,
+        cmd = WRITE_GPKG_CMD_SHP.format(    gpkg_path = input_full_path,
                                             gpkg_tbl = gpkg_tbl,
-                                            export_path=export_path,
-                                            shp_name=output_file
+                                            shp_path=output_full_path
                                             )
 
     try:
