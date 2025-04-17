@@ -43,7 +43,6 @@ def gpkg_exists(file_name, path = None):
     :param gpkg_name: Geopackage name, ends with .gpkg
     :param path: Optional file path
     """
-
     gpkg_exists = os.path.isfile(os.path.join(path, file_name))
                                 
     return gpkg_exists
@@ -79,14 +78,14 @@ def gpkg_tbl_exists(gpkg_name, gpkg_tbl, path = None):
     return gpkg_tbl_exists
 
 
-def write_geospatial(dbo, output_file, path=None, table = None, schema = None, query = None, gpkg_tbl = None,
+def write_geospatial(dbo, output_file = None, path=None, table = None, schema = None, query = None, gpkg_tbl = None,
                         srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
     
     """
     Converts a SQL or Postgresql query to a new Geospatial (Shapefile or GPKG) file.
 
     :param dbo: Database connection
-    :param output_file (str): The name of the output file ending with .shp, .dbf, or .gpkg
+    :param output_file (str): Optional name of the output file ending with .shp, .dbf, or .gpkg (if blank, use path)
     :param path (str): Optional file path to the output file
     :param table (str): DB Table to be written to a GPKG
     :param schema (str): DB schema
@@ -104,7 +103,9 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
 
     ## INPUT CHECKS ##    
     # assert that a valid file format was input
+    path, output_file = parse_geospatial_file_path(path, output_file)
     assert output_file.endswith('.gpkg') or output_file.endswith('.shp') or output_file.endswith('.dbf'), "Output file needs to be .gpkg, .shp, or .dbf format"
+    full_path = os.path.join(path, output_file)
 
     original_temp_flag = dbo.allow_temp_tables
     dbo.allow_temp_tables = True
@@ -224,10 +225,6 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
 
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         qry = f"select {return_cols} from ({query}) q "
-    
-    # otherwise we check through the outputs!
-
-    path, output_file = parse_geospatial_file_path(path, output_file)
 
     if output_file.endswith('.gpkg') and "." in output_file[:-5]:
         output_file = output_file[:-5].replace(".", "_") + ".gpkg"
@@ -244,8 +241,6 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
 
     if not gpkg_tbl:
         gpkg_tbl = table
-        if gpkg_tbl:
-            print('The gpkg_tbl argument in write_geospatial() overrides the class input for gpkg_tbl.')
 
     if not schema:
             schema = dbo.default_schema
@@ -276,8 +271,7 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
     # run the final command
     if not cmd:
         if dbo.type == 'PG' and output_file.endswith('.gpkg'):
-            cmd = WRITE_GPKG_CMD_PG.format(export_path=path,
-                                                gpkg_name=output_file,
+            cmd = WRITE_GPKG_CMD_PG.format(     full_path=full_path,
                                                 host=dbo.server,
                                                 username=dbo.user,
                                                 db=dbo.database,
@@ -293,8 +287,7 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
         elif dbo.type == 'MS' and output_file.endswith('.gpkg'):
             if dbo.LDAP:
                 cmd = WRITE_GPKG_CMD_MS.replace(";UID={username};PWD={password}", "").format(
-                    export_path=path,
-                    gpkg_name=output_file,
+                    full_path = full_path,
                     host=dbo.server,
                     db=dbo.database,
                     ms_sql_select=qry,
@@ -306,8 +299,7 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
                     gdal_data=gdal_data_loc
                 )
             else:
-                cmd = WRITE_GPKG_CMD_MS.format(export_path=path,
-                                                    gpkg_name=output_file,
+                cmd = WRITE_GPKG_CMD_MS.format(     full_path = full_path,
                                                     host=dbo.server,
                                                     username=dbo.user,
                                                     db=dbo.database,
@@ -322,8 +314,7 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
                 
         elif dbo.type == 'PG' and (output_file.endswith('.shp') or output_file.endswith('.dbf')):
 
-            cmd = WRITE_SHP_CMD_PG.format(export_path=path,
-                                            shpname = output_file,
+            cmd = WRITE_SHP_CMD_PG.format(  full_path = full_path,
                                             host = dbo.server,
                                             username = dbo.user,
                                             db = dbo.database,
@@ -336,8 +327,7 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
 
             if dbo.LDAP:
                 cmd = WRITE_SHP_CMD_MS.replace(";UID={username};PWD={password}", "").format(
-                    export_path = path,
-                    shpname = output_file,
+                    full_path = full_path,
                     host = dbo.server,
                     db = dbo.database,
                     ms_sql_select = qry,
@@ -346,8 +336,7 @@ def write_geospatial(dbo, output_file, path=None, table = None, schema = None, q
                 )
 
             else:
-                cmd = WRITE_SHP_CMD_MS.format(export_path=path,
-                                                    shpname=output_file,
+                cmd = WRITE_SHP_CMD_MS.format(      full_path = full_path,
                                                     host = dbo.server,
                                                     username = dbo.user,
                                                     db = dbo.database,
@@ -522,10 +511,8 @@ def input_geospatial_file(dbo, input_file = None, schema = None, table = None, f
     :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
     :return:
     """
-
-    assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file should end with .gpkg, .shp, or .dbf"
-
     path, input_file = parse_geospatial_file_path(path, input_file)
+    assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file should end with .gpkg, .shp, or .dbf"
 
     # Use default schema from db object
     if not schema:
@@ -535,11 +522,6 @@ def input_geospatial_file(dbo, input_file = None, schema = None, table = None, f
         precision = '-lco precision=NO'
     else:
         precision = ''
-
-    if not all([path, input_file]):
-        input_file = file_loc('file', 'Missing file info - Opening search dialog...')
-        input_file = os.path.basename(input_file)
-        path = os.path.dirname(input_file)
 
     if zip:
         path = '/vsizip/' + path
@@ -681,7 +663,7 @@ def input_geospatial_file(dbo, input_file = None, schema = None, table = None, f
             dbname = dbo.database,
             user = dbo.user,
             password= dbo.password,
-            gdb = path,
+            gdb = full_path,
             feature = input_file[:-4],
             tbl_name = table,
             sch = schema
@@ -695,7 +677,7 @@ def input_geospatial_file(dbo, input_file = None, schema = None, table = None, f
                 ms_db = dbo.database,
                 ms_user = dbo.user,
                 ms_pass = dbo.password,
-                gdb = path,
+                gdb = full_path,
                 feature= input_file[:-4],
                 tbl_name=table,
                 sch= schema,
