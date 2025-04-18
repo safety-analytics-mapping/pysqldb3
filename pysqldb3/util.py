@@ -374,46 +374,25 @@ def print_cmd_string(password_list, cmd_string):
             cmd_string = cmd_string.replace(p, '*' * len(p))
     return cmd_string
 
-
-def parse_shp_path(path=None, shp_name=None):
+def parse_geospatial_file_path(path=None, file_name=None):
     """
-    Standardizes extracting shpfile name from path process, if shp_name provided that will override anything in the path
-    :param path: folder path with or without shp
-    :param shp_name: shapefile name
-    :return: path (without shp), shp_name
-    """
-    # type: (str, str)
-    if not path:
-        return path, shp_name
-
-    if path.endswith('.shp'):
-        shp = os.path.basename(path)
-        path = path.replace(shp, '')
-
-    if not shp_name:
-        shp_name = shp
-
-    return path, shp_name
-
-def parse_gpkg_path(path=None, gpkg_name=None):
-    """
-    Standardizes extracting geopackage file name from path process, if gpkg_name provided that will override anything in the path
-    :param path: folder path with or without gpkg
-    :param gpkg_name: geopackage name
-    :return: path (without gpkg), gpkg_name
+    Standardizes extracting geospatial file name from path process, if file_name provided that will override anything in the path
+    :param path: folder path with or without file name
+    :param file_name: shapefile or geopackage name
+    :return: path (without file), file_name
     """
     # type: (str, str)
     if not path:
-        return path, gpkg_name
+        return path, file_name
+    
+    if path.endswith('.shp') or path.endswith('.dbf') or path.endswith('.gpkg'):
+        geospatial_file = os.path.basename(path)
+        path = path.replace(geospatial_file, '')
 
-    if path.endswith('.gpkg'):
-        gpkg = os.path.basename(path)
-        path = path.replace(gpkg, '')
+    if not file_name:
+        file_name = geospatial_file
 
-    if not gpkg_name:
-        gpkg_name = gpkg
-
-    return path, gpkg_name
+    return path, file_name
 
 def rename_geom(db, schema, table):
 
@@ -471,3 +450,5 @@ def rename_geom(db, schema, table):
             except SystemExit as e:
                 print(e)
                 print('Warning - could not update index name after renaming geometry. It may not exist.')
+
+

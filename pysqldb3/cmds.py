@@ -45,12 +45,12 @@ Shapefiles
 """
 
 WRITE_SHP_CMD_PG = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "ESRI Shapefile" "{export_path}\{shpname}"  -a_srs "EPSG:{srid}"
+ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "ESRI Shapefile" "{full_path}"  -a_srs "EPSG:{srid}"
 PG:"host={host} user={username} dbname={db} password={password}" -sql "{pg_sql_select}"
 """.replace('\n', ' ')
 
 WRITE_SHP_CMD_MS = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "ESRI Shapefile" "{export_path}\{shpname}"  -a_srs "EPSG:{srid}"
+ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "ESRI Shapefile" "{full_path}"  -a_srs "EPSG:{srid}"
 "MSSQL:server={host};database={db};UID={username};PWD={password}" -sql "{ms_sql_select}"
 """.replace('\n', ' ')
 
@@ -82,12 +82,12 @@ Geopackage
 
 # when writing data to geopackage, gpkg output table will match input table name
 WRITE_GPKG_CMD_PG = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" {_overwrite} -f "GPKG" {_update} "{export_path}\{gpkg_name}" -nln {gpkg_tbl} -a_srs "EPSG:{srid}"
+ogr2ogr --config GDAL_DATA "{gdal_data}" {_overwrite} -f "GPKG" {_update} "{full_path}" -nln {gpkg_tbl} -a_srs "EPSG:{srid}"
 PG:"host={host} user={username} dbname={db} password={password}" -sql "{pg_sql_select}"
 """.replace('\n', ' ')
 
 WRITE_GPKG_CMD_MS = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" {_overwrite} -f "GPKG" {_update} "{export_path}\{gpkg_name}" -nln {gpkg_tbl} -a_srs "EPSG:{srid}"
+ogr2ogr --config GDAL_DATA "{gdal_data}" {_overwrite} -f "GPKG" {_update} "{full_path}" -nln {gpkg_tbl} -a_srs "EPSG:{srid}"
 "MSSQL:server={host};database={db};UID={username};PWD={password}" -sql "{ms_sql_select}"
 """.replace('\n', ' ')
 
@@ -101,9 +101,9 @@ READ_GPKG_CMD_MS = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_
  "{gpkg_name}" {gpkg_tbl} -nln {schema}.{tbl_name} {perc} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
 """.replace('\n', ' ')
 
-WRITE_SHP_CMD_GPKG = r'ogr2ogr -f GPKG {_update} "{full_path}\{gpkg_name}" "{full_path}\{shp_name}" -nln {gpkg_tbl}'
+WRITE_SHP_CMD_GPKG = r'ogr2ogr -f GPKG {_update} "{gpkg_path}" "{shp_path}" -nln {gpkg_tbl}'
 
-WRITE_GPKG_CMD_SHP = r'ogr2ogr -f "ESRI Shapefile" "{export_path}\{gpkg_tbl}.shp" "{full_path}\{gpkg_name}" {gpkg_tbl}'
+WRITE_GPKG_CMD_SHP = r'ogr2ogr -f "ESRI Shapefile" "{shp_path}" "{gpkg_path}" {gpkg_tbl}'
 
 COUNT_GPKG_LAYERS = r'ogrinfo "{full_path}"' # command used for reading in all geopackage tables
 
