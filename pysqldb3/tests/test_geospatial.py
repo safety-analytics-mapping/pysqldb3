@@ -61,7 +61,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(path=FOLDER_PATH, dbo=db, input_file=gpkg_name, gpkg_tbl = test_layer1,
+        s.input_geospatial_file(path=FOLDER_PATH + '//' + gpkg_name, dbo=db, gpkg_tbl = test_layer1,
                                 table=test_read_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -237,7 +237,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_read_gpkg_table_name}")
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_layer2,
+        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_layer2,
                                 table=test_read_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -574,7 +574,7 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema,
+        s.write_geospatial(path=FOLDER_PATH + '//' + gpkg_name, dbo=db, schema=pg_schema,
                            gpkg_tbl = test_reuploaded_table_name, table= test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
@@ -1064,7 +1064,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1128,7 +1128,7 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s.geospatial_convert(input_path = FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.geospatial_convert(input_path = FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                              output_file = shp_name, print_cmd = True)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
@@ -1648,7 +1648,7 @@ class TestWriteShpPG:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s.write_geospatial(dbo=db, path=fp, table=test_write_shp_table_name, schema=pg_schema, output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=db, path=fp + '//' + shp_name, table=test_write_shp_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
