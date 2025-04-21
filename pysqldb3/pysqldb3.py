@@ -2419,18 +2419,42 @@ class DbConnect:
                 order by 1;
             """, internal=True, timeme=False)
             return self.internal_data
-        elif self.type==MS:
-            _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
-            # results in 2 rows :(
-            # row 1 name row 2 constraint
-            names = [i for i in _df.constraint_name if i!=' ']
-            c_type = [i for i in _df.constraint_type if i!=' ']
-            c_keys = [i for i in _df.constraint_keys if i!=' ']
+        elif self.type == MS:
+            self.query(f"""
+                SELECT * 
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                WHERE TABLE_SCHEMA = '{schema}'
+                and TABLE_NAME='{table}';
+            """, internal=True)
+            if self.internal_data:
+                _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
+            else:
+                return None
+            
             constraints = []
-            for i, j in enumerate(_df.constraint_keys):
-                if i % 2:
+
+            # sp_helpconstraint returns pairs of rows for each constraint:
+            #   - Row 0: constraint name, type, key
+            #   - Row 1: constraint definition (e.g., FOREIGN KEY ...)
+            # So we iterate 2 rows at a time
+            for i in range(0, len(_df), 2):
+                name = _df.constraint_name[i].strip()
+                ctype = _df.constraint_type[i].strip()
+                key = _df.constraint_keys[i].strip()
+                definition = _df.constraint_keys[i + 1].strip()
+
+                if name and ctype and key and definition:
+                    # Rename the constraint to avoid name conflict in backup table
                     # c_name, _tbl, _sch, _col, c_details
-                    constraints.append([names[i-1]+'_backup'+' ' +c_type[i-1]+' ('+c_keys[i-1]+') ', table, schema,names[i-1], j])
+                    constraint_header = f"{name}_backup {ctype} ({key})"
+                    constraints.append([
+                        constraint_header,  # c_name
+                        table,  # _tbl
+                        schema,  # _sch
+                        name,  # _col (original constraint name)
+                        definition  # c_details
+                    ])
+
             return constraints
         else:
             return None
@@ -2562,3 +2586,6 @@ class DbConnect:
         self.query(read_data, temp=temp)
         assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
         return schema_table_name
+
+
+
