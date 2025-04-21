@@ -2420,8 +2420,17 @@ class DbConnect:
             """, internal=True, timeme=False)
             return self.internal_data
         elif self.type == MS:
-            _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
-
+            self.query(f"""
+                SELECT * 
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                WHERE TABLE_SCHEMA = '{schema}'
+                and TABLE_NAME='{table}';
+            """, internal=True)
+            if self.internal_data:
+                _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
+            else:
+                return None
+            
             constraints = []
 
             # sp_helpconstraint returns pairs of rows for each constraint:
