@@ -11,6 +11,10 @@ import os
 from .Config import write_config
 import pyarrow.csv as pyarrowcsv
 import numpy as np
+from pathlib import Path
+import tempfile
+import zipfile, tarfile, py7zr, rarfile
+import shutil
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -2089,6 +2093,50 @@ class DbConnect:
         if not self.allow_temp_tables:
             self.disconnect(True)
 
+    def _decompress(self, path):
+        import tempfile
+        import zipfile, tarfile, py7zr, rarfile
+        from pathlib import Path
+        import shutil
+
+        # Create a temporary directory to extract files
+        temp_dir = tempfile.mkdtemp()
+        suffix = Path(path).suffix.lower()
+
+        try:
+            # Extract based on archive type
+            if suffix == '.zip':
+                with zipfile.ZipFile(path, 'r') as z:
+                    z.extractall(temp_dir)
+            elif suffix in ['.tar', '.gz', '.tgz', '.tar.gz']:
+                with tarfile.open(path, 'r:*') as tar:
+                    tar.extractall(temp_dir)
+            elif suffix == '.7z':
+                with py7zr.SevenZipFile(path, mode='r') as archive:
+                    archive.extractall(path=temp_dir)
+            elif suffix == '.rar':
+                with rarfile.RarFile(path) as archive:
+                    archive.extractall(path=temp_dir)
+            else:
+                shutil.rmtree(temp_dir)
+                raise ValueError(f"Unsupported compression format: {suffix}")
+
+            # Look for the first .shp file extracted
+            shp_files = list(Path(temp_dir).rglob('*.shp'))
+            if not shp_files:
+                shutil.rmtree(temp_dir)
+                raise FileNotFoundError("No .shp file found after decompression.")
+
+            shp_path = shp_files[0]
+
+            # Return the folder path, .shp filename, and temp dir for later cleanup
+            return str(shp_path.parent), shp_path.name, temp_dir
+
+        except Exception as e:
+            # Cleanup in case of error
+            shutil.rmtree(temp_dir)
+            raise e
+
     def shp_to_table(self, path=None, table=None, schema=None, shp_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      shp_encoding=None, print_cmd=False, days=7, zip=False):
@@ -2109,7 +2157,7 @@ class DbConnect:
         Options inlude LATIN1, UTF-8.
         :param print_cmd: Defaults to False; if True prints the cmd
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
-        :param zip: Flag to use if importing from a sipped file (defaults to False)
+        :param zip: Flag to use if importing from a zipped file (defaults to False)
         :return:
         """
         if not schema:
@@ -2117,6 +2165,17 @@ class DbConnect:
 
         if not port:
             port = self.port
+
+        compressed_exts = ['.tar', '.gz', '.tgz', '.tar.gz', '.7z', '.rar']
+        temp_dir = None
+
+        if Path(shp_name).suffix.lower() == '.zip':
+            zip = True
+
+        if Path(shp_name).suffix.lower() in compressed_exts:
+            print("Importing Shp from compressed file")
+            full_path = os.path.join(path, shp_name)
+            path, shp_name, temp_dir = self._decompress(full_path)
 
         path, shp = parse_shp_path(path, shp_name)
         if not shp_name:
@@ -2141,6 +2200,9 @@ class DbConnect:
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
+
+        if temp_dir:
+            shutil.rmtree(temp_dir)
 
     def feature_class_to_table(self, path, table = None, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
                                srid=2263, private=False, temp=True, fc_encoding=None, print_cmd=False,
