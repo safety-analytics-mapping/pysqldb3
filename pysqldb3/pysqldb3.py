@@ -981,7 +981,11 @@ class DbConnect:
             #clean col_name to check against overrides and insert
             col_name=clean_column(col_name)
 
-            if column_type_overrides and col_name in column_type_overrides.keys():
+            if column_type_overrides == 'all':
+                col_type = f'varchar ({VARCHAR_MAX[self.type]})'
+                input_schema.append([col_name, col_type])
+
+            elif column_type_overrides and col_name in column_type_overrides.keys():
                 input_schema.append([col_name, column_type_overrides[col_name]])
             else:
                 input_schema.append([col_name, col_type])

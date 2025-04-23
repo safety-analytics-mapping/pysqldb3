@@ -4,6 +4,7 @@ import configparser
 import pandas as pd
 
 from .. import pysqldb3 as pysqldb
+from .. import util as util
 from . import helpers
 
 config = configparser.ConfigParser()
@@ -54,6 +55,24 @@ class TestCsvToTablePG:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
+    def test_csv_to_table_basic_override_all(self):
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, column_type_overrides='all')
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # check table schema
+        db.get_table_columns(create_table_name, schema=pg_schema)
+        assert set([i[1] for i in db.get_table_columns(create_table_name, schema=pg_schema)]) == {f'character varying ({util.VARCHAR_MAX[db.type]})'}
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -576,6 +595,25 @@ class TestCsvToTableMS:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(sql_df, csv_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_csv_to_table_basic_override_all(self):
+        # csv_to_table
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
+            sql.query('drop table {}.{}'.format(sql_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, column_type_overrides='all')
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check table schema
+        sql.get_table_columns(create_table_name, schema=sql_schema)
+        assert set([i[1] for i in sql.get_table_columns(create_table_name, schema=sql_schema)]) == {
+            f'varchar ({util.VARCHAR_MAX[sql.type]})'}
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
