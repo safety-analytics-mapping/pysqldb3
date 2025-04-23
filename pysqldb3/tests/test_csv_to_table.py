@@ -374,7 +374,7 @@ class TestCsvToTablePG:
         base_string = 'text'*150
         fp = helpers.DIR + "\\varchar.csv"
         db.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, alow_max_varchar=True)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -526,7 +526,7 @@ class TestBulkCSVToTablePG:
 
         fp = helpers.DIR + "\\varchar.csv"
         pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, alow_max_varchar=True)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -900,7 +900,7 @@ class TestCsvToTableMS:
         base_string = 'text'*150
         fp = helpers.DIR + "\\varchar.csv"
         sql.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, alow_max_varchar=True)
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
@@ -1052,7 +1052,7 @@ class TestBulkCSVToTableMS:
 
         fp = helpers.DIR + "\\varchar.csv"
         pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, alow_max_varchar=True)
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
