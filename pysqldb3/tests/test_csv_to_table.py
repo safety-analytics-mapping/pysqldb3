@@ -68,7 +68,6 @@ class TestCsvToTablePG:
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
-        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
 
         # check table schema
         db.get_table_columns(create_table_name, schema=pg_schema)
