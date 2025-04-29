@@ -256,9 +256,9 @@ class Query:
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
-                        if (server, database, sch,org_table) in self.dbo.tables_created:
+                        if (server, database, sch, org_table) in self.dbo.tables_created:
                             # self.dbo.tables_created.remove(org_table)
-                            self.dbo.tables_created[self.dbo.tables_created.index( (server, database, sch,org_table))] = \
+                            self.dbo.tables_created[self.dbo.tables_created.index( (server, database, sch, org_table))] = \
                                 get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
                                 tbl, self.dbo.type)
 
@@ -330,7 +330,7 @@ class Query:
                 (({encaps} | {nonencaps})\.){sds}
                 (\[?\#{temp_mark}){tmp_time}
                 (({encapst} | {nonencaps})\s*){tbl_time}
-            )((as\s+select)|(\())\s?
+            )((as\s+(with|select))|(\())\s?
         """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
                           encapst=RE_ENCAPSULATED_TABLE_NAME,
                           sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
@@ -343,27 +343,30 @@ class Query:
         tables = [i[2].strip() for i in matches]
         new_tables+=tables
 
-        into_pattern = r"""
-            (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
-            
-            (select([.\n\w\*\s\",^,\[\],',!,=,+,(,)])+?into\s+)+?    # find select into
-            (?!temp\s+|temporary\s+)                                # lookahead for temp
-            (
-               (({encaps} | {nonencaps})\.){sds}
-               (\[?\#{temp_mark}){tmp_time}
-               (({encapst} | {nonencaps})\s+){tbl_time}
-           )
-           (?=from)                                                # lookahead for 'from'
-            """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
-                          encapst=RE_ENCAPSULATED_TABLE_NAME,
-                          sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
+        # don't run "into pattern/table" if the query creates a function
+
+        if not re.findall(re.compile('create[\s\w]+function\s+', re.VERBOSE | re.IGNORECASE), query_string):
+            into_pattern = r"""
+                (?<!\*)(?<!\*\s)(?<!--)(?<!--\s)                       # ignore comments
+                
+                (select([.\n\w\*\s\",^,\[\],',!,=,+,(,)])+?into\s+)+?    # find select into
+                (?!temp\s+|temporary\s+)                                # lookahead for temp
+                (
+                (({encaps} | {nonencaps})\.){sds}
+                (\[?\#{temp_mark}){tmp_time}
+                (({encapst} | {nonencaps})\s+){tbl_time}
+            )
+            (?=from)                                                # lookahead for 'from'
+                """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
+                            encapst=RE_ENCAPSULATED_TABLE_NAME,
+                            sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
 
 
-        create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
-        into_matches = re.findall(create_table_into, query_string)
+            create_table_into = re.compile(into_pattern, re.VERBOSE | re.IGNORECASE)
+            into_matches = re.findall(create_table_into, query_string)
 
-        into_tables = [i[2].strip() for i in into_matches]
-        new_tables += into_tables
+            into_tables = [i[2].strip() for i in into_matches]
+            new_tables += into_tables
 
         if new_tables:
             all_tables = [i for i in new_tables if len(i) > 0]
