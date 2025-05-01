@@ -74,6 +74,16 @@ def set_up_test_csv():
         data4.append([2 + i, 2, None, 0])
         i += 1
 
+
+    # small csv with empty column headers
+    data9 = [
+        ["id",  "col1", '', 'col2', '', ''],
+        [1, 2, None, 100, 123,  None],
+        [2, 3, None, 9,   None, None],
+        [35,36,None, 37,  456,  ' ']
+    ]
+
+
     with open(DIR+"\\test8.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data4:
@@ -91,6 +101,11 @@ def set_up_test_csv():
     with open(DIR+"\\test5.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data2:
+            w.writerow(row)
+
+    with open(DIR+"\\test9.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data9:
             w.writerow(row)
 
 
