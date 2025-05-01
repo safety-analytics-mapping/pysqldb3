@@ -390,6 +390,22 @@ class TestCsvToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
 
+
+    def test_csv_to_table_empty_columns(self):
+        # todo:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 3 should be between 2 valid columns and mostly empty (1 row)
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 3 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+
+
+
     # Temp test is in logging tests
 
     @classmethod
