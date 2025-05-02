@@ -1684,6 +1684,17 @@ class DbConnect:
                 self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
                                         column_type_overrides=column_type_overrides, days=days,
                                         temp_table=temp_table)
+
+            # clean up unnamed columns
+            cols = self.get_table_columns(table, schema=schema)
+            unnamed = [i[0] for i in cols if 'unnamed' in i[0]]
+            if unnamed:
+                for c in unnamed:
+                    self.query(f"select distinct rtrim(ltrim(cast({c} as varchar)))  from {schema}.{table}",
+                               internal=True)
+                    if len({i for i in self.internal_data if i[0] != ''}) <= 1:
+                        if not self.internal_data[0][0]:
+                            self.query(f"alter table {schema}.{table} drop column {c}", internal=True)
         except Exception as e:
             print(e)
 

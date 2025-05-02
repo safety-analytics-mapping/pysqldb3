@@ -430,7 +430,7 @@ def set_up_xls():
     _df.to_excel(DIR + "\\xls_kwargs_test.xlsx", index=False)
 
     # small xls with empty column headers
-    xls_file3 = os.path.join(DIR, 'test_xls_with_empty_headers.xls')
+    xls_file3 = os.path.join(DIR, 'test_xls_with_empty_headers.xlsx')
     if os.path.isfile(xls_file3):
         clean_up_file(xls_file3)
     data9 = [
@@ -439,11 +439,19 @@ def set_up_xls():
         [2, 3, None, 9,   None, None],
         [35,36,None, 37,  456,  ' ']
     ]
-    data9.to_excel(xls_file3, index=False)
+    wb = openpyxl.Workbook()
+    ws_write = wb.create_sheet(0)  # wb.active
 
-    xls_file3_bulk = os.path.join(DIR, 'test_xls_with_empty_headers_bulk.xls')
+    for row in data9:
+        ws_write.append(row)
+
+    wb.save(filename=xls_file3)
+
+
+    xls_file3_bulk = os.path.join(DIR, 'test_xls_with_empty_headers_bulk.xlsx')
     if os.path.isfile(xls_file3_bulk):
         clean_up_file(xls_file3_bulk)
+
     data9_bulk = [
         ["id", "col1", '', 'col2', '', ''],
         [1, 2, None, 100, 123, None],
@@ -451,10 +459,18 @@ def set_up_xls():
         [35, 36, None, 37, 456, ' ']
     ]
 
-    for i in range(100000):
+    for i in range(10000):
         data9_bulk.append([35+i, 3, None, 9, None, None])
         i+=1
-    data9_bulk.to_excel(xls_file3_bulk, index=False)
+
+    wb = openpyxl.Workbook()
+    ws_write = wb.create_sheet(0) # wb.active
+
+    for row in data9_bulk:
+        ws_write.append(row)
+
+    wb.save(filename=xls_file3_bulk)
+
 
 def set_up_geopackage(user):
 

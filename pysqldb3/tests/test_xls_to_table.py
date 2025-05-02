@@ -216,6 +216,45 @@ class TestXlsToTablePG:
     def test_xls_to_table_overwrite(self):
         return
 
+    def test_xls_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
+
+        fp = helpers.DIR + "\\test_xls_with_empty_headers.xlsx"
+        db.xls_to_table(input_file=fp, table=xls_table_name, schema=pg_schema, sheet_name='Sheet1')
+
+        # Check to see if table is in database
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
+
+        # Get csv df via pd.read_csv
+        xlsx_df = pd.read_excel(fp, sheet_name='Sheet1')
+        xlsx_df.columns = [c.replace(' ', '_') for c in list(xlsx_df.columns)]
+        xlsx_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], xlsx_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=xls_table_name)
+
     # Temp test is in logging tests
 
 
@@ -353,7 +392,44 @@ class TestBulkXLSToTablePG:
         # Test input schema
         return
 
-    # Temp test is in logging tests
+    def test_xls_to_table_empty_columns_bulk(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
+
+        fp = helpers.DIR + "\\test_xls_with_empty_headers_bulk.xlsx"
+        db.xls_to_table(input_file=fp, table=xls_table_name, schema=pg_schema, sheet_name='Sheet1')
+
+        # Check to see if table is in database
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, xls_table_name))
+
+        # Get csv df via pd.read_csv
+        xlsx_df = pd.read_excel(fp, sheet_name='Sheet1')
+        xlsx_df.columns = [c.replace(' ', '_') for c in list(xlsx_df.columns)]
+        xlsx_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], xlsx_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=xls_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -545,7 +621,44 @@ class TestXlsToTableMS:
     def test_xls_to_table_overwrite(self):
         return
 
-    # Temp test is in logging tests
+    def test_xls_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, xls_table_name))
+
+        fp = helpers.DIR + "\\test_xls_with_empty_headers.xlsx"
+        sql.xls_to_table(input_file=fp, table=xls_table_name, schema=sql_schema, sheet_name='Sheet1')
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
+
+        # Get csv df via pd.read_csv
+        xlsx_df = pd.read_excel(fp, sheet_name='Sheet1')
+        xlsx_df.columns = [c.replace(' ', '_') for c in list(xlsx_df.columns)]
+        xlsx_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], xlsx_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
 
 class TestBulkXLSToTableMS:
@@ -738,7 +851,44 @@ class TestBulkXLSToTableMS:
         sql.drop_table(schema=sql.default_schema, table=xls_table_name)
         # os.remove(fp_xlsx)  # TODO: this fails for some reason
 
-    # Temp test is in logging tests
+    def test_xls_to_table_empty_columns_bulk(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, xls_table_name))
+
+        fp = helpers.DIR + "\\test_xls_with_empty_headers_bulk.xlsx"
+        sql.xls_to_table(input_file=fp, table=xls_table_name, schema=sql_schema, sheet_name='Sheet1')
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
+
+        # Get csv df via pd.read_csv
+        xlsx_df = pd.read_excel(fp, sheet_name='Sheet1')
+        xlsx_df.columns = [c.replace(' ', '_') for c in list(xlsx_df.columns)]
+        xlsx_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], xlsx_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
 
     @classmethod
     def teardown_class(cls):
