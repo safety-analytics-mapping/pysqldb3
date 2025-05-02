@@ -88,7 +88,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
 
     :param dbo: Database connection
     :param path (str): File path to the output file
-    :param output_file (str): Optional name of the output file ending with .shp, .dbf, or .gpkg (if blank, use path)
+    :param output_file (str): Optional name of the output file ending with .shp, .gdb, or .gpkg (if blank, use path)
     :param table (str): DB Table to be written to a GPKG
     :param schema (str): DB schema
     :param query (str): DB query whose output is to be written to a GPKG
@@ -106,10 +106,10 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
     ## INPUT CHECKS ##    
     # assert that a valid file format was input
     if output_file:
-        assert output_file.endswith('.gpkg') or output_file.endswith('.shp') or output_file.endswith('.dbf'), "Output file needs to be .gpkg, .shp, or .dbf format"
+        assert output_file.endswith('.gpkg') or output_file.endswith('.shp') or output_file.endswith('.gdb'), "Output file needs to be .gpkg, .shp, or .gdb format"
         assert path, "Fill in the file path to the output file"
     else:
-        assert path.endswith('.gpkg') or path.endswith('.shp') or path.endswith('.dbf'), "Output path needs to end with .gpkg, .shp, or .dbf if no file name is supplied"
+        assert path.endswith('.gpkg') or path.endswith('.shp') or path.endswith('.gdb'), "Output path needs to end with .gpkg, .shp, or .gdb if no file name is supplied"
 
     path, output_file = parse_geospatial_file_path(path, output_file)
     full_path = os.path.join(path, output_file)
@@ -239,10 +239,10 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
     elif not output_file.endswith(".gpkg") and "." in output_file[-5]:
         output_file = output_file[:-5].replace(".", "_") + '.gpkg'
         print(' The "." character is not allowed in output gpkg file names. Any "." have been removed.')
-    elif (output_file.endswith(".shp") or output_file.endswith(".dbf")) and "." in output_file[:-4]:
+    elif (output_file.endswith(".shp") or output_file.endswith(".gdb")) and "." in output_file[:-4]:
         output_file = output_file[:-4].replace(".", "_") + ".shp"
         print(' The "." character is not allowed in output shp file names. Any "." have been removed.')
-    elif not (output_file.endswith(".shp") or output_file.endswith(".dbf"))and "." in output_file[-4]:
+    elif not (output_file.endswith(".shp") or output_file.endswith(".gdb"))and "." in output_file[-4]:
         output_file = output_file[:-4].replace(".", "_") + '.shp'
         print(' The "." character is not allowed in output shp file names. Any "." have been removed.')
 
@@ -319,7 +319,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
                                                     srid=srid,
                                                     gdal_data=gdal_data_loc)
                 
-        elif dbo.type == 'PG' and (output_file.endswith('.shp') or output_file.endswith('.dbf')):
+        elif dbo.type == 'PG' and (output_file.endswith('.shp') or output_file.endswith('.gdb')):
 
             cmd = WRITE_SHP_CMD_PG.format(  full_path = full_path,
                                             host = dbo.server,
@@ -330,7 +330,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
                                             srid = srid,
                                             gdal_data = gdal_data_loc)
             
-        elif dbo.type == 'MS' and (output_file.endswith('.shp') or output_file.endswith('.dbf')):
+        elif dbo.type == 'MS' and (output_file.endswith('.shp') or output_file.endswith('.gdb')):
 
             if dbo.LDAP:
                 cmd = WRITE_SHP_CMD_MS.replace(";UID={username};PWD={password}", "").format(
@@ -379,11 +379,11 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
     Please use convert_geospatial_bulk() if you want to convert an entire Geopackage file to multiple Shapefiles.
 
     :param input_path: Path for the geospatial input (required if no input_file)
-    :param input_file(str): File name for input (ends with .shp, .dbf, or .gpkg). Optional if input_path has full directory.
+    :param input_file(str): File name for input (ends with .shp, .gdb, or .gpkg). Optional if input_path has full directory.
     :param export_path: Folder directory to place the geospatial output.
                         You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.
                         Will default to input_path if no export_path supplied
-    :param output_file (str): File name for ouput (ends with .shp, .dbf, or .gpkg). Optional if export_path has full directory.
+    :param output_file (str): File name for ouput (ends with .shp, .gdb, or .gpkg). Optional if export_path has full directory.
     :param gpkg_tbl (str):  If the input format is a SHP, this will be the output table name in the Geopackage.
                             Leave blank if you want the output table name to be the input .shp file's name.
                             If the input format is a GPKG, this is the single GPKG table that will be converted.
@@ -391,18 +391,16 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
     :param print_cmd (bool): Print command
     """
 
-    
-
     # assert that file formats were input correctly
     if input_file:
-        assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file must end with .shp or .gpkg"
+        assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.gdb'), "The input file must end with .shp or .gpkg or .gdb"
     else:
-        assert input_path.endswith('.shp') or input_path.endswith('.gpkg') or input_path.endswith('.dbf'), "The input path must end with .shp or .gpkg if no input_file supplied."
+        assert input_path.endswith('.shp') or input_path.endswith('.gpkg') or input_path.endswith('.gdb'), "The input path must end with .shp or .gpkg or .gdb if no input_file supplied."
 
     if output_file:
-        assert output_file.endswith('.shp') or output_file.endswith('.gpkg') or output_file.endswith('.dbf'), "The output file must end with .shp or .gpkg"
+        assert output_file.endswith('.shp') or output_file.endswith('.gpkg') or output_file.endswith('.gdb'), "The output file must end with .shp or .gpkg or .gdb"
     elif export_path:
-        assert export_path.endswith('.shp') or export_path.endswith('.gpkg') or export_path.endswith('.dbf'), "The output path must end with .shp or .gpkg if no output_file supplied."
+        assert export_path.endswith('.shp') or export_path.endswith('.gpkg') or export_path.endswith('.gdb'), "The output path must end with .shp or .gpkg or .gdb if no output_file supplied."
     
     # set up the correct file paths
     input_path, input_file = parse_geospatial_file_path(input_path, input_file)
@@ -420,9 +418,9 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
     assert input_full_path[:-4] != output_full_path[:-4], "This function does not allow you to convert a file to the same format"
 
     # if no gpkg_tbl name given and we convert a shp file, name the table consistent with the shapefile
-    if not gpkg_tbl and (input_file.endswith('.shp') or input_file.endswith('.dbf')):
+    if not gpkg_tbl and (input_file.endswith('.shp') or input_file.endswith('.gdb')):
         gpkg_tbl = input_file.replace('.shp', '')
-        gpkg_tbl = gpkg_tbl.replace('.dbf', '')
+        gpkg_tbl = gpkg_tbl.replace('.gdb', '')
 
     # set variables
     _overwrite = ''
@@ -444,7 +442,7 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
             exit # stop process so user can fix
 
     # update the commandexport_path
-    if (input_file.endswith('shp') or input_file.endswith('dbf')) and output_file.endswith('gpkg'):
+    if (input_file.endswith('shp') or input_file.endswith('.gdb')) and output_file.endswith('gpkg'):
         cmd = WRITE_SHP_CMD_GPKG.format(shp_path = input_full_path,
                                         gpkg_path = output_full_path,
                                         _update = _update,
@@ -503,25 +501,24 @@ def gpkg_to_shp_bulk(   input_path,
     return
 
 
-def input_geospatial_file(dbo, path, input_file = None, schema = None, table = None, feature_class = False, gpkg_tbl = None, port = 5432,
-                            srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, zip = False, skip_failures = '',
+def input_geospatial_file(dbo, path, input_file = None, schema = None, table = None, feature_class = None, gpkg_tbl = None, port = 5432,
+                            srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, skip_failures = '',
                             temp = True, days = 7, print_cmd=False):
     """
-    Imports single Geopackage table, Shp feature class, or Shp to database. This uses GDAL to generate the table.
+    Imports single Geopackage table, Geodatabase feature class, or Shp to database. This uses GDAL to generate the table.
 
     :param dbo: Database connection
-    :param path: Input file path (required if input_file is missing)
-    :param input_file (str): Optional file name for input (ends with .shp, .dbf, .gpkg); if none, fill in path
+    :param path: Input file path
+    :param input_file (str): Optional file name for input (ends with .shp, .gdb, .gpkg); if none, fill in path
     :param schema (str): Schema that the imported geospatial data will be found
     :param table (str): (Optional) name for the uploaded db table. If blank, it will default to the gpkg_tbl or shp file name.
-    :param feature_class (bool): Import only 1 feature class (input_file must end with .shp or .dbf)
+    :param feature_class (str): (Optional) If importing a Geodatabase, enter the feature class name (ends with .shp)
     :param gpkg_tbl (str): (Optional) If the input file is a Geopackage, list the specific gpkg table to upload.
     :param srid (str): SRID for geometry. Defaults to 2263
     :param gdal_data_loc: File path fo the GDAL data (defaults to C:\\Program Files (x86)\\GDAL\\gdal-data)
     :param precision: Sets precision flag in ogr (defaults to -lco precision=NO)
     :param private: Flag for permissions in database (Defaults to False - will only grant select to public)
     :param encoding: encoding of data within the geospatial file
-    :param zip: Optional flag needed if reading from a zipped file; defaults to False
     :param skip_failures (str): Defualts to ''
     :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
     :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
@@ -530,10 +527,10 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     """
 
     if input_file:
-        assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file should end with .gpkg, .shp, or .dbf"
+        assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.gdb'), "The input file should end with .gpkg, .shp, or .gdb"
         assert path, "Fill in the file path to the input file"
     else:
-        assert path.endswith('.shp') or path.endswith('.gpkg') or path.endswith('.dbf'), "The path should end with .gpkg, .shp, or .dbf"
+        assert path.endswith('.shp') or path.endswith('.gpkg') or path.endswith('.gdb'), "The path should end with .gpkg, .shp, or .gdb"
 
     path, input_file = parse_geospatial_file_path(path, input_file)
 
@@ -546,14 +543,14 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     else:
         precision = ''
 
-    if zip:
+    if path.endswith('.zip') or input_file.endswith('.zip'):
         path = '/vsizip/' + path
         full_path = path
     else:
         full_path = os.path.join(path, input_file)
 
-    if feature_class == True:
-        assert input_file.endswith('.shp') or input_file.endswith('.dbf'), "You cannot select feature_class = True if the input_file does not end with .shp or .dbf"
+    if feature_class:
+        assert feature_class.endswith('.shp') and input_file.endswith('.gdb'), "input_file must end with .gdb & feature_class must end with .shp"
 
     if table:
         assert table == re.sub(r'[^A-Za-z0-9_]+', r'', table) # make sure the name will load into the database
@@ -563,9 +560,9 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     elif not table and gpkg_tbl:
         table = gpkg_tbl.replace('.gpkg', '').replace('.shp', '').lower()
         # if the gpkg_table is left blank, we will populate the name using input_gpkg
-    elif not table and (input_file.endswith('.shp') or input_file.endswith('.dbf')):
+    elif not table and (input_file.endswith('.shp') or input_file.endswith('.gdb')):
         table = input_file.replace('.shp', '').lower()
-        table = table.replace('.dbf', '').lower()
+        table = table.replace('.gdb', '').lower()
     else:
         table = input_file[:-4].lower()
 
@@ -573,7 +570,7 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
 
     if dbo.table_exists(table = table, schema = schema):
 
-        if input_file.endswith('.shp') or input_file.endswith('.dbf'):
+        if input_file.endswith('.shp') or input_file.endswith('.gdb'):
             del_indexes(dbo, schema, table)
     
         print(f'Deleting existing table {schema}.{table}')
@@ -630,7 +627,7 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
                 port=port
             )
 
-    elif dbo.type == 'PG' and (input_file.endswith('.shp') or input_file.endswith('.dbf')) and feature_class == False:
+    elif dbo.type == 'PG' and (input_file.endswith('.shp') or input_file.endswith('.gdb')) and not feature_class:
     
         cmd = READ_SHP_CMD_PG.format(
                 gdal_data = gdal_data_loc,
@@ -645,7 +642,7 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
                 perc = precision,
                 port = port)
 
-    elif dbo.type == 'MS' and (input_file.endswith('.shp') or input_file.endswith('.dbf'))and feature_class == False:
+    elif dbo.type == 'MS' and (input_file.endswith('.shp') or input_file.endswith('.gdb')) and not feature_class:
         
         if dbo.LDAP:
             cmd = READ_SHP_CMD_MS.format(
@@ -676,7 +673,7 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
                 port = port
             )
     
-    elif dbo.type == 'PG' and (input_file.endswith('.shp') or input_file.endswith('.dbf'))and feature_class == True:
+    elif dbo.type == 'PG' and input_file.endswith('.gdb') and feature_class:
         
         cmd = READ_FEATURE_CMD.format(
             gdal_data = gdal_data_loc,
@@ -686,11 +683,11 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
             user = dbo.user,
             password= dbo.password,
             gdb = full_path,
-            feature = input_file[:-4],
+            feature = feature_class,
             tbl_name = table,
             sch = schema
         )
-    elif dbo.type == 'MS' and (input_file.endswith('.shp') or input_file.endswith('.dbf')) and feature_class == True:
+    elif dbo.type == 'MS' and input_file.endswith('.gdb') and feature_class:
             # TODO: add LDAP version trusted_connection=yes
         cmd = READ_FEATURE_CMD_MS.format(
                 gdal_data = gdal_data_loc,
@@ -700,7 +697,7 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
                 ms_user = dbo.user,
                 ms_pass = dbo.password,
                 gdb = full_path,
-                feature= input_file[:-4],
+                feature= feature_class,
                 tbl_name=table,
                 sch= schema,
                 sf=skip_failures
@@ -761,16 +758,16 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
         dbo.run_table_logging([schema + "." + table], days=days)
 
 
-def input_gpkg_bulk(path, dbo, input_file = None, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
-                precision=False, private=False, encoding=None, zip = False, print_cmd=False, temp = True, days = 7):
+def input_geospatial_bulk(path, dbo, input_file = None, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
+                precision=False, private=False, encoding=None, print_cmd=False, temp = True, days = 7):
 
     """
-    Reads all tables within a GEOPACKAGE file into SQL or Postgresql as tables.
+    Reads all tables within a Geopackage/Geodatabase file into SQL or Postgresql as tables.
     Function is NOT applicable to Shapefiles.
 
     :param path: Input file path for geopackage
     :param dbo: Database connection
-    :param input_file(str): Optional file name for input (must end with .gpkg)
+    :param input_file(str): Optional file name for input (must end with .gpkg or .gdb)
     :param schema (str): Schema that the imported geopackage data will be found
     :param port (int): Optional port
     :param srid (str): SRID for geometry. Defaults to 2263
@@ -784,7 +781,7 @@ def input_gpkg_bulk(path, dbo, input_file = None, schema = None, port = 5432, sr
     :return:
     """
     if input_file:
-        assert input_file.endswith('.gpkg'), "You cannot bulk upload Shapefiles, you can only bulk upload tables within a Geopackage"
+        assert input_file.endswith('.gpkg') or input_file.endswith('.gdb'), "You cannot bulk upload Shapefiles, you can only bulk upload tables within a Geopackage/database"
     else:
         assert path.endswith('.gpkg'), "Your path must end with .gpkg (Geopackage only) if there is no input_file"
     
@@ -795,11 +792,16 @@ def input_gpkg_bulk(path, dbo, input_file = None, schema = None, port = 5432, sr
     # retrieve all the table names from the geopackage
     
     try:
+        
         count_cmd = COUNT_GPKG_LAYERS.format(full_path = full_path) 
         ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-        tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
+
+        if full_path.endswith('.gpkg'):
+            tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
         # only allows tables names with underscores, numbers, and letters as the first character
         # excludes any dtype description that's also returned by the command line
+        else: # .gdb
+            tables_in_gpkg = re.findall(r"Layer:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
 
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -817,11 +819,15 @@ def input_gpkg_bulk(path, dbo, input_file = None, schema = None, port = 5432, sr
     # assert that the new cleaned names are unique. if not, we won't get the same dimensions
     assert len(gpkg_tbl_names) == len(tables_in_gpkg), "Clean the geopackage table names so they can be uploaded as tables (by removing special characters other than _) and make sure they are unique."
 
-    
     for gpkg_tbl, table in gpkg_tbl_names.items():
 
-        input_geospatial_file(dbo = dbo, input_file = input_file, table = table, path = path, gpkg_tbl = gpkg_tbl, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
-                        precision=precision, private=private, encoding=encoding, zip = zip, print_cmd=print_cmd, temp = temp, days = days)
+        if full_path.endswith('.gpkg'):
+            input_geospatial_file(dbo = dbo, input_file = input_file, table = table, path = path, gpkg_tbl = gpkg_tbl, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
+                                precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days)
+            
+        else:
+            input_geospatial_file(dbo = dbo, input_file = input_file, table = table, path = path, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
+                                    feature_class = table + '.shp', precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days)
 
 
 def del_indexes(dbo, schema, table):
