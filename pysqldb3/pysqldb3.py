@@ -948,9 +948,9 @@ class DbConnect:
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table as not-temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+        :param column_type_overrides: 'all' or Dict of type key=column name, value=column type. Will manually set the
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
-                detection.
+                detection. If 'all' is provided, all fields will be set to varchar(max).
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :param temp_table: if True, the table made from the dataframe will be a temporary table
         :return: Table schema that was created from DataFrame
@@ -1024,9 +1024,10 @@ class DbConnect:
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+        :param column_type_overrides: 'all' or Dict of type key=column name, value=column type. Will manually set the
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection. **Will not override a custom table_schema, if inputted**
+                If 'all' is provided, all fields will be set to varchar(max).
         :param days: if temp=True and table schema needs to be created, the number of days that the temp table will be
                      kept. Defaults to 7.
         :param temp_table: if True, dataframe created as a temporary table, which will be lost when db connection is closed
@@ -1069,7 +1070,7 @@ class DbConnect:
         print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     alow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False,
+                     allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False,
                      **kwargs):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
@@ -1079,8 +1080,10 @@ class DbConnect:
         :param table: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
         :param sep: Separator for csv file, defaults to comma (,)
-        :param alow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic detection. **Will not override a custom table_schema, if inputted**
+        :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
+        :param column_type_overrides: Dict of type key=column name, value=column type.
+        Will manually set the raw column name as that type in the query, regardless of the pandas/postgres/sql server
+        automatic detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :param temp_table: if True, Uploads csv to temporary table, which will be lost when db connection is closed
         :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
@@ -1117,7 +1120,7 @@ class DbConnect:
             df = data.get_chunk(1000)
         else:
             df = pd.read_csv(input_file, sep=sep, **kwargs)
-        allow_max = alow_max_varchar or contains_long_columns(df)
+        allow_max = allow_max_varchar or contains_long_columns(df)
 
         if 'ogc_fid' in df.columns:
             df = df.drop('ogc_fid', 1)
@@ -1575,7 +1578,7 @@ class DbConnect:
 
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
-                     alow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
+                     allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
         Imports xls/x file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -1584,7 +1587,7 @@ class DbConnect:
         :param schema: Schema of table; if None, defaults to db's default schema
         :param table: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
-        :param alow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
+        :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
         :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection.
@@ -1645,7 +1648,8 @@ class DbConnect:
                                                                   overwrite=overwrite,
                                                                   temp=temp,
                                                                   column_type_overrides=column_type_overrides,
-                                                                  days=days)
+                                                                  days=days,
+                                                                  allow_max_varchar=allow_max_varchar)
                     temp_file = os.path.dirname(
                         input_file) + '\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
                     df.to_csv(temp_file, index=False, header=True)
@@ -1667,7 +1671,7 @@ class DbConnect:
                     raise AssertionError('Bulk file loading failed.'.format(schema, table))
             else:
                 self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
-                                        allow_max_varchar=alow_max_varchar,
+                                        allow_max_varchar=allow_max_varchar,
                                         column_type_overrides=column_type_overrides, days=days,
                                         temp_table=temp_table)
         except Exception as e:
