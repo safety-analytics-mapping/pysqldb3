@@ -40,11 +40,15 @@ test_layer2 = f'test_layer2_{db.user}'
 test_read_shp_table_name = f'test_read_shp_table_{db.user}'
 test_write_shp_table_name = f'test_write_shp_table_{db.user}'
 test_reuploaded_table_name = f'test_write_reuploaded_{db.user}'
+test_feature_class_table_name = f'test_feature_class_{db.user}'
 
 FOLDER_PATH = helpers.DIR
 
 ms_schema = 'dbo'
 pg_schema = 'working'
+
+fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
+fc = 'node.shp'
 
 class TestReadgpkgPG:
     @classmethod
@@ -112,7 +116,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # no gpkg_tbl argument so that it bulk uploads
-        s.input_gpkg_bulk(path=FOLDER_PATH, dbo=db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
+        s.input_geospatial_bulk(path=FOLDER_PATH, dbo=db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table = test_layer1)
@@ -284,7 +288,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # no gpkg_tbl argument so that it bulk uploads
-        s.input_gpkg_bulk(dbo=sql, path=FOLDER_PATH, input_file = gpkg_name, schema=ms_schema, print_cmd=True)
+        s.input_geospatial_bulk(dbo=sql, path=FOLDER_PATH, input_file = gpkg_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table = test_layer1)
@@ -312,7 +316,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # Read gpkg to new, test table
-        s.input_gpkg_bulk(path=FOLDER_PATH, input_file=gpkg_name, dbo=sql, schema=ms_schema, print_cmd=True)
+        s.input_geospatial_bulk(path=FOLDER_PATH, input_file=gpkg_name, dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table= test_layer1)
@@ -596,7 +600,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)) # assert that the table is still there
 
         # Reupload both tables from the same geopackage (since we are uploading under a different name, we can't use bulk upload function here)
-        s.input_gpkg_bulk(path=FOLDER_PATH, dbo = db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
+        s.input_geospatial_bulk(path=FOLDER_PATH, dbo = db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -955,7 +959,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as tables using bulk upload function
-        s.input_gpkg_bulk(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
+        s.input_geospatial_bulk(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -2016,3 +2020,315 @@ class TestWriteShpMS:
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql)
         helpers.clean_up_shapefile()
+
+    class TestFeatureClassToTablePg:
+        @classmethod
+        def setup_class(cls):
+            helpers.set_up_feature_class()
+
+        @pytest.mark.order1
+        def test_import_fc_basic(self):
+            db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
+            assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, schema=None, feature_class=fc)
+            assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+            db.drop_table(db.default_schema, test_feature_class_table_name)
+
+        @pytest.mark.order2
+        def test_import_fc_new_name(self):
+            db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
+            assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, schema=None, feature_class = fc)
+            assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+            db.drop_table(db.default_schema, test_feature_class_table_name)
+
+        @pytest.mark.order3
+        def test_import_fc_new_name_schema(self):
+
+            db.drop_table(table = test_feature_class_table_name, schema=pg_schema)
+            assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, feature_class = fc, schema=pg_schema)
+            assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
+
+            db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_feature_class_table_name}'")
+            assert len(db.data) == 1
+
+            db.drop_table(pg_schema, test_feature_class_table_name)
+
+        @pytest.mark.order4
+        def test_import_fc_new_name_schema_srid(self):
+
+            db.drop_table(table=test_feature_class_table_name, schema=pg_schema)
+            assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
+            assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
+
+            db.query(f"select distinct st_srid(geom) from {pg_schema}.{test_feature_class_table_name}")
+            assert db.data[0][0] == 4326
+
+            db.drop_table(pg_schema, test_feature_class_table_name)
+
+        @pytest.mark.order5
+        def test_import_fc_new_name_data_check(self):
+            db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
+            assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, schema=None, feature_class=fc)
+            assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+            db.query(f"""
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = '{db.default_schema}'
+                AND table_schema = '{test_feature_class_table_name}'
+            """)
+
+            columns = {i[0] for i in db.data}
+            types = {i[1] for i in db.data}
+
+            assert {'vintersect', 'objectid', 'geom', 'nodeid'}.issubset(columns)
+            assert {'integer', 'integer', 'integer', 'character varying', 'USER-DEFINED'}.issubset(types)
+
+            # check non geom data
+            db.query(f"""
+                        select nodeid, vintersect, st_astext(geom, 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+                    """)
+
+            row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.1 126536.1)'),
+                        (98, '', 'MULTIPOINT(914714.8 126499.8)'),
+                        (100, 'VirtualIntersection', 'MULTIPOINT(914872 126696.6)')]
+
+            # assert db.data == row_values
+            for c in range(len(db.data)):
+                for r in range(len(db.data[c])):
+                    assert row_values[c][r] == db.data[c][r]
+
+            # check geom matches (less than 1 ft off
+            db.query(f"""
+                select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
+                    st_setsrid(st_makepoint(914145.1,126536.1, 2263),2263))
+                from {db.default_schema}.{test_feature_class_table_name}
+                where nodeid=88
+            """)
+            assert db.data[0][0] < 1
+
+            db.query(f"""
+                select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
+                    st_setsrid(st_makepoint(920184.0, 138084.1, 2263),2263))
+                from {db.default_schema}.{test_feature_class_table_name}
+                where nodeid=888
+            """)
+
+            assert db.data[0][0] < 1
+
+            db.drop_table(db.default_schema, test_feature_class_table_name)
+
+        @pytest.mark.order6
+        def test_import_fc_new_name_schema_no_fc(self):
+
+            db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
+            assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+            try:
+                s.input_geospatial_file(fgdb, test_feature_class_table_name, feature_class=fc, schema=pg_schema)
+            except:
+                assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
+
+            db.drop_table(pg_schema, test_feature_class_table_name)
+
+        @pytest.mark.order7
+        def test_import_fc_new_name_schema_private(self):
+            private_table = test_feature_class_table_name + '_priv'
+
+            db.drop_table(table=private_table, schema=pg_schema)
+            assert not db.table_exists(private_table, schema=pg_schema)
+
+            s.input_geospatial_file(fgdb, private_table, feature_class=fc, schema=pg_schema, private=True)
+            assert db.table_exists(private_table, schema=pg_schema)
+
+            db.query(f"""
+                select distinct grantee from information_schema.table_privileges
+                where table_name = '{private_table}'
+                and table_schema='{pg_schema}'
+            """, strict=False)
+            assert len(db.data) == 1
+
+            db.drop_table(pg_schema, private_table)
+
+        @pytest.mark.order8
+        def test_import_fc_new_name_schema_tmp(self):
+            not_temp_table = test_feature_class_table_name + '_tmp'
+
+            db.drop_table(table=not_temp_table, schema=pg_schema)
+            assert not db.table_exists(not_temp_table, schema=pg_schema)
+
+            s.input_geospatial_file(fgdb, not_temp_table, feature_class=fc, schema=pg_schema, temp=False)
+            assert db.table_exists(not_temp_table, schema=pg_schema)
+
+            db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{not_temp_table}'")
+            assert len(db.data) == 0
+
+            db.drop_table(pg_schema, not_temp_table)
+
+        @classmethod
+        def teardown_class(cls):
+            # helpers.clean_up_feature_class()
+            db.cleanup_new_tables()
+
+
+    class TestFeatureClassToTableMs:
+        @classmethod
+        def setup_class(cls):
+            helpers.set_up_feature_class()
+
+        @pytest.mark.order9
+        def test_import_fc_basic(self):
+            sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
+            assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, schema=None, feature_class=fc, print_cmd=True,skip_failures='-skip_failures')
+            assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+
+            sql.drop_table(sql.default_schema, test_feature_class_table_name)
+
+        @pytest.mark.order10
+        def test_import_fc_new_name(self):
+            sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
+            assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+            assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+
+            sql.drop_table(sql.default_schema, test_feature_class_table_name)
+
+        @pytest.mark.order11
+        def test_import_fc_new_name_schema(self):
+
+            sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
+            assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, feature_class=fc, schema=ms_schema, skip_failures='-skip_failures')
+            assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
+            sql.drop_table(ms_schema, test_feature_class_table_name)
+
+        @pytest.mark.order12
+        def test_import_fc_new_name_schema_srid(self):
+
+            sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
+            assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, feature_class=fc, schema = ms_schema, srid=4326, skip_failures='-skip_failures')
+            assert sql.table_exists(test_feature_class_table_name, schema = ms_schema)
+
+            sql.query(f"select distinct geom.STSrid from {ms_schema}.{test_feature_class_table_name}")
+            assert sql.data[0][0] == 4326
+
+            sql.drop_table(ms_schema, test_feature_class_table_name)
+
+        @pytest.mark.order13
+        def test_import_fc_new_name_data_check(self):
+            sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
+
+            assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+
+            assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+            sql.query(f"""
+                    select column_name, data_type
+                    from INFORMATION_SCHEMA.COLUMNS
+                    where table_name = '{test_feature_class_table_name}'
+                    and table_schema='{sql.default_schema}'
+            """)
+
+            columns = {i[0] for i in sql.data}
+            types = {i[1] for i in sql.data}
+
+            assert {'objectid', 'geom', 'nodeid', 'vintersect'}.issubset(columns)
+            assert {'int', 'geometry', 'int', 'nvarchar'}.issubset(types)
+
+            # check non geom data
+            sql.query(f"""select nodeid, vintersect, geom.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+                            """)
+
+            row_values = [(88, 'VirtualIntersection', 'MULTIPOINT ((914145.06807594 126536.07138967514))'),
+                        (98, '', 'MULTIPOINT ((914714.79952293634 126499.80801236629))'),
+                        (100, 'VirtualIntersection', 'MULTIPOINT ((914872.03410968184 126696.62913236022))')]
+
+            for c in range(len(sql.data)):
+                for r in range(len(sql.data[c])):
+                    assert row_values[c][r] == sql.data[c][r]
+
+            # check geom matches (less than 1 ft off)
+            sql.query(f"""
+                select geom.STGeometryN(1).STDistance(geometry::Point(914145.1,126536.1, 2263))
+                from {sql.default_schema}.{test_feature_class_table_name}
+                where nodeid=88
+            """)
+            assert sql.data[0][0] < 1
+
+            sql.query(f"""
+                select geom.STGeometryN(1).STDistance(geometry::Point(920184.0, 138084.1, 2263))
+                from {sql.default_schema}.{test_feature_class_table_name}
+                where nodeid=888
+                    """)
+            assert sql.data[0][0] < 1
+
+            sql.drop_table(sql.default_schema, test_feature_class_table_name)
+
+        @pytest.mark.order14
+        def test_import_fc_new_name_schema_no_fc(self):
+            schema = 'working'
+
+            sql.drop_table(table=test_feature_class_table_name, schema=schema)
+            assert not sql.table_exists(test_feature_class_table_name, schema=schema)
+
+            try:
+                s.input_geospatial_file(fgdb, test_feature_class_table_name, feature_class=fc, schema=schema, skip_failures='-skip_failures')
+            except:
+                assert not sql.table_exists(test_feature_class_table_name, schema=schema)
+
+            sql.drop_table(schema, test_feature_class_table_name)
+
+        @pytest.mark.order15
+        def test_import_fc_new_name_schema_temp(self):
+
+            sql.drop_table(table=test_feature_class_table_name, schema = ms_schema)
+            assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
+            s.input_geospatial_file(fgdb, test_feature_class_table_name, feature_class=fc, schema=ms_schema, temp=False,
+            skip_failures='-skip_failures')
+            assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
+            sql.query(f"select * from {ms_schema}.__temp_log_table_{sql.user}__ where table_name = '{test_feature_class_table_name}'")
+            assert len(sql.data) == 0
+
+            sql.drop_table(ms_schema, test_feature_class_table_name)
+
+        @pytest.mark.order16
+        def test_import_fc_new_name_schema_private(self):
+
+            sql.drop_table(table=test_feature_class_table_name, schema = ms_schema)
+            assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
+            s.input_geospatial_file(fgdb, table=test_feature_class_table_name, feature_class=fc, schema = ms_schema, private=True, skip_failures='-skip_failures')
+            assert sql.table_exists(table = test_feature_class_table_name, schema = ms_schema)
+
+            sql.query(f"""
+                EXEC sp_table_privileges @table_name = '{test_feature_class_table_name}';
+                """)
+            sql.drop_table(ms_schema, test_feature_class_table_name)
+
+            # FAILING
+            # assert df['GRANTEE'].nunique() == 1
+
+        @classmethod
+        def teardown_class(cls):
+            # helpers.clean_up_feature_class()
+            sql.cleanup_new_tables()
