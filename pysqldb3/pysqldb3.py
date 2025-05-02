@@ -1167,6 +1167,17 @@ class DbConnect:
             self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
                                     temp=temp, days=days, temp_table=temp_table)
 
+
+        # clean up unnamed columns
+        cols = self.get_table_columns(table, schema=schema)
+        unnamed = [i[0] for i in cols if 'unnamed' in i[0]]
+        if unnamed:
+            for c in unnamed:
+                self.query(f"select distinct rtrim(ltrim(cast({c} as varchar)))  from {schema}.{table}", internal=True)
+                if len({i for i in self.internal_data if i[0]!= ''}) <=1:
+                    if not self.internal_data[0][0]:
+                        self.query(f"alter table {schema}.{table} drop column {c}", internal=True)
+
     def _bulk_csv_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
         """
         Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.

@@ -15,16 +15,16 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
-# dbt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=db)
+dbt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=db)
 
 
-# sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
-#                         server=config.get('SQL_DB', 'SERVER'),
-#                         database=config.get('SQL_DB', 'DB_NAME'),
-#                         user=config.get('SQL_DB', 'DB_USER'),
-#                         password=config.get('SQL_DB', 'DB_PASSWORD'))
+sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
+                        server=config.get('SQL_DB', 'SERVER'),
+                        database=config.get('SQL_DB', 'DB_NAME'),
+                        user=config.get('SQL_DB', 'DB_USER'),
+                        password=config.get('SQL_DB', 'DB_PASSWORD'))
 
-# sqlt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=sql)
+sqlt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=sql)
 
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 create_table_name = 'sample_acs_test_csv_to_table_{}'.format(db.user)
@@ -392,8 +392,7 @@ class TestCsvToTablePG:
 
 
     def test_csv_to_table_empty_columns(self):
-
-        # todo:
+        # test:
         #  1. create csv with 3 columns with empty headers
         #  - col 1 should be between 2 valid columns and empty
         #  - col 2 should be between 2 valid columns and populated
@@ -415,6 +414,7 @@ class TestCsvToTablePG:
         # Get csv df via pd.read_csv
         csv_df = pd.read_csv(fp)
         csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
 
         # Assert df equality, including dtypes and columns - non-null columns
         pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
@@ -426,9 +426,6 @@ class TestCsvToTablePG:
         assert 'unnamed__4' in db_df.columns.to_list()
         # Assert Col 4 is not there
         assert 'unnamed__5' not in db_df.columns.to_list()
-
-        csv_df.drop(columns=['unnamed__2', 'unnamed__5'], inplace=True)
-
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -589,7 +586,44 @@ class TestBulkCSVToTablePG:
         # Test input schema
         return
 
-    # Temp test is in logging tests
+    def test_csv_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test9_bulk.csv"
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema)
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -959,6 +993,45 @@ class TestCsvToTableMS:
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
 
+    def test_csv_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        sql.drop_table(sql_schema, create_table_name)
+
+        fp = helpers.DIR + "\\test9.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
     @classmethod
     def teardown_class(cls):
         sql.cleanup_new_tables()
@@ -1115,7 +1188,44 @@ class TestBulkCSVToTableMS:
         # Test input schema
         return
 
-    # Temp test is in logging tests
+    def test_csv_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test9_bulk.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
 
     @classmethod
     def teardown_class(cls):

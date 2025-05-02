@@ -82,6 +82,16 @@ def set_up_test_csv():
         [2, 3, None, 9,   None, None],
         [35,36,None, 37,  456,  ' ']
     ]
+    data9_bulk = [
+        ["id", "col1", '', 'col2', '', ''],
+        [1, 2, None, 100, 123, None],
+        [2, 3, None, 9, None, None],
+        [35, 36, None, 37, 456, ' ']
+    ]
+
+    for i in range(100000):
+        data9_bulk.append([35+i, 3, None, 9, None, None])
+        i+=1
 
 
     with open(DIR+"\\test8.csv", 'w', newline='') as csvfile:
@@ -106,6 +116,11 @@ def set_up_test_csv():
     with open(DIR+"\\test9.csv", 'w', newline='') as csvfile:
         w = csv.writer(csvfile, delimiter=',')
         for row in data9:
+            w.writerow(row)
+
+    with open(DIR+"\\test9_bulk.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data9_bulk:
             w.writerow(row)
 
 
@@ -414,6 +429,32 @@ def set_up_xls():
     _df = pd.read_excel(DIR + "\\xls_kwargs_test.xls")
     _df.to_excel(DIR + "\\xls_kwargs_test.xlsx", index=False)
 
+    # small xls with empty column headers
+    xls_file3 = os.path.join(DIR, 'test_xls_with_empty_headers.xls')
+    if os.path.isfile(xls_file3):
+        clean_up_file(xls_file3)
+    data9 = [
+        ["id",  "col1", '', 'col2', '', ''],
+        [1, 2, None, 100, 123,  None],
+        [2, 3, None, 9,   None, None],
+        [35,36,None, 37,  456,  ' ']
+    ]
+    data9.to_excel(xls_file3, index=False)
+
+    xls_file3_bulk = os.path.join(DIR, 'test_xls_with_empty_headers_bulk.xls')
+    if os.path.isfile(xls_file3_bulk):
+        clean_up_file(xls_file3_bulk)
+    data9_bulk = [
+        ["id", "col1", '', 'col2', '', ''],
+        [1, 2, None, 100, 123, None],
+        [2, 3, None, 9, None, None],
+        [35, 36, None, 37, 456, ' ']
+    ]
+
+    for i in range(100000):
+        data9_bulk.append([35+i, 3, None, 9, None, None])
+        i+=1
+    data9_bulk.to_excel(xls_file3_bulk, index=False)
 
 def set_up_geopackage(user):
 
