@@ -233,18 +233,14 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         qry = f"select {return_cols} from ({query}) q "
 
+    # clean up the output file name
+    # need 2 statements because of the difference in characters
     if output_file.endswith('.gpkg') and "." in output_file[:-5]:
         output_file = output_file[:-5].replace(".", "_") + ".gpkg"
-        print(' The "." character is not allowed in output gpkg file names. Any "." have been removed.')
-    elif not output_file.endswith(".gpkg") and "." in output_file[-5]:
-        output_file = output_file[:-5].replace(".", "_") + '.gpkg'
-        print(' The "." character is not allowed in output gpkg file names. Any "." have been removed.')
+        print(' The "." character is not allowed in output gpkg file names. Any "." have been replaced with "_".')
     elif (output_file.endswith(".shp") or output_file.endswith(".gdb")) and "." in output_file[:-4]:
         output_file = output_file[:-4].replace(".", "_") + ".shp"
-        print(' The "." character is not allowed in output shp file names. Any "." have been removed.')
-    elif not (output_file.endswith(".shp") or output_file.endswith(".gdb"))and "." in output_file[-4]:
-        output_file = output_file[:-4].replace(".", "_") + '.shp'
-        print(' The "." character is not allowed in output shp file names. Any "." have been removed.')
+        print(' The "." character is not allowed in output shp file names. Any "." have been replaced with "_".')
 
     if not gpkg_tbl:
         gpkg_tbl = table
