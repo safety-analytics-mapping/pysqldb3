@@ -460,7 +460,7 @@ def set_up_xls():
     ]
 
     for i in range(10000):
-        data9_bulk.append([35+i, 3, None, 9, None, None])
+        data9_bulk.append([36+i, 3, None, 9, None, None])
         i+=1
 
     wb = openpyxl.Workbook()
