@@ -1,5 +1,6 @@
 import os
 from . import helpers
+from .. import util
 import configparser
 import pandas as pd
 import time
@@ -58,6 +59,30 @@ class TestXlsToTablePG:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, xls_df)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=xls_table_name)
+
+    def test_xls_to_table_basic_override_all(self):
+        # xls_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, xls_table_name))
+        fp = helpers.DIR +"\\test_xls.xls"
+
+        db.xls_to_table(
+            input_file=fp,
+            table=xls_table_name,
+            schema=pg_schema,
+            column_type_overrides='all'
+        )
+
+        # Check to see if table is in database
+        assert db.table_exists(table=xls_table_name, schema=pg_schema)
+        db.query("alter table {}.{} drop column if exists ogc_fid".format(pg_schema, xls_table_name))
+
+        # check table schema
+        db.get_table_columns(xls_table_name, schema=pg_schema)
+        assert set([i[1] for i in db.get_table_columns(xls_table_name, schema=pg_schema)]) == {
+            f'character varying ({util.VARCHAR_MAX[db.type]})'}
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
@@ -391,6 +416,36 @@ class TestXlsToTableMS:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(sql_df, xls_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=xls_table_name)
+
+    def test_xls_to_table_basic_override_all(self):
+        # Define table name and cleanup
+        if sql.table_exists(table=xls_table_name, schema=sql_schema):
+            sql.query('drop table {}.{}'.format(sql_schema, xls_table_name))
+
+        if sql.table_exists(table='stg_' + xls_table_name, schema=sql_schema):
+            sql.query('drop table {}.{}'.format(sql_schema, 'stg_' + xls_table_name))
+
+        # xls_to_table
+        fp = helpers.DIR +"\\test_xls.xls"
+        sql.xls_to_table(
+            input_file=fp,
+            table=xls_table_name, schema=sql_schema,
+            column_type_overrides='all'
+        )
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=xls_table_name, schema=sql_schema)
+        sql_df = sql.dfquery("select * from {}.{}".format(sql_schema, xls_table_name))
+        if 'ogr_fid' in sql_df.columns:
+            sql_df = sql_df.drop(columns=['ogr_fid'])
+
+        # check table schema
+        sql.get_table_columns(xls_table_name, schema=sql_schema)
+        assert set([i[1] for i in sql.get_table_columns(xls_table_name, schema=sql_schema)]) == {
+            f'varchar ({util.VARCHAR_MAX[sql.type]})'}
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=xls_table_name)

@@ -4,6 +4,7 @@ import configparser
 import pandas as pd
 
 from .. import pysqldb3 as pysqldb
+from .. import util as util
 from . import helpers
 
 config = configparser.ConfigParser()
@@ -54,6 +55,23 @@ class TestCsvToTablePG:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
+    def test_csv_to_table_basic_override_all(self):
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, column_type_overrides='all')
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+
+        # check table schema
+        db.get_table_columns(create_table_name, schema=pg_schema)
+        assert set([i[1] for i in db.get_table_columns(create_table_name, schema=pg_schema)]) == {f'character varying ({util.VARCHAR_MAX[db.type]})'}
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -374,7 +392,7 @@ class TestCsvToTablePG:
         base_string = 'text'*150
         fp = helpers.DIR + "\\varchar.csv"
         db.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -526,7 +544,7 @@ class TestBulkCSVToTablePG:
 
         fp = helpers.DIR + "\\varchar.csv"
         pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -576,6 +594,25 @@ class TestCsvToTableMS:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(sql_df, csv_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_csv_to_table_basic_override_all(self):
+        # csv_to_table
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
+            sql.query('drop table {}.{}'.format(sql_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, column_type_overrides='all')
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check table schema
+        sql.get_table_columns(create_table_name, schema=sql_schema)
+        assert set([i[1] for i in sql.get_table_columns(create_table_name, schema=sql_schema)]) == {
+            f'varchar ({util.VARCHAR_MAX[sql.type]})'}
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
@@ -900,7 +937,7 @@ class TestCsvToTableMS:
         base_string = 'text'*150
         fp = helpers.DIR + "\\varchar.csv"
         sql.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
@@ -1052,7 +1089,7 @@ class TestBulkCSVToTableMS:
 
         fp = helpers.DIR + "\\varchar.csv"
         pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
