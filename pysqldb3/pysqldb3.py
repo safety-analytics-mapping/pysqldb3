@@ -2424,7 +2424,7 @@ class DbConnect:
             if self.internal_data:
                 _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
             else:
-                return None
+                return []
             
             constraints = []
 
@@ -2454,7 +2454,7 @@ class DbConnect:
         else:
             return None
 
-    def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
+    def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table, columns=[], exclude_columns=[]):
         """
         Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
         as backing up to csv for large tables, but it will ensure identical schema.
@@ -2463,6 +2463,8 @@ class DbConnect:
         :param backup_path: File path where the .sql file will be written.
         :param backup_schema: Name of database schema the backed up table will be written back to.
         :param backup_table: Name of database table the backed up table will be written back to.
+        :param columns: Default Empty List. If provided only columns listed will be included in the backup.
+        :param exclude_columns: Default Empty List. If provided only columns not included will be included in the backup.
         :return: backup_schema, backup_table
         """
 
@@ -2474,11 +2476,19 @@ class DbConnect:
         # get table constraints
         constraints = self._get_table_constraints(org_schema, org_table)
 
+        if exclude_columns:
+            tbl_schema = [i for i in tbl_schema if i[0] not in exclude_columns]
+            constraints = [i for i in constraints if i[3] not in exclude_columns]
+
+        if columns:
+            tbl_schema = [i for i in tbl_schema if i[0] in columns]
+            constraints = [i for i in constraints if i[3] in columns]
+
         # CREATE TABLE QUERY
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
             _create_qry += f'\n"{col}" {dtyp},'
-            
+
             if dtyp == 'ARRAY': # if dtype is ARRAY, we needs its dimension
 
                 # query the data (to find out the length of the array)
@@ -2498,7 +2508,8 @@ class DbConnect:
 
         # INSERT INTO TABLE QUERY
         _insert_qry = f'INSERT INTO "{backup_schema}"."{backup_table}" values\n'
-        self.query(f'select * from "{org_schema}"."{org_table}"', internal=True)
+        cols = str(['"'+i[0]+'"' for i in tbl_schema])[1:-1].replace("'", "")
+        self.query(f'select {cols} from "{org_schema}"."{org_table}"', internal=True)
         data  = self.internal_data
         for row in data:
             r = "("
