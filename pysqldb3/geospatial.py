@@ -502,10 +502,52 @@ def gpkg_to_shp_bulk(   input_path,
 
     return
 
+    def _decompress(path):
 
-def input_geospatial_file(dbo, path, input_file = None, schema = None, table = None, feature_class = False, gpkg_tbl = None, port = 5432,
-                            srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, zip = False, skip_failures = '',
-                            temp = True, days = 7, print_cmd=False):
+        # Create a temporary directory to extract files
+        temp_dir = tempfile.mkdtemp()
+        suffix = Path(path).suffix.lower()
+
+        try:
+            # Extract based on archive type
+            if suffix == '.zip':
+                with zipfile.ZipFile(path, 'r') as z:
+                    z.extractall(temp_dir)
+            elif suffix in ['.tar', '.gz', '.tgz', '.tar.gz']:
+                with tarfile.open(path, 'r:*') as tar:
+                    tar.extractall(temp_dir)
+            elif suffix == '.7z':
+                with py7zr.SevenZipFile(path, mode='r') as archive:
+                    archive.extractall(path=temp_dir)
+            elif suffix == '.rar':
+                with rarfile.RarFile(path) as archive:
+                    archive.extractall(path=temp_dir)
+            else:
+                shutil.rmtree(temp_dir)
+                raise ValueError(f"Unsupported compression format: {suffix}")
+
+            # Look for the first .shp file extracted
+            shp_files = list(Path(temp_dir).rglob('*.shp'))
+            if not shp_files:
+                shutil.rmtree(temp_dir)
+                raise FileNotFoundError("No .shp file found after decompression.")
+
+            shp_path = shp_files[0]
+
+            # Return the folder path, .shp filename, and temp dir for later cleanup
+            return str(shp_path.parent), shp_path.name, temp_dir
+
+        except Exception as e:
+            # Cleanup in case of error
+            shutil.rmtree(temp_dir)
+            raise e
+
+
+def input_geospatial_file(dbo, path, input_file=None, schema=None, table=None, feature_class=False, gpkg_tbl=None,
+                          port=5432,
+                          srid='2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None,
+                          zip=False, skip_failures='',
+                          temp=True, days=7, print_cmd=False):
     """
     Imports single Geopackage table, Shp feature class, or Shp to database. This uses GDAL to generate the table.
 
@@ -529,13 +571,21 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     :return:
     """
 
+    # if file has other compressed format
+    compressed_exts = ['.tar', '.gz', '.tgz', '.tar.gz', '.7z', '.rar']
+    temp_dir = None
+    if os.path.splitext(input_file)[1].lower() in compressed_exts:
+        print("Importing Shp from compressed file")
+        full_path = os.path.join(path, input_file)
+        path, input_file, temp_dir = _decompress(full_path)
+    path, input_file = parse_geospatial_file_path(path, input_file)
+
     if input_file:
         assert input_file.endswith('.shp') or input_file.endswith('.gpkg') or input_file.endswith('.dbf'), "The input file should end with .gpkg, .shp, or .dbf"
         assert path, "Fill in the file path to the input file"
     else:
         assert path.endswith('.shp') or path.endswith('.gpkg') or path.endswith('.dbf'), "The path should end with .gpkg, .shp, or .dbf"
 
-    path, input_file = parse_geospatial_file_path(path, input_file)
 
     # Use default schema from db object
     if not schema:
@@ -760,6 +810,9 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     if temp:
         dbo.run_table_logging([schema + "." + table], days=days)
 
+    # remove temp folders of any decompressed files
+    if temp_dir:
+        shutil.rmtree(temp_dir)
 
 def input_gpkg_bulk(path, dbo, input_file = None, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
                 precision=False, private=False, encoding=None, zip = False, print_cmd=False, temp = True, days = 7):

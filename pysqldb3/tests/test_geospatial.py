@@ -1388,6 +1388,48 @@ class TestReadShpPG:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
+    def test_read_shp_other_compressed(self):
+        fp = FOLDER_PATH + '/test.7z'
+        shp_name = "test.shp"
+
+        # Make sure table doesn't already exist
+        db.drop_table(pg_schema, test_read_shp_table_name)
+        assert not db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
+
+        # Read the .7z archive directly into PostGIS
+        s.input_geospatial_file(
+            dbo=db,
+            path=fp,
+            schema=pg_schema,
+            input_file=shp_name,
+            table=test_read_shp_table_name,
+            print_cmd=True,
+            zip=False
+        )
+
+        # Check table creation and content
+        assert db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
+        table_df = db.dfquery(f'select * from {pg_schema}.{test_read_shp_table_name}')
+        assert set(table_df.columns) == {'gid', 'some_value', 'geom', 'ogc_fid'}
+        assert len(table_df) == 2
+
+        # Check geometry consistency
+        diff_df = db.dfquery(f"""
+        select distinct st_distance(raw_inputs.geom,
+        st_transform(st_setsrid(end_table.geom, 4326),2263)
+        )::int as distance
+        from (
+            select 1 as id, st_setsrid(st_point(1015329.1, 213793.1), 2263) as geom
+            union
+            select 2 as id, st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
+        ) raw_inputs
+        join {pg_schema}.{test_read_shp_table_name} end_table
+        on raw_inputs.id = end_table.gid::int
+        """)
+
+        assert len(diff_df) == 1
+        assert int(diff_df.iloc[0]['distance']) == 0
+
     def test_read_shp_no_table(self):
         fp = FOLDER_PATH
         shp_name = "test.shp"

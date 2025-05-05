@@ -9,10 +9,12 @@ import openpyxl
 from xlrd import open_workbook
 from xlutils.copy import copy
 from zipfile import ZipFile
+import py7zr
 from ..Config import write_config
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests','') + "\\config.cfg")
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '\\test_data'
+
 
 
 def set_up_test_csv():
@@ -302,10 +304,21 @@ def set_up_shapefile():
                 z.write(filePath, os.path.basename(filePath))
     print('Sample zipped shapefile ready...')
 
+    component_paths = [
+        os.path.join(DIR, f'test.{ext}')
+        for ext in ('shp', 'dbf', 'shx', 'prj')
+        if os.path.isfile(os.path.join(DIR, f'test.{ext}'))
+    ]
+
+    with py7zr.SevenZipFile(os.path.join(DIR, 'test.7z'), 'w') as archive:
+        for filePath in component_paths:
+            archive.write(filePath, arcname=os.path.basename(filePath))
+    print('Sample 7z shapefile ready...')
+
 
 def clean_up_shapefile():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-    for ext in ('shp', 'dbf', 'shx', 'prj', 'zip'):
+    for ext in ('shp', 'dbf', 'shx', 'prj', 'zip', '7z'):
         _fle = f'{fldr}\\test_data\\test.{ext}'
         if os.path.isfile(_fle):
             os.remove(_fle)
