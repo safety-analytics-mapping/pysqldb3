@@ -7,6 +7,8 @@ import shutil
 import tempfile
 import shutil
 import py7zr
+import tarfile
+import rarfile
 from pathlib import Path
 
 from .cmds import *
