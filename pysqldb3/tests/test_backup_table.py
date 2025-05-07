@@ -26,9 +26,9 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         allow_temp_tables=True)
 
 test_pg_to_backup = 'test_pg_to_backup_{}'.format(db.user)
-test_pg_from_backup = 'test_pg_from_backup_{}'.format(db.user)
+test_pg_restored_from_backup = 'test_pg_from_backup_{}'.format(db.user)
 test_sql_to_backup = 'test_sql_to_backup_{}'.format(db.user)
-test_sql_from_backup = 'test_sql_from_backup_{}'.format(db.user)
+test_sql_restored_from_backup = 'test_sql_from_backup_{}'.format(db.user)
 
 ms_schema = 'dbo'
 pg_schema = 'working'
@@ -65,28 +65,138 @@ class TestBackupTablesPg:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_from_backup)
+        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
-        db.drop_table(pg_schema, test_pg_from_backup)
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
         schema_table_name = db.create_table_from_backup(test_back_file)
         assert re.findall(r'[\-["\w"\]]*\.[-\["\w"\]]*', schema_table_name)
 
         # validate table exists
-        assert db.table_exists(test_pg_from_backup, schema=pg_schema)
-        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_from_backup}")
+        assert db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_restored_from_backup}")
         assert db.data[0][0] == 10
 
         # Validate schema matches
         _to = db.get_table_columns(test_pg_to_backup, schema=pg_schema)
-        _from = db.get_table_columns(test_pg_from_backup, schema=pg_schema)
+        _from = db.get_table_columns(test_pg_restored_from_backup, schema=pg_schema)
         assert _to == _from
 
         # clean up
         db.cleanup_new_tables()
         assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
-        assert not db.table_exists(test_pg_from_backup, schema=pg_schema)
+        assert not db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+    def test_backup_tables_basic_limit_columns(self):
+        db.drop_table(table=test_pg_to_backup, schema=pg_schema)
+
+        # table schema
+        db.query(f"""
+            CREATE TABLE {pg_schema}.{test_pg_to_backup} (
+                id int,
+                column2 text,
+                column3 timestamp,
+                "1 test messy column" text
+            );
+        """)
+        # populate table
+        for i in range(10):
+            db.query(f"""
+                INSERT INTO {pg_schema}.{test_pg_to_backup}
+                    (id, column2, column3, "1 test messy column")
+                values ({i}, '{i}', '{'2022-10-14 10:12:40-04'}', '{'test '*i}')
+            """)
+        # validate table created
+        assert db.table_exists(test_pg_to_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_to_backup}")
+        assert db.data[0][0] == 10
+
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup,
+                        columns=['id', 'column2', '"1 test messy column"'])
+        assert os.path.isfile(test_back_file)
+
+        # run backup
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
+        schema_table_name = db.create_table_from_backup(test_back_file)
+        assert re.findall(r'[\-["\w"\]]*\.[-\["\w"\]]*', schema_table_name)
+
+        # validate table exists
+        assert db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_restored_from_backup}")
+        assert db.data[0][0] == 10
+
+        # Validate schema matches
+        _to = db.get_table_columns(test_pg_to_backup, schema=pg_schema)
+        _from = db.get_table_columns(test_pg_restored_from_backup, schema=pg_schema)
+        assert _from == [i for i in _to if i[0] in ['id', 'column2', '"1 test messy column"']]
+
+        # clean up
+        db.cleanup_new_tables()
+        assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
+        assert not db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+    def test_backup_tables_basic_limit_columns_exclude(self):
+        db.drop_table(table=test_pg_to_backup, schema=pg_schema)
+
+        # table schema
+        db.query(f"""
+            CREATE TABLE {pg_schema}.{test_pg_to_backup} (
+                id int,
+                column2 text,
+                column3 timestamp,
+                "1 test messy column" text
+            );
+        """)
+        # populate table
+        for i in range(10):
+            db.query(f"""
+                INSERT INTO {pg_schema}.{test_pg_to_backup}
+                    (id, column2, column3, "1 test messy column")
+                values ({i}, '{i}', '{'2022-10-14 10:12:40-04'}', '{'test '*i}')
+            """)
+        # validate table created
+        assert db.table_exists(test_pg_to_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_to_backup}")
+        assert db.data[0][0] == 10
+
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup,
+                        exclude_columns=['column3'])
+        assert os.path.isfile(test_back_file)
+
+        # run backup
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
+        schema_table_name = db.create_table_from_backup(test_back_file)
+        assert re.findall(r'[\-["\w"\]]*\.[-\["\w"\]]*', schema_table_name)
+
+        # validate table exists
+        assert db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_restored_from_backup}")
+        assert db.data[0][0] == 10
+
+        # Validate schema matches
+        _to = db.get_table_columns(test_pg_to_backup, schema=pg_schema)
+        _from = db.get_table_columns(test_pg_restored_from_backup, schema=pg_schema)
+        assert _from == [i for i in _to if i[0] not in ['column3']]
+
+        # clean up
+        db.cleanup_new_tables()
+        assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
+        assert not db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
@@ -122,28 +232,28 @@ class TestBackupTablesPg:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        db.drop_table(pg_schema, test_pg_from_backup)
-        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_from_backup)
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
+        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
         db.create_table_from_backup(test_back_file)
 
         # validate table exists
-        assert db.table_exists(test_pg_from_backup, schema=pg_schema)
-        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_from_backup}")
+        assert db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_restored_from_backup}")
         assert db.data[0][0] == 10
 
         # Validate schema matches
         _to = db.get_table_columns(test_pg_to_backup, schema=pg_schema)
-        _from = db.get_table_columns(test_pg_from_backup, schema=pg_schema)
+        _from = db.get_table_columns(test_pg_restored_from_backup, schema=pg_schema)
         assert _to == _from
 
         # validate indexes are the same
         db.query(f"SELECT indexname, indexdef FROM pg_indexes WHERE schemaname='{pg_schema}' AND tablename='{test_pg_to_backup}';")
         to_data = db.data
-        to_data = [_[1].replace(_[0], _[0] + '_backup').replace(f'ON {pg_schema}.{test_pg_to_backup}', f'ON {pg_schema}.{test_pg_from_backup}') for _ in to_data]
-        db.query(f"SELECT indexdef FROM pg_indexes WHERE schemaname='{pg_schema}' AND tablename='{test_pg_from_backup}';")
+        to_data = [_[1].replace(_[0], _[0] + '_backup').replace(f'ON {pg_schema}.{test_pg_to_backup}', f'ON {pg_schema}.{test_pg_restored_from_backup}') for _ in to_data]
+        db.query(f"SELECT indexdef FROM pg_indexes WHERE schemaname='{pg_schema}' AND tablename='{test_pg_restored_from_backup}';")
         from_data = [_[0] for _ in db.data]
 
         assert to_data == from_data
@@ -151,13 +261,13 @@ class TestBackupTablesPg:
         # clean up
         db.cleanup_new_tables()
         assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
-        assert not db.table_exists(test_pg_from_backup, schema=pg_schema)
+        assert not db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
     def test_backup_tables_idx_rename(self):
-        new_backup_name = '1-'+test_pg_from_backup + '_new_name'
+        new_backup_name = '1-' + test_pg_restored_from_backup + '_new_name'
         db.drop_table(table=test_pg_to_backup, schema=pg_schema)
 
         # table schema
@@ -188,8 +298,8 @@ class TestBackupTablesPg:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        db.drop_table(pg_schema, test_pg_from_backup)
-        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_from_backup)
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
+        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
@@ -306,28 +416,28 @@ class TestBackupTablesPg:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_from_backup)
+        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
-        db.drop_table(pg_schema, test_pg_from_backup)
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
         schema_table_name = db.create_table_from_backup(test_back_file)
         assert re.findall(r'[\-["\w"\]]*\.[-\["\w"\]]*', schema_table_name)
 
         # validate table exists
-        assert db.table_exists(test_pg_from_backup, schema=pg_schema)
-        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_from_backup}")
+        assert db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_restored_from_backup}")
         assert db.data[0][0] == 10
 
         # Validate schema matches
         _to = db.get_table_columns(test_pg_to_backup, schema=pg_schema)
-        _from = db.get_table_columns(test_pg_from_backup, schema=pg_schema)
+        _from = db.get_table_columns(test_pg_restored_from_backup, schema=pg_schema)
         assert _to == _from
 
         # clean up
         db.cleanup_new_tables()
         assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
-        assert not db.table_exists(test_pg_from_backup, schema=pg_schema)
+        assert not db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
@@ -477,33 +587,33 @@ class TestBackupTablesPg:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_from_backup)
+        db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
-        db.drop_table(pg_schema, test_pg_from_backup)
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
         schema_table_name = db.create_table_from_backup(test_back_file)
         assert re.findall(r'[\-["\w"\]]*\.[-\["\w"\]]*', schema_table_name)
 
         # validate table exists
-        assert db.table_exists(test_pg_from_backup, schema=pg_schema)
-        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_from_backup}")
+        assert db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
+        db.query(f"select count(*) cnt from {pg_schema}.{test_pg_restored_from_backup}")
         assert db.data[0][0] == 10
 
         # Validate schema matches
         _to = db.get_table_columns(test_pg_to_backup, schema=pg_schema)
-        _from = db.get_table_columns(test_pg_from_backup, schema=pg_schema)
+        _from = db.get_table_columns(test_pg_restored_from_backup, schema=pg_schema)
         assert _to == _from
 
         # validate constraints exist
-        constraints_from = db._get_table_constraints(pg_schema, test_pg_from_backup)
+        constraints_from = db._get_table_constraints(pg_schema, test_pg_restored_from_backup)
         constraints_to = db._get_table_constraints(pg_schema, test_pg_to_backup)
         assert [i[0] for i in constraints_from] == [i[0].replace('_backup', '_backup_backup') for i in constraints_to]
 
         # clean up
         db.cleanup_new_tables(cascade=True)
         assert not db.table_exists(test_pg_to_backup, schema=pg_schema)
-        assert not db.table_exists(test_pg_from_backup, schema=pg_schema)
+        assert not db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
@@ -539,30 +649,144 @@ class TestBackupTablesMs:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_from_backup)
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
-        sql.drop_table(ms_schema, test_sql_from_backup)
+        sql.drop_table(ms_schema, test_sql_restored_from_backup)
         sql.create_table_from_backup(test_back_file)
 
         # validate table exists
-        assert sql.table_exists(test_sql_from_backup, schema=ms_schema)
-        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_from_backup}")
+        assert sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_restored_from_backup}")
         assert sql.data[0][0] == 10
 
         # Validate schema matches
         _to = sql.get_table_columns(test_sql_to_backup, schema=ms_schema)
-        _from = sql.get_table_columns(test_sql_from_backup, schema=ms_schema)
+        _from = sql.get_table_columns(test_sql_restored_from_backup, schema=ms_schema)
         assert _to == _from
 
         # clean up
         sql.cleanup_new_tables()
         assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
-        assert not sql.table_exists(test_sql_from_backup, schema=ms_schema)
+        assert not sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
+
+    def test_backup_tables_basic_limit_columns(self):
+        sql.drop_table(table=test_sql_to_backup, schema=ms_schema)
+
+        # table schema
+        sql.drop_table(ms_schema, test_sql_to_backup)
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_sql_to_backup} (
+                id int,
+                column2 text,
+                column3 datetime,
+                "1 test messy column" text
+            );
+        """)
+        # populate table
+        for i in range(10):
+            sql.query(f"""
+                INSERT INTO {ms_schema}.{test_sql_to_backup}
+                    (id, column2, column3, "1 test messy column")
+                values ({i}, '{i}', '{'2022-10-14'}', '{'test '*i}')
+            """)
+        # validate table created
+        assert sql.table_exists(test_sql_to_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_to_backup}")
+        assert sql.data[0][0] == 10
+
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_restored_from_backup,
+                         columns=['id', 'column2', '"1 test messy column"'])
+        assert os.path.isfile(test_back_file)
+
+        # run backup
+        sql.drop_table(ms_schema, test_sql_restored_from_backup)
+        sql.create_table_from_backup(test_back_file)
+
+        # validate table exists
+        assert sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_restored_from_backup}")
+        assert sql.data[0][0] == 10
+
+        # Validate schema matches
+        _to = sql.get_table_columns(test_sql_to_backup, schema=pg_schema)
+        _from = sql.get_table_columns(test_sql_restored_from_backup, schema=pg_schema)
+        assert _from == [i for i in _to if i[0] in ['id', 'column2', '"1 test messy column"']]
+        assert _to == _from
+
+        # clean up
+        sql.cleanup_new_tables()
+        assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
+        assert not sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+
+    def test_backup_tables_basic_limit_columns_exclude(self):
+        sql.drop_table(table=test_sql_to_backup, schema=ms_schema)
+
+        # table schema
+        sql.drop_table(ms_schema, test_sql_to_backup)
+        sql.query(f"""
+            CREATE TABLE {ms_schema}.{test_sql_to_backup} (
+                id int,
+                column2 text,
+                column3 datetime,
+                "1 test messy column" text
+            );
+        """)
+        # populate table
+        for i in range(10):
+            sql.query(f"""
+                INSERT INTO {ms_schema}.{test_sql_to_backup}
+                    (id, column2, column3, "1 test messy column")
+                values ({i}, '{i}', '{'2022-10-14'}', '{'test '*i}')
+            """)
+        # validate table created
+        assert sql.table_exists(test_sql_to_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_to_backup}")
+        assert sql.data[0][0] == 10
+
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_restored_from_backup,
+                         exclude_columns=['column3'])
+        assert os.path.isfile(test_back_file)
+
+        # run backup
+        sql.drop_table(ms_schema, test_sql_restored_from_backup)
+        sql.create_table_from_backup(test_back_file)
+
+        # validate table exists
+        assert sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_restored_from_backup}")
+        assert sql.data[0][0] == 10
+
+        # Validate schema matches
+        _to = sql.get_table_columns(test_sql_to_backup, schema=ms_schema)
+        _from = sql.get_table_columns(test_sql_restored_from_backup, schema=ms_schema)
+        assert _from == [i for i in _to if i[0] not in ['column3']]
+
+
+        # clean up
+        sql.cleanup_new_tables()
+        assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
+        assert not sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
+        if os.path.isfile(test_back_file):
+            os.remove(test_back_file)
+        assert not os.path.isfile(test_back_file)
+
 
     def test_backup_tables_idx_basic(self):
         sql.drop_table(table=test_sql_to_backup, schema=ms_schema)
@@ -595,22 +819,22 @@ class TestBackupTablesMs:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        sql.drop_table(ms_schema, test_sql_from_backup)
-        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_from_backup)
+        sql.drop_table(ms_schema, test_sql_restored_from_backup)
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
-        sql.drop_table(ms_schema, test_sql_from_backup)
+        sql.drop_table(ms_schema, test_sql_restored_from_backup)
         sql.create_table_from_backup(test_back_file)
 
         # validate table exists
-        assert sql.table_exists(test_sql_from_backup, schema=ms_schema)
-        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_from_backup}")
+        assert sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_restored_from_backup}")
         assert sql.data[0][0] == 10
 
         # Validate schema matches
         _to = sql.get_table_columns(test_sql_to_backup, schema=ms_schema)
-        _from = sql.get_table_columns(test_sql_from_backup, schema=ms_schema)
+        _from = sql.get_table_columns(test_sql_restored_from_backup, schema=ms_schema)
         assert _to == _from
 
         # validate indexes are the same
@@ -618,7 +842,7 @@ class TestBackupTablesMs:
         to_data = sql.data
         to_data = [_[-2:] for _ in to_data]
 
-        sql.query(GET_MS_INDEX_QUERY.format(schema=ms_schema, table=test_sql_from_backup))
+        sql.query(GET_MS_INDEX_QUERY.format(schema=ms_schema, table=test_sql_restored_from_backup))
         from_data = sql.data
         from_data = [_[-2:] for _ in from_data]
 
@@ -627,14 +851,14 @@ class TestBackupTablesMs:
         # clean up
         sql.cleanup_new_tables()
         assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
-        assert not sql.table_exists(test_sql_from_backup, schema=ms_schema)
+        assert not sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
 
     def test_backup_tables_idx_rename(self):
-        new_backup_name = test_sql_from_backup+'_new_name'
+        new_backup_name = test_sql_restored_from_backup + '_new_name'
         sql.drop_table(table=test_sql_to_backup, schema=ms_schema)
 
         # table schema
@@ -665,8 +889,8 @@ class TestBackupTablesMs:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        sql.drop_table(ms_schema, test_sql_from_backup)
-        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_from_backup)
+        sql.drop_table(ms_schema, test_sql_restored_from_backup)
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
@@ -697,7 +921,7 @@ class TestBackupTablesMs:
         # clean up
         sql.cleanup_new_tables()
         assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
-        assert not sql.table_exists(test_sql_from_backup, schema=ms_schema)
+        assert not sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
@@ -763,8 +987,8 @@ class TestBackupTablesMs:
 
         if sql.table_exists(test_sql_to_backup, schema=ms_schema):
             _sub_sql_drop_table_with_constraints(test_sql_to_backup, 'sql_tests_constraint')
-        if sql.table_exists(test_sql_from_backup, schema=ms_schema):
-            _sub_sql_drop_table_with_constraints(test_sql_from_backup, 'sql_tests_constraint_backup')
+        if sql.table_exists(test_sql_restored_from_backup, schema=ms_schema):
+            _sub_sql_drop_table_with_constraints(test_sql_restored_from_backup, 'sql_tests_constraint_backup')
         sql.drop_table(ms_schema, test_sql_to_backup+'_f')
         # table schema
         sql.query(f"""
@@ -809,37 +1033,37 @@ class TestBackupTablesMs:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_from_backup)
+        sql.backup_table(ms_schema, test_sql_to_backup, test_back_file, ms_schema, test_sql_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
-        _sub_sql_drop_table_with_constraints(test_sql_from_backup, 'sql_tests_constraint_backup')
+        _sub_sql_drop_table_with_constraints(test_sql_restored_from_backup, 'sql_tests_constraint_backup')
         schema_table_name = sql.create_table_from_backup(test_back_file)
         assert re.findall(r'[\-["\w"\]]*\.[-\["\w"\]]*', schema_table_name)
 
         # validate table exists
-        assert sql.table_exists(test_sql_from_backup, schema=ms_schema)
-        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_from_backup}")
+        assert sql.table_exists(test_sql_restored_from_backup, schema=ms_schema)
+        sql.query(f"select count(*) cnt from {ms_schema}.{test_sql_restored_from_backup}")
         assert sql.data[0][0] == 10
 
         # Validate schema matches
         _to = sql.get_table_columns(test_sql_to_backup, schema=ms_schema)
-        _from = sql.get_table_columns(test_sql_from_backup, schema=ms_schema)
+        _from = sql.get_table_columns(test_sql_restored_from_backup, schema=ms_schema)
         assert _to == _from
 
         # validate constraints exist
-        constraints_from = sql._get_table_constraints(ms_schema, test_sql_from_backup)
+        constraints_from = sql._get_table_constraints(ms_schema, test_sql_restored_from_backup)
         constraints_to = sql._get_table_constraints(ms_schema, test_sql_to_backup)
         assert [i[0] for i in constraints_from] == [i[0].replace('_backup', '_backup_backup') for i in constraints_to]
 
         # clean up
         if sql.table_exists(test_sql_to_backup, schema=ms_schema):
             _sub_sql_drop_table_with_constraints(test_sql_to_backup, 'sql_tests_constraint')
-        if sql.table_exists(test_sql_from_backup, schema=ms_schema):
-            _sub_sql_drop_table_with_constraints(test_sql_from_backup, 'sql_tests_constraint_backup')
+        if sql.table_exists(test_sql_restored_from_backup, schema=ms_schema):
+            _sub_sql_drop_table_with_constraints(test_sql_restored_from_backup, 'sql_tests_constraint_backup')
         sql.drop_table(ms_schema, test_sql_to_backup + '_f')
         assert not sql.table_exists(test_sql_to_backup, schema=ms_schema)
-        assert not sql.table_exists(test_pg_from_backup, schema=ms_schema)
+        assert not sql.table_exists(test_pg_restored_from_backup, schema=ms_schema)
         if os.path.isfile(test_back_file):
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
