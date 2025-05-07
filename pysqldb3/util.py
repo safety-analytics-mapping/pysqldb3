@@ -388,8 +388,9 @@ def parse_geospatial_file_path(path=None, file_name=None):
     # type: (str, str)
     if not path:
         return path, file_name
-    
-    if path.endswith('.shp') or path.endswith('.gdb') or path.endswith('.gpkg'):
+
+    geospatial_exts = ('.shp', '.dbf', '.gpkg', '.tar', '.gz', '.tgz', '.tar.gz', '.7z', '.rar')
+    if path.lower().endswith(geospatial_exts):
         geospatial_file = os.path.basename(path)
         path = path.replace(geospatial_file, '')
 
