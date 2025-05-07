@@ -539,7 +539,7 @@ def input_geospatial_file(dbo, path, input_file=None, schema=None, table=None, f
     """
 
     # if file has other compressed format
-    compressed_exts = ['.tar', '.gz', '.tgz', '.tar.gz', '.7z', '.rar']
+    compressed_exts = ['.tar', '.gz', '.tgz', '.7z', '.rar']
     temp_dir = None
 
     path, input_file = parse_geospatial_file_path(path, input_file)
