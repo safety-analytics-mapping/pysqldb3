@@ -1389,8 +1389,8 @@ class TestReadShpPG:
         assert int(diff_df.iloc[0]['distance']) == 0
 
     def test_read_shp_other_compressed(self):
-        fp = FOLDER_PATH + '/test.7z'
-        shp_name = "test.shp"
+        fp = FOLDER_PATH
+        shp_name = "test.7z"
 
         # Make sure table doesn't already exist
         db.drop_table(pg_schema, test_read_shp_table_name)
