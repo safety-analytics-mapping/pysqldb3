@@ -1352,8 +1352,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
 
     def test_read_shp_zip(self):
-
-        fp = FOLDER_PATH + '/shp_test.zip'
+        fp = FOLDER_PATH + '/test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
@@ -1364,7 +1363,8 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True, zip=True)
+        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name,
+                                print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
@@ -1393,8 +1393,8 @@ class TestReadShpPG:
         assert int(diff_df.iloc[0]['distance']) == 0
 
     def test_read_shp_other_compressed(self):
-        fp = FOLDER_PATH
-        shp_name = "test.7z"
+        fp = FOLDER_PATH + "\\test.7z"
+        shp_name = "test.shp"
 
         # Make sure table doesn't already exist
         db.drop_table(pg_schema, test_read_shp_table_name)
@@ -1407,8 +1407,7 @@ class TestReadShpPG:
             schema=pg_schema,
             input_file=shp_name,
             table=test_read_shp_table_name,
-            print_cmd=True,
-            zip=False
+            print_cmd=True
         )
 
         # Check table creation and content
