@@ -304,6 +304,7 @@ def set_up_shapefile():
                 z.write(filePath, os.path.basename(filePath))
     print('Sample zipped shapefile ready...')
 
+    # Add shpfile to 7z for testing
     component_paths = [
         os.path.join(DIR, f'test.{ext}')
         for ext in ('shp', 'dbf', 'shx', 'prj')
