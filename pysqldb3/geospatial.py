@@ -504,45 +504,6 @@ def gpkg_to_shp_bulk(   input_path,
 
     return
 
-def _decompress(path):
-
-    # Create a temporary directory to extract files
-    temp_dir = tempfile.mkdtemp()
-    suffix = Path(path).suffix.lower()
-
-    try:
-        # Extract based on archive type
-        if suffix == '.zip':
-            with zipfile.ZipFile(path, 'r') as z:
-                z.extractall(temp_dir)
-        elif suffix in ['.tar', '.gz', '.tgz', '.tar.gz']:
-            with tarfile.open(path, 'r:*') as tar:
-                tar.extractall(temp_dir)
-        elif suffix == '.7z':
-            with py7zr.SevenZipFile(path, mode='r') as archive:
-                archive.extractall(path=temp_dir)
-        elif suffix == '.rar':
-            with rarfile.RarFile(path) as archive:
-                archive.extractall(path=temp_dir)
-        else:
-            shutil.rmtree(temp_dir)
-            raise ValueError(f"Unsupported compression format: {suffix}")
-
-        # Look for the first .shp file extracted
-        shp_files = list(Path(temp_dir).rglob('*.shp'))
-        if not shp_files:
-            shutil.rmtree(temp_dir)
-            raise FileNotFoundError("No .shp file found after decompression.")
-
-        shp_path = shp_files[0]
-
-        # Return the folder path, .shp filename, and temp dir for later cleanup
-        return str(shp_path.parent), shp_path.name, temp_dir
-
-    except Exception as e:
-        # Cleanup in case of error
-        shutil.rmtree(temp_dir)
-        raise e
 
 def input_geospatial_file(dbo, path, input_file = None, schema = None, table = None, feature_class = None, gpkg_tbl = None, port = 5432,
                             srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, skip_failures = '',
