@@ -545,14 +545,14 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     else:
         full_path = os.path.join(path, input_file)
 
-    if feature_class:
-        assert feature_class.endswith('.shp') and input_file.endswith('.gdb'), "input_file must end with .gdb & feature_class must end with .shp"
+    if feature_class.endswith('.shp'):
+        feature_class = feature_class[:-4]
 
     if table:
-        assert table == re.sub(r'[^A-Za-z0-9_]+', r'', table) # make sure the name will load into the database
+        assert table == re.sub(r'[^A-Za-z0-9]+', r'_', table) # make sure the name will load into the database
     elif not table and input_file.endswith('.gpkg'):
         # clean the geopackage table name
-        table = re.sub(r'[^A-Za-z0-9_]+', r'', gpkg_tbl) # clean the table name in case there are special characters
+        table = re.sub(r'[^A-Za-z0-9]+', r'_', gpkg_tbl) # clean the table name in case there are special characters
     elif not table and gpkg_tbl:
         table = gpkg_tbl.replace('.gpkg', '').replace('.shp', '').lower()
         # if the gpkg_table is left blank, we will populate the name using input_gpkg
@@ -566,9 +566,7 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
 
     if dbo.table_exists(table = table, schema = schema):
 
-        if input_file.endswith('.shp') or input_file.endswith('.gdb'):
-            del_indexes(dbo, schema, table)
-    
+        del_indexes(dbo, schema, table)
         print(f'Deleting existing table {schema}.{table}')
         
         if dbo.type == 'MS':
@@ -809,7 +807,7 @@ def input_geospatial_bulk(path, dbo, input_file = None, schema = None, port = 54
 
     # create a list of cleaned table names from the list that was generated
     for t_i_g in tables_in_gpkg:
-        insert_val = re.sub(r'[^A-Za-z0-9_]+', r'', t_i_g)
+        insert_val = re.sub(r'[^A-Za-z0-9]+', r'_', t_i_g)
         gpkg_tbl_names[t_i_g] = insert_val # add the cleaned name
 
     # assert that the new cleaned names are unique. if not, we won't get the same dimensions
@@ -823,7 +821,7 @@ def input_geospatial_bulk(path, dbo, input_file = None, schema = None, port = 54
             
         else:
             input_geospatial_file(dbo = dbo, input_file = input_file, table = table, path = path, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
-                                    feature_class = table + '.shp', precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days)
+                                    feature_class = table, precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days)
 
 
 def del_indexes(dbo, schema, table):
@@ -834,7 +832,7 @@ def del_indexes(dbo, schema, table):
     :param table: Table name whose index will be deleted
     """
     if dbo.type == 'PG':
-        dbo.query(SHP_DEL_INDICES_QUERY_PG.format(s=schema, t=table), internal=True)
+        dbo.query(DEL_INDICES_QUERY_PG.format(s=schema, t=table), internal=True)
         indexes_to_delete = dbo.internal_data
 
         for _ in list(indexes_to_delete):
@@ -843,7 +841,7 @@ def del_indexes(dbo, schema, table):
                 dbo.query(f'DROP INDEX {schema}.{index_name}',
                                 strict=False, internal=True)
     else:
-        dbo.query(SHP_DEL_INDICES_QUERY_MS.format(s=schema, t=table), internal=True)
+        dbo.query(DEL_INDICES_QUERY_MS.format(s=schema, t=table), internal=True)
         indexes_to_delete = dbo.internal_data
 
         for _ in list(indexes_to_delete):

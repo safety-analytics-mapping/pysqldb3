@@ -186,7 +186,7 @@ SELECT schema_name FROM information_schema.schemata
 Shapefile
 """
 
-SHP_DEL_INDICES_QUERY_PG = r"""
+DEL_INDICES_QUERY_PG = r"""
 select t.relname as table_name, n.nspname as schema_name, i.relname as index_name, a.attname as column_name
 from pg_class t
 join pg_index ix
@@ -204,7 +204,7 @@ where
     and n.nspname = '{s}'
 """
 
-SHP_DEL_INDICES_QUERY_MS = r"""
+DEL_INDICES_QUERY_MS = r"""
     SELECT
         '{t}' as table_name,
         a.name AS index_name,
