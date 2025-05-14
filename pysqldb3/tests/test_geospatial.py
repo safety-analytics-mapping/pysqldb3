@@ -178,7 +178,6 @@ class TestReadgpkgPG:
 
         gpkg_name = "testgpkg.gpkg"
     
-        print(FOLDER_PATH)
         s_list = s.list_gpkg_tables(path=FOLDER_PATH, file_name=gpkg_name)
 
         assert s_list == [test_layer1, test_layer2]

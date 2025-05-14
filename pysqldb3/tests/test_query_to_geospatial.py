@@ -29,7 +29,7 @@ sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
 test_table = f'__testing_query_to_geospatial_{db.user}__'
 test_table_shp = f'__testing_query_to_geospatial_{db.user}__'
 
-ms_schema = 'risadmin'
+ms_schema = 'dbo'
 pg_schema = 'working'
 
 FOLDER_PATH = helpers.DIR
@@ -380,8 +380,7 @@ class TestQueryToGpkgPg:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
         # import gpkg to db to compare
-        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, gpkg_tbl = test_table, table = test_table + 'QA', schema=pg_schema,
-                        input_file=gpkg, print_cmd=True)
+        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, gpkg_tbl = test_table, table = test_table + 'QA', schema=pg_schema, input_file=gpkg, print_cmd=True)
 
         db.query(f"""
         select
@@ -874,7 +873,7 @@ class TestQueryToGpkgMs:
 
 class TestQueryToShpPg:
     def test_query_to_geospatial_basic(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -904,7 +903,7 @@ class TestQueryToShpPg:
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_geospatial_basic_pth_and_shp_1(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -936,7 +935,7 @@ class TestQueryToShpPg:
 
     def test_query_to_geospatial_basic_pth_and_shp_2(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -962,7 +961,7 @@ class TestQueryToShpPg:
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_geospatial_basic_quotes(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -1012,7 +1011,7 @@ class TestQueryToShpPg:
             os.remove(os.path.join(fldr, shp.replace('shp', ext)))
 
     def test_query_to_geospatial_basic_long_names(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -1042,7 +1041,7 @@ class TestQueryToShpPg:
 
     def test_query_to_geospatial_basic_no_data(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -1071,7 +1070,7 @@ class TestQueryToShpPg:
                 print(e)
 
     def test_query_to_geospatial_data(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -1127,7 +1126,7 @@ class TestQueryToShpPg:
                 print(e)
 
     def test_query_to_geospatial_data_longcolumn(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         db.drop_table(schema = pg_schema, table = test_table)
@@ -1183,7 +1182,7 @@ class TestQueryToShpPg:
                 print(e)
 
     def test_query_to_geospatial_sc(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test'
 
         # This is encoded as utf8 and then ogr default's to LATIN1 encoding
@@ -1204,12 +1203,12 @@ class TestQueryToShpPg:
         os.remove(os.path.join(fldr, shp + '.dbf'))
 
     def test_query_to_geospatial_bad_query(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test'
 
         # This should fail
         try:
-            s.write_geospatial(dbo = db, query="select * from table_does_not_exist", output_file=shp, path=fldr, print_cmd=True)
+            s.write_geospatial(dbo = db, query="select * from table_does_not_exist", output_file=shp + '.shp', path=fldr, print_cmd=True)
         except:
             Failed = True
         # check table in not folder
@@ -1227,9 +1226,10 @@ class TestQueryToShpMs:
     @classmethod
     def setup_class(cls):
         helpers.set_up_schema(sql, ms_schema=ms_schema)
+        helpers.set_up_shapefile()
 
     def test_query_to_geospatial_basic(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
         sql.drop_table(schema=ms_schema, table=test_table_shp)
 
@@ -1264,7 +1264,7 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_geospatial_basic_pth_and_name(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
         sql.drop_table(schema=ms_schema, table=test_table_shp)
 
@@ -1302,7 +1302,7 @@ class TestQueryToShpMs:
 
     def test_query_to_geospatial_basic_brackets(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
         sql.drop_table(schema=ms_schema, table=test_table_shp)
 
@@ -1332,7 +1332,7 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_geospatial_basic_funky_field_names(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         # create table
@@ -1362,7 +1362,7 @@ class TestQueryToShpMs:
 
     def test_query_to_geospatial_basic_long_names(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
         sql.drop_table(schema=ms_schema, table=test_table_shp)
 
@@ -1397,7 +1397,7 @@ class TestQueryToShpMs:
 
     def test_query_to_geospatial_basic_no_data(self):
 
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test.shp'
         sql.drop_table(schema=ms_schema, table=test_table_shp)
         assert not sql.table_exists(table=test_table, schema=ms_schema)
@@ -1427,7 +1427,7 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_geospatial_data(self):
-        schema = 'dbo'
+
         fldr = FOLDER_PATH
         shp = 'test.shp'
 
@@ -1485,8 +1485,8 @@ class TestQueryToShpMs:
                 pass
 
     def test_query_to_geospatial_data_long(self):
-        schema = 'dbo'
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+
+        fldr = FOLDER_PATH
         shp = 'test.shp'
 
         sql.drop_table(ms_schema, test_table_shp)
@@ -1565,12 +1565,12 @@ class TestQueryToShpMs:
         os.remove(os.path.join(fldr, shp + '.dbf'))
 
     def test_query_to_geospatial_bad_query(self):
-        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        fldr = FOLDER_PATH
         shp = 'test'
 
         # This should fail
         try:
-            s.write_geospatial(dbo = sql, query="select * from table_does_not_exist", output_file=shp, path=fldr, print_cmd=True)
+            s.write_geospatial(dbo = sql, query="select * from table_does_not_exist", output_file=shp + '.shp', path=fldr, print_cmd=True)
         except:
             Failed = True
         # check table in not folder
