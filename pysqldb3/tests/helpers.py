@@ -319,7 +319,7 @@ def set_up_shapefile():
 
 def clean_up_shapefile():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-    for ext in ('shp', 'dbf', 'shx', 'prj', 'zip', '.tar', '.gz', '.tgz', '.7z', '.rar'):
+    for ext in ('shp', 'dbf', 'shx', 'prj', 'zip', '.tar', '.gz', '.tgz', '.7z', '.rar', '.gdb'):
         _fle = f'{fldr}\\test_data\\test.{ext}'
         if os.path.isfile(_fle):
             os.remove(_fle)
