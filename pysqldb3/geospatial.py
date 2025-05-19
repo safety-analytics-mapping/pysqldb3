@@ -2,7 +2,6 @@ import shlex
 import subprocess
 import re
 import os
-import shutil
 
 import tempfile
 import shutil
@@ -589,7 +588,6 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     else:
         precision = ''
 
-    print('check zip', os.path.splitext(path)[1].lower())
 
     if os.path.splitext(path)[1].lower() == '.zip':
         print("Importing Shp from zip file")
