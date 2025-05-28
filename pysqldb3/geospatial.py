@@ -3,6 +3,13 @@ import subprocess
 import re
 import os
 
+import tempfile
+import shutil
+import py7zr
+import tarfile
+import rarfile
+from pathlib import Path
+
 from .cmds import *
 from .sql import *
 from .util import *
@@ -500,6 +507,7 @@ def gpkg_to_shp_bulk(   input_path,
 def input_geospatial_file(dbo, path, input_file = None, schema = None, table = None, feature_class = None, gpkg_tbl = None, port = 5432,
                             srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, skip_failures = '',
                             temp = True, days = 7, print_cmd=False):
+    
     """
     Imports single Geopackage table, Geodatabase feature class, or Shp to database. This uses GDAL to generate the table.
 
@@ -522,13 +530,54 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     :return:
     """
 
+    # if file has other compressed format
+
+    # note: Since the compressed file may contain multiple different SHP files, this logic only applies when the path
+    # includes the name of the compressed file and the input file is the name of the specific SHP file.
+
+    compressed_exts = ['.tar', '.gz', '.tgz', '.7z', '.rar']
+    temp_dir = None
+
+    if os.path.splitext(path)[1].lower() in compressed_exts:
+        print("Importing Shp from compressed file")
+
+        # Create a temporary directory to extract files
+        temp_dir = tempfile.mkdtemp()
+        suffix = Path(path).suffix.lower()
+
+        # Extract compressed archive into temp_dir
+        if suffix in ['.tar', '.gz', '.tgz', '.tar.gz']:
+            with tarfile.open(path, 'r:*') as tar:
+                tar.extractall(temp_dir)
+        elif suffix == '.7z':
+            with py7zr.SevenZipFile(path, mode='r') as archive:
+                archive.extractall(path=temp_dir)
+        elif suffix == '.rar':
+            with rarfile.RarFile(path) as archive:
+                archive.extractall(path=temp_dir)
+        else:
+            shutil.rmtree(temp_dir)
+            raise ValueError(f"Unsupported compression format: {suffix}")
+
+        # Look for a specific .shp file by name
+        target_shp = Path(temp_dir).rglob(input_file)
+        shp_path = next(target_shp, None)
+
+        if not shp_path or not shp_path.exists():
+            shutil.rmtree(temp_dir)
+            raise FileNotFoundError(f"'{input_file}' not found in the archive.")
+
+        # Return the folder path, .shp filename, and temp dir for later cleanup
+        path, input_file = str(shp_path.parent), shp_path.name
+
+    path, input_file = parse_geospatial_file_path(path, input_file)
+
     if input_file:
         assert input_file.endswith(('.shp', '.gpkg', '.gdb', '.dbf')), "The input file should end with .gpkg, .shp, .gdb, or .dbf"
         assert path, "Fill in the file path to the input file"
     else:
         assert path.endswith(('.shp', '.gpkg', '.gdb', '.dbf')), "The path should end with .gpkg, .shp, .gdb, .dbf"
 
-    path, input_file = parse_geospatial_file_path(path, input_file)
 
     # Use default schema from db object
     if not schema:
@@ -539,7 +588,9 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     else:
         precision = ''
 
-    if path.endswith('.zip') or input_file.endswith('.zip'):
+
+    if os.path.splitext(path)[1].lower() == '.zip':
+        print("Importing Shp from zip file")
         path = '/vsizip/' + path
         full_path = path
     else:
@@ -752,6 +803,9 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     if temp:
         dbo.run_table_logging([schema + "." + table], days=days)
 
+    # remove temp folders of any decompressed files
+    if temp_dir:
+        shutil.rmtree(temp_dir)
 
 def input_geospatial_bulk(path, dbo, input_file = None, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
                 precision=False, private=False, encoding=None, print_cmd=False, temp = True, days = 7):
