@@ -1570,7 +1570,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True, zip=True)
+        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table=test_read_shp_table_name)
