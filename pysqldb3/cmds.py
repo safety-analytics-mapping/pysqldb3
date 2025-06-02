@@ -101,9 +101,12 @@ READ_GPKG_CMD_MS = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_
  "{gpkg_name}" {gpkg_tbl} -nln {schema}.{tbl_name} {perc} --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
 """.replace('\n', ' ')
 
+# when writing data to geopackage, gpkg output table will match input table name
 WRITE_SHP_CMD_GPKG = r'ogr2ogr -f GPKG {_update} "{gpkg_path}" "{shp_path}" -nln {gpkg_tbl}'
 
 WRITE_GPKG_CMD_SHP = r'ogr2ogr -f "ESRI Shapefile" "{shp_path}" "{gpkg_path}" {gpkg_tbl}'
+
+WRITE_GDB_CMD_GPKG = r'ogr2ogr -f GPKG {_update} "{gpkg_path}" -nln {gpkg_tbl}  "{shp_path}" {feature_class}'
 
 COUNT_GPKG_LAYERS = r'ogrinfo "{full_path}"' # command used for reading in all geopackage tables
 
