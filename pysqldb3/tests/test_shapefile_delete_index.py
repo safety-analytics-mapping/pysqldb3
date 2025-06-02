@@ -2,7 +2,7 @@ import configparser
 import os
 
 from .. import pysqldb3 as pysqldb
-from ..shapefile import Shapefile
+import ..geosp
 from ..sql import *
 from . import helpers
 
@@ -39,7 +39,7 @@ class TestSHPDeleteIndexPG:
         db.drop_table(schema='working', table=test_read_shp_table_name)
 
         # Assert no indexes to start
-        indexes_df = db.dfquery(SHP_DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
+        indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
@@ -47,7 +47,7 @@ class TestSHPDeleteIndexPG:
         s.read_shp()
 
         # Assert two indexes were made; one for PK
-        indexes_df = db.dfquery(SHP_DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
+        indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
         assert len(indexes_df) == 2
         assert len(indexes_df[indexes_df['index_name'].str.contains('pkey')]) == 1
 
@@ -55,7 +55,7 @@ class TestSHPDeleteIndexPG:
         s.del_indexes()
 
         # Assert one indexes left; contains pkey
-        indexes_df = db.dfquery(SHP_DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
+        indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
         assert len(indexes_df) == 1
         assert len(indexes_df[indexes_df['index_name'].str.contains('pkey')]) == 1
 
@@ -82,7 +82,7 @@ class TestSHPDeleteIndexMS:
         sql.drop_table(schema='dbo', table=test_read_shp_table_name)
 
         # Assert no indexes to start
-        indexes_df = sql.dfquery(SHP_DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
@@ -90,7 +90,7 @@ class TestSHPDeleteIndexMS:
         s.read_shp()
 
         # Assert one index was made; one for PK
-        indexes_df = sql.dfquery(SHP_DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
         assert len(indexes_df) == 1
         assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
 
@@ -98,7 +98,7 @@ class TestSHPDeleteIndexMS:
         s.del_indexes()
 
         # Assert still one index left; contains PK
-        indexes_df = sql.dfquery(SHP_DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
         assert len(indexes_df) == 1
         assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
 
@@ -114,12 +114,11 @@ class TestSHPDeleteIndexMS:
         sql.drop_table(schema='dbo', table=test_read_shp_table_name)
 
         # Assert no indexes to start
-        indexes_df = sql.dfquery(SHP_DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
-        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table=test_read_shp_table_name, schema='dbo')
-        s.read_shp()
+        s = s.input_geospatial_file(dbo=sql, path=fp, shp_name=shp_name, table=test_read_shp_table_name, schema='dbo')
 
         # Add one more
         sql.query("""
@@ -127,7 +126,7 @@ class TestSHPDeleteIndexMS:
         """.format(test_read_shp_table_name, test_read_shp_table_name))
 
         # Assert one index was made; one for PK
-        indexes_df = sql.dfquery(SHP_DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
         assert len(indexes_df) == 2
         assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
 
@@ -135,7 +134,7 @@ class TestSHPDeleteIndexMS:
         s.del_indexes()
 
         # Assert still one index left; contains PK
-        indexes_df = sql.dfquery(SHP_DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
         assert len(indexes_df) == 1
         assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
 
