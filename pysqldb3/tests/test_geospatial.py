@@ -7,6 +7,7 @@ import pytest
 
 from .. import pysqldb3 as pysqldb
 from .. import geospatial as s
+from ..sql import *
 from . import helpers
 
 
@@ -1299,6 +1300,70 @@ class TestGpkgShpConversion:
 
         # remove gpkg output
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
+    def test_convert_gdb_to_gpkg_file(self):
+        gpkg_name = 'gpkg_to_gdb.gpkg'
+
+        # check that GDB exists
+        assert os.path.isdir(fgdb)
+
+        s.geospatial_convert(input_path = fgdb,
+                             feature_class = 'node',
+                             export_path = FOLDER_PATH,
+                             output_file = gpkg_name,
+                             gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+
+        assert os.path.exists(os.path.join(FOLDER_PATH, gpkg_name)) # confirm that the gpkg is removed
+
+        # assert that the data is the same
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT NODEID FROM {test_write_gpkg_table_name} ORDER BY NODEID LIMIT 10" -q'
+        cmd_gdb = f'ogrinfo "{fgdb}" -sql "SELECT NODEID FROM node ORDER BY NODEID LIMIT 10" -q'
+
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        ogr_response_gdb = subprocess.check_output(shlex.split(cmd_gdb), stderr=subprocess.STDOUT)
+        
+
+        print(ogr_response_gpkg)
+        print('cindy')
+        print(ogr_response_gdb)
+        assert 'NODEID (Integer) = 1' in str(ogr_response_gpkg) and 'NODEID (Integer) = 1' in str(ogr_response_gdb), "cannot find 'NODEID (Integer) = 1' statement in the gdb and gpkg queries"
+
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
+    def test_convert_gdb_to_existing_gpkg_file(self):
+
+        # copy the same shp file as an additional table in the gpkg
+        # this test confirms that the update function for the gpkg is working correctly
+
+        gpkg_name = 'gpkg_to_gdb.gpkg'
+
+        assert os.path.isdir(fgdb)
+
+        # create the first gpkg
+        s.geospatial_convert(input_path = fgdb,
+                             feature_class = 'lion',
+                             export_path = FOLDER_PATH,
+                             output_file = gpkg_name,
+                             gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+        
+        # run function to convert GDB to GPKG and add as a second set of tables
+        s.geospatial_convert(input_path = fgdb, feature_class = 'node', export_path = FOLDER_PATH,
+                             output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2',)
+
+        # assert that the output file exists and that it matches the geopackage
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # assert that the data is the same
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT NODEID FROM {test_write_gpkg_table_name}_2 ORDER BY NODEID LIMIT 1" -q'
+        cmd_shp = f'ogrinfo "{fgdb}" -sql "SELECT NODEID FROM node ORDER BY NODEID LIMIT 1" -q'
+
+        ogr_response_gpkg_2 = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        ogr_response_gdb_2 = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
+        
+        assert 'NODEID (Integer) = 1' in str(ogr_response_gpkg_2) and 'NODEID (Integer) = 1' in str(ogr_response_gdb_2), "cannot find 'NODEID (Integer) = 1' statement in the gdb and gpkg queries"
+
+        # remove gpkg output
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
         
     @classmethod
     def teardown_class(cls):
@@ -1506,6 +1571,7 @@ class TestReadShpPG:
 
         # Cleanup
         db.drop_table(schema=db.default_schema, table=test_read_shp_table_name)
+
 
     @classmethod
     def teardown_class(cls):
@@ -2105,8 +2171,6 @@ class TestFeatureClassToTablePg:
     @classmethod
     def setup_class(cls):
         helpers.set_up_feature_class()
-
-## NEED TO CREATE BULK UPLOAD TESTS!!
         
     def test_import_fc_basic(self):
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
@@ -2390,9 +2454,124 @@ class TestFeatureClassToTableMs:
             """)
         sql.drop_table(ms_schema, test_feature_class_table_name)
 
-        # FAILING
-        # assert df['GRANTEE'].nunique() == 1
-
     @classmethod
     def teardown_class(cls):
         sql.cleanup_new_tables()
+
+class TestSHPDeleteIndexPG:
+    @classmethod
+    def setup_class(cls):
+        # Setup; create sample file
+        helpers.set_up_shapefile()
+
+    def test_shp_delete_index_pg_basic(self):
+        fp = FOLDER_PATH
+        shp_name = "test.shp"
+
+        # Assert successful
+        assert shp_name in os.listdir(fp)
+        db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
+
+        # Assert no indexes to start
+        indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s=pg_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 0
+
+        # Read shp to new, test table
+        s.input_geospatial_file(dbo=db, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema=pg_schema)
+
+        # Assert two indexes were made; one for PK
+        indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s=pg_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 2
+        assert len(indexes_df[indexes_df['index_name'].str.contains('pkey')]) == 1
+
+        # Call del_indexes
+        s.del_indexes(dbo = sql, schema = pg_schema, table = test_read_shp_table_name)
+        db.query(f"alter table {pg_schema}.{test_read_shp_table_name} drop column geom;") # remove geometry column since it's not an index
+
+        # Assert one indexes left; contains pkey
+        indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s=pg_schema, t=test_read_shp_table_name))
+        assert len(indexes_df[indexes_df['index_name'].str.contains('pkey')]) == 1
+        assert len(indexes_df) == 1
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_shapefile()
+
+
+class TestSHPDeleteIndexMS:
+    @classmethod
+    def setup_class(cls):
+        # Setup; create sample file
+        helpers.set_up_shapefile()
+
+    def test_shp_delete_index_ms_basic(self):
+        fp = FOLDER_PATH
+        shp_name = "test.shp"
+
+        # Assert successful
+        assert shp_name in os.listdir(fp)
+        sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
+
+        # Assert no indexes to start
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s=ms_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 0
+
+        # Read shp to new, test table
+        s.input_geospatial_file(dbo=sql, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema='dbo')
+
+        # Assert one index was made; one for PK
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s=ms_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 1
+        assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
+
+        # Call del_indexes
+        s.del_indexes(dbo = sql, schema = ms_schema, table = test_read_shp_table_name)
+
+        # Assert still one index left; contains PK
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s=ms_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 1
+        assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
+
+        # Cleanup
+        sql.drop_table(schema='dbo', table=test_read_shp_table_name)
+
+    def test_shp_delete_index_ms_multiple(self):
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__)))+'/test_data'
+        shp_name = "test.shp"
+
+        # Assert successful
+        assert shp_name in os.listdir(fp)
+        sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
+
+        # Assert no indexes to start
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s=ms_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 0
+
+        # Read shp to new, test table
+        s.input_geospatial_file(dbo=sql, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema=ms_schema)
+
+        # Add one more
+        sql.query(f"CREATE INDEX IX_{test_read_shp_table_name} ON {ms_schema}.{test_read_shp_table_name} (ogr_fid)")
+
+        # Assert one index was made; one for PK
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s=ms_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 2
+        assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
+
+        # Call del_indexes
+        s.del_indexes(dbo = sql, schema = ms_schema, table = test_read_shp_table_name)
+
+        # Assert still one index left; contains PK
+        indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s=ms_schema, t=test_read_shp_table_name))
+        assert len(indexes_df) == 1
+        assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
+
+        # Cleanup
+        sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_shapefile()
