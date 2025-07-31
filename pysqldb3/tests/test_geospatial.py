@@ -470,7 +470,7 @@ class TestWritegpkgPG:
 
         # Reupload as table
         s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
-                               schema=pg_schema, table = test_reuploaded_table_name, print_cmd=True)
+                                schema=pg_schema, table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1306,29 +1306,27 @@ class TestGpkgShpConversion:
 
         # check that GDB exists
         assert os.path.isdir(fgdb)
+        assert not os.path.exists(os.path.join(fgdb, gpkg_name))
 
         s.geospatial_convert(input_path = fgdb,
                              feature_class = 'node',
-                             export_path = FOLDER_PATH,
                              output_file = gpkg_name,
                              gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
 
-        assert os.path.exists(os.path.join(FOLDER_PATH, gpkg_name)) # confirm that the gpkg is removed
+        assert os.path.exists(os.path.join(FOLDER_PATH + '/lion', gpkg_name)) # confirm that the gpkg is removed
 
         # assert that the data is the same
-        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT NODEID FROM {test_write_gpkg_table_name} ORDER BY NODEID LIMIT 10" -q'
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/lion/{gpkg_name}" -sql "SELECT NODEID FROM {test_write_gpkg_table_name} ORDER BY NODEID LIMIT 10" -q'
         cmd_gdb = f'ogrinfo "{fgdb}" -sql "SELECT NODEID FROM node ORDER BY NODEID LIMIT 10" -q'
 
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_gdb = subprocess.check_output(shlex.split(cmd_gdb), stderr=subprocess.STDOUT)
         
-
         print(ogr_response_gpkg)
-        print('cindy')
         print(ogr_response_gdb)
         assert 'NODEID (Integer) = 1' in str(ogr_response_gpkg) and 'NODEID (Integer) = 1' in str(ogr_response_gdb), "cannot find 'NODEID (Integer) = 1' statement in the gdb and gpkg queries"
 
-        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+        os.remove(os.path.join(FOLDER_PATH + '/lion', gpkg_name))
 
     def test_convert_gdb_to_existing_gpkg_file(self):
 
@@ -1338,23 +1336,22 @@ class TestGpkgShpConversion:
         gpkg_name = 'gpkg_to_gdb.gpkg'
 
         assert os.path.isdir(fgdb)
+        assert not os.path.exists(os.path.join(FOLDER_PATH + '/lion', gpkg_name))
 
         # create the first gpkg
         s.geospatial_convert(input_path = fgdb,
                              feature_class = 'lion',
-                             export_path = FOLDER_PATH,
                              output_file = gpkg_name,
                              gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
         
         # run function to convert GDB to GPKG and add as a second set of tables
-        s.geospatial_convert(input_path = fgdb, feature_class = 'node', export_path = FOLDER_PATH,
-                             output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2',)
+        s.geospatial_convert(input_path = fgdb, feature_class = 'node', output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2',)
 
         # assert that the output file exists and that it matches the geopackage
-        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+        assert os.path.isfile(os.path.join(FOLDER_PATH + '/lion', gpkg_name))
 
         # assert that the data is the same
-        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT NODEID FROM {test_write_gpkg_table_name}_2 ORDER BY NODEID LIMIT 1" -q'
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/lion/{gpkg_name}" -sql "SELECT NODEID FROM {test_write_gpkg_table_name}_2 ORDER BY NODEID LIMIT 1" -q'
         cmd_shp = f'ogrinfo "{fgdb}" -sql "SELECT NODEID FROM node ORDER BY NODEID LIMIT 1" -q'
 
         ogr_response_gpkg_2 = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
@@ -1363,7 +1360,7 @@ class TestGpkgShpConversion:
         assert 'NODEID (Integer) = 1' in str(ogr_response_gpkg_2) and 'NODEID (Integer) = 1' in str(ogr_response_gdb_2), "cannot find 'NODEID (Integer) = 1' statement in the gdb and gpkg queries"
 
         # remove gpkg output
-        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+        os.remove(os.path.join(FOLDER_PATH + '/lion', gpkg_name))
         
     @classmethod
     def teardown_class(cls):
@@ -1625,7 +1622,7 @@ class TestReadShpMS:
 
     def test_read_shp_zip(self):
 
-        fp = FOLDER_PATH + '/shp_test.zip'
+        fp = FOLDER_PATH + '/test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
@@ -1803,7 +1800,7 @@ class TestWriteShpPG:
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
 
-        s.input_geospatial_file(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        db.shp_to_table(path=fp, shp_name=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
  
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")

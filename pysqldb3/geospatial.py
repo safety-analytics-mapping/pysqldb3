@@ -25,7 +25,7 @@ def list_gpkg_tables(file_name, path = None):
 
     assert file_name.endswith('.gpkg'), "File name needs to end with .gpkg"
 
-    if gpkg_exists(path = path, file_name = file_name):
+    if geospatial_exists(path = path, file_name = file_name):
 
         try:
             exists_cmd = f'ogrinfo {os.path.join(path, file_name)}'
@@ -42,60 +42,61 @@ def list_gpkg_tables(file_name, path = None):
     else:
             print("This geopackage file does not exist at this file location.")
 
-def gpkg_exists(file_name, path = None):
+def geospatial_exists(file_name, path = None):
     
     """
-    Checks if a geopackage already exists at that location
+    Checks if a geospatial file already exists at that file location
 
-    :param gpkg_name: Geopackage name, ends with .gpkg
+    :param file_name: Geospatial file name
     :param path: Optional file path
     """
 
-    gpkg_exists = os.path.isfile(os.path.join(path, file_name))
+    geospatial_exists = os.path.isfile(os.path.join(path, file_name))
                                 
-    return gpkg_exists
+    return geospatial_exists
 
-def gpkg_tbl_exists(gpkg_name, gpkg_tbl, path = None):
+def geospatial_tbl_exists(file_name, geospatial_tbl, path = None):
             
     """
-    Checks if a geopackage table already exists, in case it isn't meant to be overwritten.
-    :param gpkg_name: File name to check whether a certain table exists. Must end with .gpkg
+    Checks if a table or Shapefile already exists within a Geospatial package database.
+    Helpful function to check if a table is to be overwritten.
+    :param file_name: File name to check whether a certain table exists. Must end with .gpkg or .gdb
     :param path: Optional file path
     """
 
-    if gpkg_exists(path = path, file_name = gpkg_name):
+    if geospatial_exists(path = path, file_name = file_name):
 
         try:
-            exists_cmd = f'ogrinfo {os.path.join(path, gpkg_name)}'
+            exists_cmd = f'ogrinfo {os.path.join(path, file_name)}'
             ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
-            table_exists = re.findall(f"\b{gpkg_tbl}\b", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
+            table_exists = re.findall(f"\b{geospatial_tbl}\b", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
 
             if len(table_exists) == 0:
-                gpkg_tbl_exists = False
+                geo_tbl_exists = False
 
             elif len(table_exists) > 0:
-                gpkg_tbl_exists = True
+                geo_tbl_exists = True
             
         except:
 
-            gpkg_tbl_exists = False
+            geo_tbl_exists = False
 
     else:
 
-        gpkg_tbl_exists = False
+        geo_tbl_exists = False
         
-    return gpkg_tbl_exists
+    return geo_tbl_exists
 
 
 def write_geospatial(dbo, path, output_file = None, table = None, schema = None, query = None, gpkg_tbl = None,
                         srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
     
     """
-    Converts a SQL or Postgresql query to a new Geospatial (Shapefile or GPKG) file.
+    Converts a SQL or Postgresql query to a new Geospatial (Shapefile, GPKG) file. Cannot write to a GDB.
 
     :param dbo: Database connection
     :param path (str): File path to the output file
-    :param output_file (str): Optional name of the output file ending with .shp or .gpkg (if blank, use path)
+    :param output_file (str): Optional name of the output file ending with .shp, or .gpkg (if blank, use path)
     :param table (str): DB Table to be written to a GPKG
     :param schema (str): DB schema
     :param query (str): DB query whose output is to be written to a GPKG
@@ -114,6 +115,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
     # assert that a valid file format was input
     if output_file:
         assert output_file.endswith(('.gpkg', '.shp', 'dbf')), "Output file needs to be .gpkg, .dbf, or .shp format"
+        assert not path.endswith(('.gpkg', '.shp', 'dbf')), "Your file path and your output file can't both end with a file extension"
         assert path, "Fill in the file path to the output file"
     else:
         assert path.endswith(('.gpkg', '.shp', '.dbf')), "Output path needs to end with .gpkg, '.dbf', or .shp if no file name is supplied"
@@ -261,14 +263,14 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
         _update = ''
         _overwrite = '-overwrite'
     
-    elif not overwrite and not gpkg_exists(path = path, file_name = output_file):
+    elif not overwrite and not geospatial_exists(path = path, file_name = output_file):
         # this geopackage does not exist so create as if new
         _update = ''
         _overwrite = ''
     
-    elif not overwrite and gpkg_exists(path = path, file_name = output_file): # check if the geopackage already exists
+    elif not overwrite and geospatial_exists(path = path, file_name = output_file): # check if the geopackage already exists
         
-        table_exists = gpkg_tbl_exists(path = path, gpkg_name = output_file, gpkg_tbl = gpkg_tbl)
+        table_exists = geospatial_tbl_exists(path = path, file_name = output_file, geospatial_tbl = gpkg_tbl)
         
         if table_exists == True:
             print("The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied.")
@@ -375,7 +377,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
     dbo.last_query = qry
     dbo.allow_temp_tables = original_temp_flag
         
-def geospatial_convert(input_path, input_file = None, export_path = None, output_file = None, gpkg_tbl = None, feature_class = None,
+def geospatial_convert(input_path, input_file = None, output_file = None, gpkg_tbl = None, feature_class = None,
                         overwrite = False, print_cmd = False):
     
     """
@@ -383,12 +385,9 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
     Possible converions: shp -> gpkg, gpkg -> shp, gdb -> gpkg
     Please use convert_geospatial_bulk() if you want to convert an entire Geopackage file to multiple Shapefiles.
 
-    :param input_path: Path for the geospatial input (required if no input_file)
+    :param input_path: Path for the geospatial input AND export
     :param input_file(str): File name for input (ends with .shp, .gdb, or .gpkg). Optional if input_path has full directory.
-    :param export_path: Folder directory to place the geospatial output.
-                        You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.
-                        Will default to input_path if no export_path supplied
-    :param output_file (str): File name for ouput (ends with .shp or .gpkg). Optional if export_path has full directory.
+    :param output_file (str): File name for ouput (ends with .shp or .gpkg).
     :param gpkg_tbl (str):  Optional argument if Geopackage involved.
                             If the input format is a SHP, this will be the output table name in the Geopackage.
                             Leave blank if you want the output table name to be the input .shp file's name.
@@ -398,9 +397,8 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
     :param print_cmd (bool): Print command
 
     Example:
-    geospatial_convert( input_path = 'C:/Documents/inputs/',
+    geospatial_convert( input_path = 'C:/Documents/files/',
                         input_file = 'test1.shp',
-                        export_path = 'C:/Other_Docs/outputs/',
                         output_file = 'my_new_gpkg.gpkg',
                         gpkg_tbl = 'resulting_table')
     """
@@ -413,16 +411,10 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
 
     if output_file:
         assert output_file.endswith(('.shp', '.gpkg')), "The output file must end with .shp or .gpkg"
-    elif export_path:
-        assert export_path.endswith(('.shp', '.gpkg')), "The output path must end with .shp or .gpkg if no output_file supplied."
     
     # set up the correct file paths
     input_path, input_file = parse_geospatial_file_path(input_path, input_file)
-    export_path, output_file = parse_geospatial_file_path(export_path, output_file)
-
-    # set an export path to the geospatial file if it is not manually set up
-    if not export_path:
-        export_path = input_path
+    export_path, output_file = parse_geospatial_file_path(input_path, output_file)
 
     # create full paths from these outputs
     input_full_path = os.path.join(input_path, input_file)
@@ -446,15 +438,15 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
     # if the output file is a gpkg, do these additional checks
     if output_full_path.endswith('.gpkg'):
         # if gpkg exists and overwrite is explicityly written
-        if overwrite == True and gpkg_exists(path = export_path, file_name = output_file): 
+        if overwrite == True and geospatial_exists(path = export_path, file_name = output_file): 
             _overwrite = '-overwrite'
     
         # if gpkg exists and overwrite was not explicitly called
-        if gpkg_exists(path = export_path, file_name = output_file) and not gpkg_tbl_exists(path = export_path, gpkg_name = output_file, gpkg_tbl = gpkg_tbl) and overwrite == False:
+        if geospatial_exists(path = export_path, file_name = output_file) and not geospatial_tbl_exists(path = export_path, file_name = output_file, geospatial_tbl = gpkg_tbl) and overwrite == False:
             _update = '-update' # then add the table to the gpkg
     
         # if the gpkg and table exists but no overwrite was called
-        if gpkg_exists(path = export_path, file_name = output_file) and gpkg_tbl_exists(path = export_path, gpkg_name = output_file, gpkg_tbl = gpkg_tbl) and overwrite == False:
+        if geospatial_exists(path = export_path, file_name = output_file) and geospatial_tbl_exists(path = export_path, file_name = output_file, geospatial_tbl = gpkg_tbl) and overwrite == False:
             print("The table name to be copied to the geopackage already exists. Either change to Overwrite = True or check the name of the table to be copied.")
             exit # stop process so user can fix
 
@@ -495,16 +487,13 @@ def geospatial_convert(input_path, input_file = None, export_path = None, output
 
 def gpkg_to_shp_bulk(   input_path,
                         input_file = None,
-                        export_path = None,
                         print_cmd = False):
     """
     Converts an entire Geopackage (all tables) to a Shapefile.
     The output Shapefile name will match the name of the geopackage table to be copied.
 
-    :param input_path: str File path to geopackage input.
+    :param input_path: str File path to geopackage input. Shp output will also be located here.
     :param input_file(str): File name for input (ends with .gpkg). Optional if input_path includes file name.
-    :param export_path: str The folder directory to place the shapefiles output.
-                        You cannot specify the shapefiles' names as they are copied from the table names within the geopackage.
     :param print_cmd (bool): Print command
     """
 
@@ -516,7 +505,7 @@ def gpkg_to_shp_bulk(   input_path,
         tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response)) 
 
         for t_i_g in tables_in_gpkg:
-            geospatial_convert(gpkg_tbl = t_i_g, input_path = input_path, export_path = export_path,
+            geospatial_convert(gpkg_tbl = t_i_g, input_path = input_path,
                                input_file = input_file, output_file = t_i_g +'.shp', print_cmd = print_cmd)
     
     except subprocess.CalledProcessError as e:
@@ -553,13 +542,52 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     :return:
     """
 
-    # if file has other compressed format
+    input_geospatial_bulk(dbo = dbo, input_file = input_file, table = table, feature_class = feature_class, path = path,
+                                gpkg_tbl = gpkg_tbl, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
+                                precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days,
+                                skip_failures = skip_failures)
+        
 
+def input_geospatial_bulk(path, dbo, input_file = None, schema = None, table = None, gpkg_tbl = None, feature_class = None, port = 5432,
+                                srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, print_cmd=False, 
+                                skip_failures = '', temp = True, days = 7):
+
+    """
+    Reads all tables within a Geopackage/Geodatabase file into SQL or Postgresql as tables.
+    Function is NOT applicable to Shapefiles.
+
+    :param path: Input file path for geopackage
+    :param dbo: Database connection
+    :param input_file(str): Optional file name for input (must end with .gpkg or .gdb)
+    :param schema (str): Schema that the imported geopackage data will be found
+    :param table (str): SINGLE TABLE EXPORT ONLY. Name of table in db.
+    :param gpkg_tbl (str): SINGLE TABLE EXPORT ONLY. Name of geopackage table for input to db.
+    :param feature_class (str): SINGLE TABLE EXPORT ONLY. Name of feature class in .gdb.
+    :param port (int): Optional port
+    :param srid (str): SRID for geometry. Defaults to 2263
+    :param gdal_data_loc:
+    :param precision: Default to False
+    :param private: Default to False
+    :param encoding: encoding of data within Geopackage
+    :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
+    :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
+    :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+    :return:
+    """
+
+    # if file has other compressed format
     # note: Since the compressed file may contain multiple different SHP files, this logic only applies when the path
     # includes the name of the compressed file and the input file is the name of the specific SHP file.
 
     compressed_exts = ['.tar', '.gz', '.tgz', '.7z', '.rar']
     temp_dir = None
+
+    # check input file path
+    if input_file:
+        assert input_file.endswith(('.shp', '.gpkg', '.gdb', '.dbf')), "The input file should end with .gpkg, .shp, .gdb, or .dbf"
+        assert path, "Fill in the file path to the input file"
+    else:
+        assert path.endswith(('.shp', '.gpkg', '.gdb', '.dbf')), "The path should end with .gpkg, .shp, .gdb, .dbf"
 
     if os.path.splitext(path)[1].lower() in compressed_exts:
         print("Importing Shp from compressed file")
@@ -592,15 +620,20 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
 
         # Return the folder path, .shp filename, and temp dir for later cleanup
         path, input_file = str(shp_path.parent), shp_path.name
+        full_path = os.path.join(path, input_file)
 
-    path, input_file = parse_geospatial_file_path(path, input_file)
+    elif os.path.splitext(path)[1].lower() == '.zip':
+        print("Importing Shp from zip file")
+        path = '/vsizip/' + path
+        full_path = path
 
-    if input_file:
-        assert input_file.endswith(('.shp', '.gpkg', '.gdb', '.dbf')), "The input file should end with .gpkg, .shp, .gdb, or .dbf"
-        assert path, "Fill in the file path to the input file"
     else:
-        assert path.endswith(('.shp', '.gpkg', '.gdb', '.dbf')), "The path should end with .gpkg, .shp, .gdb, .dbf"
-
+        path, input_file = parse_geospatial_file_path(path, input_file)
+        full_path = os.path.join(path, input_file)
+    
+    # if shapefile is selected, you can't have feature class filled in since it will not take that argument
+    if full_path.endswith(('.shp', '.dbf')):
+        assert not feature_class, "feature_class input will not be considered if the input file is .shp or .dbf"
 
     # Use default schema from db object
     if not schema:
@@ -611,297 +644,266 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     else:
         precision = ''
 
-
-    if os.path.splitext(path)[1].lower() == '.zip':
-        print("Importing Shp from zip file")
-        path = '/vsizip/' + path
-        full_path = path
-    else:
-        full_path = os.path.join(path, input_file)
-
     if feature_class:
-        if feature_class.endswith('.shp'):
+        if feature_class.endswith(('.shp', '.dbf')):
             feature_class = feature_class[:-4]
 
+    # clean table name if it's a single input
     if table:
         assert table == re.sub(r'[^A-Za-z0-9_]+', r'_', table) # make sure the name will load into the database
-    elif not table and input_file.endswith('.gpkg'):
-        # clean the geopackage table name
-        table = re.sub(r'[^A-Za-z0-9_]+', r'_', gpkg_tbl) # clean the table name in case there are special characters
     elif not table and gpkg_tbl:
         table = gpkg_tbl.replace('.gpkg', '').replace('.shp', '').lower()
         # if the gpkg_table is left blank, we will populate the name using input_gpkg
-    elif not table and input_file.endswith(('.shp','.gdb')):
+    elif not table and full_path.endswith(('.shp')):
         table = input_file.replace('.shp', '').lower()
-        table = table.replace('.gdb', '').lower()
-    else:
-        table = input_file[:-4].lower()
 
-    table = table.lower()
+    # create empty dictionary
+    gpkg_tbl_names = {}
+    
+    # if the inputs suggest bulk uploading
+    if (not gpkg_tbl and full_path.endswith('.gpkg')) or (full_path.endswith('.gdb') and not feature_class):
 
-    if dbo.table_exists(table = table, schema = schema):
+        # retrieve all the table names from the geopackage
+        try:
+            
+            count_cmd = COUNT_GPKG_LAYERS.format(full_path = full_path) 
+            ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
 
-        del_indexes(dbo, schema, table)
-        print(f'Deleting existing table {schema}.{table}')
+            if full_path.endswith('.gpkg'):
+                tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
+            # only allows tables names with underscores, numbers, and letters as the first character
+            # excludes any dtype description that's also returned by the command line
+            else: # .gdb
+                tables_in_gpkg = re.findall(r"Layer:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
+
+        except subprocess.CalledProcessError as e:
+            print("Ogr2ogr Output:\n", e.output)
+            print('Ogr2ogr command failed. The Geopackage was not read in.')
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], count_cmd), returncode=1)
+
+        # create a list of cleaned table names from the list that was generated
+        for t_i_g in tables_in_gpkg:
+            insert_val = re.sub(r'[^A-Za-z0-9_]+', r'_', t_i_g)
+            gpkg_tbl_names[t_i_g] = insert_val # add the cleaned name
+
+        # assert that the new cleaned names are unique. if not, we won't get the same dimensions
+        assert len(gpkg_tbl_names) == len(tables_in_gpkg), "Clean the geopackage table names so they can be uploaded as tables (by removing special characters other than _) and make sure they are unique."
+
+    elif full_path.endswith(('.shp', '.dbf')) and not temp_dir:
+        # exclude compressed files from this if statement
+        gpkg_tbl_names[full_path.replace('.shp', '')] = table
+        gpkg_tbl_names[full_path.replace('.dbf', '')] = table
         
-        if dbo.type == 'MS':
-            dbo.drop_table(schema=schema, table=table)
-        else:
-            dbo.drop_table(schema, table, cascade = True)
+    elif input_file.endswith(('.shp', '.dbf')) and '.zip' in full_path: # this is for zip files
+        gpkg_tbl_names[input_file.replace('.shp', '')] = table
+        gpkg_tbl_names[input_file.replace('.dbf', '')] = table
 
-    if dbo.type == 'PG' and input_file.endswith('.gpkg'):
-        cmd = READ_GPKG_CMD_PG.format(
-            gdal_data=gdal_data_loc,
-            srid=srid,
-            host=dbo.server,
-            dbname=dbo.database,
-            user=dbo.user,
-            password=dbo.password,
-            gpkg_name = full_path,
-            gpkg_tbl = gpkg_tbl,
-            schema = schema,
-            tbl_name = table,
-            perc=precision,
-            port=port
-        )
-    elif dbo.type == 'MS' and input_file.endswith('.gpkg'):
-        if dbo.LDAP:
-            cmd = READ_GPKG_CMD_MS.format(
-                gdal_data=gdal_data_loc,
-                srid=srid,
-                host=dbo.server,
-                dbname=dbo.database,
-                gpkg_name=full_path,
-                gpkg_tbl = gpkg_tbl,
-                schema=schema,
-                tbl_name='"' + table + '"',
-                perc=precision,
-                port=port
-            )
-            cmd.replace(";UID={user};PWD={password}", "")
+    elif full_path.endswith('.shp') and temp_dir:
+        # compressed files if statement
+        gpkg_tbl_names[input_file.replace('.shp', '')] = table
+      
+    elif full_path.endswith('.gdb') and feature_class:
+        gpkg_tbl_names[feature_class.replace('.shp', '')] = table
+   
+    elif full_path.endswith('.gpkg') and gpkg_tbl:
+        gpkg_tbl_names[gpkg_tbl] = table
 
-        else:
-            cmd = READ_GPKG_CMD_MS.format(
+    # start of loop
+    for gpkg_tbl, table in gpkg_tbl_names.items():
+        table = table.lower()
+
+        if dbo.table_exists(table = table, schema = schema):
+
+            del_indexes(dbo, schema, table)
+            print(f'Deleting existing table {schema}.{table}')
+            
+            if dbo.type == 'MS':
+                dbo.drop_table(schema=schema, table=table)
+            else:
+                dbo.drop_table(schema, table, cascade = True)
+
+        if dbo.type == 'PG' and input_file.endswith('.gpkg'):
+            cmd = READ_GPKG_CMD_PG.format(
                 gdal_data=gdal_data_loc,
                 srid=srid,
                 host=dbo.server,
                 dbname=dbo.database,
                 user=dbo.user,
                 password=dbo.password,
-                gpkg_name=full_path,
+                gpkg_name = full_path,
                 gpkg_tbl = gpkg_tbl,
-                schema=schema,
-                tbl_name='"' + table + '"',
+                schema = schema,
+                tbl_name = table,
                 perc=precision,
                 port=port
             )
+        elif dbo.type == 'MS' and input_file.endswith('.gpkg'):
+            if dbo.LDAP:
+                cmd = READ_GPKG_CMD_MS.format(
+                    gdal_data=gdal_data_loc,
+                    srid=srid,
+                    host=dbo.server,
+                    dbname=dbo.database,
+                    gpkg_name=full_path,
+                    gpkg_tbl = gpkg_tbl,
+                    schema=schema,
+                    tbl_name='"' + table + '"',
+                    perc=precision,
+                    port=port
+                )
+                cmd.replace(";UID={user};PWD={password}", "")
 
-    elif dbo.type == 'PG' and input_file.endswith(('.shp', '.dbf')) and not feature_class:
-    
-        cmd = READ_SHP_CMD_PG.format(
-                gdal_data = gdal_data_loc,
-                srid = srid,
-                host = dbo.server,
-                dbname = dbo.database,
-                user = dbo.user,
-                password = dbo.password,
-                shp = full_path,
-                schema = schema,
-                tbl_name = table,
-                perc = precision,
-                port = port)
+            else:
+                cmd = READ_GPKG_CMD_MS.format(
+                    gdal_data=gdal_data_loc,
+                    srid=srid,
+                    host=dbo.server,
+                    dbname=dbo.database,
+                    user=dbo.user,
+                    password=dbo.password,
+                    gpkg_name=full_path,
+                    gpkg_tbl = gpkg_tbl,
+                    schema=schema,
+                    tbl_name='"' + table + '"',
+                    perc=precision,
+                    port=port
+                )
 
-    elif dbo.type == 'MS' and input_file.endswith(('.shp', '.dbf')) and not feature_class:
+        elif dbo.type == 'PG' and input_file.endswith(('.shp', '.dbf')) and not feature_class:
         
-        if dbo.LDAP:
-            cmd = READ_SHP_CMD_MS.format(
-                gdal_data = gdal_data_loc,
-                srid = srid,
-                host = dbo.server,
-                dbname = dbo.database,
-                shp = full_path,
-                schema = schema,
-                tbl_name = table,
-                perc = precision,
-                port = port
-            )
-            cmd.replace(";UID={user};PWD={password}", "")
+            cmd = READ_SHP_CMD_PG.format(
+                    gdal_data = gdal_data_loc,
+                    srid = srid,
+                    host = dbo.server,
+                    dbname = dbo.database,
+                    user = dbo.user,
+                    password = dbo.password,
+                    shp = full_path,
+                    schema = schema,
+                    tbl_name = table,
+                    perc = precision,
+                    port = port)
 
-        else:
-            cmd = READ_SHP_CMD_MS.format(
-                gdal_data = gdal_data_loc,
-                srid = srid,
-                host = dbo.server,
-                dbname = dbo.database,
-                user = dbo.user,
-                password = dbo.password,
-                shp = full_path,
-                schema = schema,
-                tbl_name = table,
-                perc = precision,
-                port = port
-            )
-    
-    elif dbo.type == 'PG' and input_file.endswith('.gdb') and feature_class:
-        
-        cmd = READ_FEATURE_CMD.format(
-            gdal_data = gdal_data_loc,
-            srid = srid,
-            host =  dbo.server,
-            dbname = dbo.database,
-            user = dbo.user,
-            password= dbo.password,
-            gdb = full_path,
-            feature = feature_class,
-            tbl_name = table,
-            sch = schema
-        )
-    elif dbo.type == 'MS' and input_file.endswith('.gdb') and feature_class:
-            # TODO: add LDAP version trusted_connection=yes
-        cmd = READ_FEATURE_CMD_MS.format(
-                gdal_data = gdal_data_loc,
-                srid = srid,
-                ms_server = dbo.server,
-                ms_db = dbo.database,
-                ms_user = dbo.user,
-                ms_pass = dbo.password,
-                gdb = full_path,
-                feature= feature_class,
-                tbl_name=table,
-                sch= schema,
-                sf=skip_failures
-            )
-    else:
-        AssertionError('Please check your inputs.')
-
-    cmd_env = os.environ.copy()
-
-    if encoding and encoding.upper() == 'LATIN1':
-        cmd_env['PGCLIENTENCODING'] = 'LATIN1'
-
-    if encoding and encoding.upper().replace('-', '') == 'UTF8':
-        cmd_env['PGCLIENTENCODING'] = 'UTF8'
-
-    if print_cmd:
-        print(print_cmd_string([dbo.password], cmd))
-
-    try:
-        ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, env=cmd_env)
-        print(ogr_response)
-    except subprocess.CalledProcessError as e:
-        print("Ogr2ogr Output:\n", e.output)
-        if feature_class == True:
-            (f'Ogr2ogr command failed. The feature class was not read in.')
-        else:
-            print(f'Ogr2ogr command failed. The file was not read in.')
-        raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
-
-    if dbo.type == 'PG' and feature_class == True:
-        dbo.query(FEATURE_COMMENT_QUERY.format(
-            s = schema,
-            t = table,
-            u = dbo.user,
-            d = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-        ), timeme=False, internal=True)
-    
-    elif dbo.type == 'PG' and input_file.endswith('.shp') and feature_class == False:
-        dbo.query(SHP_COMMENT_QUERY.format(
-                s=schema,
-                t=table,
-                u=dbo.user,
-                p=path,
-                shp=input_file,
-                d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-            ), timeme=False, internal=True)
-
-    # needs to be rewritten since this is not possible in geospatial.py
-    if not private:
-        try:
-            dbo.query(f'grant select on {schema}."{table}" to public;',
-                timeme=False, internal=True, strict=True)
-        except:
-            pass
-
-    rename_geom(dbo, schema, table)
-    dbo.tables_created.append((dbo.server, dbo.database, schema,  table))
-    
-    if temp:
-        dbo.run_table_logging([schema + "." + table], days=days)
-
-    # remove temp folders of any decompressed files
-    if temp_dir:
-        shutil.rmtree(temp_dir)
-
-def input_geospatial_bulk(path, dbo, input_file = None, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
-                precision=False, private=False, encoding=None, print_cmd=False, temp = True, days = 7):
-
-    """
-    Reads all tables within a Geopackage/Geodatabase file into SQL or Postgresql as tables.
-    Function is NOT applicable to Shapefiles.
-
-    :param path: Input file path for geopackage
-    :param dbo: Database connection
-    :param input_file(str): Optional file name for input (must end with .gpkg or .gdb)
-    :param schema (str): Schema that the imported geopackage data will be found
-    :param port (int): Optional port
-    :param srid (str): SRID for geometry. Defaults to 2263
-    :param gdal_data_loc:
-    :param precision: Default to False
-    :param private: Default to False
-    :param encoding: encoding of data within Geopackage
-    :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
-    :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
-    :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
-    :return:
-    """
-    if input_file:
-        assert input_file.endswith(('.gpkg', '.gdb')), "You cannot bulk upload Shapefiles, you can only bulk upload tables within a Geopackage/database (.gdb or .gpkg)"
-    else:
-        assert path.endswith('.gpkg'), "Your path must end with .gpkg (Geopackage only) if there is no input_file"
-    
-    # set the full path
-    path, input_file = parse_geospatial_file_path(path, input_file)
-    full_path = os.path.join(path, input_file)
-    
-    # retrieve all the table names from the geopackage
-    
-    try:
-        
-        count_cmd = COUNT_GPKG_LAYERS.format(full_path = full_path) 
-        ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-
-        if full_path.endswith('.gpkg'):
-            tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
-        # only allows tables names with underscores, numbers, and letters as the first character
-        # excludes any dtype description that's also returned by the command line
-        else: # .gdb
-            tables_in_gpkg = re.findall(r"Layer:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
-
-    except subprocess.CalledProcessError as e:
-        print("Ogr2ogr Output:\n", e.output)
-        print('Ogr2ogr command failed. The Geopackage was not read in.')
-        raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], count_cmd), returncode=1)
-
-    # create empty dictoinary
-    gpkg_tbl_names = {}
-
-    # create a list of cleaned table names from the list that was generated
-    for t_i_g in tables_in_gpkg:
-        insert_val = re.sub(r'[^A-Za-z0-9_]+', r'_', t_i_g)
-        gpkg_tbl_names[t_i_g] = insert_val # add the cleaned name
-
-    # assert that the new cleaned names are unique. if not, we won't get the same dimensions
-    assert len(gpkg_tbl_names) == len(tables_in_gpkg), "Clean the geopackage table names so they can be uploaded as tables (by removing special characters other than _) and make sure they are unique."
-
-    for gpkg_tbl, table in gpkg_tbl_names.items():
-
-        if full_path.endswith('.gpkg'):
-            input_geospatial_file(dbo = dbo, input_file = input_file, table = table, path = path, gpkg_tbl = gpkg_tbl, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
-                                precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days)
+        elif dbo.type == 'MS' and input_file.endswith(('.shp', '.dbf')) and not feature_class:
             
+            if dbo.LDAP:
+                cmd = READ_SHP_CMD_MS.format(
+                    gdal_data = gdal_data_loc,
+                    srid = srid,
+                    host = dbo.server,
+                    dbname = dbo.database,
+                    shp = full_path,
+                    schema = schema,
+                    tbl_name = table,
+                    perc = precision,
+                    port = port
+                )
+                cmd.replace(";UID={user};PWD={password}", "")
+
+            else:
+                cmd = READ_SHP_CMD_MS.format(
+                    gdal_data = gdal_data_loc,
+                    srid = srid,
+                    host = dbo.server,
+                    dbname = dbo.database,
+                    user = dbo.user,
+                    password = dbo.password,
+                    shp = full_path,
+                    schema = schema,
+                    tbl_name = table,
+                    perc = precision,
+                    port = port
+                )
+        
+        elif dbo.type == 'PG' and input_file.endswith('.gdb') and feature_class:
+            
+            cmd = READ_FEATURE_CMD.format(
+                gdal_data = gdal_data_loc,
+                srid = srid,
+                host =  dbo.server,
+                dbname = dbo.database,
+                user = dbo.user,
+                password= dbo.password,
+                gdb = full_path,
+                feature = feature_class,
+                tbl_name = table,
+                sch = schema
+            )
+        elif dbo.type == 'MS' and input_file.endswith('.gdb') and feature_class:
+                # TODO: add LDAP version trusted_connection=yes
+            cmd = READ_FEATURE_CMD_MS.format(
+                    gdal_data = gdal_data_loc,
+                    srid = srid,
+                    ms_server = dbo.server,
+                    ms_db = dbo.database,
+                    ms_user = dbo.user,
+                    ms_pass = dbo.password,
+                    gdb = full_path,
+                    feature= feature_class,
+                    tbl_name=table,
+                    sch= schema,
+                    sf=skip_failures
+                )
         else:
-            input_geospatial_file(dbo = dbo, input_file = input_file, table = table, path = path, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
-                                    feature_class = table, precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days)
+            AssertionError('Please check your inputs.')
+
+        cmd_env = os.environ.copy()
+
+        if encoding and encoding.upper() == 'LATIN1':
+            cmd_env['PGCLIENTENCODING'] = 'LATIN1'
+
+        if encoding and encoding.upper().replace('-', '') == 'UTF8':
+            cmd_env['PGCLIENTENCODING'] = 'UTF8'
+
+        if print_cmd:
+            print(print_cmd_string([dbo.password], cmd))
+
+        try:
+            ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT, env=cmd_env)
+            print(ogr_response)
+        except subprocess.CalledProcessError as e:
+            print("Ogr2ogr Output:\n", e.output)
+            if feature_class == True:
+                (f'Ogr2ogr command failed. The feature class was not read in.')
+            else:
+                print(f'Ogr2ogr command failed. The file was not read in.')
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
+
+        if dbo.type == 'PG' and feature_class == True:
+            dbo.query(FEATURE_COMMENT_QUERY.format(
+                s = schema,
+                t = table,
+                u = dbo.user,
+                d = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+            ), timeme=False, internal=True)
+        
+        elif dbo.type == 'PG' and input_file.endswith('.shp') and feature_class == False:
+            dbo.query(SHP_COMMENT_QUERY.format(
+                    s=schema,
+                    t=table,
+                    u=dbo.user,
+                    p=path,
+                    shp=input_file,
+                    d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+                ), timeme=False, internal=True)
+
+        # needs to be rewritten since this is not possible in geospatial.py
+        if not private:
+            try:
+                dbo.query(f'grant select on {schema}."{table}" to public;',
+                    timeme=False, internal=True, strict=True)
+            except:
+                pass
+
+        rename_geom(dbo, schema, table)
+        dbo.tables_created.append((dbo.server, dbo.database, schema,  table))
+        
+        if temp:
+            dbo._run_table_logging([schema + "." + table], days=days)
+
+        # remove temp folders of any decompressed files
+        if temp_dir:
+            shutil.rmtree(temp_dir)
 
 
 def del_indexes(dbo, schema, table):
