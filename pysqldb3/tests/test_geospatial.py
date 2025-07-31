@@ -1345,7 +1345,7 @@ class TestGpkgShpConversion:
                              gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
         
         # run function to convert GDB to GPKG and add as a second set of tables
-        s.geospatial_convert(input_path = fgdb, feature_class = 'node', output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2',)
+        s.geospatial_convert(input_path = fgdb, feature_class = 'node', output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2')
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(FOLDER_PATH + '/lion', gpkg_name))
