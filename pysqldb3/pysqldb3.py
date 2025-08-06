@@ -1520,7 +1520,7 @@ class DbConnect:
                 FROM {schema}.stg_{table}
                 """
 
-                self.query(qry, timeme=False, days=days, internal = True)
+                self.query(qry, timeme=False, days=days)
 
             # Drop stg table
             self.drop_table(schema=schema, table=f'stg_{table}')
@@ -2183,7 +2183,7 @@ class DbConnect:
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :param skip_failures: allows user to pass skip failures flag to OGR2OGR.
         :param extra_cmd: allows user to pass any additional flag/paramters to OGR2OGR.
-        :return:
+        :return: None
         """
         if not schema:
             schema = self.default_schema
