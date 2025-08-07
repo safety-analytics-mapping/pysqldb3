@@ -1520,7 +1520,7 @@ class DbConnect:
                 FROM {schema}.stg_{table}
                 """
 
-                self.query(qry, timeme=False, days=days, internal = True)
+                self.query(qry, timeme=False, days=days)
 
             # Drop stg table
             self.drop_table(schema=schema, table=f'stg_{table}')
@@ -2166,7 +2166,7 @@ class DbConnect:
 
     def feature_class_to_table(self, path, table = None, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
                                srid=2263, private=False, temp=True, fc_encoding=None, print_cmd=False,
-                               days=7, skip_failures=''):
+                               days=7, skip_failures='', extra_cmd=None):
         """
         Imports shape file feature class to database. This uses GDAL to generate the table.
         :param path: Filepath to the geodatabase
@@ -2181,7 +2181,9 @@ class DbConnect:
         Options inlude LATIN1, UTF-8.
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
-        :return:
+        :param skip_failures: allows user to pass skip failures flag to OGR2OGR.
+        :param extra_cmd: allows user to pass any additional flag/paramters to OGR2OGR.
+        :return: None
         """
         if not schema:
             schema = self.default_schema
@@ -2200,7 +2202,7 @@ class DbConnect:
                         shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,
                         skip_failures=skip_failures)
 
-        shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
+        shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd, extra_cmd=extra_cmd)
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
