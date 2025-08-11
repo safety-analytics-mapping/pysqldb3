@@ -2173,7 +2173,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        s.input_geospatial_file(dbo = db, path = fgdb, table = test_feature_class_table_name, schema=None, feature_class=fc)
+        db.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, schema=None, feature_class=fc)
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
@@ -2182,7 +2182,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table = test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        s.input_geospatial_file(dbo = db, path = fgdb, table=test_feature_class_table_name, schema=None, feature_class = fc)
+        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class = fc)
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
@@ -2192,7 +2192,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table = test_feature_class_table_name, schema=pg_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        s.input_geospatial_file(dbo = db, path = fgdb, table=test_feature_class_table_name, feature_class = fc, schema=pg_schema)
+        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class = fc, schema=pg_schema)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
         db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_feature_class_table_name}'")
@@ -2205,7 +2205,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=pg_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        s.input_geospatial_file(dbo = db, path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
+        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
         db.query(f'select distinct st_srid("Shape") from {pg_schema}.{test_feature_class_table_name}')
@@ -2217,7 +2217,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        s.input_geospatial_file(dbo = db, path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc)
+        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc)
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.query(f"""
@@ -2273,7 +2273,7 @@ class TestFeatureClassToTablePg:
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         try:
-            s.input_geospatial_file(dbo = db, path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema)
+            db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema)
         except:
             assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
@@ -2285,7 +2285,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=private_table, schema=pg_schema)
         assert not db.table_exists(private_table, schema=pg_schema)
 
-        s.input_geospatial_file(dbo = db, path = fgdb, table=private_table, feature_class=fc, schema=pg_schema, private=True)
+        db.feature_class_to_table(path = fgdb, table=private_table, feature_class=fc, schema=pg_schema, private=True)
         assert db.table_exists(private_table, schema=pg_schema)
 
         db.query(f"""
@@ -2303,13 +2303,22 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=not_temp_table, schema=pg_schema)
         assert not db.table_exists(not_temp_table, schema=pg_schema)
 
-        s.input_geospatial_file(dbo = db, path = fgdb, table=not_temp_table, feature_class=fc, schema=pg_schema, temp=False)
+        db.feature_class_to_table(path = fgdb, table=not_temp_table, feature_class=fc, schema=pg_schema, temp=False)
         assert db.table_exists(not_temp_table, schema=pg_schema)
 
         db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{not_temp_table}'")
         assert len(db.data) == 0
 
         db.drop_table(pg_schema, not_temp_table)
+
+    def test_import_fc_extra_cmd(self):
+        db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
+        assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+        db.feature_class_to_table(fgdb, test_feature_class_table_name, schema=None, feature_class='lion', extra_cmd='-nlt MULTILINESTRING')
+        assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+        db.drop_table(db.default_schema, test_feature_class_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -2325,7 +2334,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
-        s.input_geospatial_file(dbo = sql, path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, print_cmd=True,skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, print_cmd=True,skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
         sql.drop_table(sql.default_schema, test_feature_class_table_name)
@@ -2334,7 +2343,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
-        s.input_geospatial_file(dbo = sql, path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
         sql.drop_table(sql.default_schema, test_feature_class_table_name)
@@ -2344,7 +2353,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        s.input_geospatial_file(dbo = sql, path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=ms_schema, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=ms_schema, skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
         sql.drop_table(ms_schema, test_feature_class_table_name)
@@ -2354,7 +2363,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        s.input_geospatial_file(dbo = sql, path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema = ms_schema, srid=4326, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema = ms_schema, srid=4326, skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema = ms_schema)
 
         sql.query(f"select distinct geom.STSrid from {ms_schema}.{test_feature_class_table_name}")
@@ -2366,7 +2375,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
 
         assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
-        s.input_geospatial_file(dbo = sql, path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
 
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
         sql.query(f"""
@@ -2418,7 +2427,7 @@ class TestFeatureClassToTableMs:
         assert not sql.table_exists(test_feature_class_table_name, schema=schema)
 
         try:
-            s.input_geospatial_file(dbo = sql, path = fgdb, table = test_feature_class_table_name, feature_class=fc, schema=schema, skip_failures='-skip_failures')
+            sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class=fc, schema=schema, skip_failures='-skip_failures')
         except:
             assert not sql.table_exists(test_feature_class_table_name, schema=schema)
 
@@ -2429,7 +2438,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema = ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        s.input_geospatial_file(dbo = sql, path = fgdb, table = test_feature_class_table_name, feature_class=fc, schema=ms_schema, temp=False,
+        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class=fc, schema=ms_schema, temp=False,
         skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
@@ -2443,12 +2452,21 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema = ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        s.input_geospatial_file(dbo = sql, path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema = ms_schema, private=True, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema = ms_schema, private=True, skip_failures='-skip_failures')
         assert sql.table_exists(table = test_feature_class_table_name, schema = ms_schema)
 
         sql.query(f"""
             EXEC sp_table_privileges @table_name = '{test_feature_class_table_name}';
             """)
+        sql.drop_table(ms_schema, test_feature_class_table_name)
+
+    def test_import_fc_extra_cmd(self):
+        sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
+        assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
+        sql.feature_class_to_table(fgdb, test_feature_class_table_name, schema=None, shp_name='lion', extra_cmd='-nlt MULTILINESTRING')
+        assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
+
         sql.drop_table(ms_schema, test_feature_class_table_name)
 
     @classmethod

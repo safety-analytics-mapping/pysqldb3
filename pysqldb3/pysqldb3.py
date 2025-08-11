@@ -1927,7 +1927,8 @@ class DbConnect:
                             cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
         
     def feature_class_to_table(self, path, table, shp_name = None, feature_class = None, schema=None, 
-                               private=False, temp=True, fc_encoding=None, days=7, skip_failures=''):
+                               port = 5432, srid = '2263', private=False, fc_encoding=None, skip_failures='', extra_cmd = None,
+                               temp = True, days = 7, print_cmd = False):
         """
         Imports shape file feature class to database. This uses GDAL to generate the table.
         :param path: Filepath to the geodatabase
@@ -1936,25 +1937,24 @@ class DbConnect:
         :param shp_name:  FeatureClass name or Geodatabase name
         :param feature_class: Optional featureclass name; fill in only if you are uploading from a Geodatabase
         :param gdal_data_loc: Filepath/location of GDAL on computer
+        :param port: Defaults to 5432
         :param srid: SRID to use (defaults to 2263)
         :param private: If True any new tables will override defaut grant select permissions; defaults to False
         :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
         :param fc_encoding: Defaults to None; if not None, sets the PG client encoding while uploading the feature class
         Options inlude LATIN1, UTF-8.
-        :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param skip_failures: allows user to pass skip failures flag to OGR2OGR.
+        :param extra_cmd: allows user to pass any additional flag/paramters to OGR2OGR.
+        :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :return:
         """
         if not schema:
             schema = self.default_schema
 
-        input_geospatial_file(dbo = self, path = path, input_file = shp_name, schema = schema, table = table,
-                              feature_class = feature_class, port = 5432, srid = '2263', 
-                              private = private, encoding = fc_encoding, skip_failures = skip_failures,
-                              temp = temp, days = days, print_cmd=False)
-
-        if temp:
-            self.__run_table_logging([schema + "." + table], days=days)
+        input_geospatial_file(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class,
+                                port = port, srid = srid, private = private, encoding = fc_encoding, skip_failures = skip_failures,
+                                extra_cmd = extra_cmd, temp = temp, days = days, print_cmd=print_cmd)
         
     def query_to_gpkg(self, query, gpkg_tbl, path=None, gpkg_name = None, overwrite = True, cmd=None,
                       gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
@@ -1977,7 +1977,7 @@ class DbConnect:
 
     def shp_to_table(self, shp_name, path=None, table=None, schema=None, feature_class = None, cmd=None,
                      srid=2263, port=5432, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
-                     shp_encoding=None, print_cmd=False, days=7):
+                     shp_encoding=None, extra_cmd = None, print_cmd=False, days=7):
         """
         Imports shape file to database. This uses GDAL to generate the table.
         :param path: File path of the shapefile
@@ -1994,6 +1994,7 @@ class DbConnect:
         :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
         :param shp_encoding: Defaults to None; if not None, sets the PG client encoding while uploading the shpfile.
         Options inlude LATIN1, UTF-8.
+        :param extra_cmd: Defaults to None. Extra ogr2ogr commands you want to append
         :param print_cmd: Defaults to False; if True prints the cmd
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
         :return:
@@ -2001,13 +2002,15 @@ class DbConnect:
 
         input_geospatial_file(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class, port = port,
                             srid = srid, gdal_data_loc = gdal_data_loc, precision=precision, private=private, encoding=shp_encoding,
-                            temp = temp, days = days, print_cmd=print_cmd)
+                            temp = temp, days = days, extra_cmd = extra_cmd, print_cmd=print_cmd)
 
     def gpkg_to_table(self, gpkg_name, gpkg_tbl, path=None, schema=None, table =None, 
                      srid=2263, port=5432, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
-                     gpkg_encoding=None, print_cmd=False, days=7, bulk_upload = False):
+                     gpkg_encoding=None, extra_cmd = None, print_cmd=False, days=7):
         """
         Imports single geopackage table to database. This uses GDAL to generate the table.
+        Use input_geospatial_file_bulk() for bulk table upload from a Geopackage.
+
         :param gpkg_name: Geopackage name (ends in .gpkg)
         :param gpkg_tbl: Input table name from Geopackage.
         :param path: File path of the geopackage
@@ -2020,15 +2023,15 @@ class DbConnect:
         :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
         :param gpkg_encoding: Defaults to None; if not None, sets the PG client encoding while uploading the gpkgfile.
         Options inlude LATIN1, UTF-8.
+        :param extra_cmd: Defaults to None. Extra ogr2ogr commands you want to append
         :param print_cmd: Defaults to False; if True prints the cmd
         :param days: if temp=Tue, the number of days that the temp table will be kept. Defaults to 7.
-        :param bulk_upload: Defaults to False. Use gpkg_to_table_bulk() to load all tables within a geopackage.
         :return:
         """
 
         input_geospatial_file(dbo = self, path = path, input_file = gpkg_name, schema = schema, table = table, gpkg_tbl = gpkg_tbl, port = port,
                             srid = srid, gdal_data_loc = gdal_data_loc, precision=precision, private=private, encoding=gpkg_encoding,
-                            temp = temp, days = days, print_cmd=print_cmd)
+                            temp = temp, days = days, extra_cmd = extra_cmd, print_cmd=print_cmd)
 
 
     def table_to_csv(self, table, schema=None, strict=True, output_file=None, open_file=False, sep=',',

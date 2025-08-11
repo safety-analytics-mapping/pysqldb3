@@ -518,7 +518,7 @@ def gpkg_to_shp_bulk(   input_path,
 
 def input_geospatial_file(dbo, path, input_file = None, schema = None, table = None, feature_class = None, gpkg_tbl = None, port = 5432,
                             srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, skip_failures = '',
-                            temp = True, days = 7, print_cmd=False):
+                            temp = True, days = 7, extra_cmd = None, print_cmd=False):
     
     """
     Imports single Geopackage table, Geodatabase feature class, or Shp to database. This uses GDAL to generate the table.
@@ -538,6 +538,7 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     :param skip_failures (str): Defualts to ''
     :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
     :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+    :param extra_cmd: allows user to pass any additional flag/paramters to OGR2OGR.
     :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
     :return:
     """
@@ -545,12 +546,12 @@ def input_geospatial_file(dbo, path, input_file = None, schema = None, table = N
     input_geospatial_bulk(dbo = dbo, input_file = input_file, table = table, feature_class = feature_class, path = path,
                                 gpkg_tbl = gpkg_tbl, schema = schema, port = port, srid = srid, gdal_data_loc=gdal_data_loc,
                                 precision=precision, private=private, encoding=encoding, print_cmd=print_cmd, temp = temp, days = days,
-                                skip_failures = skip_failures)
+                                skip_failures = skip_failures, extra_cmd = extra_cmd)
         
 
 def input_geospatial_bulk(path, dbo, input_file = None, schema = None, table = None, gpkg_tbl = None, feature_class = None, port = 5432,
                                 srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, print_cmd=False, 
-                                skip_failures = '', temp = True, days = 7):
+                                skip_failures = '', temp = True, days = 7, extra_cmd = None):
 
     """
     Reads all tables within a Geopackage/Geodatabase file into SQL or Postgresql as tables.
@@ -572,6 +573,7 @@ def input_geospatial_bulk(path, dbo, input_file = None, schema = None, table = N
     :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
     :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
     :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+    :param extra_cmd: allows user to pass any additional flag/paramters to OGR2OGR.
     :return:
     """
 
@@ -846,6 +848,9 @@ def input_geospatial_bulk(path, dbo, input_file = None, schema = None, table = N
                 )
         else:
             AssertionError('Please check your inputs.')
+
+        if extra_cmd:
+            cmd = cmd + f' {extra_cmd}'
 
         cmd_env = os.environ.copy()
 
