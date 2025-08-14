@@ -44,9 +44,6 @@ class TestQueryCreatesTablesSql():
         ]
         query.Query.query_creates_table(query_string, 'dbo', MS)
 
-
-
-
     def test_query_creates_table_from_qry(self):
         query_string = """
             CREATE TABLE dbo.test AS
@@ -895,7 +892,6 @@ class TestQueryCreatesTablesPgSql():
             SELECT * FROM d;
         """
         assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None,None,'dbo','test_with_cte')]
-
 
     def test_multiple_qrys_select_into_dif_parts(self):
         query_string = """
