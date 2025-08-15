@@ -4,6 +4,7 @@ import configparser
 import pandas as pd
 
 from .. import pysqldb3 as pysqldb
+from .. import data_io
 from .. import util as util
 from . import helpers
 
@@ -77,7 +78,6 @@ class TestTabelsCreatedPG:
         assert db.tables_created == [(db.server, db.database, pg_schema, table_name)]
         db.drop_table(pg_schema, table_name)
 
-
     def test_bulk_csv_to_table(self):
         db.drop_table(pg_schema, table_name)
         db.csv_to_table(input_file=helpers.DIR + "\\_test_bulk.csv", schema=pg_schema, table=table_name)
@@ -108,6 +108,25 @@ class TestTabelsCreatedPG:
         db.dataframe_to_table(df, table_name, schema=pg_schema)
         assert db.table_exists(table_name, schema=pg_schema)
         assert db.tables_created == [(db.server, db.database, pg_schema, table_name)]
+        db.drop_table(pg_schema, table_name)
+
+    def test_data_io_create_table(self):
+        src_table_name = table_name+'_src_'
+        db.drop_table(pg_schema, table_name)
+        db.drop_table(pg_schema, src_table_name)
+        data = {
+            'gid': {0: 1, 1: 2},
+            'WKT': {0: 'POINT(-73.88782477721676 40.75343453961836)', 1: 'POINT(-73.88747073046778 40.75149365677327)'},
+            'some_value': {0: 'test1', 1: 'test2'}
+        }
+        df = pd.DataFrame(data)
+        db.dataframe_to_table(df, src_table_name, schema=pg_schema)
+        data_io.pg_to_pg(db, db, src_table_name, org_schema=pg_schema, dest_schema=pg_schema, dest_table=table_name, spatial=False)
+
+        assert db.table_exists(src_table_name, schema=pg_schema)
+        assert db.tables_created == [(db.server, db.database, pg_schema, src_table_name), (db.server, db.database, pg_schema, table_name)]
+        db.drop_table(pg_schema, table_name)
+        db.drop_table(pg_schema, src_table_name)
 
 
     @classmethod
@@ -180,6 +199,26 @@ class TestTabelsCreatedMS:
         sql.dataframe_to_table(df, table_name, schema=sql_schema)
         assert sql.table_exists(table_name, schema=sql_schema)
         assert sql.tables_created == [(sql.server, sql.database, sql_schema, table_name)]
+        sql.drop_table(sql_schema, table_name)
+
+
+    def test_data_io_create_table(self):
+        src_table_name = table_name+'_src_'
+        sql.drop_table(sql_schema, table_name)
+        sql.drop_table(sql_schema, src_table_name)
+        data = {
+            'gid': {0: 1, 1: 2},
+            'WKT': {0: 'POINT(-73.88782477721676 40.75343453961836)', 1: 'POINT(-73.88747073046778 40.75149365677327)'},
+            'some_value': {0: 'test1', 1: 'test2'}
+        }
+        df = pd.DataFrame(data)
+        sql.dataframe_to_table(df, src_table_name, schema=sql_schema)
+        data_io.sql_to_sql(sql, sql, src_table_name, org_schema=sql_schema, dest_schema=sql_schema, dest_table=table_name, spatial=False)
+
+        assert sql.table_exists(src_table_name, schema=sql_schema)
+        assert sql.tables_created == [(sql.server, sql.database, sql_schema, src_table_name), (sql.server, sql.database, sql_schema, table_name)]
+        sql.drop_table(sql_schema, table_name)
+        sql.drop_table(sql_schema, src_table_name)
 
 
     @classmethod
