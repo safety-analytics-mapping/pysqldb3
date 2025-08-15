@@ -347,6 +347,7 @@ class TestBackupTablesPg:
 
 
         db.drop_table(pg_schema, "4_table name")
+        db.drop_table(pg_schema, "4_table name_backup")
         # table schema
         db.query(f"""
                    CREATE TABLE {pg_schema}."4_table name" (
@@ -932,6 +933,7 @@ class TestBackupTablesMs:
         # table_name = 'daylighting_old_turn_calming_20240626'
 
         sql.drop_table(ms_schema, "4_table name")
+        sql.drop_table(ms_schema, "4_table name_backup")
         # table schema
         sql.query(f"""
                    CREATE TABLE {ms_schema}."4_table name" (

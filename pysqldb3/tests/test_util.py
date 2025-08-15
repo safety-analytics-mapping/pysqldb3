@@ -5,132 +5,132 @@ from ..util import convert_geom_col, parse_table_string
 
 class TestStringParser:
     def test_string_parser_basic_default_server_ms(self):
-        server, database, schema, table = parse_table_string("example", "dbo", "MS")
+        server, database, schema, table = parse_table_string("example", "dbo", "MS", 'test_server', 'test_database')
         assert schema == "dbo"
         assert table == "example"
 
     def test_string_parser_basic_default_server_pg(self):
-        server, database, schema, table = parse_table_string('example', "public", "PG")
+        server, database, schema, table = parse_table_string('example', "public", "PG", 'test_server', 'test_database')
         assert schema == "public"
         assert table == "example"
 
     def test_string_parser_schema_table_periods_ms(self):
-        server, database, schema, table = parse_table_string('generic.example', "dbo", "MS")
+        server, database, schema, table = parse_table_string('generic.example', "dbo", "MS", 'test_server', 'test_database')
         assert schema == 'generic'
         assert table == 'example'
 
     def test_string_parser_schema_table_periods_pg(self):
-        server, database, schema, table = parse_table_string('generic.example', "public", "PG")
+        server, database, schema, table = parse_table_string('generic.example', "public", "PG", 'test_server', 'test_database')
         assert schema == 'generic'
         assert table == 'example'
 
     def test_string_parser_server_schema_table_periods_ms(self):
-        server, database, schema, table = parse_table_string('a.generic.example', "dbo", "MS")
+        server, database, schema, table = parse_table_string('a.generic.example', "dbo", "MS", 'test_server', 'test_database')
         assert not server
         assert database == 'a'
         assert schema == 'generic'
         assert table == 'example'
 
     def test_string_parser_server_schema_table_periods_pg(self):
-        server, database, schema, table = parse_table_string('a.generic.example', "public", "PG")
+        server, database, schema, table = parse_table_string('a.generic.example', "public", "PG", 'test_server', 'test_database')
         assert not server
         assert database == 'a'
         assert schema == 'generic'
         assert table == 'example'
 
     def test_string_parser_basic_quotes_pg(self):
-        server, database, schema, table = parse_table_string('hello.this."isan_example"', "public", "PG")
+        server, database, schema, table = parse_table_string('hello.this."isan_example"', "public", "PG", 'test_server', 'test_database')
         assert not server
         assert database =='hello'
         assert schema == 'this'
         assert table == 'isan_example'
 
     def test_string_parser_basic_brackets_ms(self):
-        server, database, schema, table = parse_table_string('hello.this.is.[an_example]', "dbo", "MS")
+        server, database, schema, table = parse_table_string('hello.this.is.[an_example]', "dbo", "MS", 'test_server', 'test_database')
         assert server == 'hello'
         assert database == 'this'
         assert schema == 'is'
         assert table == 'an_example'
 
     def test_string_parser_period_in_quotes_pg(self):
-        server, database, schema, table = parse_table_string('hello.this.is."a.n_example"', "public", "PG")
+        server, database, schema, table = parse_table_string('hello.this.is."a.n_example"', "public", "PG", 'test_server', 'test_database')
         assert server == 'hello'
         assert database == 'this'
         assert schema == 'is'
         assert table == 'a.n_example'
 
     def test_string_parser_period_in_brackets_ms(self):
-        server, database, schema, table = parse_table_string('hello.this.is.[a.n_example]', "dbo", "MS")
+        server, database, schema, table = parse_table_string('hello.this.is.[a.n_example]', "dbo", "MS", 'test_server', 'test_database')
         assert server == 'hello'
         assert database == 'this'
         assert schema == 'is'
         assert table == 'a.n_example'
 
     def test_string_parser_double_period_in_quotes_pg(self):
-        server, database, schema, table = parse_table_string('"double.quotes"."an.example"', "public", "PG")
+        server, database, schema, table = parse_table_string('"double.quotes"."an.example"', "public", "PG", 'test_server', 'test_database')
         assert schema == 'double.quotes'
         assert table == 'an.example'
 
     def test_string_parser_spaces_in_quotes_pg(self):
-        server, database, schema, table = parse_table_string('working."is an example"', "public", "PG")
+        server, database, schema, table = parse_table_string('working."is an example"', "public", "PG", 'test_server', 'test_database')
         assert schema == 'working'
         assert table == 'is an example'
 
     def test_string_parser_spaces_in_brackets_ms(self):
-        server, database, schema, table = parse_table_string('hey.hello.this.[is an example]', "dbo", "MS")
+        server, database, schema, table = parse_table_string('hey.hello.this.[is an example]', "dbo", "MS", 'test_server', 'test_database')
         assert server =='hey'
         assert database == 'hello'
         assert schema == 'this'
         assert table == 'is an example'
 
     def test_string_parser_default_spaces_in_brackets_quotes_ms(self):
-        server, database, schema, table = parse_table_string('hey.hello.this.["is an example"]', "dbo", "MS")
+        server, database, schema, table = parse_table_string('hey.hello.this.["is an example"]', "dbo", "MS", 'test_server', 'test_database')
         assert server == 'hey'
         assert database == 'hello'
         assert schema == 'this'
         assert table == '"is an example"'
 
     def test_string_parser_capitalization_pg(self):
-        server, database, schema, table = parse_table_string("this.isalowercase.example", "working", "PG")
+        server, database, schema, table = parse_table_string("this.isalowercase.example", "working", "PG", 'test_server', 'test_database')
         assert schema == "isalowercase"
         assert table == "example"
 
-        server, database, schema, table = parse_table_string("this.isacapitalized.EXAMPLE", "working", "PG")
+        server, database, schema, table = parse_table_string("this.isacapitalized.EXAMPLE", "working", "PG", 'test_server', 'test_database')
         assert schema == 'isacapitalized'
         assert table == 'example'
 
-        server, database, schema, table = parse_table_string('hey.hello.THIS."IS AN EXAMPLE"', "working", "PG")
+        server, database, schema, table = parse_table_string('hey.hello.THIS."IS AN EXAMPLE"', "working", "PG", 'test_server', 'test_database')
         assert server == 'hey'
         assert database=='hello'
         assert schema == 'this'
         assert table == 'IS AN EXAMPLE'
 
-        server, database, schema, table = parse_table_string("CAPITALIZED.EXAMPLE", "working", "PG")
+        server, database, schema, table = parse_table_string("CAPITALIZED.EXAMPLE", "working", "PG", 'test_server', 'test_database')
         assert schema == 'capitalized'
         assert table == 'example'
 
-        server, database, schema, table = parse_table_string('test."EXAMPLE"', "working", "PG")
+        server, database, schema, table = parse_table_string('test."EXAMPLE"', "working", "PG", 'test_server', 'test_database')
         assert schema == 'test'
         assert table == 'EXAMPLE'
 
-        server, database, schema, table = parse_table_string('"TEST"."EXAMPLE"', "working", "PG")
+        server, database, schema, table = parse_table_string('"TEST"."EXAMPLE"', "working", "PG", 'test_server', 'test_database')
         assert schema == 'TEST'
         assert table == 'EXAMPLE'
 
     def test_string_parser_capitalization_ms(self):
-        server, database, schema, table = parse_table_string('test.EXAMPLE', "dbo", "MS")
+        server, database, schema, table = parse_table_string('test.EXAMPLE', "dbo", "MS", 'test_server', 'test_database')
         assert schema == 'test'
         assert table == 'example'
 
-        server, database, schema, table = parse_table_string('test."EXAMPLE"', "dbo", "MS")
+        server, database, schema, table = parse_table_string('test."EXAMPLE"', "dbo", "MS", 'test_server', 'test_database')
         assert schema == 'test'
         assert table == 'EXAMPLE'
 
-        server, database, schema, table = parse_table_string('test.[EXAMPLE]', "dbo", "MS")
+        server, database, schema, table = parse_table_string('test.[EXAMPLE]', "dbo", "MS", 'test_server', 'test_database')
         assert schema == 'test'
         assert table == 'EXAMPLE'
 
-        server, database, schema, table = parse_table_string('test.["EXAMPLE"]', "dbo", "MS")
+        server, database, schema, table = parse_table_string('test.["EXAMPLE"]', "dbo", "MS", 'test_server', 'test_database')
         assert schema == 'test'
         assert table == '"EXAMPLE"'
 
