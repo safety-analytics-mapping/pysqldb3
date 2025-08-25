@@ -265,6 +265,7 @@ class TestCleanUpNewTablesIO:
         """.format(pg_schema, test_pg_to_pg_cleanup_table))
 
         assert len(ris.tables_created) == 0
+        ris.drop_table(pg_schema, test_pg_to_pg_cleanup_table)
         assert not ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
 
         pg_to_pg(from_pg=db, to_pg=ris, org_schema=pg_schema, org_table=test_pg_to_pg_cleanup_table,
