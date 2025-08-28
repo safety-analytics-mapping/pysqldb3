@@ -83,12 +83,12 @@ class TestCleanUpNewTablesPg:
         assert db.table_exists(table_name, schema=pg_schema)
 
         db.query("alter table {s}.{t} rename to {t}_rename".format(s=pg_schema, t=table_name))
-        assert db.table_exists(table_name, schema=pg_schema) == False
+        assert not db.table_exists(table_name, schema=pg_schema)
         assert db.table_exists(table_name + '_rename', schema=pg_schema)
 
         db.cleanup_new_tables()
-        assert db.table_exists(table_name, schema=pg_schema) == False
-        assert db.table_exists(table_name + '_rename', schema=pg_schema) == False
+        assert not db.table_exists(table_name, schema=pg_schema)
+        assert not db.table_exists(table_name + '_rename', schema=pg_schema)
 
     def test_clean_up_new_tables_temp(self):
         table_name = 'test_new_table_92820_testing'
