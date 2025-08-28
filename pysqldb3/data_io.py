@@ -708,8 +708,6 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
                 to_sql.query(f"ALTER TABLE [{dest_schema}].[{dest_table}] ALTER COLUMN [{c}] {cols[c]}",
                          timeme=False, internal=True, strict=False)
 
-    # tables created always has (server, db, schema, table), in pg server and db are not listed
-    to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
 
 
 def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=False, print_cmd=False):

@@ -478,7 +478,9 @@ class DbConnect:
         if table == self.log_table:
             return
 
-        if server:
+        if server and server != self.server:
+            # is new table is in same server as dbo not needed in table defination
+            # this os a workaround for servers with '.' in the server name
             ser = server + '.'
         else:
             ser = ''
@@ -2159,7 +2161,7 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
 
-        self.tables_created.append((self.server, self.database, schema, table))
+        # self.tables_created.append((self.server, self.database, schema, table))
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
