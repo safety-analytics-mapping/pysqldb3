@@ -148,7 +148,7 @@ class Query:
 
 
     def __update_log_for_renamed_table(self, new_schema_table, old_table):
-        _serv, _dab, schema, new_table = parse_table_string(new_schema_table, self.dbo.default_schema, self.dbo.type, self.dbo.server, self.dbo.database)
+        _serv, _dab, schema, new_table = parse_table_string(new_schema_table, self.dbo.default_schema, self.dbo.type)
 
         if self.dbo.table_exists(self.dbo.log_table, schema=schema, internal=True):
             self.dbo.query(f"update {schema}.{self.dbo.log_table} set table_name = '{new_table}' where table_name = '{old_table}'", internal=True, strict=False)
@@ -251,7 +251,6 @@ class Query:
                                 # this os a workaround for servers with '.' in the server name
                                 row = row[1:]
                             obj = '.'.join([f'"{x}"' for x in row if x])
-
                         self.dbo.query(f'grant select on {obj} to public;',
                                        strict=False, timeme=False, internal=True)
 
@@ -263,7 +262,7 @@ class Query:
                         self.rename_index(i, self.renamed_tables[i])
 
                         # Add standardized previous table name to dropped tables to remove from log
-                        server, database, sch, tbl = parse_table_string(i, self.dbo.default_schema, self.dbo.type, self.dbo.server, self.dbo.database)
+                        server, database, sch, tbl = parse_table_string(i, self.dbo.default_schema, self.dbo.type)
                         org_table = get_query_table_schema_name(
                             self.renamed_tables[i], self.dbo.type)
                         # org_table = get_query_table_schema_name(sch, self.dbo.type) + '.' + get_query_table_schema_name(
@@ -305,7 +304,7 @@ class Query:
         return df
 
     @staticmethod
-    def query_creates_table(query_string, default_schema, db_type, default_server, default_database):
+    def query_creates_table(query_string, default_schema, db_type):
         """
         Checks if query generates new tables
         :return: list of sets of {schema.table}
@@ -399,7 +398,7 @@ class Query:
             all_tables = [t if ('"' in t or "[" in t) else t.lower() for t in all_tables]
 
         #     # Clean table names via parse_table_string, get_query_table_schema_name
-            parsed_tables = [parse_table_string(a, default_schema, db_type, default_server, default_database) for a in all_tables]
+            parsed_tables = [parse_table_string(a, default_schema, db_type) for a in all_tables]
         return parsed_tables
             # TODO create table query tables will always be 1st in the list over select into queries... does order matter?
 
@@ -561,7 +560,7 @@ class Query:
         :return:
         """
         # Get indices for new table
-        server, database, sch, tbl = parse_table_string(new_table, self.dbo.default_schema, self.dbo.type, self.dbo.server, self.dbo.database)
+        server, database, sch, tbl = parse_table_string(new_table, self.dbo.default_schema, self.dbo.type)
         if not database:
             database = self.dbo.database
 
@@ -620,7 +619,6 @@ class Query:
             for row in self.new_tables:
                 if self.dbo.type == PG:
                     obj = '.'.join([f'"{x}"' for x in row[-2:] if x])
-
                 self.dbo.query(f'''COMMENT ON TABLE {obj} 
                 IS 'Created by {self.dbo.user} 
                 on {self.query_start.strftime('%Y-%m-%d %H:%M')}

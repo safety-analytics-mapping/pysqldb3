@@ -240,7 +240,6 @@ class DbConnect:
 
         try:
             self.conn = pymssql.connect(**self.params)
-
         except Exception as e:
             print(e)
             # Revert to SQL driver and show warning
@@ -437,7 +436,7 @@ class DbConnect:
         :return:
         """
         for table_str in tables_dropped:
-            server, database, schema, table = parse_table_string(table_str, self.default_schema, self.type, self.server, self.database)
+            server, database, schema, table = parse_table_string(table_str, self.default_schema, self.type)
 
             # Check if log table exists
             if self.table_exists(self.log_table, schema=schema, internal=True):
@@ -461,7 +460,7 @@ class DbConnect:
         """
 
         for table in new_tables:
-            server, database, sch, tbl = parse_table_string(table, self.default_schema, self.type, self.server, self.database)
+            server, database, sch, tbl = parse_table_string(table, self.default_schema, self.type)
 
             # All archive tables should default to permanent
             if sch != 'archive':
@@ -714,8 +713,8 @@ class DbConnect:
                 cleaned_server = self.server
             if not cleaned_database:
                 cleaned_database = self.database
-            # add slipt to deal with inconsistant formatting of server ex .dotdev.com
-            if cleaned_server.split('.')[0] == self.server.split('.')[0] and cleaned_database == get_unique_table_schema_string(self.database,
+
+            if cleaned_server == self.server and cleaned_database == get_unique_table_schema_string(self.database,
                                                                                                     self.type):
                 self.query(MS_TABLE_EXISTS_QUERY.format(s=cleaned_schema, t=cleaned_table), timeme=False,
                            internal=internal)
@@ -2617,7 +2616,7 @@ class DbConnect:
 
         # schema_table_name = re.findall(r'CREATE TABLE [\["]*[a-zA-Z]*[\]"]*\.[\["]*[a-zA-Z0-9_*\s]*[\]"]* \(',
         #                read_data)[0].replace('CREATE TABLE ', '')[:-2]
-        server, database, schema, table = Query.query_creates_table(read_data, self.default_schema, self.type, self.server, self.database)[0]
+        server, database, schema, table = Query.query_creates_table(read_data, self.default_schema, self.type)[0]
         if all([overwrite_name, overwrite_schema]):
             read_data = read_data.replace(f'"{schema}"."{table}"', f'"{overwrite_schema}"."{overwrite_name}"')
             read_data = read_data.replace(f'[{schema}].[{table}]', f'[{overwrite_schema}].[{overwrite_name}]')

@@ -153,7 +153,7 @@ def get_query_table_schema_name(tbl_str, db_type):
 
 
 
-def parse_table_string(tbl_str, default_schema, db_type, default_server, default_database):
+def parse_table_string(tbl_str, default_schema, db_type):
     """
     Pareses extracts schema and table name from table references in query strings
     (ex. server.schema.table, schema.table, table)
@@ -202,12 +202,6 @@ def parse_table_string(tbl_str, default_schema, db_type, default_server, default
     else:
         schema, table = None, None
 
-    if not server:
-        if default_server.endswith('.com'):
-            default_server = default_server.split('.')[0]
-        server = default_server
-    if not database:
-        database = default_database
     # if not return_combined:
     if server:
         server = get_unique_table_schema_string(server, db_type)
