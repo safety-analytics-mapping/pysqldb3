@@ -381,7 +381,6 @@ class Query:
                 (\[?\#{temp_mark}){tmp_time}
                 (({encapst} | {nonencaps})\s+){tbl_time}
             )
-            (?=from)                                                # lookahead for 'from'
                 """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
                             encapst=RE_ENCAPSULATED_TABLE_NAME,
                             sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
