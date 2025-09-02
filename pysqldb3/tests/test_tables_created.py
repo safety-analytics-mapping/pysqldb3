@@ -93,12 +93,14 @@ class TestTabelsCreatedPG:
         assert db.tables_created == [(db.server, db.database, pg_schema, table_name)]
         db.drop_table(pg_schema, table_name)
 
+
     def test_shp_from_zip_to_table(self):
         db.drop_table(pg_schema, table_name)
         db.shp_to_table(path=helpers.DIR + "\\test.zip", shp_name='test.shp', schema=pg_schema, table=table_name, zip=True)
         assert db.table_exists(table_name, schema=pg_schema)
         assert db.tables_created == [(db.server, db.database, pg_schema, table_name)]
         db.drop_table(pg_schema, table_name)
+
 
     def test_df_to_table(self):
         db.drop_table(pg_schema, table_name)
@@ -153,6 +155,7 @@ class TestTabelsCreatedMS:
         """)
         assert sql.table_exists(table_name, schema=sql_schema)
         assert sql.tables_created == [(sql.server, sql.database, sql_schema, table_name)]
+
         sql.drop_table(sql_schema, table_name)
 
         sql.drop_table(sql_schema, table_name)
@@ -161,6 +164,7 @@ class TestTabelsCreatedMS:
         """)
         assert sql.table_exists(table_name, schema=sql_schema)
         assert sql.tables_created == [(sql.server, sql.database, sql_schema, table_name)]
+
         sql.drop_table(sql_schema, table_name)
 
 
@@ -186,12 +190,14 @@ class TestTabelsCreatedMS:
         assert sql.tables_created == [(sql.server, sql.database, sql_schema, table_name)]
         sql.drop_table(sql_schema, table_name)
 
+
     def test_shp_from_zip_to_table(self):
         sql.drop_table(sql_schema, table_name)
         sql.shp_to_table(path=helpers.DIR + "\\test.zip", shp_name='test.shp', schema=sql_schema, table=table_name, zip=True)
         assert sql.table_exists(table_name, schema=sql_schema)
         assert sql.tables_created == [(sql.server, sql.database, sql_schema, table_name)]
         sql.drop_table(sql_schema, table_name)
+
 
     def test_df_to_table(self):
         sql.drop_table(sql_schema, table_name)
@@ -224,6 +230,7 @@ class TestTabelsCreatedMS:
         assert sql.tables_created == [
             (sql.server, sql.database, sql_schema, src_table_name),
             (sql.server, sql.database, sql_schema, table_name)]
+
         sql.drop_table(sql_schema, table_name)
         sql.drop_table(sql_schema, src_table_name)
 
