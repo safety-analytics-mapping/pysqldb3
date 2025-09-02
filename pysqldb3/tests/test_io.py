@@ -1650,6 +1650,7 @@ class TestPgToPg:
 
         # Assert tables don't already exist in destination
         assert db.table_exists(schema=pg_schema, table=test_pg_to_pg_tbl)
+        ris.drop_table(pg_schema, test_pg_to_pg_tbl)
         assert not ris.table_exists(schema=pg_schema, table=test_pg_to_pg_tbl)
 
         # pg_to_pg

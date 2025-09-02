@@ -446,6 +446,12 @@ class DbConnect:
                     f"""DELETE FROM {schema}."{self.log_table}" WHERE table_schema = '{schema}' AND table_name = '{table}'""",
                     timeme=False, internal=True
                 )
+                # check if dropped table is in tables created list, if so remove it since it no longer exists
+                server = server or self.server
+                database = database or self.database
+                if (server, database, schema, table) in self.tables_created:
+                    self.tables_created.remove((server, database, schema, table))
+
 
     def __run_table_logging(self, new_tables, days=7):
         """
@@ -479,7 +485,9 @@ class DbConnect:
         if table == self.log_table:
             return
 
-        if server:
+        if server and server != self.server:
+            # is new table is in same server as dbo not needed in table defination
+            # this os a workaround for servers with '.' in the server name
             ser = server + '.'
         else:
             ser = ''
@@ -554,11 +562,13 @@ class DbConnect:
         Drops all newly created tables from this DbConnect object
         :return: None
         """
-        for tbl in self.tables_created:
-            server, database, schema, table = parse_table_string(tbl, self.default_schema, self.type, self.server, self.database)
+        to_clean = len(self.tables_created)
+        while self.tables_created:
+            tbl = self.tables_created.pop()
+            server, database, schema, table = parse_table_string(tbl, self.default_schema, self.type)
             self.drop_table(schema, table, cascade)
 
-        print('Dropped %i tables' % len(self.tables_created))
+        print('Dropped %i tables' % to_clean)
 
         # Clean out list
         self.tables_created = list()
@@ -2160,7 +2170,7 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
 
-        self.tables_created.append((self.server, self.database, schema, table))
+        # self.tables_created.append((self.server, self.database, schema, table))
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)

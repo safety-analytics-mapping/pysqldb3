@@ -232,11 +232,13 @@ class TestBackupTablesPg:
             os.remove(test_back_file)
         assert not os.path.isfile(test_back_file)
 
-        db.drop_table(pg_schema, test_pg_restored_from_backup)
+
         db.backup_table(pg_schema, test_pg_to_backup, test_back_file, pg_schema, test_pg_restored_from_backup)
         assert os.path.isfile(test_back_file)
 
         # run backup
+        db.drop_table(pg_schema, test_pg_restored_from_backup)
+        assert not db.table_exists(test_pg_restored_from_backup, schema=pg_schema)
         db.create_table_from_backup(test_back_file)
 
         # validate table exists
@@ -368,6 +370,7 @@ class TestBackupTablesPg:
 
         db.backup_table(pg_schema, "4_table name", test_back_file, pg_schema, '4_table name_backup')
 
+        db.drop_table(pg_schema, "4_table name_backup")
         db.create_table_from_backup(test_back_file)
 
         # validate table exists
@@ -953,7 +956,7 @@ class TestBackupTablesMs:
                """)
 
         sql.backup_table(ms_schema, "4_table name", test_back_file, ms_schema, '4_table name_backup')
-
+        sql.drop_table(ms_schema, "4_table name_backup")
         sql.create_table_from_backup(test_back_file)
 
         # validate table exists

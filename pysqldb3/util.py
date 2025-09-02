@@ -186,6 +186,10 @@ def parse_table_string(tbl_str, default_schema, db_type, default_server, default
     database = None
 
     # Assumes 2-4 .(dots) for MS and 0 - 1 for pg
+    # > 4 accounts for servers with urls (ex.devpgserversql02.host.net)
+    if len(names_arr) > 4:
+        database, schema, table = names_arr[-3:]
+        server = '.'.join(names_arr[:-3])
     if len(names_arr) == 4:
         server, database, schema, table = names_arr
     elif len(names_arr) == 3:
