@@ -70,6 +70,7 @@ class TestTabelsCreatedPG:
         """)
         assert db.tables_created == [(db.server, db.database, pg_schema, table_name)]
         db.drop_table(pg_schema, table_name)
+        assert not db.tables_created == [(db.server, db.database, pg_schema, table_name)]
 
     def test_csv_to_table(self):
         db.drop_table(pg_schema, table_name)
@@ -156,7 +157,7 @@ class TestTabelsCreatedMS:
 
         sql.drop_table(sql_schema, table_name)
         sql.query(f""" 
-        select 1 as id_, 2 as val into {sql_schema}.{table_name};
+        select 1 as id_, 2 as val into {sql_schema}.{table_name} ;
         """)
         assert sql.table_exists(table_name, schema=sql_schema)
         assert sql.tables_created == [(sql.server, sql.database, sql_schema, table_name)]
