@@ -127,8 +127,8 @@ class Test_rename_pg():
 
         # make sure temp rename is in the log and non-temp rename is not
         pg.query("select table_name from {}.{}".format(pg.default_schema, pg.log_table))
-        assert rename in pg.data[0]
-        assert not rename2 in pg.data[0]
+        assert rename in [i[0] for i in pg.data]
+        assert not rename2 in [i[0] for i in pg.data]
 
         # clean up
         pg.drop_table(pg.default_schema, '{t}'.format(t=tbl))
