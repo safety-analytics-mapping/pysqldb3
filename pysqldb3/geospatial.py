@@ -624,11 +624,6 @@ def input_geospatial_bulk(path, dbo, input_file = None, schema = None, table = N
         path, input_file = str(shp_path.parent), shp_path.name
         full_path = os.path.join(path, input_file)
 
-    elif os.path.splitext(path)[1].lower() == '.zip':
-        print("Importing Shp from zip file")
-        path = '/vsizip/' + path
-        full_path = path
-
     else:
         path, input_file = parse_geospatial_file_path(path, input_file)
         full_path = os.path.join(path, input_file)
