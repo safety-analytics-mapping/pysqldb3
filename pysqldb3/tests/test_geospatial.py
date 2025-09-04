@@ -2187,6 +2187,16 @@ class TestFeatureClassToTablePg:
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
 
+    def test_import_fc_complex_file_exts(self):
+
+        db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
+        assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+        db.feature_class_to_table(path = FOLDER_PATH + "/nyclion_21d.zip/lion/lion.gdb", table = test_feature_class_table_name, schema=None, feature_class=fc)
+        assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
+
+        db.drop_table(db.default_schema, test_feature_class_table_name)
+
     def test_import_fc_new_name_schema(self):
 
         db.drop_table(table = test_feature_class_table_name, schema=pg_schema)
@@ -2348,6 +2358,16 @@ class TestFeatureClassToTableMs:
 
         sql.drop_table(sql.default_schema, test_feature_class_table_name)
 
+    def test_import_fc_complex_file_exts(self):
+
+        sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
+        assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+
+        sql.feature_class_to_table(path = FOLDER_PATH + "/nyclion_21d.zip/lion/lion.gdb", table = test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+        assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+
+        sql.drop_table(sql.default_schema, test_feature_class_table_name)
+
     def test_import_fc_new_name_schema(self):
 
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
@@ -2452,7 +2472,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema = ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema = ms_schema, private=True, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc,
+                                   schema = ms_schema, private=True, skip_failures='-skip_failures')
         assert sql.table_exists(table = test_feature_class_table_name, schema = ms_schema)
 
         sql.query(f"""
@@ -2464,7 +2485,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(fgdb, test_feature_class_table_name, schema=None, shp_name='lion', extra_cmd='-nlt MULTILINESTRING')
+        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema, shp_name='lion.gdb',
+                                    extra_cmd='-nlt MULTILINESTRING')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
         sql.drop_table(ms_schema, test_feature_class_table_name)

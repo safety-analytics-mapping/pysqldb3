@@ -358,10 +358,14 @@ def parse_geospatial_file_path(path=None, file_name=None):
         return path, file_name
 
     geospatial_exts = ('.shp', '.dbf', '.gpkg', '.tar', '.gz', '.tgz', '.tar.gz', '.7z', '.rar', '.gdb', '.zip')
-    if path.lower().endswith(geospatial_exts):
+    if any(x in path for x in geospatial_exts):
         geospatial_file = os.path.basename(path)
         path = path.replace(geospatial_file, '')
 
+    ## add an additional if statement if the zip folder is in the middle of / embedded in the path
+    if '.zip' in path.lower():
+        path = '/vsizip/' + path
+    
     if not file_name:
         file_name = geospatial_file
 
