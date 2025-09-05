@@ -1454,6 +1454,46 @@ class TestReadShpPG:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
+    def test_read_shp_to_table_zip(self):
+        fp = FOLDER_PATH + '/test.zip'
+        shp_name = "test.shp"
+
+        # Make sure table doesn't alredy exist
+        db.drop_table(pg_schema, test_read_shp_table_name)
+        assert not db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
+
+        # Assert successful
+        db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
+
+        # Read shp to new, test table
+        db.shp_to_table(path=fp, schema=pg_schema, shp_name=shp_name, table=test_read_shp_table_name, print_cmd=True)
+
+        # Assert read_shp happened successfully and contents are correct
+        assert db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
+        table_df = db.dfquery(f'select * from {pg_schema}.{test_read_shp_table_name}')
+
+        assert set(table_df.columns) == {'gid', 'some_value', 'geom', 'ogc_fid'}
+        assert len(table_df) == 2
+
+        # Assert distance between geometries is 0 when recreating from raw input
+        # This method was used because the geometries themselves may be recorded differently
+        # but mean the same (after mapping on QGIS)
+        diff_df = db.dfquery(f"""
+        select distinct st_distance(raw_inputs.geom,
+        st_transform(st_setsrid(end_table.geom, 4326),2263)
+        )::int as distance
+        from (
+            select 1 as id, st_setsrid(st_point(1015329.1, 213793.1), 2263) as geom
+            union
+            select 2 as id, st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
+        ) raw_inputs
+        join {pg_schema}.{test_read_shp_table_name} end_table
+        on raw_inputs.id=end_table.gid::int
+        """)
+
+        assert len(diff_df) == 1
+        assert int(diff_df.iloc[0]['distance']) == 0
+
     def test_read_shp_other_compressed(self):
         fp = FOLDER_PATH + "\\test.7z"
         shp_name = "test.shp"
@@ -1634,6 +1674,45 @@ class TestReadShpMS:
 
         # Read shp to new, test table
         s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True)
+
+        # Assert read_shp happened successfully and contents are correct
+        assert sql.table_exists(schema=ms_schema, table=test_read_shp_table_name)
+        table_df = sql.dfquery(f'select * from {ms_schema}.{test_read_shp_table_name}')
+
+        assert set(table_df.columns) == {'gid', 'some_value', 'geom', 'ogr_fid'}
+        assert len(table_df) == 2
+
+        # Assert distance between geometries is 0 when recreating from raw input
+        # This method was used because the geometries themselves may be recorded differently
+        # but mean the same (after mapping on QGIS)
+        diff_df = sql.dfquery(f"""
+                select distinct raw_inputs.geom.STDistance(end_table.geom) as distance
+                from (
+                    (select 1 as id, geometry::Point(-73.88782477721676, 40.75343453961836, 2263) as geom)
+                    union all
+                    (select 2 as id, geometry::Point(-73.88747073046778, 40.75149365677327, 2263) as geom)
+                ) raw_inputs
+                join {ms_schema}.{test_read_shp_table_name} end_table
+                on raw_inputs.id=end_table.gid
+                """)
+
+        assert len(diff_df) == 1
+        assert int(diff_df.iloc[0]['distance']) == 0
+
+    def test_read_shp_zip(self):
+
+        fp = FOLDER_PATH + '/test.zip'
+        shp_name = "test.shp"
+
+        # Make sure table doesn't alredy exist
+        sql.drop_table(ms_schema, test_read_shp_table_name)
+        assert not db.table_exists(schema=ms_schema, table=test_read_shp_table_name)
+
+        # Assert successful
+        sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
+
+        # Read shp to new, test table
+        sql.shp_to_table(path=fp, table=test_read_shp_table_name, schema=ms_schema, shp_name=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table=test_read_shp_table_name)
