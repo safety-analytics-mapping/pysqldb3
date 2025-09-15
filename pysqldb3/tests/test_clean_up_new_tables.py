@@ -187,12 +187,12 @@ class TestCleanUpNewTablesMs:
         assert sql.table_exists(table_name, schema=ms_schema)
 
         sql.query("EXEC sp_rename '{s}.{t}', '{t}_rename';".format(s=ms_schema, t=table_name))
-        assert sql.table_exists(table_name, schema=ms_schema) == False
+        assert not sql.table_exists(table_name, schema=ms_schema)
         assert sql.table_exists(table_name + '_rename', schema=ms_schema)
 
         sql.cleanup_new_tables()
-        assert sql.table_exists(table_name, schema=ms_schema) == False
-        assert sql.table_exists(table_name + '_rename', schema=ms_schema) == False
+        assert not sql.table_exists(table_name, schema=ms_schema)
+        assert not sql.table_exists(table_name + '_rename', schema=ms_schema)
 
     def test_clean_up_new_tables_temp(self):
         table_name = 'test_new_table_92820_testing'

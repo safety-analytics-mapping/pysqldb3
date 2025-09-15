@@ -485,8 +485,8 @@ class DbConnect:
             return
 
         if server and server != self.server:
-            # is new table is in same server as dbo not needed in table defination
-            # this os a workaround for servers with '.' in the server name
+            # if new table is in same server as dbo not needed in table definition
+            # this is a workaround for servers with '.' in the server name
             ser = server + '.'
         else:
             ser = ''
@@ -2168,8 +2168,6 @@ class DbConnect:
                         cmd=cmd, srid=srid, gdal_data_loc=gdal_data_loc, port=port)
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
-
-        # self.tables_created.append((self.server, self.database, schema, table))
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)

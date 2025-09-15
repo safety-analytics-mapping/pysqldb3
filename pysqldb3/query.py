@@ -247,8 +247,8 @@ class Query:
                             obj = '.'.join([f'"{x}"' for x in row[-2:] if x])
                         else:
                             if row[0] == self.dbo.server:
-                                # is new table is in same server as dbo not needed in table defination
-                                # this os a workaround for servers with '.' in the server name
+                                # if new table is in same server as dbo not needed in table definition
+                                # this is a workaround for servers with '.' in the server name
                                 row = row[1:]
                             obj = '.'.join([f'"{x}"' for x in row if x])
                         self.dbo.query(f'grant select on {obj} to public;',
@@ -617,8 +617,7 @@ class Query:
         if self.dbo.type == PG and not self.no_comment:
             # tables in new_tables list will contain schema if provided, otherwise will default to public
             for row in self.new_tables:
-                if self.dbo.type == PG:
-                    obj = '.'.join([f'"{x}"' for x in row[-2:] if x])
+                obj = '.'.join([f'"{x}"' for x in row[-2:] if x])
                 self.dbo.query(f'''COMMENT ON TABLE {obj} 
                 IS 'Created by {self.dbo.user} 
                 on {self.query_start.strftime('%Y-%m-%d %H:%M')}
