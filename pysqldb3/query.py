@@ -134,6 +134,19 @@ class Query:
         self.data_columns = [desc[0] for desc in self.data_description]
         self.data = cur.fetchall()
 
+    def __missing_server_database(self, parse_table):
+        """
+        Takes parse table string and adds in missing server and/or database. Uses the dbo's connection details
+        :param parse_table: parsed table list
+        :return: updated parse table list with sever and database
+        """
+        if not parse_table[1]:
+            parse_table = (self.dbo.server, self.dbo.database, parse_table[-2], parse_table[-1])
+        if not parse_table[0]:
+            parse_table = (self.dbo.server, parse_table[-3], parse_table[-2], parse_table[-1])
+        return parse_table
+
+
     def __update_log_for_renamed_table(self, new_schema_table, old_table):
         _serv, _dab, schema, new_table = parse_table_string(new_schema_table, self.dbo.default_schema, self.dbo.type)
 
@@ -221,7 +234,7 @@ class Query:
             self.__safe_commit()
             if not internal:
                 self.renamed_tables = self.query_renames_table(self.query_string, self.dbo.default_schema, self.dbo.type)
-                self.new_tables = self.query_creates_table(self.query_string, self.dbo.default_schema, self.dbo.type)
+                self.new_tables = [self.__missing_server_database(i) for i in self.query_creates_table(self.query_string, self.dbo.default_schema, self.dbo.type)]
 
                 # Add renamed tables to query's new table list
                 # self.new_tables += [t for t in self.renamed_tables.keys()]
@@ -229,7 +242,15 @@ class Query:
 
                 if self.permission:
                     for row in self.new_tables:
-                        obj = '.'.join([f'"{x}"' for x in row if x])
+                        # account for pg should only use schema and table
+                        if self.dbo.type == PG:
+                            obj = '.'.join([f'"{x}"' for x in row[-2:] if x])
+                        else:
+                            if row[0] == self.dbo.server:
+                                # if new table is in same server as dbo not needed in table definition
+                                # this is a workaround for servers with '.' in the server name
+                                row = row[1:]
+                            obj = '.'.join([f'"{x}"' for x in row if x])
                         self.dbo.query(f'grant select on {obj} to public;',
                                        strict=False, timeme=False, internal=True)
 
@@ -256,6 +277,10 @@ class Query:
                             # self.new_tables.remove(org_table)
 
                         # If the standardized previous table name is in the dbconnects's new tables, remove
+                        if not server:
+                            server = self.dbo.server
+                        if not database:
+                            database = self.dbo.database
                         if (server, database, sch, org_table) in self.dbo.tables_created:
                             # self.dbo.tables_created.remove(org_table)
                             self.dbo.tables_created[self.dbo.tables_created.index( (server, database, sch, org_table))] = \
@@ -356,7 +381,6 @@ class Query:
                 (\[?\#{temp_mark}){tmp_time}
                 (({encapst} | {nonencaps})\s+){tbl_time}
             )
-            (?=from)                                                # lookahead for 'from'
                 """.format(encaps=RE_ENCAPSULATED_SCHEMA_NAME, nonencaps=RE_NON_ENCAPSULATED_TABLE_NAME,
                             encapst=RE_ENCAPSULATED_TABLE_NAME,
                             sds="{0,3}", tbl_time="{1}", tmp_time="{0}", temp_mark="{1,2}")
@@ -593,7 +617,7 @@ class Query:
         if self.dbo.type == PG and not self.no_comment:
             # tables in new_tables list will contain schema if provided, otherwise will default to public
             for row in self.new_tables:
-                obj = '.'.join([f'"{x}"' for x in row if x])
+                obj = '.'.join([f'"{x}"' for x in row[-2:] if x])
                 self.dbo.query(f'''COMMENT ON TABLE {obj} 
                 IS 'Created by {self.dbo.user} 
                 on {self.query_start.strftime('%Y-%m-%d %H:%M')}
