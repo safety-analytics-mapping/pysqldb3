@@ -10,11 +10,6 @@ from .. import geospatial as s
 from ..sql import *
 from . import helpers
 
-
-# todo - issues #######################################################################
-# MS tests are failing becuase the odbc 17 driver seems unable to read geometry fields
-# #####################################################################################
-
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
 
@@ -67,7 +62,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(path=FOLDER_PATH + '//' + gpkg_name, dbo=db, gpkg_tbl = test_layer1,
+        s.upload_geospatial(path=FOLDER_PATH + '//' + gpkg_name, dbo=db, gpkg_tbl = test_layer1,
                                 table=test_read_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -118,7 +113,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # no gpkg_tbl argument so that it bulk uploads
-        s.input_geospatial_bulk(path=FOLDER_PATH, dbo=db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
+        s.upload_geospatial(path=FOLDER_PATH, dbo=db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table = test_layer1)
@@ -192,7 +187,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(dbo=db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_layer2,
+        s.upload_geospatial(dbo=db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_layer2,
                                 table = test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -242,7 +237,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_read_gpkg_table_name}")
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_layer2,
+        s.upload_geospatial(dbo=sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_layer2,
                                 table=test_read_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -289,7 +284,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # no gpkg_tbl argument so that it bulk uploads
-        s.input_geospatial_bulk(dbo=sql, path=FOLDER_PATH, input_file = gpkg_name, schema=ms_schema, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=FOLDER_PATH, input_file = gpkg_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table = test_layer1)
@@ -317,7 +312,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer2}")
 
         # Read gpkg to new, test table
-        s.input_geospatial_bulk(path=FOLDER_PATH, input_file=gpkg_name, dbo=sql, schema=ms_schema, print_cmd=True)
+        s.upload_geospatial(path=FOLDER_PATH, input_file=gpkg_name, dbo=sql, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table= test_layer1)
@@ -371,7 +366,7 @@ class TestReadgpkgMS:
         sql.drop_table(schema=sql.default_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_layer1, table=test_read_gpkg_table_name, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl = test_layer1, table=test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=sql.default_schema, table=test_read_gpkg_table_name)
@@ -408,7 +403,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
         # Read gpkg to new, test table
-        s.input_geospatial_file(dbo=sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl=test_layer1, schema=ms_schema, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=FOLDER_PATH, input_file=gpkg_name, gpkg_tbl=test_layer1, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table= test_layer1)
@@ -469,7 +464,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = db, path=FOLDER_PATH, input_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                                 schema=pg_schema, table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -533,7 +528,7 @@ class TestWritegpkgPG:
                            table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = db, path=FOLDER_PATH, schema=pg_schema, input_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                          table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -601,7 +596,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)) # assert that the table is still there
 
         # Reupload both tables from the same geopackage (since we are uploading under a different name, we can't use bulk upload function here)
-        s.input_geospatial_bulk(path=FOLDER_PATH, dbo = db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
+        s.upload_geospatial(path=FOLDER_PATH, dbo = db, schema=pg_schema, input_file=gpkg_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -670,7 +665,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file = gpkg_name, schema=pg_schema,
+        s.upload_geospatial(dbo = db, path=FOLDER_PATH, input_file = gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -723,7 +718,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file=gpkg_name ,schema=pg_schema,
+        s.upload_geospatial(dbo = db, path=FOLDER_PATH, input_file=gpkg_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -768,7 +763,7 @@ class TestWritegpkgPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file=gpkg_name, schema=pg_schema,
+        s.upload_geospatial(dbo = db, path=FOLDER_PATH, input_file=gpkg_name, schema=pg_schema,
                          table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Assert equality
@@ -825,7 +820,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
+        s.upload_geospatial(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, table=test_reuploaded_table_name,
                           gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert equality
@@ -891,7 +886,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema,
+        s.upload_geospatial(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema,
                           gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
@@ -960,7 +955,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as tables using bulk upload function
-        s.input_geospatial_bulk(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
+        s.upload_geospatial(dbo = sql, path=FOLDER_PATH, input_file=gpkg_name, schema = ms_schema, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1018,7 +1013,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
  
         # Reupload as table
-        s.input_geospatial_file(dbo = sql, path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = sql, path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name,
                  schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1069,7 +1064,7 @@ class TestWritegpkgMS:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1383,7 +1378,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
+        s.upload_geospatial(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
@@ -1425,7 +1420,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name,
+        s.upload_geospatial(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, table=test_read_shp_table_name,
                                 print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
@@ -1503,7 +1498,7 @@ class TestReadShpPG:
         assert not db.table_exists(schema=pg_schema, table=test_read_shp_table_name)
 
         # Read the .7z archive directly into PostGIS
-        s.input_geospatial_file(
+        s.upload_geospatial(
             dbo=db,
             path=fp,
             schema=pg_schema,
@@ -1544,7 +1539,7 @@ class TestReadShpPG:
         db.drop_table(schema=pg_schema, table="test")
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, print_cmd=True)
+        s.upload_geospatial(dbo=db, path=fp, schema=pg_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=pg_schema, table='test')
@@ -1580,7 +1575,7 @@ class TestReadShpPG:
         db.drop_table(schema=db.default_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=db, path=fp, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
+        s.upload_geospatial(dbo=db, path=fp, input_file=shp_name, table=test_read_shp_table_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert db.table_exists(schema=db.default_schema, table=test_read_shp_table_name)
@@ -1630,7 +1625,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table=test_read_shp_table_name)
@@ -1673,7 +1668,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=fp, table=test_read_shp_table_name, schema=ms_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table=test_read_shp_table_name)
@@ -1747,7 +1742,7 @@ class TestReadShpMS:
         assert not sql.table_exists(schema=pg_schema, table=test_read_shp_table_name)
 
         # Read the .7z archive directly into PostGIS
-        s.input_geospatial_file(
+        s.upload_geospatial(
             dbo=sql,
             path=fp,
             schema=ms_schema,
@@ -1786,7 +1781,7 @@ class TestReadShpMS:
         sql.drop_table(schema=ms_schema, table='test')
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=sql, path=fp, schema=ms_schema, input_file=shp_name, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=fp, schema=ms_schema, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=ms_schema, table='test')
@@ -1821,7 +1816,7 @@ class TestReadShpMS:
         sql.drop_table(schema=sql.default_schema, table=test_read_shp_table_name)
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=sql, path=fp, table=test_read_shp_table_name, input_file=shp_name, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=fp, table=test_read_shp_table_name, input_file=shp_name, print_cmd=True)
 
         # Assert read_shp happened successfully and contents are correct
         assert sql.table_exists(schema=sql.default_schema, table=test_read_shp_table_name)
@@ -1934,7 +1929,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
  
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -1986,7 +1981,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=FOLDER_PATH, input_file=shp_name ,schema=pg_schema,
+        s.upload_geospatial(dbo = db, path=FOLDER_PATH, input_file=shp_name ,schema=pg_schema,
                         table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -2032,7 +2027,7 @@ class TestWriteShpPG:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -2091,7 +2086,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -2148,7 +2143,7 @@ class TestWriteShpMS:
 
         # Reupload as table
  
-        s.input_geospatial_file(dbo=sql, path=fp+'\\'+shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path=fp+'\\'+shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -2203,7 +2198,7 @@ class TestWriteShpMS:
         assert os.path.isfile(os.path.join(fp, shp_name))
 
         # Reupload as table
-        s.input_geospatial_file(dbo = sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = sql, path=fp, input_file=shp_name, schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1")
@@ -2593,7 +2588,7 @@ class TestSHPDeleteIndexPG:
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=db, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema=pg_schema)
+        s.upload_geospatial(dbo=db, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema=pg_schema)
 
         # Assert two indexes were made; one for PK
         indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s=pg_schema, t=test_read_shp_table_name))
@@ -2636,7 +2631,7 @@ class TestSHPDeleteIndexMS:
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=sql, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema='dbo')
+        s.upload_geospatial(dbo=sql, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema='dbo')
 
         # Assert one index was made; one for PK
         indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s=ms_schema, t=test_read_shp_table_name))
@@ -2667,7 +2662,7 @@ class TestSHPDeleteIndexMS:
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
-        s.input_geospatial_file(dbo=sql, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema=ms_schema)
+        s.upload_geospatial(dbo=sql, path=fp, input_file=shp_name, table=test_read_shp_table_name, schema=ms_schema)
 
         # Add one more
         sql.query(f"CREATE INDEX IX_{test_read_shp_table_name} ON {ms_schema}.{test_read_shp_table_name} (ogr_fid)")
