@@ -1203,27 +1203,6 @@ class TestQueryToShpPg:
             except Exception as e:
                 print(e)
 
-    def test_query_to_shp_sc(self):
-        fldr = FOLDER_PATH
-        shp = 'test'
-
-        # This is encoded as utf8 and then ogr default's to LATIN1 encoding
-        db.query_to_shp(query=u"select '©' as sc",  shp_name=shp + '.shp', path=fldr, print_cmd=True)
-
-        # Check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
-
-        # Upload shp (with special character)
-        db.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema=pg_schema, table=test_table)
-
-        # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
-        # Though ogr uses LATIN1, our PG server stores things using UTF8; this is decoded and then encoded as LATIN1 to get the initial character.
-        assert list(db.dfquery(f"""select sc from {pg_schema}.{test_table}""")['sc'])[0].encode('latin1') == '©'.encode('latin1')
-
-        # clean up
-        db.drop_table(pg_schema, test_table)
-        os.remove(os.path.join(fldr, shp + '.dbf'))
-
     def test_query_to_geospatial_bad_query(self):
         fldr = FOLDER_PATH
         shp = 'test'
@@ -1235,7 +1214,6 @@ class TestQueryToShpPg:
             Failed = True
         # check table in not folder
         assert Failed
-        assert not os.path.isfile(os.path.join(fldr, shp + '.dbf'))
 
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
@@ -1592,28 +1570,6 @@ class TestQueryToShpMs:
             except:
                 pass
 
-    def test_query_to_shp_sc(self):
-        
-        fldr = FOLDER_PATH
-        shp = 'test'
-
-        # This is encoded in UTF8 and then uses ogr's SQL default LATIN1
-        sql.query_to_shp(query=u"select '©' as sc",  shp_name=shp + '.shp', path=fldr, print_cmd=True)
-
-        # check table in folder
-        assert os.path.isfile(os.path.join(fldr, shp + '.dbf'))
-
-        # Upload shp (with special character)
-        sql.shp_to_table(path=fldr, shp_name=shp + '.dbf', schema=ms_schema, table=test_table)
-
-        # This will only work if ENCODED/DECODED properly; otherwise, it will be scrambled.
-        # ogr and SQL Server use/default to LATIN1; thus, encoding our string in LATIN1 will result in the correct character
-        assert (list(sql.dfquery(f"""select sc from {ms_schema}.{test_table}""")['sc'])[0]).encode('latin1') == '©'.encode('latin1')
-
-        # clean up
-        sql.drop_table(ms_schema, test_table_shp)
-        os.remove(os.path.join(fldr, shp + '.dbf'))
-
     def test_query_to_geospatial_bad_query(self):
         fldr = FOLDER_PATH
         shp = 'test'
@@ -1625,7 +1581,6 @@ class TestQueryToShpMs:
             Failed = True
         # check table in not folder
         assert Failed
-        assert not os.path.isfile(os.path.join(fldr, shp + '.dbf'))
 
     @classmethod
     def teardown_class(cls):

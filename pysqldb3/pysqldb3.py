@@ -1952,7 +1952,7 @@ class DbConnect:
         if not schema:
             schema = self.default_schema
 
-        input_geospatial_file(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class,
+        upload_geospatial(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class,
                                 port = port, srid = srid, private = private, encoding = fc_encoding, skip_failures = skip_failures,
                                 extra_cmd = extra_cmd, temp = temp, days = days, print_cmd=print_cmd)
         
@@ -2000,7 +2000,7 @@ class DbConnect:
         :return:
         """
 
-        input_geospatial_file(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class, port = port,
+        upload_geospatial(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class, port = port,
                             srid = srid, gdal_data_loc = gdal_data_loc, precision=precision, private=private, encoding=shp_encoding,
                             temp = temp, days = days, extra_cmd = extra_cmd, print_cmd=print_cmd)
 
@@ -2009,7 +2009,7 @@ class DbConnect:
                      gpkg_encoding=None, extra_cmd = None, print_cmd=False, days=7):
         """
         Imports single geopackage table to database. This uses GDAL to generate the table.
-        Use input_geospatial_file_bulk() for bulk table upload from a Geopackage.
+        Use upload_geospatial() for bulk table upload from a Geopackage.
 
         :param gpkg_name: Geopackage name (ends in .gpkg)
         :param gpkg_tbl: Input table name from Geopackage.
@@ -2029,7 +2029,7 @@ class DbConnect:
         :return:
         """
 
-        input_geospatial_file(dbo = self, path = path, input_file = gpkg_name, schema = schema, table = table, gpkg_tbl = gpkg_tbl, port = port,
+        upload_geospatial(dbo = self, path = path, input_file = gpkg_name, schema = schema, table = table, gpkg_tbl = gpkg_tbl, port = port,
                             srid = srid, gdal_data_loc = gdal_data_loc, precision=precision, private=private, encoding=gpkg_encoding,
                             temp = temp, days = days, extra_cmd = extra_cmd, print_cmd=print_cmd)
 
