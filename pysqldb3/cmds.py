@@ -44,14 +44,9 @@ ogr2ogr -overwrite -f "CSV" "{output_file}"
 Shapefiles 
 """
 
-WRITE_SHP_CMD_PG = r"""
+WRITE_SHP_CMD = r"""
 ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "ESRI Shapefile" "{full_path}"  -a_srs "EPSG:{srid}"
-PG:"host={host} user={username} dbname={db} password={password}" -sql "{pg_sql_select}"
-""".replace('\n', ' ')
-
-WRITE_SHP_CMD_MS = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "ESRI Shapefile" "{full_path}"  -a_srs "EPSG:{srid}"
-"MSSQL:server={host};database={db};UID={username};PWD={password}" -sql "{ms_sql_select}"
+{db_connect_str} -sql "{sql_select}"
 """.replace('\n', ' ')
 
 READ_SHP_CMD_PG = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
@@ -81,14 +76,9 @@ Geopackage
 """
 
 # when writing data to geopackage, gpkg output table will match input table name
-WRITE_GPKG_CMD_PG = r"""
+WRITE_GPKG_CMD = r"""
 ogr2ogr --config GDAL_DATA "{gdal_data}" {_overwrite} -f "GPKG" {_update} "{full_path}" -nln {gpkg_tbl} -a_srs "EPSG:{srid}"
-PG:"host={host} user={username} dbname={db} password={password}" -sql "{pg_sql_select}"
-""".replace('\n', ' ')
-
-WRITE_GPKG_CMD_MS = r"""
-ogr2ogr --config GDAL_DATA "{gdal_data}" {_overwrite} -f "GPKG" {_update} "{full_path}" -nln {gpkg_tbl} -a_srs "EPSG:{srid}"
-"MSSQL:server={host};database={db};UID={username};PWD={password}" -sql "{ms_sql_select}"
+{db_connect_str} -sql "{sql_select}"
 """.replace('\n', ' ')
 
 READ_GPKG_CMD_PG = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -lco OVERWRITE=YES -overwrite -a_srs 
