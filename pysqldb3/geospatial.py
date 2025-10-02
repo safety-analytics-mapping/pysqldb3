@@ -112,7 +112,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
         assert path, "Fill in the file path to the output file"
     else:
         assert path.endswith(('.gpkg', '.shp')), "Output path needs to end with .gpkg or .shp if no file name is supplied"
-
+    # clean and parse path and file name
     path, output_file = parse_geospatial_file_path(path, output_file)
     full_path = os.path.join(path, output_file)
 

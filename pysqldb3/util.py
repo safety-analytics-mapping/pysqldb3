@@ -366,6 +366,7 @@ def parse_geospatial_file_path(path=None, file_name=None):
     # type: (str, str)
     if not path:
         return path, file_name
+    # todo: review if zip extents should behave differently
 
     geospatial_exts = ('.shp', '.dbf', '.gpkg', '.tar', '.gz', '.tgz', '.tar.gz', '.7z', '.rar', '.gdb', '.zip')
     if any(x in path for x in geospatial_exts):
@@ -716,87 +717,40 @@ def convert_cmd(input_full_path, output_full_path, gpkg_tbl = None, _update = No
         
     return cmd
         
-def write_cmd(dbo, output_file, full_path, gpkg_tbl = None, table = None,
+def write_cmd(dbo, full_path, gpkg_tbl = None, table = None,
                     _overwrite = None, _update = None, srid = None, gdal_data_loc = None, qry = None):
     
     """
     Generate the cmd text to write to a geospatial file
     """
-
-    if dbo.type == 'PG' and output_file.endswith('.gpkg'):
-        cmd = WRITE_GPKG_CMD_PG.format(     full_path=full_path,
-                                            host=dbo.server,
-                                            username=dbo.user,
-                                            db=dbo.database,
-                                            password=dbo.password,
-                                            pg_sql_select=qry,
-                                            gpkg_tbl = gpkg_tbl,
-                                            tbl_name = table,
-                                            _overwrite = _overwrite,
-                                            _update = _update,
-                                            srid=srid,
-                                            gdal_data=gdal_data_loc)
-        
-    elif dbo.type == 'MS' and output_file.endswith('.gpkg'):
+    # set db connection string
+    if dbo.type == PG:
+        db_connect_str = f'PG: "host={dbo.server} user={dbo.user} dbname={dbo.database} password={dbo.password}"'
+    elif dbo.type == MS:
         if dbo.LDAP:
-            cmd = WRITE_GPKG_CMD_MS.replace(";UID={username};PWD={password}", "").format(
-                full_path = full_path,
-                host=dbo.server,
-                db=dbo.database,
-                ms_sql_select=qry,
-                gpkg_tbl = gpkg_tbl,
-                _overwrite = _overwrite,
-                _update = _update,
-                tbl_name = table,
-                srid=srid,
-                gdal_data=gdal_data_loc
-            )
+            u=''
+            p=''
         else:
-            cmd = WRITE_GPKG_CMD_MS.format(     full_path = full_path,
-                                                host=dbo.server,
-                                                username=dbo.user,
-                                                db=dbo.database,
-                                                password=dbo.password,
-                                                ms_sql_select=qry,
-                                                gpkg_tbl = gpkg_tbl,
-                                                _overwrite = _overwrite,
-                                                _update = _update,
-                                                tbl_name = table,
-                                                srid=srid,
-                                                gdal_data=gdal_data_loc)
+            u=dbo.user
+            p=dbo.password
+        db_connect_str =  f"MSSQL:server={dbo.server};database={dbo.database};UID={u};PWD={p}"
+    if full_path.endswith('.gpkg'):
+        cmd = WRITE_GPKG_CMD.format(full_path=full_path,
+                                    sql_select=qry,
+                                    gpkg_tbl = gpkg_tbl,
+                                    tbl_name = table,
+                                    _overwrite = _overwrite,
+                                    _update = _update,
+                                    srid=srid,
+                                    gdal_data=gdal_data_loc,
+                                    db_connect_str=db_connect_str)
             
-    elif dbo.type == 'PG' and output_file.endswith('.shp'):
-
-        cmd = WRITE_SHP_CMD_PG.format(  full_path = full_path,
-                                        host = dbo.server,
-                                        username = dbo.user,
-                                        db = dbo.database,
-                                        password = dbo.password,
-                                        pg_sql_select = qry,
-                                        srid = srid,
-                                        gdal_data = gdal_data_loc)
-        
-    elif dbo.type == 'MS' and output_file.endswith('.shp'):
-
-        if dbo.LDAP:
-            cmd = WRITE_SHP_CMD_MS.replace(";UID={username};PWD={password}", "").format(
-                full_path = full_path,
-                host = dbo.server,
-                db = dbo.database,
-                ms_sql_select = qry,
-                srid = srid,
-                gdal_data = gdal_data_loc
-            )
-
-        else:
-            cmd = WRITE_SHP_CMD_MS.format(      full_path = full_path,
-                                                host = dbo.server,
-                                                username = dbo.user,
-                                                db = dbo.database,
-                                                password = dbo.password,
-                                                ms_sql_select=qry,
-                                                srid = srid,
-                                                gdal_data = gdal_data_loc)
+    elif full_path.endswith('.shp'):
+        cmd = WRITE_SHP_CMD.format(full_path = full_path,
+                                   db_connect_str=db_connect_str,
+                                   sql_select = qry,
+                                   srid = srid,
+                                   gdal_data = gdal_data_loc)
 
     return cmd
 
