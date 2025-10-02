@@ -174,7 +174,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
 
     # run the final command
     if not cmd:
-        cmd = write_cmd(dbo, output_file, full_path, gpkg_tbl, table, _overwrite, _update, srid, gdal_data_loc, qry)
+        cmd = write_cmd(dbo, full_path, gpkg_tbl, table, _overwrite, _update, srid, gdal_data_loc, qry)
 
     if print_cmd:
         print(print_cmd_string([dbo.password], cmd))
