@@ -6,9 +6,9 @@ import configparser
 import pyarrow
 import tempfile
 import shutil
-import py7zr
+# import py7zr
 import tarfile
-import rarfile
+# import rarfile
 from pathlib import Path
 from .cmds import *
 from .sql import *
@@ -764,7 +764,7 @@ def write_cmd(dbo, full_path, gpkg_tbl = None, table = None,
     """
     # set db connection string
     if dbo.type == PG:
-        db_connect_str = f'PG: "host={dbo.server} user={dbo.user} dbname={dbo.database} password={dbo.password}"'
+        db_connect_str = f'"PG:host={dbo.server} user={dbo.user} dbname={dbo.database} password={dbo.password}"'
     elif dbo.type == MS:
         if dbo.LDAP:
             u=''
