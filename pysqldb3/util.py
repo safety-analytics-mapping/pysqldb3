@@ -6,9 +6,9 @@ import configparser
 import pyarrow
 import tempfile
 import shutil
-# import py7zr
+import py7zr
 import tarfile
-# import rarfile
+import rarfile
 from pathlib import Path
 from .cmds import *
 from .sql import *
@@ -827,10 +827,57 @@ def create_query(dbo, query):
     """
    
     # find datetime fields
-    return_cols = dbo.get_table_columns(query, is_query = True)
+    col_df = dbo.get_table_columns(query, is_query = True)
 
+    # otherwise, continue in the code to get the desired output for a query
+    # query_columns = self.internal_queries[-1].data_columns()
+    if dbo.type == PG:
+        left_bracket = '\\"'
+        right_bracket = left_bracket # the same
+
+    elif dbo.type == MS:
+        left_bracket = '['
+        right_bracket = ']' 
+
+    cols = [left_bracket + c[0] + right_bracket for c in col_df]
+    dt_col_names = [c[0] for c in col_df if (('datetime' in c[1]) | ('timestamp' in c[1]))]
+
+    # Make string of columns to be returned by select statement
+    results = ' , '.join([c for c in cols if c not in dt_col_names])
+
+    # If there are datetime/timestamp columns:
+    if len(dt_col_names) > 0:
+
+        if dbo.type == PG:
+            col_range = 2
+        elif dbo.type == MS:
+            col_range = 1
+
+        print_cols = str([str(c[col_range:-col_range]) for c in dt_col_names])
+
+        print(f"""
+        The following columns are of type datetime/timestamp: \n
+        {print_cols}
+        
+        Shapefiles and GPKG don't support datetime/timestamps with both the date and time. Each column will be split up
+        into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
+        """)
+
+    # Add the date and time (casted as a string) to the output
+        for col_name in dt_col_names:
+
+            shortened_col = col_name[col_range:-col_range][:7]
+            if dbo.type == PG:
+                results += ' , cast(\\"{col}\\" as date) \\"{short_col}_dt\\", ' \
+                                'cast(cast(\\"{col}\\" as time) as varchar) \\"{short_col}_tm\\" '.format(
+                                col=col_name[2:-2], short_col=shortened_col)
+            elif dbo.type == MS:
+                results += " , cast([{col}] as date) [{short_col}_dt], cast(cast([{col}] as time) as varchar)" \
+                                " [{short_col}_tm] ".format(
+                                col=col_name[1:-1], short_col=shortened_col)
+                        
     # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
-    qry = f"select {return_cols} from ({query}) q "
+    qry = f"select {results} from ({query}) q "
 
     return qry
 

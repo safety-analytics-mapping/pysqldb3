@@ -756,18 +756,17 @@ class DbConnect:
             schema = self.default_schema
 
         if is_query:
+            # check if allow_temp_tables is on if a query is being used. if not, turn it on
+            initial_temp_status = self.allow_temp_tables 
+            self.allow_temp_tables = True
             # Makes a temp table name
             tmp_table_name = f"tmp_query_to_geospatial_{self.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
 
-            try:
-                # Drop the temp table if it already exists
-                if self.type == PG:
-                    self.query(f"drop table {tmp_table_name}", internal=True, strict=False)
-                elif self.type == MS:
-                    self.query(f"drop table #{tmp_table_name}", internal=True, strict=False)
-            except Exception as e:
-                print(e)
-                pass   
+        # Drop the temp table if it already exists
+            if self.type == PG:
+                self.query(f"drop table if exists {tmp_table_name}", internal=True, strict=False)
+            elif self.type == MS:
+                self.query(f"drop table if exists #{tmp_table_name}", internal=True, strict=False)
             
             # create new temp table
             if self.type == PG:
@@ -783,13 +782,13 @@ class DbConnect:
                             into #{tmp_table_name}
                             from ({table_or_query}) q 
                             """, internal=True)
+
         
         # if full columns or select columns are requested
         if full:
             columns = '*'
         else:
             if self.type == PG:
-
                 columns = """
                 column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then 
                       DATA_TYPE || ' ('|| cast(CHARACTER_MAXIMUM_LENGTH as varchar) ||')'
@@ -798,47 +797,44 @@ class DbConnect:
                       else DATA_TYPE end as DATA_TYPE
                       """
             else:
+                # MS
                 columns = """
-                    column_name, case 
-                       when DATA_TYPE = 'text' then DATA_TYPE
+                    column_name, case when DATA_TYPE = 'text' then DATA_TYPE
                     when CHARACTER_MAXIMUM_LENGTH is not null 
-                    then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' 
+                    then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar) +')' 
                     when CHARACTER_MAXIMUM_LENGTH >= 3000 then DATA_TYPE + ' (3000)' 
                           else DATA_TYPE end as DATA_TYPE
                       """
 
-        # query columns
-        if self.type == PG and not is_query:
-            self.query(f"""
-            with t as (
-                select *, 
-                udt_name::regtype array_type 
-                FROM information_schema.columns
-                WHERE table_schema = '{schema}' 
-                AND table_name = '{table_or_query}'
-            )
-            SELECT {columns}
-            FROM t
-            ORDER BY ordinal_position;
-            """, timeme=False, internal=True)
+        # query the columns
+        if self.type == PG:
+             
+            if is_query == True:
+                 # if it's a query, it uses a temp table and does not need a schema
+                 where_table_schema = ""
+                 information_schema_table = tmp_table_name
+            else:
+                where_table_schema = f"table_schema = '{schema}' AND "
+                information_schema_table = table_or_query
 
-        elif self.type == PG and is_query:
-            ## CINDY: maybe combine with the previous if statement? need to change schema and table name
-            # turning it into query instead of dfquery also makes it harder because 
-            # we would need .data_columns and .data  and then we'd also need to map these separate outputs together
-            col_df = self.dfquery(f"""
-                SELECT *
-                FROM
-                INFORMATION_SCHEMA.COLUMNS
-                WHERE TABLE_NAME = '{tmp_table_name}'
-            """, internal = True)
+            self.query(f"""
+                        with t as (
+                            select *, 
+                            udt_name::regtype array_type 
+                            FROM information_schema.columns
+                            where {where_table_schema}
+                            table_name = '{information_schema_table}'
+                        )
+                        SELECT {columns}
+                        FROM t
+                        ORDER BY ordinal_position;
+                        """, timeme=False, internal=True)
 
         elif self.type == MS and not is_query:
-
             self.query(f"""
-            SELECT {columns}
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE table_schema = '{schema}' 
+                SELECT {columns}
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE table_schema = '{schema}' 
                 AND table_name = '{table_or_query}'
             ORDER BY ORDINAL_POSITION;
             """, timeme=False, internal=True)
@@ -846,14 +842,14 @@ class DbConnect:
         elif self.type == MS and is_query:
             
             # querying the temp table is very different in MS
-            col_df = self.dfquery(f"""
+            self.query(f"""
                 SELECT
-                    [column] = c.name,
-                    [type] = t.name, 
-                    c.max_length, 
-                    c.precision, 
-                    c.scale, 
-                    c.is_nullable
+                    c.name as column_name, 
+                    case    when t.name in ('text', 'int', 'date') then t.name
+                            when t.max_length is not null and t.max_length < 3000 then t.name + ' ('+ cast(t.max_length as varchar)+')'  
+                            when t.max_length >= 3000 then t.name + ' (3000)'
+                       else t.name
+                       end as DATA_TYPE
                 FROM
                     tempdb.sys.columns AS c
                 LEFT JOIN
@@ -863,66 +859,16 @@ class DbConnect:
                     AND
                     t.system_type_id = t.user_type_id
                 WHERE
-                    [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}');
+                    [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}')
                 """, internal=True)
 
-        if not is_query:
-            # this is the desired output for a table input
-            results = self.__get_most_recent_query_data(internal=True)
+        # this is the desired output for a table input
+        results = self.__get_most_recent_query_data(internal=True)
 
-        else:
-            # otherwise, continue in the code to get the desired output for a query
-            # query_columns = self.internal_queries[-1].data_columns()
-            if self.type == PG:
-                left_bracket = '\\"'
-                right_bracket = left_bracket # the same
-                col_name1 = 'column_name'
-                data_type1 = 'data_type'
+        # revert to the original state if allow_temp_tables was set to False
+        if is_query:
+            self.allow_temp_tables = initial_temp_status
 
-            elif self.type == MS:
-                left_bracket = '['
-                right_bracket = ']' 
-                col_name1 = 'column'
-                data_type1 = 'type'
-
-            cols = [left_bracket + c + right_bracket for c in list(col_df[f'{col_name1}'])]
-            dt_col_names = [left_bracket + c + right_bracket for c in list(
-                    col_df[col_df[f'{data_type1}'].str.contains('datetime') | col_df[f'{data_type1}'].str.contains('timestamp')][f'{col_name1}'])]
-
-            # Make string of columns to be returned by select statement
-            results = ' , '.join([c for c in cols if c not in dt_col_names])
-
-            # If there are datetime/timestamp columns:
-            if len(dt_col_names) > 0:
-
-                if self.type == PG:
-                    col_range = 2
-                elif self.type == MS:
-                    col_range = 1
-
-                print_cols = str([str(c[col_range:-col_range]) for c in dt_col_names])
-
-                print(f"""
-                The following columns are of type datetime/timestamp: \n
-                {print_cols}
-                
-                Shapefiles and GPKG don't support datetime/timestamps with both the date and time. Each column will be split up
-                into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
-                """)
-
-            # Add the date and time (casted as a string) to the output
-                for col_name in dt_col_names:
-
-                    shortened_col = col_name[col_range:-col_range][:7]
-                    if self.type == PG:
-                        results += ' , cast(\\"{col}\\" as date) \\"{short_col}_dt\\", ' \
-                                        'cast(cast(\\"{col}\\" as time) as varchar) \\"{short_col}_tm\\" '.format(
-                                        col=col_name[2:-2], short_col=shortened_col)
-                    elif self.type == MS:
-                        results += " , cast([{col}] as date) [{short_col}_dt], cast(cast([{col}] as time) as varchar)" \
-                                        " [{short_col}_tm] ".format(
-                                        col=col_name[1:-1], short_col=shortened_col)
-                
         return results
 
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
