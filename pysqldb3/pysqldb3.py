@@ -760,16 +760,11 @@ class DbConnect:
             initial_temp_status = self.allow_temp_tables 
             self.allow_temp_tables = True
             # Makes a temp table name
-            tmp_table_name = f"tmp_query_to_geospatial_{self.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
+            tmp_table_name = f"tmp_get_tbl_columns_{self.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
 
-        # Drop the temp table if it already exists
+        # Drop the temp table if it already exists and create new temp table
             if self.type == PG:
                 self.query(f"drop table if exists {tmp_table_name}", internal=True, strict=False)
-            elif self.type == MS:
-                self.query(f"drop table if exists #{tmp_table_name}", internal=True, strict=False)
-            
-            # create new temp table
-            if self.type == PG:
                 self.query(f"""    
                             create temp table {tmp_table_name} as     
                             select * 
@@ -777,6 +772,7 @@ class DbConnect:
                             limit 10
                             """, internal=True)
             elif self.type == MS:
+                self.query(f"drop table if exists #{tmp_table_name}", internal=True, strict=False)
                 self.query(f"""        
                             select top 10 * 
                             into #{tmp_table_name}
