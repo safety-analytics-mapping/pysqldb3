@@ -24,7 +24,6 @@ write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.c
 
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
-
 POSTGRES_TYPES = ['PG', 'POSTGRESQL', 'POSTGRES']
 SQL_SERVER_TYPES = ['MS', 'SQL', 'MSSQL', 'SQLSERVER']
 AZURE_SERVER_TYPES = ['AZ', 'AZURE', 'SYNAPSE']
@@ -840,7 +839,8 @@ def create_query(dbo, query):
         right_bracket = ']' 
 
     cols = [left_bracket + c[0] + right_bracket for c in col_df]
-    dt_col_names = [c[0] for c in col_df if (('datetime' in c[1]) | ('timestamp' in c[1]))]
+    dt_col_names = [c for c in col_df if c[1] is not None] # if there is no date column, then we need to remove it
+    dt_col_names = [c[0] for c in dt_col_names if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
 
     # Make string of columns to be returned by select statement
     results = ' , '.join([c for c in cols if c not in dt_col_names])
@@ -848,12 +848,7 @@ def create_query(dbo, query):
     # If there are datetime/timestamp columns:
     if len(dt_col_names) > 0:
 
-        if dbo.type == PG:
-            col_range = 2
-        elif dbo.type == MS:
-            col_range = 1
-
-        print_cols = str([str(c[col_range:-col_range]) for c in dt_col_names])
+        print_cols = str([str(c) for c in dt_col_names])
 
         print(f"""
         The following columns are of type datetime/timestamp: \n
@@ -866,15 +861,15 @@ def create_query(dbo, query):
     # Add the date and time (casted as a string) to the output
         for col_name in dt_col_names:
 
-            shortened_col = col_name[col_range:-col_range][:7]
+            shortened_col = col_name[:7]
             if dbo.type == PG:
                 results += ' , cast(\\"{col}\\" as date) \\"{short_col}_dt\\", ' \
                                 'cast(cast(\\"{col}\\" as time) as varchar) \\"{short_col}_tm\\" '.format(
-                                col=col_name[2:-2], short_col=shortened_col)
+                                col=col_name, short_col=shortened_col)
             elif dbo.type == MS:
                 results += " , cast([{col}] as date) [{short_col}_dt], cast(cast([{col}] as time) as varchar)" \
                                 " [{short_col}_tm] ".format(
-                                col=col_name[1:-1], short_col=shortened_col)
+                                col=col_name, short_col=shortened_col)
                         
     # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
     qry = f"select {results} from ({query}) q "
