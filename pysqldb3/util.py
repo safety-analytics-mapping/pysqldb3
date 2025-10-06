@@ -18,7 +18,6 @@ import subprocess
 import numpy as np
 import pandas as pd
 from shapely import wkb
-from .pysqldb3 import *
 from .Config import write_config
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 
