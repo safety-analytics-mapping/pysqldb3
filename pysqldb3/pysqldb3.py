@@ -11,6 +11,7 @@ import os
 from .Config import write_config
 import pyarrow.csv as pyarrowcsv
 import numpy as np
+import datetime
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -749,14 +750,41 @@ class DbConnect:
 
         return [schema_row[0] for schema_row in self.__get_most_recent_query_data(internal=True)]
 
-    def get_table_columns(self, table, schema=None, full=False):
+    def get_table_columns(self, table_or_query, is_query = False, schema=None, full=False):
+        
         if not schema:
             schema = self.default_schema
+
+        if is_query:
+            # check if allow_temp_tables is on if a query is being used. if not, turn it on
+            initial_temp_status = self.allow_temp_tables 
+            self.allow_temp_tables = True
+            # Makes a temp table name
+            tmp_table_name = f"tmp_get_tbl_columns_{self.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
+
+        # Drop the temp table if it already exists and create new temp table
+            if self.type == PG:
+                self.query(f"drop table if exists {tmp_table_name}", internal=True, strict=False)
+                self.query(f"""    
+                            create temp table {tmp_table_name} as     
+                            select * 
+                            from ({table_or_query}) q 
+                            limit 10
+                            """, internal=True)
+            elif self.type == MS:
+                self.query(f"drop table if exists #{tmp_table_name}", internal=True, strict=False)
+                self.query(f"""        
+                            select top 10 * 
+                            into #{tmp_table_name}
+                            from ({table_or_query}) q 
+                            """, internal=True)
+
+        
+        # if full columns or select columns are requested
         if full:
             columns = '*'
         else:
             if self.type == PG:
-
                 columns = """
                 column_name, case when CHARACTER_MAXIMUM_LENGTH is not null then 
                       DATA_TYPE || ' ('|| cast(CHARACTER_MAXIMUM_LENGTH as varchar) ||')'
@@ -765,39 +793,79 @@ class DbConnect:
                       else DATA_TYPE end as DATA_TYPE
                       """
             else:
+                # MS
                 columns = """
-                    column_name, case 
-                       when DATA_TYPE = 'text' then DATA_TYPE
+                    column_name, case when DATA_TYPE = 'text' then DATA_TYPE
                     when CHARACTER_MAXIMUM_LENGTH is not null 
-                    then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar)+')' 
+                    then DATA_TYPE + ' ('+ cast(CHARACTER_MAXIMUM_LENGTH as varchar) +')' 
                     when CHARACTER_MAXIMUM_LENGTH >= 3000 then DATA_TYPE + ' (3000)' 
                           else DATA_TYPE end as DATA_TYPE
                       """
 
+        # query the columns
         if self.type == PG:
-            self.query(f"""
-            with t as (
-                select *, 
-                udt_name::regtype array_type 
-                FROM information_schema.columns
-                WHERE table_schema = '{schema}' 
-                AND table_name = '{table}'
-            )
-            SELECT {columns}
-            FROM t
-            ORDER BY ordinal_position;
-            """, timeme=False, internal=True)
+             
+            if is_query == True:
+                 # if it's a query, it uses a temp table and does not need a schema
+                 where_table_schema = ""
+                 information_schema_table = tmp_table_name
+            else:
+                where_table_schema = f"table_schema = '{schema}' AND "
+                information_schema_table = table_or_query
 
-        if self.type == MS:
             self.query(f"""
-            SELECT {columns}
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE table_schema = '{schema}' 
-                AND table_name = '{table}'
+                        with t as (
+                            select *, 
+                            udt_name::regtype array_type 
+                            FROM information_schema.columns
+                            where {where_table_schema}
+                            table_name = '{information_schema_table}'
+                        )
+                        SELECT {columns}
+                        FROM t
+                        ORDER BY ordinal_position;
+                        """, timeme=False, internal=True)
+
+        elif self.type == MS and not is_query:
+            self.query(f"""
+                SELECT {columns}
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE table_schema = '{schema}' 
+                AND table_name = '{table_or_query}'
             ORDER BY ORDINAL_POSITION;
             """, timeme=False, internal=True)
 
-        return self.__get_most_recent_query_data(internal=True)
+        elif self.type == MS and is_query:
+            
+            # querying the temp table is very different in MS
+            self.query(f"""
+                SELECT
+                    c.name as column_name, 
+                    case    when t.name in ('text', 'int', 'date') then t.name
+                            when t.max_length is not null and t.max_length < 3000 then t.name + ' ('+ cast(t.max_length as varchar)+')'  
+                            when t.max_length >= 3000 then t.name + ' (3000)'
+                       else t.name
+                       end as DATA_TYPE
+                FROM
+                    tempdb.sys.columns AS c
+                LEFT JOIN
+                    tempdb.sys.types AS t
+                ON
+                    c.system_type_id = t.system_type_id
+                    AND
+                    t.system_type_id = t.user_type_id
+                WHERE
+                    [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}')
+                """, internal=True)
+
+        # this is the desired output for a table input
+        results = self.__get_most_recent_query_data(internal=True)
+
+        # revert to the original state if allow_temp_tables was set to False
+        if is_query:
+            self.allow_temp_tables = initial_temp_status
+
+        return results
 
     def query(self, query, strict=True, permission=True, temp=True, timeme=True, no_comment=False, comment='',
               lock_table=None, return_df=False, days=7, internal=False, no_print_out=False):
