@@ -7,21 +7,20 @@ from .cmds import *
 from .sql import *
 from .util import *
   
-def list_gpkg_tables(file_name, path = None):
+def list_gpkg_tables(path):
 
     """
     List all the tables contained in a geopackage file.
 
-    :param file_name: Geopackage file name
     :param path: Optional file path
     """
 
-    assert file_name.endswith('.gpkg'), "File name needs to end with .gpkg"
+    assert path.endswith('.gpkg'), "File name needs to end with .gpkg"
 
     if geospatial_exists(path):
 
         try:
-            exists_cmd = f'ogrinfo {os.path.join(path, file_name)}'
+            exists_cmd = f'ogrinfo {path}'
             ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
 
             # use regex to find all the tables in the geopackage
@@ -40,21 +39,20 @@ def geospatial_exists(path):
     """
     Checks if a geospatial file already exists at that file location
 
-    :param file_name: Geospatial file name
-    :param path: Optional file path
+    :param path: File path including file name and extension
     """
 
     geospatial_exists = os.path.isfile(path)
                                 
     return geospatial_exists
 
-def geospatial_tbl_exists(geospatial_tbl, path):
+def geospatial_tbl_exists(path, geospatial_tbl):
             
     """
-    Checks if a table or Shapefile already exists within a Geospatial package database.
+    Checks if a table already exists within a Geospatial package database.
     Helpful function to check if a table is to be overwritten.
-    :param file_name: File name to check whether a certain table exists. Must end with .gpkg or .gdb
-    :param path: Optional file path
+    :param path: File path including the file name and extension
+    :param gpkg_tbl: Name of the geopackage table
     """
 
     if geospatial_exists(path):
@@ -80,6 +78,69 @@ def geospatial_tbl_exists(geospatial_tbl, path):
         
     return geo_tbl_exists
 
+def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
+
+    """
+    Format the query or table from the database to be written to a Geospatial file.
+    Formats columns with special characters and/or datetime columns to be compatible with output file.
+    :param dbo: Database connection
+    :param query_or_table: The specific query or table name to be written to a Geospatial file
+    :param is_query (bool): Boolean for whether or not it is a query being written to Geospatial file.
+                            Defaults to False (table); if it's query, set to True.
+    :param schema: Optional schema name; used only if the command is calling a table
+    """
+
+    # set schema if applicable
+    if schema:
+        schema = f'{schema}.'
+    else:
+        schema = ''
+
+    # retrieve column names from the database query or table
+    columns = dbo.get_table_columns(query_or_table, is_query = is_query)
+
+    # this formats the column name if the column name has a space in it
+    if dbo.type == PG:
+        left_bracket = '\\"'
+        right_bracket = left_bracket # the same
+
+    elif dbo.type == MS:
+        left_bracket = '['
+        right_bracket = ']' 
+
+    cols = [left_bracket + c[0] + right_bracket for c in columns]
+
+    # identify date columns if they are in the intended output
+    dt_col_names = [c for c in columns if c[1] is not None] # if there is no date column, then we need to remove it
+    dt_col_names = [c[0] for c in dt_col_names if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
+
+    # if there are no date columns, we can query immediately
+    if len(dt_col_names) == 0:
+        if is_query:
+            return f'select * from ({query_or_table}) t'
+        else:
+            return f'select * from {schema}{query_or_table}'
+    
+    else:
+        # if a date column exists, we must reformat them so that they will be compatible with Shp/Gpkg file
+        results = ' , '.join([c for c in cols if c not in dt_col_names])
+
+        for col_name in dt_col_names:
+
+            shortened_col = col_name[:7]
+            if dbo.type == PG:
+                results += ' , cast(\\"{col}\\" as date) \\"{shortened_col}_dt\\", ' \
+                                'cast(cast(\\"{col}\\" as time) as varchar) \\"{shortened_col}_tm\\" '.format(
+                                col=col_name, shortened_col = shortened_col
+                                )
+            elif dbo.type == MS:
+                results += " , cast([{col}] as date) [{shortened_col}_dt], cast(cast([{col}] as time) as varchar)" \
+                                " [{shortened_col}_tm] ".format(
+                                col=col_name, shortened_col = shortened_col
+                                )
+                        
+        # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
+        return f"select {results} from ({query_or_table}) q "
 
 def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg_tbl = None,
                         srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
@@ -88,8 +149,7 @@ def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg
     Converts a SQL or Postgresql query to a new Geospatial (Shapefile, GPKG) file. Cannot write to a GDB.
 
     :param dbo: Database connection
-    :param path (str): File path to the output file
-
+    :param path (str): File path to the output file. Must include file name and extension.
     :param table (str): DB Table to be written to a GPKG
     :param schema (str): DB schema
     :param query (str): DB query whose output is to be written to a GPKG
@@ -104,7 +164,6 @@ def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg
     :return:
     """
 
-
     ## INPUT CHECKS ##    
     # assert that a valid file format was input
     assert path.endswith(('.gpkg', '.shp')), "Output path needs to end with .gpkg or .shp if no file name is supplied"
@@ -118,14 +177,11 @@ def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg
     
     if query and not gpkg_tbl and path.endswith('.gpkg'):
         raise Exception ('You must specify a gpkg_tbl name in the function for the output table if you are writing a db query to a geopackage.')
-    
-    if table:
-        qry = f"SELECT * FROM {schema}.{table}"
-    elif not table and not query:
-        raise Exception('Please specify the table to be written to the Geospatial file')
+
+    if query: 
+        qry = write_geo_cmd_query(dbo, schema = schema, query_or_table = query, is_query = True)
     else:
-        # create query
-        qry = create_query(dbo, query)
+        qry = write_geo_cmd_query(dbo, schema = schema, query_or_table = table, is_query = False)
 
     # clean up the output file name
     # need 2 statements because of the difference in characters
@@ -153,7 +209,7 @@ def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg
         _update = ''
         _overwrite = ''
     
-    elif not overwrite and geospatial_exists(path): # check if the geopackage already exists
+    elif not overwrite and geospatial_exists(path) and path.endswith('.gpkg'): # check if the geopackage already exists
         
         table_exists = geospatial_tbl_exists(path, geospatial_tbl = gpkg_tbl)
         
