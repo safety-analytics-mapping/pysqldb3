@@ -9,7 +9,7 @@ import openpyxl
 from xlrd import open_workbook
 from xlutils.copy import copy
 from zipfile import ZipFile
-import py7zr
+# import py7zr
 from ..Config import write_config
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests','') + "\\config.cfg")
 

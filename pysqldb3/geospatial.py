@@ -18,7 +18,7 @@ def list_gpkg_tables(file_name, path = None):
 
     assert file_name.endswith('.gpkg'), "File name needs to end with .gpkg"
 
-    if geospatial_exists(path = path, file_name = file_name):
+    if geospatial_exists(path):
 
         try:
             exists_cmd = f'ogrinfo {os.path.join(path, file_name)}'
@@ -35,7 +35,7 @@ def list_gpkg_tables(file_name, path = None):
     else:
             print("This geopackage file does not exist at this file location.")
 
-def geospatial_exists(file_name, path = None):
+def geospatial_exists(path):
     
     """
     Checks if a geospatial file already exists at that file location
@@ -44,11 +44,11 @@ def geospatial_exists(file_name, path = None):
     :param path: Optional file path
     """
 
-    geospatial_exists = os.path.isfile(os.path.join(path, file_name))
+    geospatial_exists = os.path.isfile(path)
                                 
     return geospatial_exists
 
-def geospatial_tbl_exists(file_name, geospatial_tbl, path = None):
+def geospatial_tbl_exists(geospatial_tbl, path):
             
     """
     Checks if a table or Shapefile already exists within a Geospatial package database.
@@ -57,10 +57,10 @@ def geospatial_tbl_exists(file_name, geospatial_tbl, path = None):
     :param path: Optional file path
     """
 
-    if geospatial_exists(path = path, file_name = file_name):
+    if geospatial_exists(path):
 
         try:
-            exists_cmd = f'ogrinfo {os.path.join(path, file_name)}'
+            exists_cmd = f'ogrinfo {path}'
             ogr_response = subprocess.check_output(exists_cmd, stderr=subprocess.STDOUT)
             table_exists = re.findall(f"\b{geospatial_tbl}\b", str(ogr_response)) # only allows tables names with underscores, numbers, and letters
 
@@ -81,7 +81,7 @@ def geospatial_tbl_exists(file_name, geospatial_tbl, path = None):
     return geo_tbl_exists
 
 
-def write_geospatial(dbo, path, output_file = None, table = None, schema = None, query = None, gpkg_tbl = None,
+def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg_tbl = None,
                         srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
     
     """
@@ -89,7 +89,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
 
     :param dbo: Database connection
     :param path (str): File path to the output file
-    :param output_file (str): Optional name of the output file ending with .shp, or .gpkg (if blank, use path)
+
     :param table (str): DB Table to be written to a GPKG
     :param schema (str): DB schema
     :param query (str): DB query whose output is to be written to a GPKG
@@ -104,17 +104,10 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
     :return:
     """
 
+
     ## INPUT CHECKS ##    
     # assert that a valid file format was input
-    if output_file:
-        assert output_file.endswith(('.gpkg', '.shp')), "Output file needs to be .gpkg or .shp format"
-        assert not path.endswith(('.gpkg', '.shp')), "Your file path and your output file can't both end with a file extension"
-        assert path, "Fill in the file path to the output file"
-    else:
-        assert path.endswith(('.gpkg', '.shp')), "Output path needs to end with .gpkg or .shp if no file name is supplied"
-    # clean and parse path and file name
-    path, output_file = parse_geospatial_file_path(path, output_file)
-    full_path = os.path.join(path, output_file)
+    assert path.endswith(('.gpkg', '.shp')), "Output path needs to end with .gpkg or .shp if no file name is supplied"
 
     original_temp_flag = dbo.allow_temp_tables
     dbo.allow_temp_tables = True
@@ -123,7 +116,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
         # this would only happen if query_to_geospatial() wasn't run and instead, the user runs write_geospatial_file(), since query is required
         raise Exception('You must specify the db table to be written.')
     
-    if query and not gpkg_tbl and output_file.endswith('.gpkg'):
+    if query and not gpkg_tbl and path.endswith('.gpkg'):
         raise Exception ('You must specify a gpkg_tbl name in the function for the output table if you are writing a db query to a geopackage.')
     
     if table:
@@ -136,11 +129,11 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
 
     # clean up the output file name
     # need 2 statements because of the difference in characters
-    if output_file.endswith('.gpkg') and "." in output_file[:-5]:
-        output_file = output_file[:-5].replace(".", "_") + ".gpkg"
+    if path.endswith('.gpkg') and "." in path[:-5]:
+        path = path[:-5].replace(".", "_") + ".gpkg"
         print(' The "." character is not allowed in output gpkg file names. Any "." have been replaced with "_".')
-    elif output_file.endswith(".shp") and "." in output_file[:-4]:
-        output_file = output_file[:-4].replace(".", "_") + ".shp"
+    elif path.endswith(".shp") and "." in path[:-4]:
+        path = path[:-4].replace(".", "_") + ".shp"
         print(' The "." character is not allowed in output shp file names. Any "." have been replaced with "_".')
 
     if not gpkg_tbl:
@@ -155,14 +148,14 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
         _update = ''
         _overwrite = '-overwrite'
     
-    elif not overwrite and not geospatial_exists(path = path, file_name = output_file):
+    elif not overwrite and not geospatial_exists(path = path):
         # this geopackage does not exist so create as if new
         _update = ''
         _overwrite = ''
     
-    elif not overwrite and geospatial_exists(path = path, file_name = output_file): # check if the geopackage already exists
+    elif not overwrite and geospatial_exists(path): # check if the geopackage already exists
         
-        table_exists = geospatial_tbl_exists(path = path, file_name = output_file, geospatial_tbl = gpkg_tbl)
+        table_exists = geospatial_tbl_exists(path, geospatial_tbl = gpkg_tbl)
         
         if table_exists == True:
             print("The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied.")
@@ -174,7 +167,7 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
 
     # run the final command
     if not cmd:
-        cmd = write_cmd(dbo, full_path, gpkg_tbl, table, _overwrite, _update, srid, gdal_data_loc, qry)
+        cmd = write_cmd(dbo, path, gpkg_tbl, table, _overwrite, _update, srid, gdal_data_loc, qry)
 
     if print_cmd:
         print(print_cmd_string([dbo.password], cmd))
@@ -183,9 +176,9 @@ def write_geospatial(dbo, path, output_file = None, table = None, schema = None,
     execute_cmd(cmd = cmd, dbo = dbo)
 
     if table:
-        print(f'{output_file} \nwritten to: {path}\ngenerated from: {table}')
+        print(f'{os.path.basename(path)} \nwritten to: {path}\ngenerated from: {table}')
     else:
-        print(f'{output_file} geospatial file \nwritten to: {path}\ngenerated from: {query}')
+        print(f'{os.path.basename(path)} geospatial file \nwritten to: {path}\ngenerated from: {query}')
 
     # Reset the temp flag
     dbo.last_query = qry
@@ -252,15 +245,15 @@ def geospatial_convert(input_path, input_file = None, output_file = None, gpkg_t
     # if the output file is a gpkg, do these additional checks
     if output_full_path.endswith('.gpkg'):
         # if gpkg exists and overwrite is explicityly written
-        if overwrite == True and geospatial_exists(path = export_path, file_name = output_file): 
+        if overwrite == True and geospatial_exists(export_path):
             _overwrite = '-overwrite'
     
         # if gpkg exists and overwrite was not explicitly called
-        if geospatial_exists(path = export_path, file_name = output_file) and not geospatial_tbl_exists(path = export_path, file_name = output_file, geospatial_tbl = gpkg_tbl) and overwrite == False:
+        if geospatial_exists(path = export_path) and not geospatial_tbl_exists(path = export_path, geospatial_tbl = gpkg_tbl) and overwrite == False:
             _update = '-update' # then add the table to the gpkg
     
         # if the gpkg and table exists but no overwrite was called
-        if geospatial_exists(path = export_path, file_name = output_file) and geospatial_tbl_exists(path = export_path, file_name = output_file, geospatial_tbl = gpkg_tbl) and overwrite == False:
+        if geospatial_exists(path = export_path) and geospatial_tbl_exists(path = export_path, geospatial_tbl = gpkg_tbl) and overwrite == False:
             print("The table name to be copied to the geopackage already exists. Either change to Overwrite = True or check the name of the table to be copied.")
             exit # stop process so user can fix
 
