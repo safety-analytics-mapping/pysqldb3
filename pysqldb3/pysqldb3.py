@@ -1977,13 +1977,12 @@ class DbConnect:
         fig.show()
         return
 
-    def query_to_shp(self, query, shp_name = None, path=None, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
+    def query_to_shp(self, query, path, cmd=None, gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
         Exports query results to a shp file.
         :param query: SQL query as string type
-        :param shp_name: filename for shape (should end in .shp)
-        :param path: folder path for output shp
+        :param path: Folder path for output shp. Filename must end in .shp
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
         :param print_cmd: boolean to print ogr command (without password)
@@ -1991,7 +1990,7 @@ class DbConnect:
         :return:
         """
 
-        write_geospatial(dbo = self, path = path, query = query, output_file = shp_name,
+        write_geospatial(dbo = self, path = path, query = query,
                             cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
         
     def feature_class_to_table(self, path, table, shp_name = None, feature_class = None, schema=None, 
@@ -2024,14 +2023,13 @@ class DbConnect:
                                 port = port, srid = srid, private = private, encoding = fc_encoding, skip_failures = skip_failures,
                                 extra_cmd = extra_cmd, temp = temp, days = days, print_cmd=print_cmd)
         
-    def query_to_gpkg(self, query, gpkg_tbl, path=None, gpkg_name = None, overwrite = True, cmd=None,
+    def query_to_gpkg(self, query, gpkg_tbl, path, overwrite = True, cmd=None,
                       gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
         """
         Exports query results to a Geopackage file.
         :param query: SQL query as string type
         :param gpkg_tbl: Geopackage table name (required)
-        :param path: folder path for output gpkg
-        :param gpkg_name: filename for geopackage (should end with .gpkg), not required if path has full file dir
+        :param path: folder path for output gpkg. Must end with .gpkg
         :param overwrite: Defaults to True. Will overwrite table with the same name if it exists.
         :param cmd: GDAL command to overwrite default
         :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
@@ -2040,7 +2038,7 @@ class DbConnect:
         :return:
         """
 
-        write_geospatial(dbo = self, path = path, query = query, output_file = gpkg_name, gpkg_tbl = gpkg_tbl,
+        write_geospatial(dbo = self, path = path, query = query, gpkg_tbl = gpkg_tbl,
                             overwrite = overwrite, cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
 
     def shp_to_table(self, shp_name, path=None, table=None, schema=None, feature_class = None, cmd=None,

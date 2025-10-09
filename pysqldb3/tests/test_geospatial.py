@@ -174,7 +174,7 @@ class TestReadgpkgPG:
 
         gpkg_name = "testgpkg.gpkg"
     
-        s_list = s.list_gpkg_tables(path=FOLDER_PATH, file_name=gpkg_name)
+        s_list = s.list_gpkg_tables(path=os.path.join(FOLDER_PATH, gpkg_name))
 
         assert s_list == [test_layer1, test_layer2]
 
@@ -458,7 +458,7 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -509,7 +509,7 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -524,7 +524,7 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, schema=pg_schema,
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema,
                            table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
@@ -590,7 +590,7 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s.write_geospatial(dbo=db, schema=pg_schema, table = test_write_gpkg_table_name + '_2', path=FOLDER_PATH, output_file=gpkg_name,
+        s.write_geospatial(dbo=db, schema=pg_schema, table = test_write_gpkg_table_name + '_2', path=os.path.join(FOLDER_PATH, gpkg_name),
                            gpkg_tbl = test_reuploaded_table_name + '_2', overwrite = False, print_cmd=True) # add another table
 
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)) # assert that the table is still there
@@ -659,7 +659,7 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -712,7 +712,7 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -757,7 +757,7 @@ class TestWritegpkgPG:
 
         # Write gpkg
         s.write_geospatial(dbo=db, query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""",
-                            path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+                            path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -814,7 +814,7 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s.write_geospatial(dbo=sql, schema = ms_schema, path=FOLDER_PATH, output_file=gpkg_name, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, schema = ms_schema, path=os.path.join(FOLDER_PATH, gpkg_name), table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -864,7 +864,7 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg. Gpkg table will be named the same as the query table
-        s.write_geospatial(path=FOLDER_PATH, output_file=gpkg_name, dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -880,7 +880,7 @@ class TestWritegpkgMS:
 
         # Write gpkg. Gpkg table will be named the same as the previous table to overwrite it
         s.write_geospatial(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name + '_2',
-                          path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, overwrite = True, print_cmd=True)
+                          path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, overwrite = True, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -933,7 +933,7 @@ class TestWritegpkgMS:
 
         # Write gpkg. Gpkg table will be named the same as the query table
         s.write_geospatial(dbo=sql, schema = ms_schema, table= test_write_gpkg_table_name,
-                           path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_reuploaded_table_name, print_cmd=True)
+                           path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_reuploaded_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -949,7 +949,7 @@ class TestWritegpkgMS:
 
         # Write gpkg.
         s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2',
-                           path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl=test_reuploaded_table_name + '_2', print_cmd=True) # add second table
+                           path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl=test_reuploaded_table_name + '_2', print_cmd=True) # add second table
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1007,7 +1007,7 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s.write_geospatial(dbo=sql, path = FOLDER_PATH, table= test_write_gpkg_table_name, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
+        s.write_geospatial(dbo=sql, path = os.path.join(FOLDER_PATH, gpkg_name), table= test_write_gpkg_table_name, gpkg_tbl = test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
  
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1058,7 +1058,7 @@ class TestWritegpkgMS:
 
         # Write gpkg
         s.write_geospatial(dbo=sql, query=f"""select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1""",
-                            path=FOLDER_PATH, output_file=gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+                            path= os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1122,7 +1122,7 @@ class TestGpkgShpConversion:
 
         # write geopackage file
         s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
-                           path = FOLDER_PATH, output_file=gpkg_name, print_cmd=True)
+                           path = os.path.join(FOLDER_PATH, gpkg_name), print_cmd=True)
 
         # # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1165,7 +1165,7 @@ class TestGpkgShpConversion:
                 """)
 
         # write geopackage file
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, path = FOLDER_PATH, output_file=gpkg_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, path = os.path.join(FOLDER_PATH, gpkg_name), print_cmd=True)
 
         # add an extra table to test multiple
         sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2;
@@ -1178,7 +1178,7 @@ class TestGpkgShpConversion:
         assert sql.table_exists(schema = ms_schema, table = f"{test_write_gpkg_table_name}_2")
 
         s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2',
-                           path = FOLDER_PATH, output_file=gpkg_name, print_cmd=True) # this will append 
+                           path = os.path.join(FOLDER_PATH, gpkg_name), print_cmd=True) # this will append 
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1227,7 +1227,7 @@ class TestGpkgShpConversion:
 
         # create shp file and then convert to geopackage file
         s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
-                           path = FOLDER_PATH, output_file = shp_name, print_cmd=True)
+                           path = os.path.join(FOLDER_PATH, shp_name), print_cmd=True)
         
         s.geospatial_convert(input_path = FOLDER_PATH,
                              input_file = shp_name,
@@ -1906,7 +1906,6 @@ class TestWriteShpPG:
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
 
-
     def test_write_shp_table_pth(self):
 
         db.drop_table(pg_schema, test_write_shp_table_name)
@@ -1975,7 +1974,7 @@ class TestWriteShpPG:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s.write_geospatial(dbo=db, path=FOLDER_PATH, table=test_write_shp_table_name, schema=pg_schema, output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=db, path=os.path.join(FOLDER_PATH, shp_name), table=test_write_shp_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
@@ -2012,6 +2011,7 @@ class TestWriteShpPG:
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(FOLDER_PATH, shp_name.replace('shp', ext)))
 
@@ -2020,8 +2020,8 @@ class TestWriteShpPG:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s.write_geospatial(dbo=db, path=fp,
-                      query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""", output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=db, path=os.path.join(fp, shp_name),
+                      query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""", print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, shp_name))
@@ -2080,7 +2080,7 @@ class TestWriteShpMS:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s.write_geospatial(dbo=sql, path=fp, table=test_write_shp_table_name, schema=ms_schema, output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, path= os.path.join(fp, shp_name), table=test_write_shp_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
@@ -2136,7 +2136,7 @@ class TestWriteShpMS:
         shp_name = 'test_write.shp'
 
         # Write shp
-        s.write_geospatial(dbo=sql, path=fp, table=test_write_shp_table_name, schema=ms_schema, output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, path= os.path.join(fp, shp_name), table=test_write_shp_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(fp, shp_name))
@@ -2191,8 +2191,8 @@ class TestWriteShpMS:
         """)
 
         # Write shp
-        s.write_geospatial(dbo=sql, path=fp, query=f"""select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1""",
-               output_file=shp_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, path= os.path.join(fp, shp_name),
+                           query=f"""select top 10 * from {ms_schema}.{test_write_shp_table_name} order by test_col1""", print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(fp, shp_name))
