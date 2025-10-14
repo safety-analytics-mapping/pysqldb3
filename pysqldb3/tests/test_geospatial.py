@@ -1694,7 +1694,7 @@ class TestReadShpMS:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
-    def test_read_shp_zip(self):
+    def test_read_shp_zip_2(self):
 
         fp = FOLDER_PATH + '/test.zip'
         shp_name = "test.shp"
