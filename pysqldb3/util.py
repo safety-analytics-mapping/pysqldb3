@@ -396,15 +396,16 @@ def parse_geospatial_file_path(path=None, file_name=None):
     :return: path (without file), file_name
     """
     # type: (str, str)
+
+    ## add an if statement if the zip folder is in the middle of / embedded in the path
+    if '.zip' in path.lower():
+        path = '/vsizip/' + path
+
     if file_name:
         return path, file_name
 
     file_name = os.path.basename(path)
     path = path.replace(file_name, '')
-
-    ## add an additional if statement if the zip folder is in the middle of / embedded in the path
-    if '.zip' in path.lower():
-        path = '/vsizip/' + path
 
     return path, file_name
 
@@ -812,116 +813,6 @@ def execute_cmd(cmd, dbo = None, feature_class = None, cmd_env = None):
             raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
         
     return
-    
-def create_query(dbo, query):
-
-    """
-    Create and clean the query as part of write_geospatial
-    """
-
-    # Makes a temp table name
-    tmp_table_name = f"tmp_query_to_shp_{dbo.user}_{str(datetime.datetime.now())[:16].replace('-', '_').replace(' ', '_').replace(':', '')}"
-
-    # Create temp table to get column types
-    try:
-        # Drop the temp table
-        if dbo.type == PG:
-            dbo.query(f"drop table {tmp_table_name}", internal=True, strict=False)
-        elif dbo.type == MS:
-            dbo.query(f"drop table #{tmp_table_name}", internal=True, strict=False)
-    except Exception as e:
-        print(e)
-        pass    
-    
-    if dbo.type == PG:
-        dbo.query(f"""    
-        create temp table {tmp_table_name} as     
-        select * 
-        from ({query}) q 
-        limit 10
-        """, internal=True)
-    elif dbo.type == MS:
-        dbo.query(f"""        
-        select top 10 * 
-        into #{tmp_table_name}
-        from ({query}) q 
-        """, internal=True)
-
-    # Extract column names, including datetime/timestamp types, from results
-    if dbo.type == PG:
-        col_df = dbo.dfquery(f"""
-        SELECT *
-        FROM
-        INFORMATION_SCHEMA.COLUMNS
-        WHERE TABLE_NAME = '{tmp_table_name}'
-        """, internal = True)
-
-        cols = ['\\"' + c + '\\"' for c in list(col_df['column_name'])]
-        dt_col_names = ['\\"' + c + '\\"' for c in list(
-            col_df[col_df['data_type'].str.contains('datetime') | col_df['data_type'].str.contains('timestamp')][
-                'column_name'])]
-
-    elif dbo.type == MS:
-        col_df = dbo.dfquery(f"""
-        SELECT
-            [column] = c.name,
-            [type] = t.name, 
-            c.max_length, 
-            c.precision, 
-            c.scale, 
-            c.is_nullable
-        FROM
-            tempdb.sys.columns AS c
-        LEFT JOIN
-            tempdb.sys.types AS t
-        ON
-            c.system_type_id = t.system_type_id
-            AND
-            t.system_type_id = t.user_type_id
-        WHERE
-            [object_id] = OBJECT_ID(N'tempdb.dbo.#{tmp_table_name}');
-        """, internal=True)
-
-        cols = ['[' + c + ']' for c in list(col_df['column'])]
-        dt_col_names = ['[' + c + ']' for c in list(
-            col_df[col_df['type'].str.contains('datetime') | col_df['type'].str.contains('timestamp')]['column'])]
-
-    # Make string of columns to be returned by select statement
-    return_cols = ' , '.join([c for c in cols if c not in dt_col_names])
-
-    # If there are datetime/timestamp columns:
-    if len(dt_col_names) > 0:
-        if dbo.type == PG:
-            print_cols = str([str(c[2:-2]) for c in dt_col_names])
-
-        if dbo.type == MS:
-            print_cols = str([str(c[1:-1]) for c in dt_col_names])
-
-        print(f"""
-        The following columns are of type datetime/timestamp: \n
-        {print_cols}
-        
-        Shapefiles don't support datetime/timestamps with both the date and time. Each column will be split up
-        into colname_dt (of type date) and colname_tm (of type **string/varchar**). 
-        """)
-
-        # Add the date and time (casted as a string) to the output
-        for col_name in dt_col_names:
-            if dbo.type == PG:
-                shortened_col = col_name[2:-2][:7]
-                return_cols += ' , cast(\\"{col}\\" as date) \\"{short_col}_dt\\", ' \
-                                'cast(cast(\\"{col}\\" as time) as varchar) \\"{short_col}_tm\\" '.format(
-                                col=col_name[2:-2], short_col=shortened_col)
-            elif dbo.type == MS:
-                shortened_col = col_name[1:-1][:7]
-                return_cols += " , cast([{col}] as date) [{short_col}_dt], cast(cast([{col}] as time) as varchar)" \
-                                " [{short_col}_tm] ".format(
-                                col=col_name[1:-1], short_col=shortened_col)
-
-    # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
-    qry = f"select {return_cols} from ({query}) q "
-
-    return qry
 
 def clean_table_name(table = None, gpkg_tbl = None, full_path = None, input_file = None):
     """
