@@ -95,7 +95,7 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
         schema = f'{schema}.'
 
     # retrieve column names from the database query or table
-    columns = dbo.get_table_columns(query_or_table, schema=schema.replace('.',''), is_query = is_query)
+    columns_with_types = dbo.get_table_columns(query_or_table, schema=schema.replace('.',''), is_query = is_query)
 
     # this formats the column name if the column name has a space in it
     if dbo.type == PG:
@@ -106,23 +106,22 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
         left_bracket = '['
         right_bracket = ']' 
 
-    cols = [left_bracket + c[0] + right_bracket for c in columns]
+    columns_with_brackets = [left_bracket + c[0] + right_bracket for c in columns_with_types]
 
     # identify date columns if they are in the intended output
-    dt_col_names = [c for c in columns if c[1] is not None] ## TODO - what is this doing/is it needed?
-    dt_col_names = [c[0] for c in dt_col_names if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
+    # dt_col_names = [c for c in columns_with_types if c[1] is not None] ## TODO - what is this doing/is it needed?
+    dt_col_names = [c[0] for c in columns_with_types if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
 
     # if there are no date columns, we can query immediately
     if len(dt_col_names) == 0:
-        # todo add shortened column names
         if is_query:
             return f'select * from ({query_or_table}) t'
         else:
             return f'select * from {schema}{query_or_table}'
-    
+
     else:
         # if a date column exists, we must reformat them so that they will be compatible with Shp/Gpkg file
-        results = ' , '.join([c for c in cols if c not in dt_col_names])
+        results = ' , '.join([c for c in columns_with_brackets if c not in dt_col_names])
 
         for col_name in dt_col_names:
 
@@ -137,7 +136,7 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
                                 " [{shortened_col}_tm] ".format(
                                 col=col_name, shortened_col = shortened_col
                                 )
-                        
+
         # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
         if is_query:
             return  f"select {results} from ({query_or_table}) q "
@@ -203,7 +202,7 @@ def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg
         gpkg_tbl = table
 
     if not schema:
-            schema = dbo.default_schema
+        schema = dbo.default_schema
 
     # overwrite vs update vs an issue has arisen
     if overwrite:
