@@ -201,9 +201,6 @@ def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg
     if not gpkg_tbl:
         gpkg_tbl = table
 
-    if not schema:
-        schema = dbo.default_schema
-
     # overwrite vs update vs an issue has arisen
     if overwrite:
         # if explict overwrite, then create command line as directed
