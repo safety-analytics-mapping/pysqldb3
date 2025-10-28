@@ -444,6 +444,29 @@ class TestWritegpkgPG:
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
 
+    # todo - was missing test for table - didnt catch paren issue - add more tests
+    def test_write_shp_table(self):
+        db.query(f"""
+               drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+
+               create table {pg_schema}.{test_write_gpkg_table_name} as
+               select *, now() as dt_col
+               from {pg_schema}.{pg_table_name}
+               order by id
+               limit 100
+               """)
+        shp_name = 'wrtie_shp_test.shp'
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema,
+                           table=test_write_gpkg_table_name)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, shp_name))
+
+
     def test_write_gpkg_table(self):
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name};
