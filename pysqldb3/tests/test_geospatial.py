@@ -47,6 +47,9 @@ pg_schema = 'working'
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node.shp'
 
+
+# TODO -  detect int types for GDAL and detect default geo column name for testing variables
+
 class TestReadgpkgPG:
     @classmethod
     def setup_class(cls):
@@ -1306,7 +1309,8 @@ class TestGpkgShpConversion:
 
         ogr_response_gpkg_2 = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp_2 = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
-        
+
+        # todo add (Integer64) option
         assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg_2) and 'test_col1 (Integer) = 1' in str(ogr_response_shp_2), "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
 
         # remove shape file

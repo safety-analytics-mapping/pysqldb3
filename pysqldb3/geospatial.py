@@ -143,7 +143,7 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
         else:
             return  f"select {results} from {schema}{query_or_table} q "
 
-def write_geospatial(dbo, path,  table = None, schema = None, query = None, gpkg_tbl = None,
+def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_tbl = None,
                         srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
     
     """
