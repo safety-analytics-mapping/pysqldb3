@@ -109,8 +109,7 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
     columns_with_brackets = [left_bracket + c[0] + right_bracket for c in columns_with_types]
 
     # identify date columns if they are in the intended output
-    dt_col_names = [c for c in columns_with_types if c[1] is not None] ## TODO - what is this doing/is it needed?
-    dt_col_names = [c[0] for c in dt_col_names if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
+    dt_col_names = [c[0] for c in columns_with_types if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
 
     # if there are no date columns, we can query immediately
     if len(dt_col_names) == 0:
