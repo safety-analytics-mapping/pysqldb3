@@ -47,6 +47,9 @@ pg_schema = 'working'
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node.shp'
 
+
+# TODO -  detect int types for GDAL and detect default geo column name for testing variables
+
 class TestReadgpkgPG:
     @classmethod
     def setup_class(cls):
@@ -443,6 +446,29 @@ class TestWritegpkgPG:
     @classmethod
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
+
+    # todo - was missing test for table - didnt catch paren issue - add more tests
+    def test_write_shp_table(self):
+        db.query(f"""
+               drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+
+               create table {pg_schema}.{test_write_gpkg_table_name} as
+               select *, now() as dt_col
+               from {pg_schema}.{pg_table_name}
+               order by id
+               limit 100
+               """)
+        shp_name = 'wrtie_shp_test.shp'
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema,
+                           table=test_write_gpkg_table_name)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, shp_name))
+
 
     def test_write_gpkg_table(self):
         db.query(f"""
@@ -1283,7 +1309,8 @@ class TestGpkgShpConversion:
 
         ogr_response_gpkg_2 = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
         ogr_response_shp_2 = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)
-        
+
+        # todo add (Integer64) option
         assert 'test_col1 (Integer) = 1' in str(ogr_response_gpkg_2) and 'test_col1 (Integer) = 1' in str(ogr_response_shp_2), "cannot find 'test_col1 (Integer) = 1' statement in both the shapefile and gpkg queries"
 
         # remove shape file
