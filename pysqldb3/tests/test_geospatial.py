@@ -47,8 +47,7 @@ pg_schema = 'working'
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node.shp'
 
-
-# TODO -  detect int types for GDAL and detect default geo column name for testing variables
+db_int, db_geom, sql_int, sql_geom = helpers.identify_default_dtypes(db, sql, ms_schema)
 
 class TestReadgpkgPG:
     @classmethod
@@ -447,29 +446,6 @@ class TestWritegpkgPG:
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
 
-    # todo - was missing test for table - didnt catch paren issue - add more tests
-    def test_write_shp_table(self):
-        db.query(f"""
-               drop table if exists {pg_schema}.{test_write_gpkg_table_name};
-
-               create table {pg_schema}.{test_write_gpkg_table_name} as
-               select *, now() as dt_col
-               from {pg_schema}.{pg_table_name}
-               order by id
-               limit 100
-               """)
-        shp_name = 'wrtie_shp_test.shp'
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema,
-                           table=test_write_gpkg_table_name)
-
-        # Assert successful
-        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
-
-        # clean up
-        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
-        os.remove(os.path.join(FOLDER_PATH, shp_name))
-
-
     def test_write_gpkg_table(self):
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name};
@@ -672,6 +648,33 @@ class TestWritegpkgPG:
         db.drop_table(schema=pg_schema, table=test_reuploaded_table_name + '_2')
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
+
+    def test_write_gpkg_dates_table(self):
+            
+        gpkg_name = 'testgpkg.gpkg'
+
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+
+                create table {pg_schema}.{test_write_gpkg_table_name} as
+                select *,
+                        now() as dt_col,
+                        cast('2020-01-01' as date) as next_dt_col
+                from {pg_schema}.{pg_table_name}
+                order by id
+                limit 100
+                """)
+        
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema,
+                            table=test_write_gpkg_table_name)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+    
     def test_write_gpkg_table_pth(self):
         db.drop_table(pg_schema, test_write_gpkg_table_name)
         db.query(f"""
@@ -827,14 +830,15 @@ class TestWritegpkgPG:
 
 
 class TestWritegpkgMS:
+
     def test_write_gpkg_table(self):
         sql.drop_table(schema=ms_schema, table=test_write_gpkg_table_name)
 
         # Add test_table
         sql.query(f"""
-        create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
-        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, dte datetime, geom geometry);
+        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
         gpkg_name = 'test_write.gpkg'
@@ -2086,6 +2090,34 @@ class TestWriteShpPG:
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(FOLDER_PATH, shp_name.replace('shp', ext)))
 
+    def test_write_shp_dates_table(self):
+
+        p = FOLDER_PATH
+        shp_name = 'test_write.shp'
+
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_write_shp_table_name};
+
+                create table {pg_schema}.{test_write_shp_table_name} as
+                select *,
+                        now() as dt_col,
+                        current_date as dt_col2,
+                        cast('2020-01-01' as date) as next_dt_col
+                from {pg_schema}.{pg_table_name}
+                order by id
+                limit 100
+                """)
+        
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema,
+                            table=test_write_shp_table_name)
+        
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
+        os.remove(os.path.join(FOLDER_PATH, shp_name))
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
@@ -2093,14 +2125,15 @@ class TestWriteShpPG:
 
 
 class TestWriteShpMS:
+    
     def test_write_shp_table(self):
         sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
 
         # Add test_table
         sql.query(f"""
-        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, test_col2 int, geom geometry);
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, test_col2 int, dte datetime, geom geometry);
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, 2, current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, 4, current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
         fp = FOLDER_PATH
@@ -2130,7 +2163,7 @@ class TestWriteShpMS:
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = sql.dfquery(f"""
         select distinct b.geom.STDistance(a.geom) as distance
-        from {ms_schema}.{test_reuploaded_table_name} b
+        from {ms_schema}.{test_write_shp_table_name} b
         join {ms_schema}.{test_reuploaded_table_name} a
         on b.test_col1=a.test_col1
         """)
@@ -2269,7 +2302,7 @@ class TestFeatureClassToTablePg:
     @classmethod
     def setup_class(cls):
         helpers.set_up_feature_class()
-        
+
     def test_import_fc_basic(self):
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
@@ -2319,7 +2352,16 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        db.query(f'select distinct st_srid("Shape") from {pg_schema}.{test_feature_class_table_name}')
+        # identify the uploaded geometry column name, because it can be named geom or Shape depending on user's computer
+        geom_column_name = db.dfquery(f"""
+        select distinct column_name
+                    from information_schema.columns
+                    where table_name = '{test_feature_class_table_name}'
+                        and table_schema = '{pg_schema}'
+                        and data_type = '{db_geom}'
+                        """)['column_name'][0]
+        
+        db.query(f'select distinct st_srid("{geom_column_name}") from {pg_schema}.{test_feature_class_table_name}')
         assert db.data[0][0] == 4326
 
         db.drop_table(pg_schema, test_feature_class_table_name)
@@ -2341,12 +2383,21 @@ class TestFeatureClassToTablePg:
         columns = {i[0] for i in db.data}
         types = {i[1] for i in db.data}
 
-        assert {'vintersect', 'objectid', 'Shape', 'nodeid'}.issubset(columns)
-        assert {'integer', 'integer', 'character varying', 'USER-DEFINED'}.issubset(types)
+        # identify the uploaded geometry column name, because it can be named geom or Shape depending on user's computer
+        geom_column_name = db.dfquery(f"""
+        select distinct column_name
+                    from information_schema.columns
+                    where table_name = '{test_feature_class_table_name}'
+                        and table_schema = '{db.default_schema}'
+                        and data_type = '{db_geom}'
+                        """)['column_name'][0]
+
+        assert {'vintersect', 'objectid', geom_column_name, 'nodeid'}.issubset(columns)
+        assert {db_int, db_int, 'character varying', db_geom}.issubset(types)
 
         # check non geom data
         db.query(f"""
-                    select nodeid, vintersect, st_astext("Shape", 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+                    select nodeid, vintersect, st_astext("{geom_column_name}", 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
                 """)
 
         row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.1 126536.1)'),
@@ -2360,7 +2411,7 @@ class TestFeatureClassToTablePg:
 
         # check geom matches (less than 1 ft off
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("Shape", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN("{geom_column_name}", 1), 2263),
                 st_setsrid(st_makepoint(914145.1,126536.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=88
@@ -2368,7 +2419,7 @@ class TestFeatureClassToTablePg:
         assert db.data[0][0] < 1
 
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("Shape", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN("{geom_column_name}", 1), 2263),
                 st_setsrid(st_makepoint(920184.0, 138084.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=888
@@ -2506,14 +2557,22 @@ class TestFeatureClassToTableMs:
                 and table_schema='{sql.default_schema}'
         """)
 
+        geom_column_name = sql.dfquery(f"""
+                    select distinct data_type
+                    from INFORMATION_SCHEMA.COLUMNS
+                    where table_name = '{test_feature_class_table_name}'
+                        and table_schema='{sql.default_schema}'
+                        and data_type = '{sql_geom}'
+                    """)['data_type'][0]
+
         columns = {i[0] for i in sql.data}
         types = {i[1] for i in sql.data}
 
-        assert {'objectid', 'geom', 'nodeid', 'vintersect'}.issubset(columns)
-        assert {'int', 'geometry', 'int', 'nvarchar'}.issubset(types)
+        assert {'objectid', geom_column_name, 'nodeid', 'vintersect'}.issubset(columns)
+        assert {sql_int, sql_geom, sql_int, 'nvarchar'}.issubset(types)
 
         # check non geom data
-        sql.query(f"""select nodeid, vintersect, geom.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+        sql.query(f"""select nodeid, vintersect, {geom_column_name}.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
                         """)
 
         row_values = [(88, 'VirtualIntersection', 'MULTIPOINT ((914145.06807594 126536.07138967514))'),
@@ -2526,14 +2585,14 @@ class TestFeatureClassToTableMs:
 
         # check geom matches (less than 1 ft off)
         sql.query(f"""
-            select geom.STGeometryN(1).STDistance(geometry::Point(914145.1,126536.1, 2263))
+            select {geom_column_name}.STGeometryN(1).STDistance(geometry::Point(914145.1,126536.1, 2263))
             from {sql.default_schema}.{test_feature_class_table_name}
             where nodeid=88
         """)
         assert sql.data[0][0] < 1
 
         sql.query(f"""
-            select geom.STGeometryN(1).STDistance(geometry::Point(920184.0, 138084.1, 2263))
+            select {geom_column_name}.STGeometryN(1).STDistance(geometry::Point(920184.0, 138084.1, 2263))
             from {sql.default_schema}.{test_feature_class_table_name}
             where nodeid=888
                 """)

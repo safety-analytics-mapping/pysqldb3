@@ -73,10 +73,10 @@ class TestQueryToGpkgPg:
         # create table
         db.query(f"""
             DROP TABLE IF EXISTS {pg_schema}.{test_table};
-            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, dte2 date, geom geometry(Point));
 
             INSERT INTO {pg_schema}.{test_table}
-             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+             VALUES (1, 'test text', now(), current_date, st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
          """)
         
         assert db.table_exists(test_table, schema=pg_schema)
@@ -903,10 +903,10 @@ class TestQueryToShpPg:
         db.drop_table(schema = pg_schema, table = test_table)
         # create table
         db.query(f"""
-            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, dt2 date, geom geometry(Point));
 
             INSERT INTO {pg_schema}.{test_table}
-             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+             VALUES (1, 'test text', now(), cast('2020-01-01' as date), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
         """)
         assert db.table_exists(test_table, schema=pg_schema)
 
