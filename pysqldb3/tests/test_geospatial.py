@@ -2092,7 +2092,6 @@ class TestWriteShpPG:
 
     def test_write_shp_dates_table(self):
 
-        p = FOLDER_PATH
         shp_name = 'test_write.shp'
 
         db.query(f"""
@@ -2550,20 +2549,23 @@ class TestFeatureClassToTableMs:
         sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
 
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
+
+        # query the data_type of the geometry field since it can vary based on user's computer
+        geom_column_name = sql.dfquery(f"""
+                    select distinct column_name
+                    from INFORMATION_SCHEMA.COLUMNS
+                    where table_name = '{test_feature_class_table_name}'
+                        and table_schema='{sql.default_schema}'
+                        and data_type = '{sql_geom}'
+                    """)['column_name'][0]
+
+        # run the query to identify all column names and types from the test table
         sql.query(f"""
                 select column_name, data_type
                 from INFORMATION_SCHEMA.COLUMNS
                 where table_name = '{test_feature_class_table_name}'
                 and table_schema='{sql.default_schema}'
         """)
-
-        geom_column_name = sql.dfquery(f"""
-                    select distinct data_type
-                    from INFORMATION_SCHEMA.COLUMNS
-                    where table_name = '{test_feature_class_table_name}'
-                        and table_schema='{sql.default_schema}'
-                        and data_type = '{sql_geom}'
-                    """)['data_type'][0]
 
         columns = {i[0] for i in sql.data}
         types = {i[1] for i in sql.data}
@@ -2645,7 +2647,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema, shp_name='lion.gdb',
+        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema,
                                     extra_cmd='-nlt MULTILINESTRING')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
