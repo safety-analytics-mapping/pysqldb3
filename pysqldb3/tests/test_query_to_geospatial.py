@@ -34,6 +34,8 @@ pg_schema = 'working'
 
 FOLDER_PATH = helpers.DIR
 
+db_int, db_geom, sql_int, sql_geom = helpers.identify_default_dtypes(db, sql, ms_schema)
+
 class TestQueryToGpkgPg:
 
     def test_query_to_gpkg_basic(self):
@@ -149,6 +151,17 @@ class TestQueryToGpkgPg:
         ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg2.replace('\\', '/')), stderr=subprocess.STDOUT)
         assert 'id2 (Integer) = 2' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
+        # check the data types
+        db.query(f"""
+            select column_name, data_type
+            from information_schema.columns
+            where table_name = '{test_table}_2'
+                and table_schema = '{pg_schema}'
+                        """)
+        
+        types = {i[1] for i in db.data}
+        assert {db_int, 'text', 'timestamp without time zone', db_geom}.issubset(types)
+        
         # clean up
         db.drop_table(pg_schema, test_table)
         db.drop_table(pg_schema, test_table + '_2')
@@ -1278,6 +1291,17 @@ class TestQueryToShpMs:
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
         assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
 
+        # check the data types
+        sql.query(f"""
+            select column_name, data_type
+            from information_schema.columns
+            where table_name = '{test_table}'
+                and table_schema = '{ms_schema}'
+                        """)
+        
+        types = {i[1] for i in sql.data}
+        assert {sql_int, 'text', 'datetime', sql_geom}.issubset(types)
+        
         # clean up
         sql.drop_table(ms_schema, test_table_shp)
         for ext in ('dbf', 'prj', 'shx', 'shp'):
