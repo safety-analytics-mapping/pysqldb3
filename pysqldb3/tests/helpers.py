@@ -546,6 +546,6 @@ def identify_default_dtypes(db, sql, ms_schema = ''):
 
     # drop the tables
     db.query("drop table if exists test_default_types;")
-    sql.drop_table(schema = 'working', table = 'test_default_dtypes')
+    sql.drop_table(schema = ms_schema, table = 'test_default_dtypes')
 
     return db_int, db_geom, sql_int, sql_geom

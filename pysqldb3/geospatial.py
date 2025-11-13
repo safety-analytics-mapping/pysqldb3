@@ -131,7 +131,7 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
                                 col=col_name, shortened_col = shortened_col
                                 )
             elif dbo.type == MS:
-                results += " , cast([{col}] as date) [{shortened_col}_dt], cast(cast([{col}] as time) as varchar)" \
+                results += " , convert(datetime, [{col}]) [{shortened_col}_dt], convert(varchar, convert(time, [{col}]))" \
                                 " [{shortened_col}_tm] ".format(
                                 col=col_name, shortened_col = shortened_col
                                 )
@@ -221,6 +221,11 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_t
     
     # update allows you to add an extra table into an existing geopackage
         _update = '-update'
+        _overwrite = '' 
+
+    else: # if not overwrite and path ends with .shp instead
+
+        _update = ''
         _overwrite = ''
 
     # run the final command
