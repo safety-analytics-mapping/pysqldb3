@@ -818,7 +818,7 @@ class TestQueryToGpkgMs:
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when cast(t1.fld4 as date)=t2.fld4_dt then 1 else 0 end, -- shapefiles cannot store datetimes
+            case when convert(datetime, t1.fld4)=t2.fld4_dt then 1 else 0 end, -- shapefiles cannot store datetimes
             case when cast(t1.fld4 as time)=t2.fld4_tm then 1 else 0 end, -- shapefiles cannot store datetimes
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
@@ -872,7 +872,7 @@ class TestQueryToGpkgMs:
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when cast(t1.longfld4 as date)=t2.longfld_dt then 1 else 0 end, -- shapefiles cannot store datetimes
+            case when convert(datetime, t1.longfld4)=t2.longfld_dt then 1 else 0 end, -- shapefiles cannot store datetimes
             case when cast(t1.longfld4 as time)=t2.longfld_tm then 1 else 0 end, -- shapefiles cannot store datetimes
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
