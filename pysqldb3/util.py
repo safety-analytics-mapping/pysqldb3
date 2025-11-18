@@ -444,6 +444,8 @@ def rename_geom(db, schema, table):
             f = 'wkb_geometry'
         elif 'shape' in [i[0] for i in db.internal_queries[-1].data]:
             f = 'shape'
+        elif 'geometry' in [i[0] for i in db.internal_queries[-1].data]:
+            f = 'geometry'
 
         if f:
             # Rename column
