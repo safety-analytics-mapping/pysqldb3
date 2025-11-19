@@ -276,10 +276,11 @@ class TestReadShpMS:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
+        assert sql.tables_created[-1] == (sql.server, sql.database, ms_schema, test_read_shp_table_name)
         # Cleanup
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
-        assert sql.tables_created[-1] == (sql.server, sql.database, ms_schema, test_read_shp_table_name)
+
 
     def test_read_shp_zip(self):
         # fp = r'C:/Users/SHostetter/Desktop/GIS/nyad_21c.zip\yad_21c'
