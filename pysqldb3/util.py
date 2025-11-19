@@ -405,7 +405,7 @@ def rename_geom(db, schema, table):
                 """, timeme=False, internal=True)
     f = None
 
-    geom_set = {'wkb_geometry', 'shape', 'Shape', 'geometry', 'SHAPE'}
+    geom_set = {'wkb_geometry', 'shape', 'Shape', 'geometry', 'SHAPE', 'ogr_geometry'}
     comparison_set = {i[0] for i in db.internal_queries[-1].data}
 
     f = comparison_set.intersection(geom_set) # this finds the intersection of the 2 sets (the geometry field)
