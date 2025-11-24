@@ -91,7 +91,7 @@ class TestReadShpPG:
         # fp = 'C:/Users/SHostetter/Desktop/GIS/GIS.zip'
         # shp_name = "Hisa_yellow_10_14.shp"
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/shp_test.zip'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
@@ -286,7 +286,7 @@ class TestReadShpMS:
         # fp = 'C:/Users/SHostetter/Desktop/GIS/GIS.zip'
         # shp_name = "Hisa_yellow_10_14.shp"
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/shp_test.zip'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
