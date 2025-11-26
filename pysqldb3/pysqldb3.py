@@ -912,7 +912,7 @@ class DbConnect:
             schema = self.default_schema
 
         if self.type == PG:
-            self.query(f'alter table {schema}.{table} rename column "{old_column}" to {new_column}', internal = True)
+            self.query(f"alter table {schema}.{table} rename column {old_column} to {new_column}", internal = True)
         elif self.type == MS:
             self.query(f"EXEC sp_RENAME '{schema}.{table}.{old_column}', '{new_column}', 'COLUMN'", internal = True)
 
