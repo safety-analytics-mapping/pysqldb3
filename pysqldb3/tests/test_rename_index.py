@@ -183,8 +183,8 @@ class TestRenameIndexPG:
         q = """
             select 1 id, 'test text' txt, st_setsrid(st_makepoint(1015329.1, 213793.1),2263) geom
         """
-        db.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        db.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=test_table + '.shp')
+        db.query_to_shp(q, path=os.path.join(fldr,test_table + '.shp'))
+        db.shp_to_table(path=os.path.join(fldr, test_table + '.shp'), table=test_table, schema=schema)
 
         # check index on org table
         print(self.get_indexes(test_table, schema))

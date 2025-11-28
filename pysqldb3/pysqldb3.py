@@ -2041,7 +2041,7 @@ class DbConnect:
         write_geospatial(dbo = self, path = path, query = query, gpkg_tbl = gpkg_tbl,
                             overwrite = overwrite, cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
 
-    def shp_to_table(self, shp_name, path=None, table=None, schema=None, feature_class = None, cmd=None,
+    def shp_to_table(self, path,  shp_name = None, table=None, schema=None, feature_class = None, cmd=None,
                      srid=2263, port=5432, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      shp_encoding=None, extra_cmd = None, print_cmd=False, days=7):
         """
