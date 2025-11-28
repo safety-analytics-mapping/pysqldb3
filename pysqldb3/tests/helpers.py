@@ -505,6 +505,7 @@ def identify_default_dtypes(db, sql, ms_schema = ''):
 
     """
     Identify default data types in PostgreSQL and MS SQL Servers for integer, varchar, and geometry.
+    This was created to address "USER-DEFINED" data types or variations in data type names.
     :param db: Database connection
     :param ms_schema: SQL Server schema
     """

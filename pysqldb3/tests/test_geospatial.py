@@ -1718,6 +1718,8 @@ class TestReadShpMS:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
+        assert sql.tables_created[-1] == (sql.server, sql.database, ms_schema, test_read_shp_table_name)
+
         # Cleanup
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
 
@@ -2422,16 +2424,7 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        # identify the uploaded geometry column name, because it can be named geom or Shape depending on user's computer
-        geom_column_name = db.dfquery(f"""
-        select distinct column_name
-                    from information_schema.columns
-                    where table_name = '{test_feature_class_table_name}'
-                        and table_schema = '{pg_schema}'
-                        and data_type = '{db_geom}'
-                        """)['column_name'][0]
-        
-        db.query(f'select distinct st_srid("{geom_column_name}") from {pg_schema}.{test_feature_class_table_name}')
+        db.query(f'select distinct st_srid(geom) from {pg_schema}.{test_feature_class_table_name}')
         assert db.data[0][0] == 4326
 
         db.drop_table(pg_schema, test_feature_class_table_name)
@@ -2454,20 +2447,12 @@ class TestFeatureClassToTablePg:
         types = {i[1] for i in db.data}
 
         # identify the uploaded geometry column name, because it can be named geom or Shape depending on user's computer
-        geom_column_name = db.dfquery(f"""
-        select distinct column_name
-                    from information_schema.columns
-                    where table_name = '{test_feature_class_table_name}'
-                        and table_schema = '{db.default_schema}'
-                        and data_type = '{db_geom}'
-                        """)['column_name'][0]
 
-        assert {'vintersect', 'objectid', geom_column_name, 'nodeid'}.issubset(columns)
+        assert {'vintersect', 'objectid', 'geom', 'nodeid'}.issubset(columns)
         assert {db_int, db_int, 'character varying', db_geom}.issubset(types)
-
         # check non geom data
         db.query(f"""
-                    select nodeid, vintersect, st_astext("{geom_column_name}", 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+                    select nodeid, vintersect, st_astext(geom, 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
                 """)
 
         row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.1 126536.1)'),
@@ -2481,7 +2466,7 @@ class TestFeatureClassToTablePg:
 
         # check geom matches (less than 1 ft off
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("{geom_column_name}", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(914145.1,126536.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=88
@@ -2489,7 +2474,7 @@ class TestFeatureClassToTablePg:
         assert db.data[0][0] < 1
 
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("{geom_column_name}", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(920184.0, 138084.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=888
@@ -2621,15 +2606,6 @@ class TestFeatureClassToTableMs:
 
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
-        # query the data_type of the geometry field since it can vary based on user's computer
-        geom_column_name = sql.dfquery(f"""
-                    select distinct column_name
-                    from INFORMATION_SCHEMA.COLUMNS
-                    where table_name = '{test_feature_class_table_name}'
-                        and table_schema='{sql.default_schema}'
-                        and data_type = '{sql_geom}'
-                    """)['column_name'][0]
-
         # run the query to identify all column names and types from the test table
         sql.query(f"""
                 select column_name, data_type
@@ -2641,11 +2617,11 @@ class TestFeatureClassToTableMs:
         columns = {i[0] for i in sql.data}
         types = {i[1] for i in sql.data}
 
-        assert {'objectid', geom_column_name, 'nodeid', 'vintersect'}.issubset(columns)
-        assert {sql_int, sql_geom, sql_int, 'nvarchar'}.issubset(types)
+        assert {'objectid', 'geom', 'nodeid', 'vintersect'}.issubset(columns)
+        assert {sql_int, sql_geom, 'nvarchar'}.issubset(types)
 
         # check non geom data
-        sql.query(f"""select nodeid, vintersect, {geom_column_name}.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+        sql.query(f"""select nodeid, vintersect, geom.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
                         """)
 
         row_values = [(88, 'VirtualIntersection', 'MULTIPOINT ((914145.06807594 126536.07138967514))'),
@@ -2658,14 +2634,14 @@ class TestFeatureClassToTableMs:
 
         # check geom matches (less than 1 ft off)
         sql.query(f"""
-            select {geom_column_name}.STGeometryN(1).STDistance(geometry::Point(914145.1,126536.1, 2263))
+            select geom.STGeometryN(1).STDistance(geometry::Point(914145.1,126536.1, 2263))
             from {sql.default_schema}.{test_feature_class_table_name}
             where nodeid=88
         """)
         assert sql.data[0][0] < 1
 
         sql.query(f"""
-            select {geom_column_name}.STGeometryN(1).STDistance(geometry::Point(920184.0, 138084.1, 2263))
+            select geom.STGeometryN(1).STDistance(geometry::Point(920184.0, 138084.1, 2263))
             from {sql.default_schema}.{test_feature_class_table_name}
             where nodeid=888
                 """)
