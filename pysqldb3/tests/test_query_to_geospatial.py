@@ -34,7 +34,8 @@ pg_schema = 'working'
 
 FOLDER_PATH = helpers.DIR
 
-db_int, db_geom, sql_int, sql_geom = helpers.identify_default_dtypes(db, sql, ms_schema)
+db_int, db_geom = helpers.identify_default_dtypes(db, pg_schema)
+sql_int, sql_geom = helpers.identify_default_dtypes(sql, ms_schema)
 
 class TestQueryToGpkgPg:
 
@@ -152,14 +153,8 @@ class TestQueryToGpkgPg:
         assert 'id2 (Integer) = 2' in str(ogr_response_gpkg), "table was not overwritten in the geopackage"
 
         # check the data types
-        db.query(f"""
-            select column_name, data_type
-            from information_schema.columns
-            where table_name = '{test_table}_2'
-                and table_schema = '{pg_schema}'
-                        """)
-        
-        types = {i[1] for i in db.data}
+        data_types = db.get_table_columns(test_table, schema = pg_schema)
+        types = {i[1] for i in data_types}
         assert {db_int, 'text', 'timestamp without time zone', db_geom}.issubset(types)
         
         # clean up
@@ -818,7 +813,7 @@ class TestQueryToGpkgMs:
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when convert(datetime, t1.fld4)=t2.fld4_dt then 1 else 0 end, -- shapefiles cannot store datetimes
+            case when convert(date, t1.fld4)=t2.fld4_dt then 1 else 0 end, -- shapefiles cannot store datetimes
             case when cast(t1.fld4 as time)=t2.fld4_tm then 1 else 0 end, -- shapefiles cannot store datetimes
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
@@ -872,7 +867,7 @@ class TestQueryToGpkgMs:
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when convert(datetime, t1.longfld4)=t2.longfld_dt then 1 else 0 end, -- shapefiles cannot store datetimes
+            case when convert(date, t1.longfld4)=t2.longfld_dt then 1 else 0 end, -- shapefiles cannot store datetimes
             case when cast(t1.longfld4 as time)=t2.longfld_tm then 1 else 0 end, -- shapefiles cannot store datetimes
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
@@ -880,6 +875,7 @@ class TestQueryToGpkgMs:
         join {ms_schema}.{test_table}QA t2
         on t1.fld1=t2.fld1
         """)
+
         assert set(sql.data[0]) == {1}
 
         # clean up
@@ -1292,14 +1288,9 @@ class TestQueryToShpMs:
         assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
 
         # check the data types
-        sql.query(f"""
-            select column_name, data_type
-            from information_schema.columns
-            where table_name = '{test_table}'
-                and table_schema = '{ms_schema}'
-                        """)
+        table_types = sql.get_table_columns(test_table, schema = ms_schema)
+        types = [x[1] for x in table_types]
         
-        types = {i[1] for i in sql.data}
         assert {sql_int, 'text', 'datetime', sql_geom}.issubset(types)
         
         # clean up

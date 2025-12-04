@@ -501,7 +501,7 @@ def clean_up_geopackage():
     print ('Deleting any existing gpkg')
 
 
-def identify_default_dtypes(db, sql, ms_schema = ''):
+def identify_default_dtypes(db, schema = 'working'):
 
     """
     Identify default data types in PostgreSQL and MS SQL Servers for integer, varchar, and geometry.
@@ -509,44 +509,22 @@ def identify_default_dtypes(db, sql, ms_schema = ''):
     :param db: Database connection
     :param ms_schema: SQL Server schema
     """
+    db.query(f"""
     
-    ### POSTGRESQL ###
-
-    data_types_db = db.dfquery("""
+        drop table if exists {schema}.test_default_dtypes;                               
+        create table {schema}.test_default_dtypes(int_col int, geom geometry);
+        insert into {schema}.test_default_dtypes
+            VALUES(1, {"geometry::STGeomFromText('POINT(1015329.1 213793.1)', 2263)" 
+                       if db.type == 'MS'
+                       else "st_setsrid(st_point(1015329.1, 213793.1), 2263)::geometry"});
+        """)
     
-        drop table if exists test_default_dtypes;
-                               
-        create temp table test_default_dtypes as
-        select 1 as int_col,
-        st_setsrid(st_point(1015329.1, 213793.1), 2263)::geometry as geom;
+    data_types = db.get_table_columns('test_default_dtypes', schema = schema)
 
-	    select column_name, data_type
-        FROM information_schema.columns
-        WHERE table_name = 'test_default_dtypes';
-        """)['data_type']
-    
-    db_int = data_types_db[0]
-    db_geom = data_types_db[1]
-
-    ### MS SQL SERVER ###
-    # not done in temp table since there is an issue with geometry dtype in SQL Server
-
-    data_types_sql = sql.dfquery(f"""
-                                 
-        drop table if exists [{ms_schema}].[test_default_dtypes];
-        create table [{ms_schema}].[test_default_dtypes] (int_col int, geom geometry);
-        insert into [{ms_schema}].[test_default_dtypes] VALUES(1, geometry::STGeomFromText('POINT(1015329.1 213793.1)', 2263));
-            
-        select * FROM INFORMATION_SCHEMA.COLUMNS
-                WHERE table_schema = '{ms_schema}' 
-                AND table_name = 'test_default_dtypes';
-                          """)['DATA_TYPE']
-    
-    sql_int = data_types_sql[0]
-    sql_geom = data_types_sql[1]
+    db_int = data_types[0][1]
+    db_geom = data_types[1][1]
 
     # drop the tables
-    db.query("drop table if exists test_default_types;")
-    sql.drop_table(schema = ms_schema, table = 'test_default_dtypes')
+    db.drop_table(schema = schema, table = 'test_default_types')
 
-    return db_int, db_geom, sql_int, sql_geom
+    return db_int, db_geom

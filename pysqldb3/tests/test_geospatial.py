@@ -47,7 +47,8 @@ pg_schema = 'working'
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node.shp'
 
-db_int, db_geom, sql_int, sql_geom = helpers.identify_default_dtypes(db, sql, ms_schema)
+db_int, db_geom = helpers.identify_default_dtypes(db, pg_schema)
+sql_int, sql_geom = helpers.identify_default_dtypes(sql, ms_schema)
 
 class TestReadgpkgPG:
     @classmethod
@@ -442,6 +443,7 @@ class TestReadgpkgMS:
 
 
 class TestWritegpkgPG:
+
     @classmethod
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
@@ -654,7 +656,6 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         db.drop_table(schema = pg_schema, table = test_write_gpkg_table_name)
-        db.drop_table(schema = pg_schema, table = test_reuploaded_table_name)
 
         db.query(f"""
 
@@ -843,9 +844,9 @@ class TestWritegpkgMS:
 
         # Add test_table
         sql.query(f"""
-        create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, dte datetime, geom geometry);
-        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
-        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        create table {ms_schema}.{test_write_gpkg_table_name} (test_col1 int, test_col2 int, geom geometry);
+        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, 2, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(3, 4, geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
         gpkg_name = 'test_write.gpkg'
@@ -2152,6 +2153,7 @@ class TestWriteShpPG:
         cmd_shp = f'ogrinfo -so -al "{FOLDER_PATH}/{shp_name}" '
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
         assert 'dt_col_dt: Date' in str(ogr_response_shp), "'dt_col_dt column is not a Date data type when it should be"
+        assert 'dt_col: Timedate' in str(ogr_response_shp), "'dt_col column is not a Datetime data type when it should be"
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_write_shp_table_name)
@@ -2371,6 +2373,7 @@ class TestWriteShpMS:
         helpers.clean_up_shapefile()
 
 class TestFeatureClassToTablePg:
+
     @classmethod
     def setup_class(cls):
         helpers.set_up_feature_class()
@@ -2543,6 +2546,7 @@ class TestFeatureClassToTablePg:
 
 
 class TestFeatureClassToTableMs:
+
     @classmethod
     def setup_class(cls):
         helpers.set_up_feature_class()
@@ -2748,6 +2752,7 @@ class TestSHPDeleteIndexPG:
 
 
 class TestSHPDeleteIndexMS:
+
     @classmethod
     def setup_class(cls):
         # Setup; create sample file

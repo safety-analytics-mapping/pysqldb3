@@ -131,7 +131,7 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
                                 col=col_name, shortened_col = shortened_col
                                 )
             elif dbo.type == MS:
-                results += " , convert(datetime, [{col}]) [{shortened_col}_dt], convert(varchar, convert(time, [{col}]))" \
+                results += " , convert(date, [{col}]) [{shortened_col}_dt], convert(varchar, convert(time, [{col}]))" \
                                 " [{shortened_col}_tm] ".format(
                                 col=col_name, shortened_col = shortened_col
                                 )
