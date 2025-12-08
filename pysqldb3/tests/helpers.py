@@ -526,3 +526,34 @@ def clean_up_geopackage():
             os.remove(_fle)
 
     print ('Deleting any existing gpkg')
+
+
+def identify_default_dtypes(db, schema = 'working'):
+
+    """
+    Identify default data types in PostgreSQL and MS SQL Servers for integer, varchar, and geometry.
+    This was created to address "USER-DEFINED" data types or variations in data type names.
+    :param db: Database connection
+    :param ms_schema: SQL Server schema
+    """
+    db.query(f"""
+    
+        drop table if exists {schema}.test_default_dtypes;                               
+        create table {schema}.test_default_dtypes(int_col int, geom geometry);
+        insert into {schema}.test_default_dtypes
+            VALUES(1, {"geometry::STGeomFromText('POINT(1015329.1 213793.1)', 2263)" 
+                       if db.type == 'MS'
+                       else "st_setsrid(st_point(1015329.1, 213793.1), 2263)::geometry"});
+        """)
+
+    data_types = db.get_table_columns('test_default_dtypes', schema = schema)
+
+    # drop the tables
+    db.drop_table(schema = schema, table = 'test_default_dtypes')
+    assert not db.table_exists(schema = schema, table = 'test_default_dtypes')
+
+    # isolate data type and remove the character limit
+    db_int = data_types[0][1]
+    db_geom = data_types[1][1]
+
+    return db_int, db_geom

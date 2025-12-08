@@ -3,7 +3,7 @@ import configparser
 import pandas as pd
 import subprocess
 import shlex
-import pytest
+import re
 
 from .. import pysqldb3 as pysqldb
 from .. import geospatial as s
@@ -47,6 +47,8 @@ pg_schema = 'working'
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node.shp'
 
+db_int, db_geom = helpers.identify_default_dtypes(db, pg_schema)
+sql_int, sql_geom = helpers.identify_default_dtypes(sql, ms_schema)
 
 # TODO -  detect int types for GDAL and detect default geo column name for testing variables
 
@@ -447,29 +449,6 @@ class TestWritegpkgPG:
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
 
-    # todo - was missing test for table - didnt catch paren issue - add more tests
-    def test_write_shp_table(self):
-        db.query(f"""
-               drop table if exists {pg_schema}.{test_write_gpkg_table_name};
-
-               create table {pg_schema}.{test_write_gpkg_table_name} as
-               select *, now() as dt_col
-               from {pg_schema}.{pg_table_name}
-               order by id
-               limit 100
-               """)
-        shp_name = 'wrtie_shp_test.shp'
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema,
-                           table=test_write_gpkg_table_name)
-
-        # Assert successful
-        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
-
-        # clean up
-        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
-        os.remove(os.path.join(FOLDER_PATH, shp_name))
-
-
     def test_write_gpkg_table(self):
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name};
@@ -864,7 +843,7 @@ class TestWritegpkgMS:
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = sql.dfquery(f"""
         select distinct b.geom.STDistance(a.geom) as distance
-        from {ms_schema}.{test_reuploaded_table_name} b
+        from {ms_schema}.{test_write_gpkg_table_name} b
         join {ms_schema}.{test_reuploaded_table_name} a
             on b.test_col1=a.test_col1
         """)
@@ -1958,7 +1937,7 @@ class TestWriteShpPG:
         s.upload_geospatial(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
-        db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
+        db_df = db.dfquery(f"select * from {pg_schema}.{test_write_shp_table_name} order by id limit 100")
         shp_uploaded_df = db.dfquery(f"select * from {pg_schema}.{test_reuploaded_table_name} order by id")
 
         assert len(db_df) == len(shp_uploaded_df)
@@ -2086,11 +2065,34 @@ class TestWriteShpPG:
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(FOLDER_PATH, shp_name.replace('shp', ext)))
 
+    def test_write_shp_dates_table(self):
+
+        shp_name = 'test_write.shp'
+
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_write_shp_table_name};
+                create table {pg_schema}.{test_write_shp_table_name} as
+                select  now() as dt_col,
+                        current_date as dt_col2,
+                        cast('2020-01-01' as date) as next_dt_col,
+                        geom
+                from {pg_schema}.{pg_table_name};
+                """)
+
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema, table=test_write_shp_table_name, overwrite = True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
+
+        # check that Date column is set as a Date type
+        cmd_shp = f'ogrinfo -so -al "{FOLDER_PATH}/{shp_name}" '
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        assert 'dt_col_dt: Date' in str(ogr_response_shp), "'dt_col_dt column is not a Date data type when it should be"
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
         helpers.clean_up_shapefile()
-
 
 class TestWriteShpMS:
     def test_write_shp_table(self):
@@ -2130,7 +2132,7 @@ class TestWriteShpMS:
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = sql.dfquery(f"""
         select distinct b.geom.STDistance(a.geom) as distance
-        from {ms_schema}.{test_reuploaded_table_name} b
+        from {ms_schema}.{test_write_shp_table_name} b
         join {ms_schema}.{test_reuploaded_table_name} a
         on b.test_col1=a.test_col1
         """)
@@ -2260,6 +2262,39 @@ class TestWriteShpMS:
             except Exception as e:
                 print(e)
 
+    def test_write_shp_dates_table(self):
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+
+        # Add test_table
+        sql.query(f"""
+        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, test_col2 int, dte_standard date, dte datetime, geom geometry);
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, 2, getdate(), current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, 4, getdate(), current_timestamp, geometry::Point(985831.79200444, 203371.60461367, 2263));
+        """)
+
+        fp = FOLDER_PATH
+        shp_name = 'test_write.shp'
+
+        # Write shp
+        s.write_geospatial(dbo=sql, path= os.path.join(fp, shp_name), table=test_write_shp_table_name, schema=ms_schema, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(fp, shp_name))
+
+        # check that Date column is set as a Date type
+        cmd_shp = f'ogrinfo -so -al "{FOLDER_PATH}/{shp_name}" '
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        assert 'dte: Date' in str(ogr_response_shp), "'dte column is not a Date data type when it should be"
+
+        # Clean up
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+
+        for ext in ('dbf', 'prj', 'shx', 'shp'):
+            try:
+                os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
+            except Exception as e:
+                print(e)
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql)
@@ -2319,7 +2354,7 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        db.query(f'select distinct st_srid("Shape") from {pg_schema}.{test_feature_class_table_name}')
+        db.query(f'select distinct st_srid(geom) from {pg_schema}.{test_feature_class_table_name}')
         assert db.data[0][0] == 4326
 
         db.drop_table(pg_schema, test_feature_class_table_name)
@@ -2332,21 +2367,21 @@ class TestFeatureClassToTablePg:
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.query(f"""
-            SELECT column_name, data_type
+            SELECT column_name, data_type, udt_name
             FROM information_schema.columns
             WHERE table_name = '{test_feature_class_table_name}'
             AND table_schema = '{db.default_schema}'
         """)
 
         columns = {i[0] for i in db.data}
-        types = {i[1] for i in db.data}
+        types = {i[1] if i[1] != 'USER-DEFINED' else i[2] for i in db.data} # use udt_type if user-defined
 
-        assert {'vintersect', 'objectid', 'Shape', 'nodeid'}.issubset(columns)
-        assert {'integer', 'integer', 'character varying', 'USER-DEFINED'}.issubset(types)
+        assert {'vintersect', 'objectid', 'geom', 'nodeid'}.issubset(columns)
+        assert {db_int, 'character varying', db_geom}.issubset(types)
 
         # check non geom data
         db.query(f"""
-                    select nodeid, vintersect, st_astext("Shape", 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+                    select nodeid, vintersect, st_astext(geom, 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
                 """)
 
         row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.1 126536.1)'),
@@ -2360,7 +2395,7 @@ class TestFeatureClassToTablePg:
 
         # check geom matches (less than 1 ft off
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("Shape", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(914145.1,126536.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=88
@@ -2368,7 +2403,7 @@ class TestFeatureClassToTablePg:
         assert db.data[0][0] < 1
 
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("Shape", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(920184.0, 138084.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=888
@@ -2434,7 +2469,6 @@ class TestFeatureClassToTablePg:
     @classmethod
     def teardown_class(cls):
         db.cleanup_new_tables()
-
 
 class TestFeatureClassToTableMs:
     @classmethod
@@ -2507,10 +2541,10 @@ class TestFeatureClassToTableMs:
         """)
 
         columns = {i[0] for i in sql.data}
-        types = {i[1] for i in sql.data}
-
+        types = {re.sub('\s\((.*)\)$', '', i[1]) for i in sql.data}
+                     
         assert {'objectid', 'geom', 'nodeid', 'vintersect'}.issubset(columns)
-        assert {'int', 'geometry', 'int', 'nvarchar'}.issubset(types)
+        assert {sql_int, sql_geom, 'nvarchar'}.issubset(types)
 
         # check non geom data
         sql.query(f"""select nodeid, vintersect, geom.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
@@ -2586,7 +2620,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema, shp_name='lion.gdb',
+        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema,
                                     extra_cmd='-nlt MULTILINESTRING')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 

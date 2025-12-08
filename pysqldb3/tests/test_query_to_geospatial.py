@@ -32,6 +32,9 @@ test_table_shp = f'__testing_query_to_geospatial_{db.user}__'
 ms_schema = 'dbo'
 pg_schema = 'working'
 
+db_int, db_geom = helpers.identify_default_dtypes(db, pg_schema)
+sql_int, sql_geom = helpers.identify_default_dtypes(sql, ms_schema)
+
 FOLDER_PATH = helpers.DIR
 
 class TestQueryToGpkgPg:
@@ -805,8 +808,7 @@ class TestQueryToGpkgMs:
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when cast(t1.fld4 as date)=t2.fld4_dt then 1 else 0 end, -- shapefiles cannot store datetimes
-            case when cast(t1.fld4 as time)=t2.fld4_tm then 1 else 0 end, -- shapefiles cannot store datetimes
+            case when t1.fld4 =t2.fld4 then 1 else 0 end,
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
         from {ms_schema}.{test_table} t1
@@ -859,8 +861,7 @@ class TestQueryToGpkgMs:
         select
             case when t1.fld2 = t2.fld2 then 1 else 0 end,
             case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when cast(t1.longfld4 as date)=t2.longfld_dt then 1 else 0 end, -- shapefiles cannot store datetimes
-            case when cast(t1.longfld4 as time)=t2.longfld_tm then 1 else 0 end, -- shapefiles cannot store datetimes
+            case when t1.longfld4=t2.longfld4 then 1 else 0 end,
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
             case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
         from {ms_schema}.{test_table} t1
@@ -903,10 +904,10 @@ class TestQueryToShpPg:
         db.drop_table(schema = pg_schema, table = test_table)
         # create table
         db.query(f"""
-            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, geom geometry(Point));
+            CREATE TABLE {pg_schema}.{test_table} (id int, txt text, dte timestamp, dt2 date, geom geometry(Point));
 
             INSERT INTO {pg_schema}.{test_table}
-             VALUES (1, 'test text', now(), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
+             VALUES (1, 'test text', now(),  cast('2020-01-01' as date), st_setsrid(st_makepoint(1015329.1, 213793.1), 2263))
         """)
         assert db.table_exists(test_table, schema=pg_schema)
 
@@ -920,6 +921,11 @@ class TestQueryToShpPg:
         cmd = r'gdalsrsinfo {}\{}'.format(fldr, shp).replace('\\', '/')
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
         assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
+
+        # check the data types
+        table_types = db.get_table_columns(test_table, schema = pg_schema)
+        types = [x[1] for x in table_types]
+        assert {db_int, 'text', 'timestamp without time zone', 'date', db_geom}.issubset(types)
 
         # clean up
         db.drop_table(pg_schema, test_table)
@@ -1278,6 +1284,12 @@ class TestQueryToShpMs:
         ogr_response = subprocess.check_output(shlex.split(cmd), stderr=subprocess.STDOUT)
         assert b'"EPSG",2263' in ogr_response or b'"EPSG","2263"' in ogr_response
 
+        # check the data types
+        table_types = sql.get_table_columns(test_table, schema = ms_schema)
+        types = [x[1] for x in table_types]
+
+        assert {sql_int, 'text', 'datetime', sql_geom}.issubset(types)
+        
         # clean up
         sql.drop_table(ms_schema, test_table_shp)
         for ext in ('dbf', 'prj', 'shx', 'shp'):

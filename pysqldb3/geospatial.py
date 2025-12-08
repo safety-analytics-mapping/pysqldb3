@@ -78,13 +78,14 @@ def geospatial_tbl_exists(path, geospatial_tbl):
         
     return geo_tbl_exists
 
-def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
+def write_geo_cmd_query(dbo, query_or_table, path, is_query = False, schema = ''):
 
     """
     Format the query or table from the database to be written to a Geospatial file.
     Formats columns with special characters and/or datetime columns to be compatible with output file.
     :param dbo: Database connection
     :param query_or_table: The specific query or table name to be written to a Geospatial file
+    :param path: Output file path to check if it is a Shp file
     :param is_query (bool): Boolean for whether or not it is a query being written to Geospatial file.
                             Defaults to False (table); if it's query, set to True.
     :param schema: Optional schema name; used only if the command is calling a table
@@ -109,8 +110,7 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
     columns_with_brackets = [left_bracket + c[0] + right_bracket for c in columns_with_types]
 
     # identify date columns if they are in the intended output
-    dt_col_names = [c for c in columns_with_types if c[1] is not None] ## TODO - what is this doing/is it needed?
-    dt_col_names = [c[0] for c in dt_col_names if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
+    dt_col_names = [c[0] for c in columns_with_types if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
 
     # if there are no date columns, we can query immediately
     if len(dt_col_names) == 0:
@@ -131,7 +131,8 @@ def write_geo_cmd_query(dbo, query_or_table, is_query = False, schema = ''):
                                 'cast(cast(\\"{col}\\" as time) as varchar) \\"{shortened_col}_tm\\" '.format(
                                 col=col_name, shortened_col = shortened_col
                                 )
-            elif dbo.type == MS:
+            elif dbo.type == MS and path.endswith('shp'):
+                # date type only needs correction for MS Shp, not GPKG
                 results += " , cast([{col}] as date) [{shortened_col}_dt], cast(cast([{col}] as time) as varchar)" \
                                 " [{shortened_col}_tm] ".format(
                                 col=col_name, shortened_col = shortened_col
@@ -185,9 +186,8 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_t
         # if input is query overwrite params for write_geo_cmd_query()
         is_query = True
         query_or_table = query
-    # generate GDAL command
-    qry = write_geo_cmd_query(dbo, schema = schema, query_or_table = query_or_table, is_query = is_query)
-
+    # generate sql for GDAL command
+    qry = write_geo_cmd_query(dbo, schema = schema, query_or_table = query_or_table, is_query = is_query, path = path)
 
     # clean up the output file name
     # need 2 statements because of the difference in characters
@@ -222,6 +222,11 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_t
     
     # update allows you to add an extra table into an existing geopackage
         _update = '-update'
+        _overwrite = ''
+
+    else: # if not overwrite and path ends with .shp instead
+
+        _update = ''
         _overwrite = ''
 
     # run the final command
