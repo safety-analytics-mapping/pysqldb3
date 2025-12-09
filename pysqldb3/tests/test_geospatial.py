@@ -2541,10 +2541,10 @@ class TestFeatureClassToTableMs:
         """)
 
         columns = {i[0] for i in sql.data}
-        types = {re.sub('\s\((.*)\)$', '', i[1]) for i in sql.data}
+        types = {i[1] for i in sql.data} 
                      
         assert {'objectid', 'geom', 'nodeid', 'vintersect'}.issubset(columns)
-        assert {sql_int, sql_geom, 'nvarchar'}.issubset(types)
+        assert {sql_int, re.sub('\s\((.*)\)$', '', sql_geom), 'nvarchar'}.issubset(types) # remove the max chars parentheses so they match the default dtype table
 
         # check non geom data
         sql.query(f"""select nodeid, vintersect, geom.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
