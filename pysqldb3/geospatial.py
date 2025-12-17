@@ -109,17 +109,39 @@ def write_geo_cmd_query(dbo, query_or_table, path, is_query = False, schema = ''
 
     columns_with_brackets = [left_bracket + c[0] + right_bracket for c in columns_with_types]
 
+    # certain database connections + output formats require formatting for dates
+    if dbo.type == PG or (dbo.type == MS and path.endswith('shp')):
+        results = format_dte_columns(dbo, columns_with_types, columns_with_brackets, is_query, query_or_table, schema)
+    else:
+        results = ' , '.join([c for c in columns_with_brackets])
+
+        # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
+    if is_query:
+        return  f"select {results} from ({query_or_table}) q "
+    else:
+        return  f"select {results} from {schema}{query_or_table} q "
+
+def format_dte_columns(dbo, columns_with_types, columns_with_brackets, is_query, query_or_table, schema):
+
+    """
+    Format the DateTime column so the geospatial output fit has formatted Date and Time columns.
+    This is applicable if the table is in PG, or MS and the output is a Shp, because it does not automatically format these dates.
+    
+    :param dbo: Database connection
+    :param columns_with_types: Output of get_table_columns that returns the column name and data type
+    :param columns_with_brackets: Column names surrounded by brackets in case names have spaces
+    :param is_query (bool): Boolean for whether or not it is a query being written to Geospatial file.
+                            Defaults to False (table); if it's query, set to True.
+    :param query_or_table: The specific query or table name to be written to a Geospatial file
+    :param schema: Schema
+    """
+
     # identify date columns if they are in the intended output
     dt_col_names = [c[0] for c in columns_with_types if (('datetime' in c[1]) | ('timestamp' in c[1]))] # after, check if there is datetime / timestamp
 
     # if there are no date columns, we can query immediately
-    if len(dt_col_names) == 0:
-        if is_query:
-            return f'select * from ({query_or_table}) t'
-        else:
-            return f'select * from {schema}{query_or_table}'
+    if len(dt_col_names) > 0:
 
-    else:
         # if a date column exists, we must reformat them so that they will be compatible with Shp/Gpkg file
         results = ' , '.join([c for c in columns_with_brackets if c not in dt_col_names])
 
@@ -131,18 +153,17 @@ def write_geo_cmd_query(dbo, query_or_table, path, is_query = False, schema = ''
                                 'cast(cast(\\"{col}\\" as time) as varchar) \\"{shortened_col}_tm\\" '.format(
                                 col=col_name, shortened_col = shortened_col
                                 )
-            elif dbo.type == MS and path.endswith('shp'):
+            elif dbo.type == MS:
                 # date type only needs correction for MS Shp, not GPKG
                 results += " , cast([{col}] as date) [{shortened_col}_dt], cast(cast([{col}] as time) as varchar)" \
                                 " [{shortened_col}_tm] ".format(
                                 col=col_name, shortened_col = shortened_col
                                 )
 
-        # Wrap the original query and select the non-datetime/timestamp columns and the parsed out dates/times
-        if is_query:
-            return  f"select {results} from ({query_or_table}) q "
-        else:
-            return  f"select {results} from {schema}{query_or_table} q "
+    else:
+        results = '*'
+
+    return results
 
 def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_tbl = None,
                         srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
