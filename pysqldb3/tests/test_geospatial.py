@@ -799,6 +799,32 @@ class TestWritegpkgPG:
         db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
+    def test_write_gpkg_dates_table(self):
+        db.query(f"""
+        drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+        create table {pg_schema}.{test_write_gpkg_table_name} as
+        select now() dt_format, current_date today
+        """)
+
+        gpkg_name = 'testgpkg.gpkg'
+
+        # Write gpkg
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Assert that date columns are in the proper format
+        cmd_shp = f'ogrinfo -so -al "{FOLDER_PATH}/{gpkg_name}" '
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        assert 'dt_form_dt: Date' in str(ogr_response_shp), "'dt_form_dt column is not a Date data type when it should be"
+        assert 'dt_form_tm: String' in str(ogr_response_shp), "'dt_form_tm column is not a String data type when it should be"
+        assert 'today: Date' in str(ogr_response_shp), "'today column is not a Date data type when it should be"
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
@@ -2088,6 +2114,7 @@ class TestWriteShpPG:
         cmd_shp = f'ogrinfo -so -al "{FOLDER_PATH}/{shp_name}" '
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
         assert 'dt_col_dt: Date' in str(ogr_response_shp), "'dt_col_dt column is not a Date data type when it should be"
+        assert 'dt_col_tm: String' in str(ogr_response_shp), "'dt_col_tm column is not a String data type when it should be"
 
     @classmethod
     def teardown_class(cls):
