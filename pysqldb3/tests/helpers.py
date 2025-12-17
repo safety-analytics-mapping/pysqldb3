@@ -6,6 +6,7 @@ import zipfile
 import configparser
 import csv
 import openpyxl
+import xlsxwriter
 from xlrd import open_workbook
 from xlutils.copy import copy
 from zipfile import ZipFile
@@ -470,6 +471,57 @@ def set_up_xls():
         ws_write.append(row)
 
     wb.save(filename=xls_file3_bulk)
+
+    # create excel file with multiple headers
+    xls_file4_multirow_header = os.path.join(DIR, 'test_xls_multirow_headers.xlsx')
+    if os.path.isfile(xls_file4_multirow_header):
+        os.remove(xls_file4_multirow_header)
+
+    # headers
+    # cols B->J
+    header_row1 = ['Report Year', 'Location', '', 'Annual Crash Rates by Type', '', '', '', '', '']
+    header_row2 = ['', '', '', 'Fatailities VMT', '', 'Injuries VMT', '', 'PDO VMT', '']
+    header_row3 = ['', '', 'Segment', 'Date Collected', 'Data', 'Date Collected', 'Data', 'Date Collected', 'Data']
+    data = [
+        [2025, 'PS 154', 'ACP from CPN to 155 St', 2011, 0, 2011, 7.147, 2011,1.572],
+        [2025, 'PS 154', '8 ave from 125 to 155 St', 2011, 0, 2011, 8.414, 2011,1.505],
+        [2025, 'PS 154', '125 from 8 ave to 5 Ave', 2009, 0.061656938, 2009, 10.852, 2009,2.897876073]
+
+    ]
+
+    # Create a new Excel file and add a worksheet
+    workbook = xlsxwriter.Workbook(xls_file4_multirow_header)
+    worksheet = workbook.add_worksheet()
+
+    # format headers
+    header_format = workbook.add_format(
+        {'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#ADD8E6', 'border': 1})
+
+    # Write the 1st header row simple
+    for col_num, value in enumerate(header_row1[:4]):
+        worksheet.write(2, col_num+1, value, header_format)
+    # Write the 1st header row merged
+    worksheet.merge_range(2, 4, 2, 9, header_row1[3], header_format)
+
+    # Write the 2nd header row
+    worksheet.merge_range(2, 1, 4, 1, header_row1[0], header_format)
+    worksheet.merge_range(2, 2, 3, 2, header_row1[1], header_format)
+    worksheet.write(2, 3, '', header_format)
+    worksheet.write(3, 3, '', header_format)
+    worksheet.merge_range(3, 4, 3, 5, header_row2[3], header_format)
+    worksheet.merge_range(3, 6, 3, 7, header_row2[5], header_format)
+    worksheet.merge_range(3, 8, 3, 9, header_row2[7], header_format)
+
+    # Write the 3rd header row
+
+    for col_num, value in enumerate(header_row3):
+        worksheet.write(4, col_num+1, value, header_format)
+    # Write the data starting from col 2 row 5
+    for row_num, row_data in enumerate(data):
+        for col_num, value in enumerate(row_data):
+            worksheet.write(row_num + 5, col_num+1, value)
+
+    workbook.close()
 
 
 def set_up_geopackage(user):
