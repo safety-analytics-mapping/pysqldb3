@@ -363,7 +363,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
-    clean_geom_column(pg, dest_table, dest_schema)
+    rename_geom(pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
     pg.tables_created.append((pg.server, pg.database, dest_schema, dest_table))
@@ -467,7 +467,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
-    clean_geom_column(pg, dest_table, dest_schema)
+    rename_geom(pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
     pg.tables_created.append((pg.server, pg.database, dest_schema, dest_table))
@@ -651,7 +651,7 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
         raise subprocess.CalledProcessError(cmd=print_cmd_string([from_sql.password, to_sql.password], cmd),
                                             returncode=1)
 
-    clean_geom_column(to_sql, dest_table, dest_schema)
+    rename_geom(to_sql, dest_schema, dest_table)
 
     to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
 
@@ -862,7 +862,7 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([from_pg.password, to_pg.password], cmd), returncode=1)
 
-    clean_geom_column(to_pg, dest_table, dest_schema)
+    rename_geom(to_pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
     to_pg.tables_created.append((to_pg.server, to_pg.database, dest_schema, dest_table))
@@ -938,7 +938,7 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
         print ('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([from_pg.password, to_pg.password], cmd), returncode=1)
 
-    clean_geom_column(to_pg, dest_table, dest_schema)
+    rename_geom(to_pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
     to_pg.tables_created.append((to_pg.server, to_pg.database, dest_schema, dest_table))
