@@ -3,7 +3,7 @@ import configparser
 import pandas as pd
 import subprocess
 import shlex
-import pytest
+import re
 
 from .. import pysqldb3 as pysqldb
 from .. import geospatial as s
@@ -47,6 +47,8 @@ pg_schema = 'working'
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
 fc = 'node.shp'
 
+db_int, db_geom = helpers.identify_default_dtypes(db, pg_schema)
+sql_int, sql_geom = helpers.identify_default_dtypes(sql, ms_schema)
 
 # TODO -  detect int types for GDAL and detect default geo column name for testing variables
 
@@ -447,29 +449,6 @@ class TestWritegpkgPG:
     def setup_class(cls):
         helpers.set_up_test_table_pg(db)
 
-    # todo - was missing test for table - didnt catch paren issue - add more tests
-    def test_write_shp_table(self):
-        db.query(f"""
-               drop table if exists {pg_schema}.{test_write_gpkg_table_name};
-
-               create table {pg_schema}.{test_write_gpkg_table_name} as
-               select *, now() as dt_col
-               from {pg_schema}.{pg_table_name}
-               order by id
-               limit 100
-               """)
-        shp_name = 'wrtie_shp_test.shp'
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema,
-                           table=test_write_gpkg_table_name)
-
-        # Assert successful
-        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
-
-        # clean up
-        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
-        os.remove(os.path.join(FOLDER_PATH, shp_name))
-
-
     def test_write_gpkg_table(self):
         db.query(f"""
         drop table if exists {pg_schema}.{test_write_gpkg_table_name};
@@ -820,6 +799,62 @@ class TestWritegpkgPG:
         db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
+    def test_write_gpkg_dates_table(self):
+        db.query(f"""
+        drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+        create table {pg_schema}.{test_write_gpkg_table_name} as
+        select  cast('10/14/2010 19:12:00' as timestamp) dt_format,
+                cast('5/4/2003' as date) today
+        """)
+
+        gpkg_name = 'testgpkg.gpkg'
+
+        # Write gpkg
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Assert that date columns are in the proper format
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_write_gpkg_table_name}"'
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        assert 'dt_form_dt (Date) = 2010/10/14' in str(ogr_response_shp), "'dt_form_dt column is not returning hte correct Type and Date"
+        assert 'dt_form_tm (String) = 19:12:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
+        assert 'today (Date) = 2003/05/04' in str(ogr_response_shp), "'today column is not returning the correct Type & Date"
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
+    def test_write_gpkg_longdate_table(self):
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+                create table {pg_schema}.{test_write_gpkg_table_name} as
+                select  cast('10/14/2010 19:12:00' as timestamp) dtformatted2010,
+                        cast('7/11/1988 03:05:00' as timestamp) dtformatted201054
+                """)
+
+        gpkg_name = 'testgpkg.gpkg'
+
+        # Write gpkg
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Assert that date columns are in the proper format
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_write_gpkg_table_name}"'
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        assert 'dt_form_dt (Date) = 2010/10/14' in str(ogr_response_shp), "'dt_form_dt column is not returning the correct Date and Type"
+        assert 'dt_form_tm (String) = 19:12:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
+        assert 'dtformat (Date) = 1988/07/11' in str(ogr_response_shp), "'dt_form_dt column is not returning the correct Date and Type"
+        assert 'dtformat (String) = 03:05:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
@@ -864,7 +899,7 @@ class TestWritegpkgMS:
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = sql.dfquery(f"""
         select distinct b.geom.STDistance(a.geom) as distance
-        from {ms_schema}.{test_reuploaded_table_name} b
+        from {ms_schema}.{test_write_gpkg_table_name} b
         join {ms_schema}.{test_reuploaded_table_name} a
             on b.test_col1=a.test_col1
         """)
@@ -1122,6 +1157,28 @@ class TestWritegpkgMS:
 
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
         
+    def test_write_gpkg_dates_table(self):
+        
+        gpkg_name = 'testgpkg.gpkg'
+        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
+
+        # Add test_table
+        sql.query(f"""
+        create table {ms_schema}.{test_write_gpkg_table_name} (test_dt datetime);
+        insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(cast('11/12/1991 5:09:00' as datetime));
+        """)
+
+        # Write gpkg
+        s.write_geospatial(dbo=sql, query=f"select * from {ms_schema}.{test_write_gpkg_table_name}",
+                            path= os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+
+        # Check table in folder
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "SELECT * FROM {test_write_gpkg_table_name} LIMIT 1" -q'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)
+        assert 'test_dt (DateTime) = 1991/11/12 05:09:00' in str(ogr_response_gpkg), "not returning correct datetime and type"
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql)
@@ -1958,7 +2015,7 @@ class TestWriteShpPG:
         s.upload_geospatial(dbo = db, path=fp, input_file=shp_name, schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
-        db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
+        db_df = db.dfquery(f"select * from {pg_schema}.{test_write_shp_table_name} order by id limit 100")
         shp_uploaded_df = db.dfquery(f"select * from {pg_schema}.{test_reuploaded_table_name} order by id")
 
         assert len(db_df) == len(shp_uploaded_df)
@@ -2086,11 +2143,65 @@ class TestWriteShpPG:
         for ext in ('dbf', 'prj', 'shx', 'shp'):
             os.remove(os.path.join(FOLDER_PATH, shp_name.replace('shp', ext)))
 
+    def test_write_shp_dates_table(self):
+
+        shp_name = 'test_write.shp'
+
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_write_shp_table_name};
+                create table {pg_schema}.{test_write_shp_table_name} as
+                select  cast('1/1/2000 11:50:00 AM' as timestamp) as dt_col,
+                        cast('1/1/2000 11:50:00 AM' as timestamp) as dt_col2,
+                        cast('2020-01-01' as date) as next_dt_col,
+                        geom
+                from {pg_schema}.{pg_table_name};
+                """)
+
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema, table=test_write_shp_table_name, overwrite = True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
+
+        # check that Date column is set as a Date type
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        for dt_col in ['dt_col', 'dt_col2']:
+            assert f'{dt_col}_dt (Date) = 2000/01/01' in str(ogr_response_shp), f"{dt_col}_dt column is not returning the correct Date & Value"
+            assert f'{dt_col}_tm (String) = 11:50:00' in str(ogr_response_shp), f"{dt_col}_tm column is not returning the correct Time & Value"
+
+        assert 'next_dt_co (Date) = 2020/01/01' in str(ogr_response_shp), "next_dt_co column is not returning thse correct Date & Value"
+    
+    def test_write_shp_longdate_table(self):
+
+        shp_name = 'test_write.shp'
+
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_write_shp_table_name};
+                create table {pg_schema}.{test_write_shp_table_name} as
+                select  cast('1/1/2000 11:50:00' as timestamp) as long_dt_column123,
+                        cast('8/4/2004 7:20:00' as timestamp) as long_dt_column1234,
+                        geom
+                from {pg_schema}.{pg_table_name};
+                """)
+        
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, shp_name), dbo=db, schema=pg_schema, table=test_write_shp_table_name, overwrite = True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
+
+        # check that Date column is set as a Date type
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        
+        assert f'long_dt_co (Date) = 2000/01/01' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Date & Value"
+        assert f'long_dt1_dt (Date) = 2004/08/04' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Date & Value"
+        assert f'long_dt_co (Time) = 11:50:00' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Time & Value"
+        assert f'long_dt1_dt (Time) = 07:20:00' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Time & Value"
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
         helpers.clean_up_shapefile()
-
 
 class TestWriteShpMS:
     def test_write_shp_table(self):
@@ -2130,7 +2241,7 @@ class TestWriteShpMS:
         # Assert before/after geom columns are all 0 ft from each other, even if represented differently
         dist_df = sql.dfquery(f"""
         select distinct b.geom.STDistance(a.geom) as distance
-        from {ms_schema}.{test_reuploaded_table_name} b
+        from {ms_schema}.{test_write_shp_table_name} b
         join {ms_schema}.{test_reuploaded_table_name} a
         on b.test_col1=a.test_col1
         """)
@@ -2260,6 +2371,72 @@ class TestWriteShpMS:
             except Exception as e:
                 print(e)
 
+    def test_write_shp_dates_table(self):
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+
+        # Add test_table
+        sql.query(f"""
+        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, dte datetime, dte2 datetime, geom geometry);
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, '9/1/1965 18:00:00', '9/1/1965 18:00:00',
+                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
+        """)
+
+        fp = FOLDER_PATH
+        shp_name = 'test_write.shp'
+
+        # Write shp
+        s.write_geospatial(dbo=sql, path= os.path.join(fp, shp_name), table=test_write_shp_table_name, schema=ms_schema, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(fp, shp_name))
+
+        # check that Date column is set as a Date type
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        for dt_col in ['dte', 'dte2']:
+            assert f'{dt_col}_dt (Date) = 1965/09/01' in str(ogr_response_shp), f"{dt_col}_dt column is not returning the correct Date & Value"
+            assert f'{dt_col}_tm (String) = 18:00:00' in str(ogr_response_shp), f"{dt_col}_tm column is not returning the correct Time & Value"
+
+        # Clean up
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+
+        for ext in ('dbf', 'prj', 'shx', 'shp'):
+            try:
+                os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
+            except Exception as e:
+                print(e)
+
+    def test_write_shp_longdate_table(self):
+
+        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
+
+        # Add test_table
+        sql.query(f"""
+        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, long_datetime datetime, dte2 datetime, geom geometry);
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, '9/1/1965 18:00:00', '9/1/1965 18:00:00',
+                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, '9/1/1965 18:00:00', '9/1/1965 18:00:00',
+                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
+        """)
+
+        fp = FOLDER_PATH
+        shp_name = 'test_write.shp'
+
+        # Write shp
+        s.write_geospatial(dbo=sql, path= os.path.join(fp, shp_name), table=test_write_shp_table_name, schema=ms_schema, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(fp, shp_name))
+
+        # check that Date column is set as a Date type
+        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
+        
+        assert f'long_dt_co (Date) = 2000/01/01' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Date & Value"
+        assert f'long_dt1_dt (Date) = 2004/08/04' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Date & Value"
+        assert f'long_dt_co (Time) = 11:50:00' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Time & Value"
+        assert f'long_dt1_dt (Time) = 07:20:00' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Time & Value"
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_sql(sql)
@@ -2319,7 +2496,7 @@ class TestFeatureClassToTablePg:
         db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        db.query(f'select distinct st_srid("Shape") from {pg_schema}.{test_feature_class_table_name}')
+        db.query(f'select distinct st_srid(geom) from {pg_schema}.{test_feature_class_table_name}')
         assert db.data[0][0] == 4326
 
         db.drop_table(pg_schema, test_feature_class_table_name)
@@ -2332,21 +2509,21 @@ class TestFeatureClassToTablePg:
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.query(f"""
-            SELECT column_name, data_type
+            SELECT column_name, data_type, udt_name
             FROM information_schema.columns
             WHERE table_name = '{test_feature_class_table_name}'
             AND table_schema = '{db.default_schema}'
         """)
 
         columns = {i[0] for i in db.data}
-        types = {i[1] for i in db.data}
+        types = {i[1] if i[1] != 'USER-DEFINED' else i[2] for i in db.data} # use udt_type if user-defined
 
-        assert {'vintersect', 'objectid', 'Shape', 'nodeid'}.issubset(columns)
-        assert {'integer', 'integer', 'character varying', 'USER-DEFINED'}.issubset(types)
+        assert {'vintersect', 'objectid', 'geom', 'nodeid'}.issubset(columns)
+        assert {db_int, 'character varying', db_geom}.issubset(types)
 
         # check non geom data
         db.query(f"""
-                    select nodeid, vintersect, st_astext("Shape", 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
+                    select nodeid, vintersect, st_astext(geom, 1) geom from {db.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
                 """)
 
         row_values = [(88, 'VirtualIntersection', 'MULTIPOINT(914145.1 126536.1)'),
@@ -2360,7 +2537,7 @@ class TestFeatureClassToTablePg:
 
         # check geom matches (less than 1 ft off
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("Shape", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(914145.1,126536.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=88
@@ -2368,7 +2545,7 @@ class TestFeatureClassToTablePg:
         assert db.data[0][0] < 1
 
         db.query(f"""
-            select st_distance(st_setsrid(ST_GeometryN("Shape", 1), 2263),
+            select st_distance(st_setsrid(ST_GeometryN(geom, 1), 2263),
                 st_setsrid(st_makepoint(920184.0, 138084.1, 2263),2263))
             from {db.default_schema}.{test_feature_class_table_name}
             where nodeid=888
@@ -2434,7 +2611,6 @@ class TestFeatureClassToTablePg:
     @classmethod
     def teardown_class(cls):
         db.cleanup_new_tables()
-
 
 class TestFeatureClassToTableMs:
     @classmethod
@@ -2507,10 +2683,10 @@ class TestFeatureClassToTableMs:
         """)
 
         columns = {i[0] for i in sql.data}
-        types = {i[1] for i in sql.data}
-
+        types = {i[1] for i in sql.data} 
+                     
         assert {'objectid', 'geom', 'nodeid', 'vintersect'}.issubset(columns)
-        assert {'int', 'geometry', 'int', 'nvarchar'}.issubset(types)
+        assert {sql_int, re.sub('\s\((.*)\)$', '', sql_geom), 'nvarchar'}.issubset(types) # remove the max chars parentheses so they match the default dtype table
 
         # check non geom data
         sql.query(f"""select nodeid, vintersect, geom.STAsText() geom from {sql.default_schema}.{test_feature_class_table_name} where nodeid in (88, 98, 100)
@@ -2586,7 +2762,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema, shp_name='lion.gdb',
+        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema,
                                     extra_cmd='-nlt MULTILINESTRING')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 

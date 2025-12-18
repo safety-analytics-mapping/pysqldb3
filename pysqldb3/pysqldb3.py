@@ -844,7 +844,7 @@ class DbConnect:
                     case    when t.name in ('text', 'int', 'date') then t.name
                             when t.max_length is not null and t.max_length < 3000 then t.name + ' ('+ cast(t.max_length as varchar)+')'  
                             when t.max_length >= 3000 then t.name + ' (3000)'
-                       else t.name
+                       else coalesce(t.name, 'Unknown')
                        end as DATA_TYPE
                 FROM
                     tempdb.sys.columns AS c
