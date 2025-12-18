@@ -430,8 +430,8 @@ class TestRenameIndexMS:
         q = """
             select 1 id, 'test text' txt, geometry::STGeomFromText('POINT(1015329.34900 213793.65100)', 2263) geom
         """
-        sql.query_to_shp(q, path=fldr, shp_name=test_table + '.shp')
-        sql.shp_to_table(path=fldr, table=test_table, schema=schema, shp_name=test_table + '.shp', private=True)
+        sql.query_to_shp(q, path= os.path.join(fldr, test_table + '.shp'))
+        sql.shp_to_table(path = os.path.join(fldr,test_table + '.shp'), table=test_table, schema=schema, private=True)
 
         # check spatial index on org table
         # assert str((f'{test_table}_geom_idx', 'SPATIAL')) in [str(i) for i in self.get_indexes(test_table, schema)]
