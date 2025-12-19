@@ -1086,7 +1086,8 @@ class DbConnect:
         df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema_table}", timeme=False, internal = True)
         print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
-    def sharepoint_to_table(self, df, table, file_url, sheet_name=0, table_schema=None, schema=None, overwrite=False, temp=True,
+    def sharepoint_to_table(self, df, table, file_url, sharepoint_user=None,sharepoint_password=None,
+                            sheet_name=0, table_schema=None, schema=None, overwrite=False, temp=True,
                            allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False):
         """
             Downloads an Excel file from SharePoint, converts it to a Pandas DataFrame,
@@ -1110,8 +1111,14 @@ class DbConnect:
 
         print(f"Connecting to SharePoint and downloading: {file_url}")
 
-        username = self.user + "@dot.nyc.gov"
-        password = self.password
+        if sharepoint_user is None:
+            sharepoint_user = self.user
+
+        if sharepoint_password is None:
+            sharepoint_password = self.password
+
+        username = sharepoint_user.lower() + "@dot.nyc.gov"
+        password = sharepoint_password
 
         # Create SharePoint client context
         ctx = ClientContext(file_url).with_credentials(UserCredential(username, password))
@@ -2188,8 +2195,9 @@ class DbConnect:
             self.disconnect(True)
 
     def table_to_sharepoint(
-            self, table, target_subfolder="", output_filename=None, schema=None,
-            sep=",", quote_strings=True):
+            self, table, sharepoint_user,
+            target_subfolder="", output_filename=None, schema=None,
+            sep=",", quote_strings=True, overwrite = False):
         """
         Exports a database table to CSV and uploads the resulting file to the user's
         local OneDrive (OneDrive - NYCDOT) folder, allowing automatic sync to SharePoint.
@@ -2224,13 +2232,13 @@ class DbConnect:
         print(f"Exporting table to temporary CSV:\n{local_csv_path}")
 
         #Export table → CSV
-        self.table_to_csv(
-            table=table,
-            schema=schema,
+        self.query_to_csv(
+            query=f'select * from {schema}.{table}',
             strict=True,
             output_file=local_csv_path,
             sep=sep,
-            quote_strings=quote_strings
+            quote_strings=quote_strings,
+            overwrite=overwrite
         )
 
         #Convert CSV → XLSX
@@ -2240,7 +2248,7 @@ class DbConnect:
         print("XLSX export completed.")
 
         # Build OneDrive path
-        raw_user = self.user
+        raw_user = sharepoint_user.lower()
         user = raw_user[0].upper() + raw_user[1:]  # hshi → HShi,
         onedrive_root = f"C:/Users/{user}/OneDrive - NYCDOT"
 
