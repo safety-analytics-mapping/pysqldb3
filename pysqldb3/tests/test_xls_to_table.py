@@ -31,7 +31,7 @@ xls_table_name = 'sample_test_xls_to_table_{}'.format(db.user)
 pg_schema='working'
 sql_schema='dbo'
 
-
+#
 class TestXlsToTablePG:
     @classmethod
     def setup_class(cls):
@@ -280,7 +280,19 @@ class TestXlsToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
 
-    # Temp test is in logging tests
+
+    def test_xls_to_table_merged_headers(self):
+        xls_file4_multirow_header = helpers.xls_file4_multirow_header
+
+        db.xls_to_table(xls_file4_multirow_header,
+                        overwrite=True,
+                        schema=pg_schema,
+                        table=xls_table_name,
+                        skiprows=2,
+                        header=[0,2])
+
+        assert db.table_exists(xls_table_name, schema=pg_schema)
+
 
 
 class TestBulkXLSToTablePG:
@@ -318,7 +330,7 @@ class TestBulkXLSToTablePG:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_basic_kwargs(self):
         fp = helpers.DIR +"\\Test.xlsx"
@@ -350,7 +362,7 @@ class TestBulkXLSToTablePG:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
         fp = helpers.DIR +"\\Test.xlsx"
@@ -381,7 +393,7 @@ class TestBulkXLSToTablePG:
 
         # Cleanup
         db.drop_table(schema=db.default_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_multisheet(self):
         fp_xlsx = helpers.DIR +"\\Test.xlsx"
@@ -392,7 +404,7 @@ class TestBulkXLSToTablePG:
         # Save multi-sheet xlsx
         pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, 'Sheet1', index=False)
         pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, 'Sheet2', index=False)
-        writer.save()
+        writer.close()
 
         # Try via bulk loader
         init_count = len(db.my_tables())
@@ -841,7 +853,8 @@ class TestBulkXLSToTableMS:
 
         sample_df = pd.DataFrame(data, columns=cols)
         sample_df.to_excel(fp_xlsx)
-        sample_df.to_excel(fp_xls)
+        # sample_df.to_excel(fp_xls)
+        helpers.write_xls_from_df(fp_xls, sample_df)
 
         # Try via bulk loader
         start_time = time.time()
@@ -862,10 +875,10 @@ class TestBulkXLSToTableMS:
         assert sql.table_exists(table=xls_table_name + "_2")
 
         # Df Equality
-        df1 = sql.dfquery("select * from {} order by unnamed__0".format(xls_table_name))
-        df2 = sql.dfquery("select * from {} order by unnamed__0".format(xls_table_name + "_2"))
+        df1 = sql.dfquery("select * from {} order by ogr_ex_col_0".format(xls_table_name))
+        df2 = sql.dfquery("select * from {} order by 1".format(xls_table_name + "_2"))
         commons_cols = set(df1.columns) - (set(df1.columns) - set(df2.columns))
-        pd.testing.assert_frame_equal(df1[commons_cols], df2[commons_cols])
+        pd.testing.assert_frame_equal(df1[list(commons_cols)], df2[list(commons_cols)])
 
         # Cleanup
         sql.drop_table(schema=sql.default_schema, table=xls_table_name)
@@ -889,7 +902,7 @@ class TestBulkXLSToTableMS:
         # Save multi-sheet xlsx
         pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, 'Sheet1', index=False)
         pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, 'Sheet2', index=False)
-        writer.save()
+        writer.close()
 
         # Try via bulk loader
         sql.xls_to_table(input_file=fp_xlsx, table=xls_table_name, sheet_name="Sheet2")

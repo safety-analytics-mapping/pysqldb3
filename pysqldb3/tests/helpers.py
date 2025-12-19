@@ -7,6 +7,7 @@ import configparser
 import csv
 import openpyxl
 import xlsxwriter
+import xlwt
 from xlrd import open_workbook
 from xlutils.copy import copy
 from zipfile import ZipFile
@@ -381,6 +382,23 @@ def clean_up_file(file_path):
         os.remove(file_path)
         print ('%s file removed\n' % os.path.basename(file_path))
 
+def write_xls_from_df(file, df, sheet='Sheet1'):
+    """
+    This is needed for newer pandas - cannot write old xls file format
+    :param file:
+    :param df:
+    :param sheet:
+    :return:
+    """
+    workbook = xlwt.Workbook(file)
+    worksheet = workbook.add_sheet(sheet, cell_overwrite_ok=True)
+    for z, value in enumerate(df.columns):
+        worksheet.write(0, z, value)
+    for x, y in df.iterrows():
+        for z, value in enumerate(y):
+            worksheet.write(x+1, z, value)
+    workbook.save(file)
+
 
 def set_up_xls():
     xls_file1 = os.path.join(DIR, 'test_xls.xls')
@@ -388,7 +406,9 @@ def set_up_xls():
         clean_up_file(xls_file1)
 
     test_df1 = pd.DataFrame({'a': {0: 1, 1: 2, 2:3}, 'b': {0: 3, 1: 4, 2:5}, 'Unnamed: 0': {0: 0, 1: 1, 2:6}})
-    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
+    # test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
+    write_xls_from_df(os.path.join(DIR, 'test_xls.xls'), test_df1, sheet='Sheet1')
+
     print ('%s created\n' % os.path.basename(xls_file1))
 
     xls_file2 = os.path.join(DIR, 'test_xls_with_sheet.xls')
@@ -397,7 +417,9 @@ def set_up_xls():
 
     test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
 
-    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet', index=False)
+    # test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet', index=False)
+    write_xls_from_df(os.path.join(DIR, 'test_xls_with_sheet.xls'), test_df2, sheet='AnotherSheet')
+
     w = copy(open_workbook(xls_file2))
     Sheet2 = w.add_sheet('Sheet2')
     col, row = 0, 0
