@@ -1651,7 +1651,8 @@ class DbConnect:
 
         try:
             df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
-
+            if 'header' in kwargs:
+                df.columns = df.columns.map('_'.join)
             # Match previous styles
             cols = []
             for c in df.columns:

@@ -282,7 +282,8 @@ class TestXlsToTablePG:
 
 
     def test_xls_to_table_merged_headers(self):
-        xls_file4_multirow_header = helpers.xls_file4_multirow_header
+        # todo clean uout unnamed sub headers 
+        xls_file4_multirow_header = os.path.join(helpers.DIR, 'test_xls_multirow_headers.xlsx')
 
         db.xls_to_table(xls_file4_multirow_header,
                         overwrite=True,
@@ -292,6 +293,19 @@ class TestXlsToTablePG:
                         header=[0,2])
 
         assert db.table_exists(xls_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(xls_table_name, schema=pg_schema)]
+        assert ['report_year_unnamed__1_level_1', 'location_unnamed__2_level_1', 'location_segment',
+                'annual_crash_rates_by_type_date_collected', 'annual_crash_rates_by_type_data',
+                'annual_crash_rates_by_type_date_collected_1', 'annual_crash_rates_by_type_data_1',
+                'annual_crash_rates_by_type_date_collected_2', 'annual_crash_rates_by_type_data_2'] == cols
+
+        db.query(f"select report_year_unnamed__1_level_1 from {pg_schema}.{xls_table_name}")
+        _df = pd.read_excel(xls_file4_multirow_header, skiprows=2, header=[0,2])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] ==_df['Report Year_Unnamed: 1_level_1'].to_list()
+
+
 
 
 
