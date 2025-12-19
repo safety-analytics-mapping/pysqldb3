@@ -379,8 +379,11 @@ def clean_up_shp(file_path):
 
 def clean_up_file(file_path):
     if os.path.isfile(file_path):
-        os.remove(file_path)
-        print ('%s file removed\n' % os.path.basename(file_path))
+        try:
+            os.remove(file_path)
+            print ('%s file removed\n' % os.path.basename(file_path))
+        except Exception as e:
+            print(f'Failed to remove {file_path}\n', e)
 
 def write_xls_from_df(file, df, sheet='Sheet1'):
     """
