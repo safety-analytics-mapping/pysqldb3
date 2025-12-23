@@ -877,7 +877,7 @@ class TestBulkXLSToTableMS:
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
         fp = helpers.DIR +"\\Test.xlsx"
@@ -966,8 +966,11 @@ class TestBulkXLSToTableMS:
         # Cleanup
         sql.drop_table(schema=sql.default_schema, table=xls_table_name)
         sql.drop_table(schema=sql.default_schema, table=xls_table_name + "_2")
-        os.remove(fp_xlsx)
-        os.remove(fp_xls)
+        try:
+            os.remove(fp_xlsx)
+            os.remove(fp_xls)
+        except:
+            print('os removal error, continuing')
 
     def test_bulk_xls_to_table_multisheet(self):
         sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),

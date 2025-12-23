@@ -223,7 +223,7 @@ class TestCsvToTablePG:
 
         fp = helpers.DIR + "\\test4.csv"
         db.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema,
-                        skip_rows=1)
+                                skip_rows=1)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -268,7 +268,7 @@ class TestCsvToTablePG:
                                             where table_name = '{}' and lower(column_name) not like '%unnamed%';
 
                                       """.format(create_table_name))
-        )
+                                      )
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -305,7 +305,7 @@ class TestCsvToTablePG:
                                             where table_name = '{}' and lower(column_name) not like '%unnamed%';
 
                                       """.format(create_table_name))
-        )
+                                      )
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -449,6 +449,29 @@ class TestCsvToTablePG:
         db.drop_table(schema=pg_schema, table=create_table_name)
 
     # Temp test is in logging tests
+
+    def test_multirow_header_csv(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        db.drop_table(pg_schema, create_table_name)
+        assert not db.table_exists(create_table_name, schema=pg_schema)
+
+        # import table
+        db.csv_to_table(csv_fle, schema=pg_schema, table=create_table_name, header=[0, 1])
+        assert db.table_exists(create_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(create_table_name, schema=pg_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        db.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {pg_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        db.drop_table(pg_schema, create_table_name)
 
     @classmethod
     def teardown_class(cls):

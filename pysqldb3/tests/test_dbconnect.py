@@ -453,7 +453,8 @@ class TestLogging:
         assert before_drop_working_log_length == 0
 
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-        df.to_excel(fp)
+        # df.to_excel(fp)
+        helpers.write_xls_from_df(fp, df)
         db.xls_to_table(input_file=fp, schema='working', table=table_for_testing_logging)
 
         after_log_df = db.dfquery("""

@@ -125,6 +125,20 @@ def set_up_test_csv():
         for row in data9_bulk:
             w.writerow(row)
 
+    # multi row header - copied from ACS data
+    data_multi = [
+        ['GEO_ID','NAME','DP05_0001E','DP05_0001M','DP05_0002E','DP05_0002M'],
+        ['Geography','Geographic Area Name','Estimate!!SEX AND AGE!!Total population','Margin of Error!!SEX AND AGE!!Total population','Estimate!!SEX AND AGE!!Total population!!Male','Margin of Error!!SEX AND AGE!!Total population!!Male'],
+        ['1400000US36005000100','Census Tract 1; Bronx County; New York','3538','1209','3259','1010'],
+        ['1400000US36005000200','Census Tract 2; Bronx County; New York','5177','721','2647','507'],
+        ['1400000US36005000400','Census Tract 4; Bronx County; New York','6481','1051','3104','628']
+    ]
+    with open(DIR+"\\test10_multi.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data_multi:
+            w.writerow(row)
+
+
 
 def set_up_test_table_sql(sql, schema='dbo'):
     """

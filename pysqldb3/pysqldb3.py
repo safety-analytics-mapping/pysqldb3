@@ -1133,6 +1133,11 @@ class DbConnect:
 
         if 'ogc_fid' in df.columns:
             df = df.drop('ogc_fid', 1)
+        # Multi-row headers?
+        if 'header' in kwargs:
+            df.columns = df.columns.map('_'.join)
+
+
 
         # Calls dataframe_to_table_schema fn
         table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
