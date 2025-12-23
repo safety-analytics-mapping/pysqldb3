@@ -138,6 +138,14 @@ def set_up_test_csv():
         for row in data_multi:
             w.writerow(row)
 
+    # bulk
+    with open(DIR+"\\test10_multi_bulk.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data_multi:
+            w.writerow(row)
+        for row in range(1000):
+            w.writerow(data_multi[-1])
+
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
