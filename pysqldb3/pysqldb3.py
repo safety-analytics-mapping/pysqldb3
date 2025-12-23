@@ -1151,7 +1151,12 @@ class DbConnect:
             try:
                 temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
 
-                df.to_csv(temp_file, chunksize=10 ** 15, index=False)
+                # df.to_csv(temp_file, chunksize=10 ** 15, index=False)
+                with pd.read_csv(input_file, chunksize=10 ** 15, sep=sep, **kwargs) as reader:
+                    for chunk in reader:
+                        if 'header' in kwargs:
+                            chunk.columns = chunk.columns.map('_'.join)
+                        chunk.to_csv(temp_file, mode='a', index=False, header=True)
 
                 success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
                                                   table_schema=table_schema, days=days)

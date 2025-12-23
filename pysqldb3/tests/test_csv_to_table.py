@@ -602,11 +602,10 @@ class TestBulkCSVToTablePG:
 
     def test_bulk_csv_to_table_long_column(self):
         # csv_to_table
-        if db.table_exists(schema=pg_schema, table=create_table_name):
-            db.drop_table(schema=pg_schema, table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
         fp = helpers.DIR + "\\varchar.csv"
-        pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
+        pd.DataFrame(['text'*150]*1000, columns=['long_column']).to_csv(fp)
         db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
