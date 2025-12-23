@@ -1079,6 +1079,45 @@ class DbConnect:
         df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema_table}", timeme=False, internal = True)
         print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
+    def snowflake_to_table(self, sf_table, table, table_schema=None, schema=None, overwrite=False, temp=True,
+                            allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False):
+        """
+            creates a dataframe from a Snowflake table,
+            and writes the DataFrame to a database table using dataframe_to_table().
+            :param sf_table: Full path of snowflake table
+            :param db_obj: Database connection object, must include dataframe_to_table() method
+            :param table: Destination table name in the database
+            :param table_schema: Schema of the table (optional; defaults to db_obj's default schema)
+            :param schema: Database schema to use for writing the destination table
+            :param overwrite: If True, overwrite table if it already exists; defaults to False
+            :param temp: If True, creates a temporary table; defaults to True
+            :param allow_max_varchar: Boolean flag to allow unlimited/max varchar columns; defaults to False
+            :param column_type_overrides: 'all' or Dict specifying column name → column type overrides.
+                   If 'all', all fields become varchar(max). **Will not override a custom table_schema if provided**
+            :param days: If temp=True and a temp schema/table needs to be created, number of days it is kept (default 7)
+            :return: None
+        """
+
+        print(f"Connecting to Snowflake and downloading: {sf_table}")
+
+        conn = pyodbc.connect("DSN=snowflake", autocommit=True)
+        cursor = conn.cursor()
+        cursor.execute("USE WAREHOUSE DOT_ALL_DEV_ANALYSIS_XSMALL_WH")
+        df = pd.read_sql(f"select * from {sf_table}", conn)
+
+        # Write DataFrame to DB
+        self.dataframe_to_table(
+            df,
+            table=table,
+            table_schema=table_schema,
+            schema=schema,
+            overwrite=overwrite,
+            temp=temp,
+            allow_max_varchar=allow_max_varchar,
+            column_type_overrides=column_type_overrides,
+            days=days
+        )
+
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
                      allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False,
                      **kwargs):
