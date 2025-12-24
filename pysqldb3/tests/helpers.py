@@ -521,8 +521,10 @@ def set_up_xls():
 
     # create excel file with multiple headers
     xls_file4_multirow_header = os.path.join(DIR, 'test_xls_multirow_headers.xlsx')
-    if os.path.isfile(xls_file4_multirow_header):
+    try:
         os.remove(xls_file4_multirow_header)
+    except:
+        pass
 
     # headers
     # cols B->J
