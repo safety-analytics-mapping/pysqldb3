@@ -845,15 +845,14 @@ class TestWritegpkgPG:
         # Assert that date columns are in the proper format
         cmd_shp = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_write_gpkg_table_name}"'
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
-        assert 'dt_form_dt (Date) = 2010/10/14' in str(ogr_response_shp), "'dt_form_dt column is not returning the correct Date and Type"
-        assert 'dt_form_tm (String) = 19:12:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
-        assert 'dtformat (Date) = 1988/07/11' in str(ogr_response_shp), "'dt_form_dt column is not returning the correct Date and Type"
-        assert 'dtformat (String) = 03:05:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
+        assert 'dtforma_dt (Date) = 2010/10/14' in str(ogr_response_shp), "'dtforma_dt column is not returning the correct Date and Type"
+        assert 'dtforma_tm (String) = 19:12:00' in str(ogr_response_shp), "'dtforma_tm column is not returning the correct Type and Time"
+        assert 'dtform1_dt (Date) = 1988/07/11' in str(ogr_response_shp), "'dtform1_dt column is not returning the correct Date and Type"
+        assert 'dtform1_tm (String) = 03:05:00' in str(ogr_response_shp), "'dtform1_tm column is not returning the correct Type and Time"
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
-
 
     @classmethod
     def teardown_class(cls):
@@ -2193,10 +2192,10 @@ class TestWriteShpPG:
         cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
         
-        assert f'long_dt_co (Date) = 2000/01/01' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Date & Value"
-        assert f'long_dt1_dt (Date) = 2004/08/04' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Date & Value"
-        assert f'long_dt_co (Time) = 11:50:00' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Time & Value"
-        assert f'long_dt1_dt (Time) = 07:20:00' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Time & Value"
+        assert f'long_dt_dt (Date) = 2000/01/01' in str(ogr_response_shp), f"long_dt_dt column is not returning the correct Date & Value"
+        assert f'long_d1_dt (Date) = 2004/08/04' in str(ogr_response_shp), f"long_d1_dt column is not returning the correct Date & Value"
+        assert f'long_dt_tm (String) = 11:50:00' in str(ogr_response_shp), f"long_dt_tm column is not returning the correct Time & Value"
+        assert f'long_d1_tm (String) = 07:20:00' in str(ogr_response_shp), f"long_d1_tm column is not returning the correct Time & Value"
 
     @classmethod
     def teardown_class(cls):
@@ -2376,9 +2375,9 @@ class TestWriteShpMS:
 
         # Add test_table
         sql.query(f"""
-        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, dte datetime, dte2 datetime, geom geometry);
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, '9/1/1965 18:00:00', '9/1/1965 18:00:00',
-                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
+        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, dte datetime, geom geometry);
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, '1965-09-01 18:00:00',
+                                                            geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
         fp = FOLDER_PATH
@@ -2393,9 +2392,8 @@ class TestWriteShpMS:
         # check that Date column is set as a Date type
         cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
-        for dt_col in ['dte', 'dte2']:
-            assert f'{dt_col}_dt (Date) = 1965/09/01' in str(ogr_response_shp), f"{dt_col}_dt column is not returning the correct Date & Value"
-            assert f'{dt_col}_tm (String) = 18:00:00' in str(ogr_response_shp), f"{dt_col}_tm column is not returning the correct Time & Value"
+        assert f'dte_dt (Date) = 1965/09/01' in str(ogr_response_shp), f"dte_dt column is not returning the correct Date & Value"
+        assert f'dte_tm (String) = 18:00:00' in str(ogr_response_shp), f"dte_tm column is not returning the correct Time & Value"
 
         # Clean up
         sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
@@ -2412,10 +2410,8 @@ class TestWriteShpMS:
 
         # Add test_table
         sql.query(f"""
-        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, long_datetime datetime, dte2 datetime, geom geometry);
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, '9/1/1965 18:00:00', '9/1/1965 18:00:00',
-                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(3, '9/1/1965 18:00:00', '9/1/1965 18:00:00',
+        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, long_datetime datetime, long_datetime_new datetime, geom geometry);
+        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, '9/1/1965 18:00:00', '12/31/2005 05:22:00',
                                                                 geometry::Point(985831.79200444, 203371.60461367, 2263));
         """)
 
@@ -2432,10 +2428,10 @@ class TestWriteShpMS:
         cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
         
-        assert f'long_dt_co (Date) = 2000/01/01' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Date & Value"
-        assert f'long_dt1_dt (Date) = 2004/08/04' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Date & Value"
-        assert f'long_dt_co (Time) = 11:50:00' in str(ogr_response_shp), f"long_dt_co column is not returning the correct Time & Value"
-        assert f'long_dt1_dt (Time) = 07:20:00' in str(ogr_response_shp), f"long_dt1_dt column is not returning the correct Time & Value"
+        assert f'long_da_dt (Date) = 1965/09/01' in str(ogr_response_shp), f"long_da_dt column is not returning the correct Date & Value"
+        assert f'long_da_tm (String) = 18:00:00' in str(ogr_response_shp), f"long_da_tm column is not returning the correct Time & Value"
+        assert f'long_d1_dt (Date) = 2005/12/31' in str(ogr_response_shp), f"long_d1_dt column is not returning the correct Date & Value"
+        assert f'long_d1_tm (String) = 05:22:00' in str(ogr_response_shp), f"long_d1_tm column is not returning the correct Time & Value"
 
     @classmethod
     def teardown_class(cls):

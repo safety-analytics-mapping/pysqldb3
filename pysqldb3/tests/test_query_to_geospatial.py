@@ -863,7 +863,7 @@ class TestQueryToGpkgMs:
             case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
             case when t1.longfld4=t2.longfld4 then 1 else 0 end,
             case when t1.fld5 = t2.fld5 then 1 else 0 end,
-            case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
+            case when t1.fld6.STDistance(t2.fld6) < 1 then 1 else 0 end-- default name from pysqldb
         from {ms_schema}.{test_table} t1
         join {ms_schema}.{test_table}QA t2
         on t1.fld1=t2.fld1
