@@ -39,6 +39,7 @@ class TestFeatureClassToTablePg:
         assert not db.table_exists(table, schema=db.default_schema)
 
         db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
+        
         assert db.table_exists(table, schema=db.default_schema)
 
         db.drop_table(db.default_schema, table)

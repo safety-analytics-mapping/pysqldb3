@@ -91,7 +91,7 @@ class TestReadShpPG:
         # fp = 'C:/Users/SHostetter/Desktop/GIS/GIS.zip'
         # shp_name = "Hisa_yellow_10_14.shp"
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/shp_test.zip'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
@@ -279,15 +279,13 @@ class TestReadShpMS:
         assert sql.tables_created[-1] == (sql.server, sql.database, ms_schema, test_read_shp_table_name)
         # Cleanup
         sql.drop_table(schema=ms_schema, table=test_read_shp_table_name)
-
-
-
+        
     def test_read_shp_zip(self):
         # fp = r'C:/Users/SHostetter/Desktop/GIS/nyad_21c.zip\yad_21c'
         # fp = 'C:/Users/SHostetter/Desktop/GIS/GIS.zip'
         # shp_name = "Hisa_yellow_10_14.shp"
 
-        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/shp_test.zip'
+        fp = os.path.join(os.path.dirname(os.path.abspath(__file__))) + '/test_data/test.zip'
         shp_name = "test.shp"
 
         # Make sure table doesn't alredy exist
