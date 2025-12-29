@@ -147,7 +147,6 @@ def set_up_test_csv():
             w.writerow(data_multi[-1])
 
 
-
 def set_up_test_table_sql(sql, schema='dbo'):
     """
     Creates one test table for testing
@@ -394,6 +393,7 @@ def clean_up_schema(db, schema):
         c = ''
     db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
 
+
 def clean_up_shp(file_path):
     for ext in ('.shp', '.dbf', '.shx', '.prj'):
         clean_up_file(file_path.replace('.shp', ext))
@@ -406,6 +406,7 @@ def clean_up_file(file_path):
             print ('%s file removed\n' % os.path.basename(file_path))
         except Exception as e:
             print(f'Failed to remove {file_path}\n', e)
+
 
 def write_xls_from_df(file, df, sheet='Sheet1'):
     """
@@ -431,7 +432,6 @@ def set_up_xls():
         clean_up_file(xls_file1)
 
     test_df1 = pd.DataFrame({'a': {0: 1, 1: 2, 2:3}, 'b': {0: 3, 1: 4, 2:5}, 'Unnamed: 0': {0: 0, 1: 1, 2:6}})
-    # test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
     write_xls_from_df(os.path.join(DIR, 'test_xls.xls'), test_df1, sheet='Sheet1')
 
     print ('%s created\n' % os.path.basename(xls_file1))
@@ -442,7 +442,6 @@ def set_up_xls():
 
     test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
 
-    # test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet', index=False)
     write_xls_from_df(os.path.join(DIR, 'test_xls_with_sheet.xls'), test_df2, sheet='AnotherSheet')
 
     w = copy(open_workbook(xls_file2))
@@ -642,6 +641,7 @@ def set_up_geopackage(user):
 
     print ('Sample geopackage ready...')
 
+
 def clean_up_geopackage():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
     
@@ -652,3 +652,13 @@ def clean_up_geopackage():
             os.remove(_fle)
 
     print ('Deleting any existing gpkg')
+
+
+def clean_up_ext(ext, path=DIR):
+    for f in os.listdir(DIR):
+        if f.endswith(f'.{ext}'):
+            try:
+                os.remove(os.path.join(path, f))
+            except Exception as e:
+                print(f'Failed file removal:\n{e}')
+

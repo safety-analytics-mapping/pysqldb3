@@ -467,6 +467,7 @@ class TestLogging:
         assert after_drop_working_log_length == 1
 
         db.drop_table(table=table_for_testing_logging, schema='working')
+        helpers.clean_up_ext('xlsx')
 
     def test_dataframe_to_table_logging(self):
         before_log_df = db.dfquery("""
@@ -555,6 +556,7 @@ class TestLogging:
         assert after_drop_working_log_length == 1
 
         db.drop_table(table=table_for_testing_logging, schema='working')
+        helpers.clean_up_ext('csv')
 
     def test_table_to_csv_check_file_quote_name(self):
         schema = 'working'
@@ -583,7 +585,7 @@ class TestLogging:
 
         # clean up
         db.drop_table(schema, table_for_testing_logging)
-        os.remove(os.path.join(fldr, table_for_testing_logging + '.csv'))
+        helpers.clean_up_ext('csv')
 
     def test_pg_capitals(self):
         # Assert no test table
