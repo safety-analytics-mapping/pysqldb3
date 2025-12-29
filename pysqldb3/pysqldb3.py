@@ -1135,7 +1135,8 @@ class DbConnect:
             df = df.drop('ogc_fid', 1)
         # Multi-row headers?
         if 'header' in kwargs:
-            df.columns = df.columns.map('_'.join)
+            if type(kwargs.get('header')) == list:
+                df.columns = df.columns.map('_'.join)
 
 
 
@@ -1658,8 +1659,9 @@ class DbConnect:
         try:
             df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
             if 'header' in kwargs:
-                # todo clean out unnamed sub headers
-                df.columns = df.columns.map('_'.join)
+                if type(kwargs.get('header')) == list:
+                    # todo clean out unnamed sub headers
+                    df.columns = df.columns.map('_'.join)
             # Match previous styles
             cols = []
             for c in df.columns:
