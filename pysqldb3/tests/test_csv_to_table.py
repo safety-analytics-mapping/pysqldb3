@@ -223,7 +223,7 @@ class TestCsvToTablePG:
 
         fp = helpers.DIR + "\\test4.csv"
         db.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema,
-                        skip_rows=1)
+                                skip_rows=1)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -268,7 +268,7 @@ class TestCsvToTablePG:
                                             where table_name = '{}' and lower(column_name) not like '%unnamed%';
 
                                       """.format(create_table_name))
-        )
+                                      )
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -305,7 +305,7 @@ class TestCsvToTablePG:
                                             where table_name = '{}' and lower(column_name) not like '%unnamed%';
 
                                       """.format(create_table_name))
-        )
+                                      )
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -450,6 +450,29 @@ class TestCsvToTablePG:
 
     # Temp test is in logging tests
 
+    def test_multirow_header_csv(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        db.drop_table(pg_schema, create_table_name)
+        assert not db.table_exists(create_table_name, schema=pg_schema)
+
+        # import table
+        db.csv_to_table(csv_fle, schema=pg_schema, table=create_table_name, header=[0, 1])
+        assert db.table_exists(create_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(create_table_name, schema=pg_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        db.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {pg_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        db.drop_table(pg_schema, create_table_name)
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
@@ -579,11 +602,10 @@ class TestBulkCSVToTablePG:
 
     def test_bulk_csv_to_table_long_column(self):
         # csv_to_table
-        if db.table_exists(schema=pg_schema, table=create_table_name):
-            db.drop_table(schema=pg_schema, table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
         fp = helpers.DIR + "\\varchar.csv"
-        pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
+        pd.DataFrame(['text'*150]*1000, columns=['long_column']).to_csv(fp)
         db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
@@ -642,6 +664,29 @@ class TestBulkCSVToTablePG:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
+
+    def test_multirow_header_csv_bulk(self):
+        csv_fle = helpers.DIR + "\\test10_multi_bulk.csv"
+        db.drop_table(pg_schema, create_table_name)
+        assert not db.table_exists(create_table_name, schema=pg_schema)
+
+        # import table
+        db.csv_to_table(csv_fle, schema=pg_schema, table=create_table_name, header=[0, 1])
+        assert db.table_exists(create_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(create_table_name, schema=pg_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        db.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {pg_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        db.drop_table(pg_schema, create_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -1069,6 +1114,29 @@ class TestCsvToTableMS:
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
 
+    def test_multirow_header_csv(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        sql.drop_table(sql_schema, create_table_name)
+        assert not sql.table_exists(create_table_name, schema=sql_schema)
+
+        # import table
+        sql.csv_to_table(csv_fle, schema=sql_schema, table=create_table_name, header=[0, 1])
+        assert sql.table_exists(create_table_name, schema=sql_schema)
+
+        cols = [i[0] for i in sql.get_table_columns(create_table_name, schema=sql_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        sql.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {sql_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sql.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        sql.drop_table(sql_schema, create_table_name)
+
     @classmethod
     def teardown_class(cls):
         sql.cleanup_new_tables()
@@ -1264,6 +1332,29 @@ class TestBulkCSVToTableMS:
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
 
+    def test_multirow_header_csv_bulk(self):
+        csv_fle = helpers.DIR + "\\test10_multi_bulk.csv"
+        sql.drop_table(sql_schema, create_table_name)
+        assert not sql.table_exists(create_table_name, schema=sql_schema)
+
+        # import table
+        sql.csv_to_table(csv_fle, schema=sql_schema, table=create_table_name, header=[0, 1])
+        assert sql.table_exists(create_table_name, schema=sql_schema)
+
+        cols = [i[0] for i in sql.get_table_columns(create_table_name, schema=sql_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        sql.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {sql_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sql.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        sql.drop_table(sql_schema, create_table_name)
+
     @classmethod
     def teardown_class(cls):
         sql.cleanup_new_tables()
@@ -1351,6 +1442,31 @@ class TestCsvToTablePGTemp:
         dbt.query(f"select * from {create_table_name}", strict=False)
         assert not dbt.data
 
+    def test_multirow_header_csv_temp(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        dbt.query(f'drop table {create_table_name}', strict=False)
+
+        # import table
+        dbt.csv_to_table(csv_fle, table=create_table_name, header=[0, 1], temp_table=True)
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 3
+
+        df = dbt.dfquery(f"select * from {create_table_name}")
+
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == df.columns.to_list()
+
+        dbt.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in dbt.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+
+
 
 class TestCsvToTableMSTemp:
     @classmethod
@@ -1433,3 +1549,27 @@ class TestCsvToTableMSTemp:
         sqlt.connect(quiet=True)
         sqlt.query(f"select * from ##{create_table_name}", strict=False)
         assert not sqlt.data
+
+    def test_multirow_header_csv_temp(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        sqlt.query(f'drop table {create_table_name}', strict=False)
+
+        # import table
+        sqlt.csv_to_table(csv_fle, schema=sql_schema, table=create_table_name, header=[0, 1], temp_table=True)
+        # Check to see if table is in database
+        sql.query(f"select * from ##{create_table_name}")
+        assert len(sql.data) == 3
+
+        df = sqlt.dfquery(f"select * from ##{create_table_name}")
+
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == df.columns.to_list()
+
+        sqlt.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from ##{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sqlt.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()

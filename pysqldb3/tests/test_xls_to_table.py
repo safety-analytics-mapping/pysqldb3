@@ -31,7 +31,7 @@ xls_table_name = 'sample_test_xls_to_table_{}'.format(db.user)
 pg_schema='working'
 sql_schema='dbo'
 
-
+#
 class TestXlsToTablePG:
     @classmethod
     def setup_class(cls):
@@ -280,7 +280,37 @@ class TestXlsToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
 
-    # Temp test is in logging tests
+
+    def test_xls_to_table_merged_headers(self):
+        xls_file4_multirow_header = os.path.join(helpers.DIR, 'test_xls_multirow_headers.xlsx')
+        db.drop_table(pg_schema, xls_table_name)
+        db.xls_to_table(xls_file4_multirow_header,
+                        overwrite=True,
+                        schema=pg_schema,
+                        table=xls_table_name,
+                        skiprows=2,
+                        header=[0,1,2])
+
+        assert db.table_exists(xls_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(xls_table_name, schema=pg_schema)]
+        assert ['report_year_unnamed__1_level_1_unnamed__1_level_2',
+                'location_unnamed__2_level_1_unnamed__2_level_2',
+                'location_unnamed__3_level_1_segment',
+                'annual_crash_rates_by_type_fatailities_vmt_date_collected',
+                'annual_crash_rates_by_type_fatailities_vmt_data',
+                'annual_crash_rates_by_type_injuries_vmt_date_collected',
+                'annual_crash_rates_by_type_injuries_vmt_data',
+                'annual_crash_rates_by_type_pdo_vmt_date_collected',
+                'annual_crash_rates_by_type_pdo_vmt_data'] == cols
+
+        db.query(f"select report_year_unnamed__1_level_1_unnamed__1_level_2 from {pg_schema}.{xls_table_name}")
+        _df = pd.read_excel(xls_file4_multirow_header, skiprows=2, header=[0,1,2])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] ==_df['Report Year_Unnamed: 1_level_1_Unnamed: 1_level_2'].to_list()
+
+        db.drop_table(pg_schema, xls_table_name)
+
 
 
 class TestBulkXLSToTablePG:
@@ -318,7 +348,7 @@ class TestBulkXLSToTablePG:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_basic_kwargs(self):
         fp = helpers.DIR +"\\Test.xlsx"
@@ -350,7 +380,7 @@ class TestBulkXLSToTablePG:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
         fp = helpers.DIR +"\\Test.xlsx"
@@ -381,7 +411,7 @@ class TestBulkXLSToTablePG:
 
         # Cleanup
         db.drop_table(schema=db.default_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_multisheet(self):
         fp_xlsx = helpers.DIR +"\\Test.xlsx"
@@ -392,7 +422,7 @@ class TestBulkXLSToTablePG:
         # Save multi-sheet xlsx
         pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, 'Sheet1', index=False)
         pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, 'Sheet2', index=False)
-        writer.save()
+        writer.close()
 
         # Try via bulk loader
         init_count = len(db.my_tables())
@@ -455,6 +485,40 @@ class TestBulkXLSToTablePG:
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=xls_table_name)
+
+    def test_xls_to_table_merged_headers_bulk(self):
+        xls_file4_multirow_header = os.path.join(helpers.DIR, 'test_xls_multirow_headers.xlsx')
+        xls_file4_multirow_header = xls_file4_multirow_header.replace('.xlsx', '_bulk.xlsx')
+
+        _df = pd.read_excel(xls_file4_multirow_header, skiprows=2, header=[0, 1, 2])
+
+        db.xls_to_table(xls_file4_multirow_header,
+                        overwrite=True,
+                        schema=pg_schema,
+                        table=xls_table_name,
+                        skiprows=2,
+                        header=[0, 1, 2])
+
+        assert db.table_exists(xls_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(xls_table_name, schema=pg_schema)]
+        assert ['report_year_unnamed__1_level_1_unnamed__1_level_2',
+                'location_unnamed__2_level_1_unnamed__2_level_2',
+                'location_unnamed__3_level_1_segment',
+                'annual_crash_rates_by_type_fatailities_vmt_date_collected',
+                'annual_crash_rates_by_type_fatailities_vmt_data',
+                'annual_crash_rates_by_type_injuries_vmt_date_collected',
+                'annual_crash_rates_by_type_injuries_vmt_data',
+                'annual_crash_rates_by_type_pdo_vmt_date_collected',
+                'annual_crash_rates_by_type_pdo_vmt_data'] == cols
+
+        db.query(f"select report_year_unnamed__1_level_1_unnamed__1_level_2 from {pg_schema}.{xls_table_name}")
+        _df = pd.read_excel(xls_file4_multirow_header, skiprows=2, header=[0, 1, 2])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] == _df['Report Year_Unnamed: 1_level_1_Unnamed: 1_level_2'].to_list()
+
+        db.cleanup_new_tables()
+
 
     @classmethod
     def teardown_class(cls):
@@ -715,6 +779,37 @@ class TestXlsToTableMS:
         # Cleanup
         sql.drop_table(schema=sql_schema, table=xls_table_name)
 
+    def test_xls_to_table_merged_headers(self):
+        xls_file4_multirow_header = os.path.join(helpers.DIR, 'test_xls_multirow_headers.xlsx')
+
+        sql.drop_table(sql_schema, xls_table_name)
+        sql.xls_to_table(xls_file4_multirow_header,
+                        overwrite=True,
+                        schema=sql_schema,
+                        table=xls_table_name,
+                        skiprows=2,
+                        header=[0,1,2])
+
+        assert sql.table_exists(xls_table_name, schema=sql_schema)
+
+        cols = [i[0] for i in sql.get_table_columns(xls_table_name, schema=sql_schema)]
+        assert ['report_year_unnamed__1_level_1_unnamed__1_level_2',
+                'location_unnamed__2_level_1_unnamed__2_level_2',
+                'location_unnamed__3_level_1_segment',
+                'annual_crash_rates_by_type_fatailities_vmt_date_collected',
+                'annual_crash_rates_by_type_fatailities_vmt_data',
+                'annual_crash_rates_by_type_injuries_vmt_date_collected',
+                'annual_crash_rates_by_type_injuries_vmt_data',
+                'annual_crash_rates_by_type_pdo_vmt_date_collected',
+                'annual_crash_rates_by_type_pdo_vmt_data'] == cols
+
+        sql.query(f"select report_year_unnamed__1_level_1_unnamed__1_level_2 from {sql_schema}.{xls_table_name}")
+        _df = pd.read_excel(xls_file4_multirow_header, skiprows=2, header=[0,1,2])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sql.data] ==_df['Report Year_Unnamed: 1_level_1_Unnamed: 1_level_2'].to_list()
+
+        sql.drop_table(sql_schema, xls_table_name)
+
 
 class TestBulkXLSToTableMS:
     @classmethod
@@ -782,7 +877,7 @@ class TestBulkXLSToTableMS:
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=xls_table_name)
-        os.remove(fp)
+        # os.remove(fp)
 
     def test_bulk_xls_to_table_default_schema(self):
         fp = helpers.DIR +"\\Test.xlsx"
@@ -841,7 +936,8 @@ class TestBulkXLSToTableMS:
 
         sample_df = pd.DataFrame(data, columns=cols)
         sample_df.to_excel(fp_xlsx)
-        sample_df.to_excel(fp_xls)
+        # sample_df.to_excel(fp_xls)
+        helpers.write_xls_from_df(fp_xls, sample_df)
 
         # Try via bulk loader
         start_time = time.time()
@@ -862,16 +958,19 @@ class TestBulkXLSToTableMS:
         assert sql.table_exists(table=xls_table_name + "_2")
 
         # Df Equality
-        df1 = sql.dfquery("select * from {} order by unnamed__0".format(xls_table_name))
-        df2 = sql.dfquery("select * from {} order by unnamed__0".format(xls_table_name + "_2"))
+        df1 = sql.dfquery("select * from {} order by ogr_ex_col_0".format(xls_table_name))
+        df2 = sql.dfquery("select * from {} order by 1".format(xls_table_name + "_2"))
         commons_cols = set(df1.columns) - (set(df1.columns) - set(df2.columns))
-        pd.testing.assert_frame_equal(df1[commons_cols], df2[commons_cols])
+        pd.testing.assert_frame_equal(df1[list(commons_cols)], df2[list(commons_cols)])
 
         # Cleanup
         sql.drop_table(schema=sql.default_schema, table=xls_table_name)
         sql.drop_table(schema=sql.default_schema, table=xls_table_name + "_2")
-        os.remove(fp_xlsx)
-        os.remove(fp_xls)
+        try:
+            os.remove(fp_xlsx)
+            os.remove(fp_xls)
+        except:
+            print('os removal error, continuing')
 
     def test_bulk_xls_to_table_multisheet(self):
         sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
@@ -889,7 +988,7 @@ class TestBulkXLSToTableMS:
         # Save multi-sheet xlsx
         pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, 'Sheet1', index=False)
         pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, 'Sheet2', index=False)
-        writer.save()
+        writer.close()
 
         # Try via bulk loader
         sql.xls_to_table(input_file=fp_xlsx, table=xls_table_name, sheet_name="Sheet2")
@@ -944,6 +1043,39 @@ class TestBulkXLSToTableMS:
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=xls_table_name)
+
+    def test_xls_to_table_merged_headers_bulk(self):
+        xls_file4_multirow_header = os.path.join(helpers.DIR, 'test_xls_multirow_headers.xlsx')
+        xls_file4_multirow_header = xls_file4_multirow_header.replace('.xlsx', '_bulk.xlsx')
+
+        _df = pd.read_excel(xls_file4_multirow_header, skiprows=2, header=[0, 1, 2])
+
+        sql.xls_to_table(xls_file4_multirow_header,
+                        overwrite=True,
+                        schema=sql_schema,
+                        table=xls_table_name,
+                        skiprows=2,
+                        header=[0, 1, 2])
+
+        assert sql.table_exists(xls_table_name, schema=sql_schema)
+
+        cols = [i[0] for i in sql.get_table_columns(xls_table_name, schema=sql_schema)]
+        assert ['report_year_unnamed__1_level_1_unnamed__1_level_2',
+                'location_unnamed__2_level_1_unnamed__2_level_2',
+                'location_unnamed__3_level_1_segment',
+                'annual_crash_rates_by_type_fatailities_vmt_date_collected',
+                'annual_crash_rates_by_type_fatailities_vmt_data',
+                'annual_crash_rates_by_type_injuries_vmt_date_collected',
+                'annual_crash_rates_by_type_injuries_vmt_data',
+                'annual_crash_rates_by_type_pdo_vmt_date_collected',
+                'annual_crash_rates_by_type_pdo_vmt_data'] == cols
+
+        sql.query(f"select report_year_unnamed__1_level_1_unnamed__1_level_2 from {sql_schema}.{xls_table_name}")
+        _df = pd.read_excel(xls_file4_multirow_header, skiprows=2, header=[0, 1, 2])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sql.data] == _df['Report Year_Unnamed: 1_level_1_Unnamed: 1_level_2'].to_list()
+
+        sql.cleanup_new_tables()
 
     @classmethod
     def teardown_class(cls):

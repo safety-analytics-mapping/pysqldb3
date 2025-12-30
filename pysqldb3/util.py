@@ -283,11 +283,8 @@ def clean_column(x):
         assert e
 
     a = x.strip().lower()
-    b = a.replace(' ', '_')
-    c = b.replace('.', '')
-    d = c.replace('(s)', '')
-    e = d.replace(':', '_')
-    return e
+    b=a.replace(' ', '_').replace('.', '').replace('(s)', '').replace(':', '_').replace('!', '_').replace('@', '_')
+    return b
 
 
 def convert_geom_col(df, geom_name="geom"):
