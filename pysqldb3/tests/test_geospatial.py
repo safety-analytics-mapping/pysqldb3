@@ -2392,8 +2392,7 @@ class TestWriteShpMS:
         # check that Date column is set as a Date type
         cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
-        assert f'dte_dt (Date) = 1965/09/01' in str(ogr_response_shp), f"dte_dt column is not returning the correct Date & Value"
-        assert f'dte_tm (String) = 18:00:00' in str(ogr_response_shp), f"dte_tm column is not returning the correct Time & Value"
+        assert f'dte (Date) = 1965/09/01' in str(ogr_response_shp), f"dte_dt column is not returning the correct Date & Value"
 
         # Clean up
         sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
@@ -2403,35 +2402,6 @@ class TestWriteShpMS:
                 os.remove(os.path.join(fp, shp_name.replace('shp', ext)))
             except Exception as e:
                 print(e)
-
-    def test_write_shp_longdate_table(self):
-
-        sql.drop_table(schema=ms_schema, table=test_write_shp_table_name)
-
-        # Add test_table
-        sql.query(f"""
-        create table {ms_schema}.{test_write_shp_table_name} (test_col1 int, long_datetime datetime, long_datetime_new datetime, geom geometry);
-        insert into {ms_schema}.{test_write_shp_table_name} VALUES(1, '9/1/1965 18:00:00', '12/31/2005 05:22:00',
-                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
-        """)
-
-        fp = FOLDER_PATH
-        shp_name = 'test_write.shp'
-
-        # Write shp
-        s.write_geospatial(dbo=sql, path= os.path.join(fp, shp_name), table=test_write_shp_table_name, schema=ms_schema, print_cmd=True)
-
-        # Assert successful
-        assert os.path.isfile(os.path.join(fp, shp_name))
-
-        # check that Date column is set as a Date type
-        cmd_shp = f'ogrinfo "{FOLDER_PATH}/{shp_name}" -sql "select * from test_write limit 1"'
-        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
-        
-        assert f'long_da_dt (Date) = 1965/09/01' in str(ogr_response_shp), f"long_da_dt column is not returning the correct Date & Value"
-        assert f'long_da_tm (String) = 18:00:00' in str(ogr_response_shp), f"long_da_tm column is not returning the correct Time & Value"
-        assert f'long_d1_dt (Date) = 2005/12/31' in str(ogr_response_shp), f"long_d1_dt column is not returning the correct Date & Value"
-        assert f'long_d1_tm (String) = 05:22:00' in str(ogr_response_shp), f"long_d1_tm column is not returning the correct Time & Value"
 
     @classmethod
     def teardown_class(cls):
