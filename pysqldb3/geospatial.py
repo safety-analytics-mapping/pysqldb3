@@ -125,7 +125,7 @@ def format_dte_columns(dbo, columns_with_types, columns_with_brackets):
 
     """
     Format the DateTime column so the geospatial output fit has formatted Date and Time columns.
-    This is applicable if the table is in PG, or MS and the output is a Shp, because it does not automatically format these dates.
+    This is applicable if the table is in PG because it does not automatically format these dates.
     
     :param dbo: Database connection
     :param columns_with_types: Output of get_table_columns that returns the column name and data type
