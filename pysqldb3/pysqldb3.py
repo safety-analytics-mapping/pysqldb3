@@ -2244,6 +2244,9 @@ class DbConnect:
         #Convert CSV → XLSX
         print(f"Converting CSV to XLSX:\n{local_xlsx_path}")
         df = pd.read_csv(local_csv_path, sep=sep)
+        # If we are using SQL DB it would create a col called WKT which is meaningless
+        # we want to drop it
+        df = df.drop(columns=["WKT"], errors="ignore")
         df.to_excel(local_xlsx_path, index=False, engine="openpyxl")
         print("XLSX export completed.")
 
@@ -2251,6 +2254,7 @@ class DbConnect:
         raw_user = sharepoint_user.lower()
         user = raw_user[0].upper() + raw_user[1:]  # hshi → HShi,
         onedrive_root = f"C:/Users/{user}/OneDrive - NYCDOT"
+
 
         if target_subfolder:
             onedrive_folder = os.path.join(onedrive_root, target_subfolder)

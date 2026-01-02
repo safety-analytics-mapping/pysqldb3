@@ -250,9 +250,10 @@ class Test_SharePoint_To_Table_SQL:
                 );
 
                 ;with nums as (
-                    select top (5000)
+                    select top (100000)
                         row_number() over (order by (select null)) as n
-                    from sys.objects
+                    from sys.objects a
+                    cross join sys.objects b
                 )
                 insert into {cls.schema}.{cls.src_large}
                 select n, n from nums;
@@ -347,7 +348,7 @@ class Test_SharePoint_To_Table_SQL:
             from {self.schema}.{self.dest_large}
         """)
 
-        assert df_cnt.loc[0, "cnt"] == 5000
+        assert df_cnt.loc[0, "cnt"] == 100000
 
 
     @classmethod

@@ -94,7 +94,9 @@ class Test_Table_To_SharePoint_PG:
             table=self.table_mixed,
             schema=self.schema,
             target_subfolder="TableTest/PG",
-            output_filename=self.xlsx_mixed
+            output_filename=self.xlsx_mixed,
+            sharepoint_user=sharepoint_user,
+            overwrite=True
         )
 
         assert os.path.exists(self.path_mixed)
@@ -115,7 +117,9 @@ class Test_Table_To_SharePoint_PG:
             table=self.table_large,
             schema=self.schema,
             target_subfolder="TableTest/PG",
-            output_filename=self.xlsx_large
+            output_filename=self.xlsx_large,
+            sharepoint_user=sharepoint_user,
+            overwrite=True
         )
 
         assert os.path.exists(self.path_large)
@@ -198,9 +202,10 @@ class Test_Table_To_SharePoint_SQL:
             );
 
             ;with nums as (
-                select top (5000)
+                select top (100000)
                     row_number() over (order by (select null)) as n
-                from sys.objects
+                from sys.objects a
+                cross join sys.objects b
             )
             insert into {cls.schema}.{cls.table_large}
             select n, n from nums;
@@ -217,12 +222,14 @@ class Test_Table_To_SharePoint_SQL:
             schema=self.schema,
             sharepoint_user=sharepoint_user,
             target_subfolder="TableTest/SQL",
-            output_filename=self.xlsx_mixed
+            output_filename=self.xlsx_mixed,
+            overwrite=True
         )
 
         assert os.path.exists(self.path_mixed)
 
         df_xlsx = pd.read_excel(self.path_mixed)
+
 
         df_db = sql.dfquery(f"""
             select * from {self.schema}.{self.table_mixed} order by id
@@ -244,14 +251,15 @@ class Test_Table_To_SharePoint_SQL:
             schema=self.schema,
             sharepoint_user=sharepoint_user,
             target_subfolder="TableTest/SQL",
-            output_filename=self.xlsx_large
+            output_filename=self.xlsx_large,
+            overwrite=True
         )
 
         assert os.path.exists(self.path_large)
 
         df_xlsx = pd.read_excel(self.path_large)
 
-        assert len(df_xlsx) == 5000
+        assert len(df_xlsx) == 100000
 
     @classmethod
     def teardown_class(cls):
