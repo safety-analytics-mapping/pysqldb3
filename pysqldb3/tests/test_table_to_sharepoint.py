@@ -58,15 +58,16 @@ class Test_Table_To_SharePoint_PG:
                 int_col int,
                 float_col float,
                 text_col text,
-                bool_col boolean
+                bool_col boolean,
+                dt_col timestamp
             );
         """)
 
         db.query(f"""
             insert into {cls.schema}.{cls.table_mixed} values
-            (1, 10, 1.5, 'a', true),
-            (2, 20, 2.5, 'b', false),
-            (3, null, null, null, null);
+            (1, 10, 1.5, 'a', true,  '2024-01-01 10:30:00'),
+            (2, 20, 2.5, 'b', false, '2024-01-02 15:45:00'),
+            (3, null, null, null, null, null);
         """)
 
         # large volume
@@ -89,6 +90,31 @@ class Test_Table_To_SharePoint_PG:
                 generate_series(1, 100000) as val;
         """)
 
+        # mostly numeric but real string
+        cls.table_mostly_numeric = "pg_test_mostly_numeric"
+        cls.xlsx_mostly_numeric = "pg_test_mostly_numeric.xlsx"
+        cls.path_mostly_numeric = os.path.join(
+            cls.onedrive_path, cls.xlsx_mostly_numeric
+        )
+
+        db.query(f"""
+            drop table if exists {cls.schema}.{cls.table_mostly_numeric};
+            create table {cls.schema}.{cls.table_mostly_numeric}(
+                id int,
+                code text
+            );
+        """)
+
+        db.query(f"""
+            insert into {cls.schema}.{cls.table_mostly_numeric} values
+            (1, '100010'),
+            (2, '100020'),
+            (3, '100030'),
+            (4, '10001A'),
+            (5, '100040'),
+            (6, null);
+        """)
+
     def test_table_to_sharepoint_mixed_types(self):
         db.table_to_sharepoint(
             table=self.table_mixed,
@@ -105,6 +131,9 @@ class Test_Table_To_SharePoint_PG:
         df_db = db.dfquery(f"""
             select * from {self.schema}.{self.table_mixed} order by id
         """)
+
+        df_xlsx['dt_col'] = pd.to_datetime(df_xlsx['dt_col'], errors="coerce")
+        df_db['dt_col'] = pd.to_datetime(df_db['dt_col'], errors="coerce")
 
         pd.testing.assert_frame_equal(
             df_xlsx.sort_index(axis=1),
@@ -129,6 +158,34 @@ class Test_Table_To_SharePoint_PG:
         # only validate row count
         assert len(df_xlsx) == 100000
 
+    def test_table_to_sharepoint_pg_mostly_numeric(self):
+        """
+        Validate correctness for mostly-numeric-but-string columns.
+        """
+
+        db.table_to_sharepoint(
+            table=self.table_mostly_numeric,
+            schema=self.schema,
+            target_subfolder="TableTest/PG",
+            output_filename=self.xlsx_mostly_numeric,
+            sharepoint_user=sharepoint_user,
+            overwrite=True
+        )
+
+        assert os.path.exists(self.path_mostly_numeric)
+
+        df_xlsx = pd.read_excel(self.path_mostly_numeric)
+
+        # must remain string-like
+        assert df_xlsx["code"].dtype == object
+
+        # real string must survive
+        assert (df_xlsx["code"] == "10001A").any()
+
+        # numeric coercion behavior
+        num = pd.to_numeric(df_xlsx["code"], errors="coerce")
+        assert num.isna().sum() >= 2  # '10001A' + null
+
     @classmethod
     def teardown_class(cls):
         """
@@ -139,6 +196,7 @@ class Test_Table_To_SharePoint_PG:
         for path in [
             cls.path_mixed,
             cls.path_large,
+            cls.path_mostly_numeric,
         ]:
             if os.path.exists(path):
                 os.remove(path)
@@ -147,6 +205,7 @@ class Test_Table_To_SharePoint_PG:
         for table in [
             cls.table_mixed,
             cls.table_large,
+            cls.table_mostly_numeric,
         ]:
             db.query(f"""
                 drop table if exists {cls.schema}.{table};
@@ -181,12 +240,13 @@ class Test_Table_To_SharePoint_SQL:
                 int_col int,
                 float_col float,
                 text_col varchar(100),
-                bool_col bit
+                bool_col bit,
+                dt_col datetime2(0)
             );
             insert into {cls.schema}.{cls.table_mixed} values
-            (1, 10, 1.5, 'apple', 1),
-            (2, 20, 2.5, 'banana', 0),
-            (3, null, null, null, null);
+            (1, 10, 1.5, 'apple', 1, '2024-01-01 10:30:00'),
+            (2, 20, 2.5, 'banana', 0, '2024-01-02 15:45:00'),
+            (3, null, null, null, null, null);
         """)
 
         cls.table_large = f"{sql_table_name}_large"
@@ -211,6 +271,27 @@ class Test_Table_To_SharePoint_SQL:
             select n, n from nums;
         """)
 
+        cls.table_mostly_numeric = f"{sql_table_name}_mostly_numeric"
+        cls.xlsx_mostly_numeric = "sql_test_mostly_numeric_export.xlsx"
+        cls.path_mostly_numeric = os.path.join(
+            cls.onedrive_path, cls.xlsx_mostly_numeric
+        )
+
+        sql.drop_table(schema=cls.schema, table=cls.table_mostly_numeric)
+
+        sql.query(f"""
+            create table {cls.schema}.{cls.table_mostly_numeric}(
+                id int,
+                code nvarchar(20)
+            );
+            insert into {cls.schema}.{cls.table_mostly_numeric} values
+            (1, '100010'),
+            (2, '100020'),
+            (3, '100030'),
+            (4, '10001A'),
+            (5, '100040'),
+            (6, null);
+        """)
 
     def test_table_to_sharepoint_sql_mixed_types(self):
         """
@@ -234,6 +315,9 @@ class Test_Table_To_SharePoint_SQL:
         df_db = sql.dfquery(f"""
             select * from {self.schema}.{self.table_mixed} order by id
         """)
+
+        df_xlsx['dt_col'] = pd.to_datetime(df_xlsx['dt_col'], errors="coerce")
+        df_db['dt_col'] = pd.to_datetime(df_db['dt_col'], errors="coerce")
 
         pd.testing.assert_frame_equal(
             df_xlsx.sort_index(axis=1),
@@ -261,6 +345,34 @@ class Test_Table_To_SharePoint_SQL:
 
         assert len(df_xlsx) == 100000
 
+    def test_table_to_sharepoint_sql_mostly_numeric(self):
+        """
+        Validate correctness for mostly-numeric-but-string columns.
+        """
+
+        sql.table_to_sharepoint(
+            table=self.table_mostly_numeric,
+            schema=self.schema,
+            sharepoint_user=sharepoint_user,
+            target_subfolder="TableTest/SQL",
+            output_filename=self.xlsx_mostly_numeric,
+            overwrite=True
+        )
+
+        assert os.path.exists(self.path_mostly_numeric)
+
+        df_xlsx = pd.read_excel(self.path_mostly_numeric)
+
+        # must stay string-like
+        assert df_xlsx["code"].dtype == object
+
+        # real string must survive
+        assert (df_xlsx["code"] == "10001A").any()
+
+        # numeric coercion check
+        num = pd.to_numeric(df_xlsx["code"], errors="coerce")
+        assert num.isna().sum() >= 2
+
     @classmethod
     def teardown_class(cls):
         """
@@ -270,6 +382,7 @@ class Test_Table_To_SharePoint_SQL:
         for path in [
             cls.path_mixed,
             cls.path_large,
+            cls.path_mostly_numeric,
         ]:
             if os.path.exists(path):
                 os.remove(path)
@@ -277,6 +390,7 @@ class Test_Table_To_SharePoint_SQL:
         for table in [
             cls.table_mixed,
             cls.table_large,
+            cls.path_mostly_numeric,
         ]:
             try:
                 sql.drop_table(schema=cls.schema, table=table)

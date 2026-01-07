@@ -63,15 +63,16 @@ class Test_SharePoint_To_Table_PG:
                     int_col int,
                     float_col float,
                     text_col text,
-                    bool_col boolean
+                    bool_col boolean,
+                    dt_col timestamp
                 );
             """)
 
         db.query(f"""
                 insert into {cls.schema}.{cls.src_mixed} values
-                (1, 10, 1.5, 'a', true),
-                (2, 20, 2.5, 'b', false),
-                (3, null, null, null, null);
+                (1, 10, 1.5, 'a', true,  '2024-01-01 10:30:00'),
+                (2, 20, 2.5, 'b', false, '2024-01-02 15:45:00'),
+                (3, null, null, null, null, null);
             """)
 
         db.table_to_sharepoint(
@@ -99,8 +100,8 @@ class Test_SharePoint_To_Table_PG:
         db.query(f"""
                 insert into {cls.schema}.{cls.src_large}
                 select
-                    generate_series(1, 5000) as id,
-                    generate_series(1, 5000) as val;
+                    generate_series(1, 100000) as id,
+                    generate_series(1, 100000) as val;
             """)
 
         db.table_to_sharepoint(
@@ -109,6 +110,38 @@ class Test_SharePoint_To_Table_PG:
             sharepoint_user=sharepoint_user,
             target_subfolder=cls.subfolder,
             output_filename=cls.file_large,
+            overwrite=True
+        )
+
+        # mostly numeric but real string
+        cls.src_mostly_numeric = f"{pg_table_name}_mostly_numeric"
+        cls.dest_mostly_numeric = f"{create_table_name}_mostly_numeric_from_sp"
+        cls.file_mostly_numeric = "pg_test_mostly_numeric_upload.xlsx"
+
+        db.query(f"""
+            drop table if exists {cls.schema}.{cls.src_mostly_numeric};
+            create table {cls.schema}.{cls.src_mostly_numeric}(
+                id int,
+                code text
+            );
+        """)
+
+        db.query(f"""
+            insert into {cls.schema}.{cls.src_mostly_numeric} values
+            (1, '100010'),
+            (2, '100020'),
+            (3, '100030'),
+            (4, '10001A'),   -- real string
+            (5, '100040'),
+            (6, null);
+        """)
+
+        db.table_to_sharepoint(
+            table=cls.src_mostly_numeric,
+            schema=cls.schema,
+            sharepoint_user=sharepoint_user,
+            target_subfolder=cls.subfolder,
+            output_filename=cls.file_mostly_numeric,
             overwrite=True
         )
 
@@ -128,6 +161,11 @@ class Test_SharePoint_To_Table_PG:
             f"{subfolder_encoded}/{urllib.parse.quote(cls.file_large)}"
         )
 
+        cls.file_url_mostly_numeric = (
+            f"https://nycdot-my.sharepoint.com/personal/"
+            f"{user_lower}_dot_nyc_gov/Documents/"
+            f"{subfolder_encoded}/{urllib.parse.quote(cls.file_mostly_numeric)}"
+        )
 
     def test_sharepoint_to_pg_mixed_types(self):
         """
@@ -153,6 +191,9 @@ class Test_SharePoint_To_Table_PG:
         df_dest = db.dfquery(f"""
                 select * from {self.schema}.{self.dest_mixed} order by id
             """)
+
+        df_src['dt_col'] = pd.to_datetime(df_src['dt_col'], errors="coerce")
+        df_dest['dt_col'] = pd.to_datetime(df_dest['dt_col'], errors="coerce")
 
         pd.testing.assert_frame_equal(
             df_src.sort_index(axis=1),
@@ -182,8 +223,48 @@ class Test_SharePoint_To_Table_PG:
                 from {self.schema}.{self.dest_large}
             """)
 
-        assert df_dest.loc[0, "cnt"] == 5000
+        assert df_dest.loc[0, "cnt"] == 100000
 
+    def test_sharepoint_to_pg_mostly_numeric(self):
+        """
+        Validate semantic correctness for mostly-numeric-but-string columns.
+        """
+
+        db.sharepoint_to_table(
+            df=None,
+            sharepoint_user=sharepoint_user,
+            sharepoint_password=sharepoint_password,
+            table=self.dest_mostly_numeric,
+            file_url=self.file_url_mostly_numeric,
+            sheet_name=0,
+            schema=self.schema,
+            overwrite=True,
+            temp=False
+        )
+
+        # row count
+        df_cnt = db.dfquery(f"""
+            select count(*) as cnt
+            from {self.schema}.{self.dest_mostly_numeric}
+        """)
+        assert df_cnt.loc[0, "cnt"] == 6
+
+        # content check
+        df = db.dfquery(f"""
+            select *
+            from {self.schema}.{self.dest_mostly_numeric}
+            order by id
+        """)
+
+        # schema-level expectation
+        assert df["code"].dtype == object
+
+        # real string must survive
+        assert (df["code"] == "10001A").any()
+
+        # numeric coercion behavior
+        num = pd.to_numeric(df["code"], errors="coerce")
+        assert num.isna().sum() >= 2  # '10001A' + null
 
     @classmethod
     def teardown_class(cls):
@@ -196,6 +277,8 @@ class Test_SharePoint_To_Table_PG:
             cls.dest_mixed,
             cls.src_large,
             cls.dest_large,
+            cls.src_mostly_numeric,
+            cls.dest_mostly_numeric,
         ]:
             try:
                 db.drop_table(table=table, schema=cls.schema)
@@ -229,12 +312,13 @@ class Test_SharePoint_To_Table_SQL:
                     int_col int,
                     float_col float,
                     text_col varchar(100),
-                    bool_col bit
+                    bool_col bit,
+                    dt_col datetime2(0)
                 );
                 insert into {cls.schema}.{cls.src_mixed} values
-                (1, 10, 1.5, 'apple', 1),
-                (2, 20, 2.5, 'banana', 0),
-                (3, null, null, null, null);
+                (1, 10, 1.5, 'apple', 1, '2024-01-01 10:30:00'),
+                (2, 20, 2.5, 'banana', 0, '2024-01-02 15:45:00'),
+                (3, null, null, null, null, null);
             """)
 
         # large volume
@@ -259,6 +343,27 @@ class Test_SharePoint_To_Table_SQL:
                 select n, n from nums;
             """)
 
+        # mostly numeric but with real strings
+        cls.src_mostly_numeric = f"{sql_table_name}_mostly_numeric"
+        cls.dest_mostly_numeric = f"{create_table_name}_sql_mostly_numeric_from_sp"
+        cls.file_mostly_numeric = "sql_test_mostly_numeric_upload.xlsx"
+
+        sql.drop_table(schema=cls.schema, table=cls.src_mostly_numeric)
+        sql.query(f"""
+            create table {cls.schema}.{cls.src_mostly_numeric}(
+                id int,
+                code nvarchar(20)
+            );
+
+            insert into {cls.schema}.{cls.src_mostly_numeric} values
+            (1, '100010'),
+            (2, '100020'),
+            (3, '100030'),
+            (4, '10001A'),   -- real string
+            (5, '100040'),
+            (6, null);
+        """)
+
         # construct SharePoint URLs
         user_lower = sharepoint_user.lower()
         subfolder_encoded = urllib.parse.quote(cls.subfolder)
@@ -275,6 +380,11 @@ class Test_SharePoint_To_Table_SQL:
             f"{subfolder_encoded}/{urllib.parse.quote(cls.file_large)}"
         )
 
+        cls.file_url_mostly_numeric = (
+            f"https://nycdot-my.sharepoint.com/personal/"
+            f"{user_lower}_dot_nyc_gov/Documents/"
+            f"{subfolder_encoded}/{urllib.parse.quote(cls.file_mostly_numeric)}"
+        )
 
         # export tables to SharePoint
         sql.table_to_sharepoint(
@@ -292,6 +402,15 @@ class Test_SharePoint_To_Table_SQL:
             sharepoint_user=sharepoint_user,
             target_subfolder=cls.subfolder,
             output_filename=cls.file_large,
+            overwrite=True
+        )
+
+        sql.table_to_sharepoint(
+            table=cls.src_mostly_numeric,
+            schema=cls.schema,
+            sharepoint_user=sharepoint_user,
+            target_subfolder=cls.subfolder,
+            output_filename=cls.file_mostly_numeric,
             overwrite=True
         )
 
@@ -319,6 +438,9 @@ class Test_SharePoint_To_Table_SQL:
         df_dest = sql.dfquery(f"""
             select * from {self.schema}.{self.dest_mixed} order by id
         """)
+
+        df_src['dt_col'] = pd.to_datetime(df_src['dt_col'], errors="coerce")
+        df_dest['dt_col'] = pd.to_datetime(df_dest['dt_col'], errors="coerce")
 
         pd.testing.assert_frame_equal(
             df_src.sort_index(axis=1),
@@ -350,6 +472,47 @@ class Test_SharePoint_To_Table_SQL:
 
         assert df_cnt.loc[0, "cnt"] == 100000
 
+    def test_sharepoint_to_sql_mostly_numeric(self):
+        """
+        Validate stability and semantic correctness for
+        mostly-numeric-but-string columns.
+        """
+
+        sql.sharepoint_to_table(
+            df=None,
+            table=self.dest_mostly_numeric,
+            sharepoint_user=sharepoint_user,
+            sharepoint_password=sharepoint_password,
+            file_url=self.file_url_mostly_numeric,
+            sheet_name=0,
+            schema=self.schema,
+            overwrite=True,
+            temp=False
+        )
+
+        # 1. row count check
+        df_cnt = sql.dfquery(f"""
+            select count(*) as cnt
+            from {self.schema}.{self.dest_mostly_numeric}
+        """)
+        assert df_cnt.loc[0, "cnt"] == 6
+
+        # 2. semantic correctness check
+        df = sql.dfquery(f"""
+            select *
+            from {self.schema}.{self.dest_mostly_numeric}
+            order by id
+        """)
+
+        # column must be string-like in pandas
+        assert df["code"].dtype == object
+
+        # must preserve real string content
+        assert (df["code"] == "10001A").any()
+
+        # numeric coercion behaves as expected
+        num = pd.to_numeric(df["code"], errors="coerce")
+        assert num.isna().sum() >= 2  # '10001A' + null
 
     @classmethod
     def teardown_class(cls):
@@ -362,6 +525,8 @@ class Test_SharePoint_To_Table_SQL:
             cls.dest_mixed,
             cls.src_large,
             cls.dest_large,
+            cls.src_mostly_numeric,
+            cls.dest_mostly_numeric,
         ]:
             try:
                 sql.drop_table(schema=cls.schema, table=table)
