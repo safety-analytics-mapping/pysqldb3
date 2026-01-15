@@ -314,6 +314,9 @@ class TestQueryToGpkgPg:
     def test_query_to_gpkg_data(self):
         gpkg = 'testgpkg.gpkg'
 
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg))
+
         # create table
         db.query(f"""
             DROP TABLE IF EXISTS {pg_schema}.{test_table};
@@ -339,23 +342,17 @@ class TestQueryToGpkgPg:
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
-        # import gpkg to db to compare
-        db.gpkg_to_table(path=FOLDER_PATH, gpkg_name = gpkg, gpkg_tbl=test_table, table = test_table + 'QA',
-                          schema=pg_schema, print_cmd=True)
+        # Assert that date columns are in the proper format
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg}" -sql "select * from {test_table}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT) 
 
-        db.query(f"""
-        select
-            t1.fld2 = t2.fld2,
-            left(t1.fld3, 254) = left(t2.fld3, 254),
-            t1.fld4::date = t2.fld4_dt, -- shapefiles cannot store datetimes
-            t1.fld4::time = t2.fld4_tm::time, -- shapefiles cannot store datetimes
-            t1.fld5 = t2.fld5,
-            st_distance(t1.fld6, t2.fld6) < 1 -- default name from pysqldb
-        from {pg_schema}.{test_table} t1
-        join {pg_schema}.{test_table}QA t2
-        on t1.fld1=t2.fld1
-        """)
-        assert set(db.data[0]) == {True}
+        # Difficult to assert the same current timestamp so we assert only that column and type are correct.
+        assert 'fld1 (Integer) = 1' in str(ogr_response_gpkg), "GPKG - fld1 not returning correct datatype or value"
+        assert 'fld2 (String) = test text' in str(ogr_response_gpkg), "GPKG - fld2 not returning correct datatype or value"
+        assert 'fld3 (String) = test test test' in str(ogr_response_gpkg), "GPKG - fld3 not returning correct datatype or value"
+        assert 'fld4 (DateTime) = ' in str(ogr_response_gpkg), "GPKG - fld4 not returning correct datatype or value"
+        assert 'fld5 (Real) = 123.456' in str(ogr_response_gpkg), "GPKG - fld5 not returning correct datatype or value"
+        assert 'POINT (1015329.1 213793.1)' in str(ogr_response_gpkg), "GPKG - fld6 not returning correct datatype or value"
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_table)
@@ -366,9 +363,11 @@ class TestQueryToGpkgPg:
     def test_query_to_gpkg_data_longcolumn(self):
 
         gpkg = 'testgpkg.gpkg'
+
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg))
         
         db.drop_table(schema=pg_schema, table=test_table)
-        db.drop_table(schema=pg_schema, table=test_table + 'QA')
 
         # create table
         db.query(f"""
@@ -395,26 +394,20 @@ class TestQueryToGpkgPg:
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
-        # import gpkg to db to compare
-        db.gpkg_to_table(path=FOLDER_PATH, gpkg_name = gpkg, gpkg_tbl = test_table, schema = pg_schema, table = test_table + 'QA', print_cmd=True)
+        # Assert that date columns are in the proper format
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg}" -sql "select * from {test_table}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT) 
 
-        db.query(f"""
-        select
-            t1.fld2 = t2.fld2,
-            left(t1.fld3, 254) = left(t2.fld3, 254),
-            t1.longfld4::date = t2.longfld_dt, -- shapefiles cannot store datetimes
-            t1.longfld4::time = t2.longfld_tm::time, -- shapefiles cannot store datetimes
-            t1.fld5 = t2.fld5,
-            st_distance(t1.fld6, t2.fld6) < 1 -- deafult name from pysqldb
-        from {pg_schema}.{test_table} t1
-        join {pg_schema}.{test_table}QA t2
-        on t1.fld1=t2.fld1
-        """)
-        assert set(db.data[0]) == {True}
+        # Difficult to assert the same current timestamp so we assert only that column and type are correct.
+        assert 'fld1 (Integer) = 1' in str(ogr_response_gpkg), "GPKG - fld1 not returning correct datatype or value"
+        assert 'fld2 (String) = test text' in str(ogr_response_gpkg), "GPKG - fld2 not returning correct datatype or value"
+        assert 'fld3 (String) = test test test' in str(ogr_response_gpkg), "GPKG - fld3 not returning correct datatype or value"
+        assert 'longfld4 (DateTime) = ' in str(ogr_response_gpkg), "GPKG longfld4 column not in DateTime format"
+        assert 'fld5 (Real) = 123.456' in str(ogr_response_gpkg), "GPKG - fld5 not returning correct datatype or value"
+        assert 'POINT (1015329.1 213793.1)' in str(ogr_response_gpkg), "GPKG - fld6 not returning correct datatype or value"
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_table)
-        db.drop_table(schema=pg_schema, table=test_table + 'QA')
 
         os.remove(os.path.join(FOLDER_PATH, gpkg))
 
@@ -429,6 +422,41 @@ class TestQueryToGpkgPg:
             Failed = True
         # check table in not folder
         assert Failed
+        assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
+
+    def test_query_to_gpkg_date_basic(self):
+
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_table};
+                create table {pg_schema}.{test_table} as
+                select  1 as id, 
+                        cast('10/14/2010 19:12:00' as timestamp) test_date,
+                        st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
+                """)
+        
+        assert db.table_exists(test_table, schema = pg_schema)
+
+        gpkg = 'testgpkg.gpkg'
+
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg))
+
+        # Write gpkg
+        db.query_to_gpkg(path=os.path.join(FOLDER_PATH, gpkg), query = f"select * from {pg_schema}.{test_table}",
+                         gpkg_tbl=test_table, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
+
+        # Assert that date columns are in the proper format
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg}" -sql "select * from {test_table}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT) 
+
+        assert 'test_date (DateTime) = 2010/10/14 19:12:00' in str(ogr_response_gpkg), "GPKG test_date not in DateTime format"
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_table)
+        os.remove(os.path.join(FOLDER_PATH, gpkg))
         assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
     @classmethod
@@ -799,24 +827,18 @@ class TestQueryToGpkgMs:
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
-        # import gpkg to db to compare
-        sql.gpkg_to_table(path=FOLDER_PATH, gpkg_name = gpkg, gpkg_tbl = test_table, table=test_table + 'QA', schema=ms_schema, print_cmd=True)
+        # compare result using ogrinfo
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg}" -sql "select * from {test_table}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT) 
 
-        # fld6 automatically becomes renamed as geom when geospatial_to_table is run
-        # t1 field should remain fld6 because that is how the table was created directly in 
-        sql.query(f"""
-        select
-            case when t1.fld2 = t2.fld2 then 1 else 0 end,
-            case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when t1.fld4 =t2.fld4 then 1 else 0 end,
-            case when t1.fld5 = t2.fld5 then 1 else 0 end,
-            case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
-        from {ms_schema}.{test_table} t1
-        join {ms_schema}.{test_table}QA t2
-        on t1.fld1=t2.fld1
-        """)
-        assert set(sql.data[0]) == {1}
-
+        # hard to assert current_timestamp value so we just test this field / type exists
+        assert 'fld1 (Integer) = 1' in str(ogr_response_gpkg), "GPKG - fld1 not returning correct datatype or value"
+        assert 'fld2 (String) = test text' in str(ogr_response_gpkg), "GPKG - fld2 not returning correct datatype or value"
+        assert 'fld3 (String) = test test test' in str(ogr_response_gpkg), "GPKG - fld3 not returning correct datatype or value"
+        assert 'fld4 (DateTime) = ' in str(ogr_response_gpkg), "GPKG - fld4 not in DateTime format"
+        assert 'fld5 (Real) = 123.456' in str(ogr_response_gpkg), "GPKG - fld5 not returning correct datatype or value"
+        assert 'POINT (1015329.1 213793.1)' in str(ogr_response_gpkg), "GPKG - fld6 not returning correct datatype or value"
+        
         # clean up
         sql.drop_table(ms_schema, test_table)
         sql.drop_table(ms_schema, test_table + 'QA')
@@ -854,25 +876,20 @@ class TestQueryToGpkgMs:
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
 
-        # import gpkg to db to compare
-        sql.gpkg_to_table(path=FOLDER_PATH, gpkg_name = gpkg, gpkg_tbl = test_table, table=test_table + 'QA', schema=ms_schema, print_cmd=True)
+        # compare result using ogrinfo
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg}" -sql "select * from {test_table}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT) 
 
-        sql.query(f"""
-        select
-            case when t1.fld2 = t2.fld2 then 1 else 0 end,
-            case when left(t1.fld3, 254) = left(t2.fld3, 254) then 1 else 0 end,
-            case when t1.longfld4=t2.longfld4 then 1 else 0 end,
-            case when t1.fld5 = t2.fld5 then 1 else 0 end,
-            case when t1.fld6.STDistance(t2.fld6) < 1  then 1 else 0 end-- default name from pysqldb
-        from {ms_schema}.{test_table} t1
-        join {ms_schema}.{test_table}QA t2
-        on t1.fld1=t2.fld1
-        """)
-        assert set(sql.data[0]) == {1}
-
+        # hard to assert current_timestamp value so we just test this field / type exists
+        assert 'fld1 (Integer) = 1' in str(ogr_response_gpkg), "GPKG - fld1 not returning correct datatype or value"
+        assert 'fld2 (String) = test text' in str(ogr_response_gpkg), "GPKG - fld2 not returning correct datatype or value"
+        assert 'fld3 (String) = test test test' in str(ogr_response_gpkg), "GPKG - fld3 not returning correct datatype or value"
+        assert 'longfld4 (DateTime) = ' in str(ogr_response_gpkg), "GPKG date not in DateTime format"
+        assert 'fld5 (Real) = 123.456' in str(ogr_response_gpkg), "GPKG - fld5 not returning correct datatype or value"
+        assert 'POINT (1015329.1 213793.1)' in str(ogr_response_gpkg), "GPKG - fld6 not returning correct datatype or value"
+        
         # clean up
         sql.drop_table(ms_schema, test_table)
-        sql.drop_table(ms_schema, test_table + 'QA')
 
         os.remove(os.path.join(FOLDER_PATH, gpkg))
 
@@ -888,6 +905,42 @@ class TestQueryToGpkgMs:
         # check table in not folder
         assert Failed
         assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
+
+    def test_query_to_gpkg_date_basic(self):
+
+        sql.query(f"drop table if exists {ms_schema}.{test_table}")
+
+        sql.query(f"""
+                create table {ms_schema}.{test_table}
+                    (id int, test_date datetime, geom geometry);
+                insert into {ms_schema}.{test_table} VALUES(1, '1/1/2000 11:50:00',
+                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
+                """)
+        
+        assert sql.table_exists(test_table, schema = ms_schema)
+
+        gpkg_name = 'testgpkg.gpkg'
+
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Write gpkg
+        sql.query_to_gpkg(path=os.path.join(FOLDER_PATH, gpkg_name), query = f"select * from {ms_schema}.{test_table}",
+                         gpkg_tbl=test_table, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Assert that date columns are in the proper format
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_table}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT) 
+
+        assert 'test_date (DateTime) = 2000/01/01 11:50:00' in str(ogr_response_gpkg), "Appears in incorrect format"
+
+        # clean up
+        sql.drop_table(schema=ms_schema, table=test_table)
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+        assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
     @classmethod
     def teardown_class(cls):
