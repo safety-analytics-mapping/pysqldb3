@@ -110,7 +110,7 @@ def write_geo_cmd_query(dbo, query_or_table, path, is_query = False, schema = ''
     columns_with_brackets = [left_bracket + c[0] + right_bracket for c in columns_with_types]
 
     # certain database connections + output formats require formatting for dates
-    if dbo.type == PG:
+    if dbo.type == PG or dbo.type == MS:
         results = format_dte_columns(dbo, columns_with_types, columns_with_brackets)
     else:
         results = ' , '.join([c for c in columns_with_brackets])
@@ -164,7 +164,6 @@ def format_dte_columns(dbo, columns_with_types, columns_with_brackets):
                                 col=col_name, shortened_col = shortened_col
                                 )
             elif dbo.type == MS:
-                # date type only needs correction for MS Shp, not GPKG
                 results += " , cast([{col}] as date) [{shortened_col}_dt], cast(cast([{col}] as time) as varchar)" \
                                 " [{shortened_col}_tm] ".format(
                                 col=col_name, shortened_col = shortened_col
