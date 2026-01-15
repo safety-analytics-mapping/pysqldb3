@@ -2237,26 +2237,8 @@ class DbConnect:
             # final output file path
         local_xlsx_path = os.path.join(os.getcwd(), output_filename)
 
-        # temp CSV path
-        local_csv_path = os.path.join(os.getcwd(), f"__tmp_{table}.csv")
+        df=self.dfquery(f'select * from {schema}.{table}')
 
-        print(f"Exporting table to temporary CSV:\n{local_csv_path}")
-
-        #Export table → CSV
-        self.query_to_csv(
-            query=f'select * from {schema}.{table}',
-            strict=True,
-            output_file=local_csv_path,
-            sep=sep,
-            quote_strings=quote_strings,
-            overwrite=overwrite
-        )
-
-        #Convert CSV → XLSX
-        print(f"Converting CSV to XLSX:\n{local_xlsx_path}")
-        df = pd.read_csv(local_csv_path, sep=sep)
-        # If we are using SQL DB it would create a col called WKT which is meaningless
-        # we want to drop it
         df = df.drop(columns=["WKT"], errors="ignore")
         df.to_excel(local_xlsx_path, index=False, engine="openpyxl")
         print("XLSX export completed.")
@@ -2288,7 +2270,6 @@ class DbConnect:
 
         try:
             os.remove(local_xlsx_path)
-            os.remove(local_csv_path)
             print("Local temporary xlsx deleted.")
         except:
             print("Failed to delete local temporary xlsx")
