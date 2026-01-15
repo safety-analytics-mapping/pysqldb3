@@ -5,6 +5,9 @@ import pandas as pd
 import datetime
 import urllib
 
+from io import StringIO
+from office365.sharepoint.files.file import File
+
 from .. import pysqldb3 as pysqldb
 from . import helpers
 
@@ -48,101 +51,83 @@ class Test_SharePoint_To_Table_PG:
         3. Construct SharePoint file URLs explicitly
         """
 
+        # Build OneDrive path
+        raw_user = sharepoint_user.lower()
+        user = raw_user[0].upper() + raw_user[1:]  # hshi → HShi,
+        onedrive_root = f"C:/Users/{user}/OneDrive - NYCDOT"
+
         cls.schema = pg_schema
         cls.subfolder = "upload test"
+        onedrive_folder = os.path.join(onedrive_root, cls.subfolder)
 
         # mixed data types
-        cls.src_mixed = f"{pg_table_name}_mixed"
         cls.dest_mixed = f"{create_table_name}_mixed_from_sp"
         cls.file_mixed = "pg_test_mixed_upload.xlsx"
 
-        db.query(f"""
-                drop table if exists {cls.schema}.{cls.src_mixed};
-                create table {cls.schema}.{cls.src_mixed}(
-                    id int,
-                    int_col int,
-                    float_col float,
-                    text_col text,
-                    bool_col boolean,
-                    dt_col timestamp
-                );
-            """)
-
-        db.query(f"""
-                insert into {cls.schema}.{cls.src_mixed} values
-                (1, 10, 1.5, 'a', true,  '2024-01-01 10:30:00'),
-                (2, 20, 2.5, 'b', false, '2024-01-02 15:45:00'),
-                (3, null, null, null, null, null);
-            """)
-
-        db.table_to_sharepoint(
-            table=cls.src_mixed,
-            schema=cls.schema,
-            sharepoint_user=sharepoint_user,
-            target_subfolder=cls.subfolder,
-            output_filename=cls.file_mixed,
-            overwrite=True
+        df_mixed = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "int_col": [10, 20, None],
+                "float_col": [1.5, 2.5, None],
+                "text_col": ["a", "b", None],
+                "bool_col": [True, False, None],
+                "dt_col": [
+                    "2024-01-01 10:30:00",
+                    "2024-01-02 15:45:00",
+                    None
+                ]
+            }
         )
 
+        # ensure datetime column behaves correctly
+        df_mixed["dt_col"] = pd.to_datetime(df_mixed["dt_col"])
+
+        # Create folder if missing
+        os.makedirs(onedrive_folder, exist_ok=True)
+        final_dest = os.path.join(onedrive_folder, cls.file_mixed)
+
+        # Copy to OneDrive folder
+        df_mixed.to_excel(final_dest, index=False, engine="openpyxl")
+
         # large volume
-        cls.src_large = f"{pg_table_name}_large"
         cls.dest_large = f"{create_table_name}_large_from_sp"
         cls.file_large = "pg_test_large_upload.xlsx"
 
-        db.query(f"""
-                drop table if exists {cls.schema}.{cls.src_large};
-                create table {cls.schema}.{cls.src_large}(
-                    id int,
-                    val int
-                );
-            """)
-
-        db.query(f"""
-                insert into {cls.schema}.{cls.src_large}
-                select
-                    generate_series(1, 100000) as id,
-                    generate_series(1, 100000) as val;
-            """)
-
-        db.table_to_sharepoint(
-            table=cls.src_large,
-            schema=cls.schema,
-            sharepoint_user=sharepoint_user,
-            target_subfolder=cls.subfolder,
-            output_filename=cls.file_large,
-            overwrite=True
+        df_large = pd.DataFrame(
+            {
+                "id": range(1, 100001),
+                "val": range(1, 100001),
+            }
         )
 
+        final_dest_large = os.path.join(onedrive_folder, cls.file_large)
+        df_large.to_excel(final_dest_large, index=False, engine="openpyxl")
+
         # mostly numeric but real string
-        cls.src_mostly_numeric = f"{pg_table_name}_mostly_numeric"
         cls.dest_mostly_numeric = f"{create_table_name}_mostly_numeric_from_sp"
         cls.file_mostly_numeric = "pg_test_mostly_numeric_upload.xlsx"
 
-        db.query(f"""
-            drop table if exists {cls.schema}.{cls.src_mostly_numeric};
-            create table {cls.schema}.{cls.src_mostly_numeric}(
-                id int,
-                code text
-            );
-        """)
+        df_mostly_numeric = pd.DataFrame(
+            {
+                "id": [1, 2, 3, 4, 5, 6],
+                "code": [
+                    "100010",
+                    "100020",
+                    "100030",
+                    "10001A",  # real string
+                    "100040",
+                    None
+                ],
+            }
+        )
 
-        db.query(f"""
-            insert into {cls.schema}.{cls.src_mostly_numeric} values
-            (1, '100010'),
-            (2, '100020'),
-            (3, '100030'),
-            (4, '10001A'),   -- real string
-            (5, '100040'),
-            (6, null);
-        """)
-
-        db.table_to_sharepoint(
-            table=cls.src_mostly_numeric,
-            schema=cls.schema,
-            sharepoint_user=sharepoint_user,
-            target_subfolder=cls.subfolder,
-            output_filename=cls.file_mostly_numeric,
-            overwrite=True
+        final_dest_mostly_numeric = os.path.join(
+            onedrive_folder, cls.file_mostly_numeric
+        )
+        df_mostly_numeric.to_excel(
+            final_dest_mostly_numeric,
+            index=False,
+            engine="openpyxl"
         )
 
         # construct SharePoint URLs
@@ -173,7 +158,6 @@ class Test_SharePoint_To_Table_PG:
         """
 
         db.sharepoint_to_table(
-            df=None,
             sharepoint_user=sharepoint_user,
             sharepoint_password=sharepoint_password,
             table=self.dest_mixed,
@@ -184,9 +168,20 @@ class Test_SharePoint_To_Table_PG:
             temp=False
         )
 
-        df_src = db.dfquery(f"""
-                select * from {self.schema}.{self.src_mixed} order by id
-            """)
+        df_src = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "int_col": [10, 20, None],
+                "float_col": [1.5, 2.5, None],
+                "text_col": ["a", "b", None],
+                "bool_col": [True, False, None],
+                "dt_col": [
+                    "2024-01-01 10:30:00",
+                    "2024-01-02 15:45:00",
+                    None
+                ]
+            }
+        )
 
         df_dest = db.dfquery(f"""
                 select * from {self.schema}.{self.dest_mixed} order by id
@@ -207,7 +202,6 @@ class Test_SharePoint_To_Table_PG:
         """
 
         db.sharepoint_to_table(
-            df=None,
             table=self.dest_large,
             sharepoint_user=sharepoint_user,
             sharepoint_password=sharepoint_password,
@@ -231,7 +225,6 @@ class Test_SharePoint_To_Table_PG:
         """
 
         db.sharepoint_to_table(
-            df=None,
             sharepoint_user=sharepoint_user,
             sharepoint_password=sharepoint_password,
             table=self.dest_mostly_numeric,
@@ -273,11 +266,8 @@ class Test_SharePoint_To_Table_PG:
         """
 
         for table in [
-            cls.src_mixed,
             cls.dest_mixed,
-            cls.src_large,
             cls.dest_large,
-            cls.src_mostly_numeric,
             cls.dest_mostly_numeric,
         ]:
             try:
@@ -292,79 +282,93 @@ class Test_SharePoint_To_Table_SQL:
     def setup_class(cls):
         """
         SQL Server:
-        1. Create source tables (mixed types + large volume).
-        2. Export each to SharePoint.
-        3. Construct SharePoint URLs explicitly.
+        Prepare SharePoint files directly from Python (no DB source),
+        then validate SharePoint → SQL ingestion.
         """
 
         cls.schema = ms_schema
         cls.subfolder = "upload test"
 
+        # ------------------------------------------------------------
+        # Build OneDrive local sync path
+        # ------------------------------------------------------------
+        raw_user = sharepoint_user.lower()
+        user = raw_user[0].upper() + raw_user[1:]
+        onedrive_root = f"C:/Users/{user}/OneDrive - NYCDOT"
+        onedrive_folder = os.path.join(onedrive_root, cls.subfolder)
+        os.makedirs(onedrive_folder, exist_ok=True)
+
         # mixed data types
-        cls.src_mixed = f"{sql_table_name}_mixed"
         cls.dest_mixed = f"{create_table_name}_sql_mixed_from_sp"
         cls.file_mixed = "sql_test_mixed_upload.xlsx"
 
-        sql.drop_table(schema=cls.schema, table=cls.src_mixed)
-        sql.query(f"""
-                create table {cls.schema}.{cls.src_mixed}(
-                    id int,
-                    int_col int,
-                    float_col float,
-                    text_col varchar(100),
-                    bool_col bit,
-                    dt_col datetime2(0)
-                );
-                insert into {cls.schema}.{cls.src_mixed} values
-                (1, 10, 1.5, 'apple', 1, '2024-01-01 10:30:00'),
-                (2, 20, 2.5, 'banana', 0, '2024-01-02 15:45:00'),
-                (3, null, null, null, null, null);
-            """)
+        df_mixed = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "int_col": [10, 20, None],
+                "float_col": [1.5, 2.5, None],
+                "text_col": ["apple", "banana", None],
+                "bool_col": [True, False, None],
+                "dt_col": [
+                    "2024-01-01 10:30:00",
+                    "2024-01-02 15:45:00",
+                    None
+                ],
+            }
+        )
+        df_mixed["dt_col"] = pd.to_datetime(df_mixed["dt_col"])
+
+        df_mixed.to_excel(
+            os.path.join(onedrive_folder, cls.file_mixed),
+            index=False,
+            engine="openpyxl"
+        )
 
         # large volume
         cls.src_large = f"{sql_table_name}_large"
         cls.dest_large = f"{create_table_name}_sql_large_from_sp"
         cls.file_large = "sql_test_large_upload.xlsx"
 
-        sql.drop_table(schema=cls.schema, table=cls.src_large)
-        sql.query(f"""
-                create table {cls.schema}.{cls.src_large}(
-                    id int,
-                    val int
-                );
+        df_large = pd.DataFrame(
+            {
+                "id": range(1, 100001),
+                "val": range(1, 100001),
+            }
+        )
 
-                ;with nums as (
-                    select top (100000)
-                        row_number() over (order by (select null)) as n
-                    from sys.objects a
-                    cross join sys.objects b
-                )
-                insert into {cls.schema}.{cls.src_large}
-                select n, n from nums;
-            """)
+        df_large.to_excel(
+            os.path.join(onedrive_folder, cls.file_large),
+            index=False,
+            engine="openpyxl"
+        )
 
         # mostly numeric but with real strings
-        cls.src_mostly_numeric = f"{sql_table_name}_mostly_numeric"
         cls.dest_mostly_numeric = f"{create_table_name}_sql_mostly_numeric_from_sp"
         cls.file_mostly_numeric = "sql_test_mostly_numeric_upload.xlsx"
 
-        sql.drop_table(schema=cls.schema, table=cls.src_mostly_numeric)
-        sql.query(f"""
-            create table {cls.schema}.{cls.src_mostly_numeric}(
-                id int,
-                code nvarchar(20)
-            );
+        df_mostly_numeric = pd.DataFrame(
+            {
+                "id": [1, 2, 3, 4, 5, 6],
+                "code": [
+                    "100010",
+                    "100020",
+                    "100030",
+                    "10001A",  # real string
+                    "100040",
+                    None,
+                ],
+            }
+        )
 
-            insert into {cls.schema}.{cls.src_mostly_numeric} values
-            (1, '100010'),
-            (2, '100020'),
-            (3, '100030'),
-            (4, '10001A'),   -- real string
-            (5, '100040'),
-            (6, null);
-        """)
+        df_mostly_numeric.to_excel(
+            os.path.join(onedrive_folder, cls.file_mostly_numeric),
+            index=False,
+            engine="openpyxl"
+        )
 
-        # construct SharePoint URLs
+        # ------------------------------------------------------------
+        # Construct SharePoint URLs
+        # ------------------------------------------------------------
         user_lower = sharepoint_user.lower()
         subfolder_encoded = urllib.parse.quote(cls.subfolder)
 
@@ -386,41 +390,12 @@ class Test_SharePoint_To_Table_SQL:
             f"{subfolder_encoded}/{urllib.parse.quote(cls.file_mostly_numeric)}"
         )
 
-        # export tables to SharePoint
-        sql.table_to_sharepoint(
-            table=cls.src_mixed,
-            schema=cls.schema,
-            sharepoint_user=sharepoint_user,
-            target_subfolder=cls.subfolder,
-            output_filename=cls.file_mixed,
-            overwrite=True
-        )
-
-        sql.table_to_sharepoint(
-            table=cls.src_large,
-            schema=cls.schema,
-            sharepoint_user=sharepoint_user,
-            target_subfolder=cls.subfolder,
-            output_filename=cls.file_large,
-            overwrite=True
-        )
-
-        sql.table_to_sharepoint(
-            table=cls.src_mostly_numeric,
-            schema=cls.schema,
-            sharepoint_user=sharepoint_user,
-            target_subfolder=cls.subfolder,
-            output_filename=cls.file_mostly_numeric,
-            overwrite=True
-        )
-
     def test_sharepoint_to_sql_mixed_types(self):
         """
         Validate correctness for mixed data types.
         """
 
         sql.sharepoint_to_table(
-            df=None,
             table=self.dest_mixed,
             sharepoint_user=sharepoint_user,
             sharepoint_password=sharepoint_password,
@@ -431,9 +406,20 @@ class Test_SharePoint_To_Table_SQL:
             temp=False
         )
 
-        df_src = sql.dfquery(f"""
-            select * from {self.schema}.{self.src_mixed} order by id
-        """)
+        df_src = pd.DataFrame(
+            {
+                "id": [1, 2, 3],
+                "int_col": [10, 20, None],
+                "float_col": [1.5, 2.5, None],
+                "text_col": ["apple", "banana", None],
+                "bool_col": [True, False, None],
+                "dt_col": [
+                    "2024-01-01 10:30:00",
+                    "2024-01-02 15:45:00",
+                    None
+                ],
+            }
+        )
 
         df_dest = sql.dfquery(f"""
             select * from {self.schema}.{self.dest_mixed} order by id
@@ -454,7 +440,6 @@ class Test_SharePoint_To_Table_SQL:
         """
 
         sql.sharepoint_to_table(
-            df=None,
             table=self.dest_large,
             sharepoint_user=sharepoint_user,
             sharepoint_password=sharepoint_password,
@@ -479,7 +464,6 @@ class Test_SharePoint_To_Table_SQL:
         """
 
         sql.sharepoint_to_table(
-            df=None,
             table=self.dest_mostly_numeric,
             sharepoint_user=sharepoint_user,
             sharepoint_password=sharepoint_password,
