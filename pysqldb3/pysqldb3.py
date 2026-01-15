@@ -14,6 +14,7 @@ import shutil
 import tempfile
 import numpy as np
 
+from io import StringIO
 from io import BytesIO
 from office365.sharepoint.files.file import File
 from office365.sharepoint.client_context import ClientContext
@@ -1086,9 +1087,9 @@ class DbConnect:
         df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema_table}", timeme=False, internal = True)
         print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
-    def sharepoint_to_table(self, df, table, file_url, sharepoint_user=None,sharepoint_password=None,
-                            sheet_name=0, table_schema=None, schema=None, overwrite=False, temp=True,
-                           allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False):
+    def sharepoint_to_table(self, table, file_url, sharepoint_user=None,sharepoint_password=None,
+                            sheet_name=0, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
+                           column_type_overrides=None, days=7, temp_table=False):
         """
             Downloads an Excel file from SharePoint, converts it to a Pandas DataFrame,
             and writes the DataFrame to a database table using dataframe_to_table().
@@ -1136,21 +1137,31 @@ class DbConnect:
         df = pd.read_excel(file_stream, sheet_name=sheet_name)
         print(f"Successfully loaded sheet '{sheet_name}' with {len(df)} rows.")
 
-        # Close memory stream
-        file_stream.close()
+        with tempfile.NamedTemporaryFile(
+                mode="w",
+                suffix=".csv",
+                delete=False,
+                newline="",
+                encoding="utf-8"
+        ) as tmp:
+            csv_path = tmp.name
+            df.to_csv(csv_path, index=False)
 
         # Write DataFrame to DB
-        self.dataframe_to_table(
-            df,
+        self.csv_to_table(
+            input_file=csv_path,
             table=table,
-            table_schema=table_schema,
             schema=schema,
             overwrite=overwrite,
             temp=temp,
             allow_max_varchar=allow_max_varchar,
             column_type_overrides=column_type_overrides,
-            days=days
+            days=days,
+            temp_table=temp_table
         )
+
+        # Close memory stream
+        file_stream.close()
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
                      allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False,
