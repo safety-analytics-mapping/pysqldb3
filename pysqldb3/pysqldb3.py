@@ -1122,7 +1122,7 @@ class DbConnect:
         password = sharepoint_password
 
         # Create SharePoint client context
-        ctx = ClientContext(file_url).with_credentials(UserCredential(username, password))
+        #ctx = ClientContext(file_url).with_credentials(UserCredential(username, password))
 
         # Create an in-memory buffer instead of saving to a local file
         file_stream = BytesIO()

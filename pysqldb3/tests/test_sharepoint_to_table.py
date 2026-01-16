@@ -325,7 +325,6 @@ class Test_SharePoint_To_Table_SQL:
         )
 
         # large volume
-        cls.src_large = f"{sql_table_name}_large"
         cls.dest_large = f"{create_table_name}_sql_large_from_sp"
         cls.file_large = "sql_test_large_upload.xlsx"
 
@@ -505,11 +504,8 @@ class Test_SharePoint_To_Table_SQL:
         """
 
         for table in [
-            cls.src_mixed,
             cls.dest_mixed,
-            cls.src_large,
             cls.dest_large,
-            cls.src_mostly_numeric,
             cls.dest_mostly_numeric,
         ]:
             try:
