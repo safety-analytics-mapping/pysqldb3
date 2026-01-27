@@ -799,15 +799,23 @@ class TestWritegpkgPG:
         db.drop_table(schema=pg_schema, table=test_reuploaded_table_name)
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
-    def test_write_gpkg_dates_table(self):
-        db.query(f"""
-        drop table if exists {pg_schema}.{test_write_gpkg_table_name};
-        create table {pg_schema}.{test_write_gpkg_table_name} as
-        select  cast('10/14/2010 19:12:00' as timestamp) dt_format,
-                cast('5/4/2003' as date) today
-        """)
+    def test_write_gpkg_date_table(self):
 
+        db.query(f"""
+                drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+                create table {pg_schema}.{test_write_gpkg_table_name} as
+                select  1 as id, 
+                        cast('10/14/2010 19:12:00' as timestamp) test_date,
+                        st_setsrid(st_point(1015428.1, 213086.1), 2263) as geom
+                """)
+        
+        assert db.table_exists(test_write_gpkg_table_name, schema = pg_schema)
+
+        
         gpkg_name = 'testgpkg.gpkg'
+
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Write gpkg
         s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
@@ -817,10 +825,38 @@ class TestWritegpkgPG:
 
         # Assert that date columns are in the proper format
         cmd_shp = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_write_gpkg_table_name}"'
-        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
-        assert 'dt_form_dt (Date) = 2010/10/14' in str(ogr_response_shp), "'dt_form_dt column is not returning hte correct Type and Date"
-        assert 'dt_form_tm (String) = 19:12:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
-        assert 'today (Date) = 2003/05/04' in str(ogr_response_shp), "'today column is not returning the correct Type & Date"
+        ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT) 
+
+        assert 'test_date (DateTime) = 2010/10/14 19:12:00' in str(ogr_response_shp), "Appears as DateTime"
+
+        # clean up
+        db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+        assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+        
+    def test_write_gpkg_dates_table(self):
+        db.query(f"""
+        drop table if exists {pg_schema}.{test_write_gpkg_table_name};
+        create table {pg_schema}.{test_write_gpkg_table_name} as
+        select  cast('10/14/2010 19:12:00' as timestamp) dt_format,
+                cast('5/4/2003' as date) today
+        """)
+
+        gpkg_name = 'testgpkg.gpkg'
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Write gpkg
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Assert that date columns are in the proper format
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_write_gpkg_table_name}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT)   
+        assert 'dt_format (DateTime) = 2010/10/14 19:12:00' in str(ogr_response_gpkg), "'dt_format column is not returning hte correct Type and Date"
+        assert 'today (Date) = 2003/05/04' in str(ogr_response_gpkg), "'today column is not returning the correct Type & Date"
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
@@ -845,10 +881,8 @@ class TestWritegpkgPG:
         # Assert that date columns are in the proper format
         cmd_shp = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_write_gpkg_table_name}"'
         ogr_response_shp = subprocess.check_output(shlex.split(cmd_shp), stderr=subprocess.STDOUT)   
-        assert 'dt_form_dt (Date) = 2010/10/14' in str(ogr_response_shp), "'dt_form_dt column is not returning the correct Date and Type"
-        assert 'dt_form_tm (String) = 19:12:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
-        assert 'dtformat (Date) = 1988/07/11' in str(ogr_response_shp), "'dt_form_dt column is not returning the correct Date and Type"
-        assert 'dtformat (String) = 03:05:00' in str(ogr_response_shp), "'dt_form_tm column is not returning the correct Type and Time"
+        assert 'dtformatted2010 (DateTime) = 2010/10/14 19:12:00' in str(ogr_response_shp), "dtformatted2010 column is not returning the correct Date and Type"
+        assert 'dtformatted201054 (DateTime) = 1988/07/11 03:05:00' in str(ogr_response_shp), "dtformatted201054 column is not returning the correct Date and Type"
 
         # clean up
         db.drop_table(schema=pg_schema, table=test_write_gpkg_table_name)
@@ -1157,9 +1191,46 @@ class TestWritegpkgMS:
 
         os.remove(os.path.join(FOLDER_PATH, gpkg_name))
         
+    def test_write_gpkg_date_table(self):
+
+        sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
+
+        sql.query(f"""
+                create table {ms_schema}.{test_write_gpkg_table_name}
+                    (id int, test_date datetime, geom geometry);
+                insert into {ms_schema}.{test_write_gpkg_table_name} VALUES(1, '1/1/2000 11:50:00',
+                                                                geometry::Point(985831.79200444, 203371.60461367, 2263));
+                """)
+        
+        assert sql.table_exists(test_write_gpkg_table_name, schema = ms_schema)
+
+        gpkg_name = 'testgpkg.gpkg'
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Write gpkg
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=sql, schema=ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
+
+        # Assert successful
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
+        # Assert that date columns are in the proper format
+        cmd_gpkg = f'ogrinfo "{FOLDER_PATH}/{gpkg_name}" -sql "select * from {test_write_gpkg_table_name}"'
+        ogr_response_gpkg = subprocess.check_output(shlex.split(cmd_gpkg), stderr=subprocess.STDOUT) 
+
+        assert 'test_date (DateTime) = 2000/01/01 11:50:00' in str(ogr_response_gpkg), "Appears in incorrect format"
+
+        # clean up
+        sql.drop_table(schema=ms_schema, table=test_write_gpkg_table_name)
+        os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+        assert not os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
+
     def test_write_gpkg_dates_table(self):
         
         gpkg_name = 'testgpkg.gpkg'
+        if os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)):
+            os.remove(os.path.join(FOLDER_PATH, gpkg_name))
+
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
 
         # Add test_table
