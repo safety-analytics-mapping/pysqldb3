@@ -6,9 +6,9 @@ import zipfile
 import configparser
 import csv
 import openpyxl
+import shutil
 from xlrd import open_workbook
 from xlutils.copy import copy
-from zipfile import ZipFile
 # import py7zr
 from ..Config import write_config
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)).replace('\\tests','') + "\\config.cfg")
@@ -325,14 +325,28 @@ def set_up_shapefile():
     print ('Sample shapefile ready...')
 
     # Add shpfile to zip for testing
-    with ZipFile(os.path.join(DIR, 'test.zip'), 'w') as z:
+    with zipfile.ZipFile(os.path.join(DIR, 'test.zip'), 'w') as z:
         for ext in ('shp', 'dbf', 'shx', 'prj'):
             _fle = os.path.join(DIR,f'test.{ext}')
+            if os.path.isfile(_fle):
+                z.write(_fle, os.path.basename(_fle))
 
-            if os.path.isfile(os.path.join(DIR,f'test.{ext}')):
-                filePath = os.path.join(DIR, f'test.{ext}')
-                z.write(filePath, os.path.basename(filePath))
     print('Sample zipped shapefile ready...')
+
+    # add shpfile to zip with subfolder for testing
+    if not os.path.isdir(os.path.join(DIR,  f'subfolder_nonzip')): 
+        os.makedirs(os.path.join(DIR,'subfolder_nonzip')) # create unzipped folder
+        os.makedirs(os.path.join(DIR,'subfolder_nonzip', 'extra_subfolder'))
+    
+    # rerun command to place shapefiles into this subfolder
+    cmd = f'''ogr2ogr -f "ESRI Shapefile" {DIR}\\subfolder_nonzip\\extra_subfolder\\test.shp -dialect sqlite -sql 
+    "SELECT gid, GeomFromText(WKT, 4326), some_value FROM sample" {fle}'''
+    os.system(cmd.replace('\n', ' '))
+    
+    shutil.make_archive(f'{DIR}/subfolder', 'zip', f'{DIR}/subfolder_nonzip') # create the zipped folder
+                        
+    shutil.rmtree(os.path.join(DIR, f'subfolder_nonzip')) # delete the unzipped folder
+    print('Sample zipped subfolder shapefile ready...')
 
     # Add shpfile to 7z for testing
     component_paths = [
@@ -353,9 +367,11 @@ def clean_up_shapefile():
         _fle = f'{fldr}\\test_data\\test.{ext}'
         if os.path.isfile(_fle):
             os.remove(_fle)
+        
+    # remove test_sub zip too
+    os.remove(f'{fldr}\\test_data\\subfolder.zip')
 
     print ('Deleting any existing shp')
-    # Delete_management(os.path.join(fldr, shp))
 
 
 def set_up_schema(db, ms_schema='dbo', pg_schema='working'):
