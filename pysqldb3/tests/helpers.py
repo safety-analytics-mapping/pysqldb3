@@ -274,6 +274,13 @@ def set_up_feature_class():
             zip_ref.extractall(os.path.dirname(zip_path))
 
 
+        # add feature class within a zip file with subfolder
+    if not os.path.isdir(os.path.join(DIR, f'subfolder_nonzip')): 
+        shutil.copytree(gdb, os.path.join(DIR,'subfolder_nonzip', 'extra_subfolder', 'lion.gdb'))
+    
+    shutil.make_archive(f'{DIR}/subfolder_gdb', 'zip', f'{DIR}/subfolder_nonzip') # create the zipped folder
+    shutil.rmtree(os.path.join(DIR, f'subfolder_nonzip')) # delete the unzipped folder
+
 def clean_up_feature_class():
     zip_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/nyclion_21d.zip')
     fldr = os.path.dirname(zip_path)+'/lion'
@@ -281,6 +288,10 @@ def clean_up_feature_class():
     print ('Deleting any existing gdb')
     # os.remove(os.path.join(fldr, gdb))
     os.rmdir(fldr)
+    
+    # remove subfolder if created (it's not created in test_query_to_geospatial.py)
+    if os.path.isdir(f'{DIR}/subfolder_gdb.zip'):
+        os.remove(f'{DIR}/subfolder_gdb.zip')
 
 # def set_up_fc_and_shapefile():
 #     """
@@ -368,8 +379,9 @@ def clean_up_shapefile():
         if os.path.isfile(_fle):
             os.remove(_fle)
         
-    # remove test_sub zip too
-    os.remove(f'{fldr}\\test_data\\subfolder.zip')
+    # remove subfolder zip if it was created
+    if os.path.isfile(f'{DIR}\\subfolder.zip'):
+        os.remove(f'{DIR}\\subfolder.zip')
 
     print ('Deleting any existing shp')
 
@@ -530,13 +542,25 @@ def set_up_geopackage(user):
     # assert that a Geopackage file exists now 
     assert os.path.isfile(f'{DIR}\\testgpkg.gpkg'), "Second layer in Geopackage was not created correctly"
 
+    # add a gpkg within a zip file with subfolder
+    if not os.path.isdir(os.path.join(DIR,  f'subfolder_nonzip')): 
+        os.makedirs(os.path.join(DIR,'subfolder_nonzip')) # create unzipped folder
+        os.makedirs(os.path.join(DIR,'subfolder_nonzip', 'extra_subfolder'))
+    
+    # rerun command to place shapefiles into this subfolder
+    cmd = f'''ogr2ogr -f "GPKG" {DIR}\\subfolder_nonzip\\extra_subfolder\\testgpkg.gpkg -nln  test_layer1_{user} -dialect sqlite -sql 
+    "SELECT gid, GeomFromText(WKT, 4326) as geom, some_value FROM sample" {fle}'''
+    os.system(cmd.replace('\n', ' '))
+    
+    shutil.make_archive(f'{DIR}/subfolder_gpkg', 'zip', f'{DIR}/subfolder_nonzip') # create the zipped folder
+    shutil.rmtree(os.path.join(DIR, f'subfolder_nonzip')) # delete the unzipped folder
+    
     print ('Sample geopackage ready...')
 
 def clean_up_geopackage():
-    fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
     
     for _filename in ('testgpkg', 'test_write', 'gpkg_to_shp'):
-        _fle = f'{fldr}\\test_data\\{_filename}.gpkg'
+        _fle = f'{DIR}\\{_filename}.gpkg'
         
         if os.path.isfile(_fle):
             os.remove(_fle)
