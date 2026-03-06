@@ -125,7 +125,7 @@ def format_dte_columns(dbo, columns_with_types, columns_with_brackets):
 
     """
     Format the DateTime column so the geospatial output fit has formatted Date and Time columns.
-    This is applicable if the table is in PG, or MS and the output is a Shp, because it does not automatically format these dates.
+    This is applicable if the output is a Shp, because it does not automatically format these dates.
     
     :param dbo: Database connection
     :param columns_with_types: Output of get_table_columns that returns the column name and data type
@@ -145,9 +145,19 @@ def format_dte_columns(dbo, columns_with_types, columns_with_brackets):
         # if a date column exists, we must reformat them so that they will be compatible with Shp/Gpkg file
         results = ' , '.join([c for c in columns_with_brackets if c not in dt_col_names])
 
+        dtcolname_list = [] # create empty list of col names
+        dtcolname_suffix = 1 # start
+
         for col_name in dt_col_names:
 
-            shortened_col = col_name[:7]
+            if any(x == col_name[:11] for x in dtcolname_list): # if colname already claimed
+                shortened_col = col_name[:6] + str(dtcolname_suffix) # shortened column name
+                dtcolname_suffix = dtcolname_suffix + 1 # move number by 1
+            else:
+                # no change to the col_name, simply add to the reference list
+                dtcolname_list.append(col_name[:11])
+                shortened_col = col_name[:7]
+
             if dbo.type == PG:
                 results += ' , cast(\\"{col}\\" as date) \\"{shortened_col}_dt\\", ' \
                                 'cast(cast(\\"{col}\\" as time) as varchar) \\"{shortened_col}_tm\\" '.format(
