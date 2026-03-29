@@ -417,7 +417,7 @@ def rename_geom(db, schema, table):
 
     if f:
         # if f exists, take the string of f
-        f = f.pop()
+        # f = f.pop()
 
         # Rename column
         db.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
