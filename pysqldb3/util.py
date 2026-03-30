@@ -414,6 +414,8 @@ def rename_geom(db, schema, table):
         f = 'shape'
     elif 'geometry' in [i[0] for i in db.internal_queries[-1].data]:
         f = 'geometry'
+    elif 'ogr_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+        f = 'ogr_geometry'
 
     if f:
         # if f exists, take the string of f
