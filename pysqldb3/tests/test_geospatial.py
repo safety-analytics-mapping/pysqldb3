@@ -1364,7 +1364,7 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s.geospatial_convert(input_path = FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.geospatial_convert(path = os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
                              output_file = shp_name, print_cmd = True)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
@@ -1420,7 +1420,7 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
         
         # run function to convert geopackage to shape file
-        s.gpkg_to_shp_bulk(input_path = FOLDER_PATH, input_file=gpkg_name, print_cmd = True)
+        s.gpkg_to_shp_bulk(path = os.path.join(FOLDER_PATH, gpkg_name), print_cmd = True)
 
         # assert that a shape output file exists. It will not match the name of the geopackage because the tables inside the package canbe different
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
@@ -1465,9 +1465,8 @@ class TestGpkgShpConversion:
         s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
                            path = os.path.join(FOLDER_PATH, shp_name), print_cmd=True)
         
-        s.geospatial_convert(input_path = FOLDER_PATH,
-                             input_file = shp_name,
-                             output_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+        s.geospatial_convert(path = os.path.join(FOLDER_PATH, shp_name),
+                             output_file = os.path.join(gpkg_name, test_write_gpkg_table_name), print_cmd = True)
 
         # drop SQL table and GPKG
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")
@@ -1477,8 +1476,8 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name)) # confirm that the shp file exists
 
         # run function to convert Shapefile to GPKG
-        s.geospatial_convert(input_path=FOLDER_PATH, input_file = shp_name,
-                             output_file = gpkg_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+        s.geospatial_convert(path=os.path.join(FOLDER_PATH, shp_name),
+                             output_file = gpkg_name + '/' + test_write_gpkg_table_name, print_cmd = True)
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1507,8 +1506,8 @@ class TestGpkgShpConversion:
         assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name + '.shp'))
 
         # run function to convert Shapefile to GPKG
-        s.geospatial_convert(input_path=FOLDER_PATH, input_file = shp_name + '.shp',
-                             output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2')
+        s.geospatial_convert(path= os.path.join(FOLDER_PATH, shp_name + '.shp'),
+                             output_file = gpkg_name + f'/{test_write_gpkg_table_name}_2')
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1540,10 +1539,8 @@ class TestGpkgShpConversion:
         assert os.path.isdir(fgdb)
         assert not os.path.exists(os.path.join(fgdb, gpkg_name))
 
-        s.geospatial_convert(input_path = fgdb,
-                             feature_class = 'node',
-                             output_file = gpkg_name,
-                             gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+        s.geospatial_convert(path = os.path.join(fgdb, 'node'),
+                             output_file = gpkg_name + '/' + test_write_gpkg_table_name, print_cmd = True)
 
         assert os.path.exists(os.path.join(FOLDER_PATH + '/lion', gpkg_name)) # confirm that the gpkg is removed
 
@@ -1571,13 +1568,12 @@ class TestGpkgShpConversion:
         assert not os.path.exists(os.path.join(FOLDER_PATH + '/lion', gpkg_name))
 
         # create the first gpkg
-        s.geospatial_convert(input_path = fgdb,
-                             feature_class = 'lion',
-                             output_file = gpkg_name,
-                             gpkg_tbl = test_write_gpkg_table_name, print_cmd = True)
+        s.geospatial_convert(path = os.path.join(fgdb, 'lion'),
+                             output_file = os.path.join(gpkg_name, test_write_gpkg_table_name),
+                                print_cmd = True)
         
         # run function to convert GDB to GPKG and add as a second set of tables
-        s.geospatial_convert(input_path = fgdb, feature_class = 'node', output_file = gpkg_name, gpkg_tbl = f'{test_write_gpkg_table_name}_2')
+        s.geospatial_convert(path = fgdb + '/node', output_file = gpkg_name + f'/{test_write_gpkg_table_name}_2')
 
         # assert that the output file exists and that it matches the geopackage
         assert os.path.isfile(os.path.join(FOLDER_PATH + '/lion', gpkg_name))

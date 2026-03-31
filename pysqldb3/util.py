@@ -356,26 +356,18 @@ def print_cmd_string(password_list, cmd_string):
             cmd_string = cmd_string.replace(p, '*' * len(p))
     return cmd_string
 
-def parse_geospatial_file_path(path=None, file_name=None):
+def parse_geospatial_file_path(path=None):
     """
-    Standardizes extracting geospatial file name from path process, if file_name provided that will override anything in the path
+    Unzip a zipped geospatial file path if required.
     :param path: folder path with or without file name
-    :param file_name: shapefile or geopackage name
     :return: path (without file), file_name
     """
-    # type: (str, str)
 
     ## add an if statement if the zip folder is in the middle of / embedded in the path
     if '.zip' in path.lower():
         path = '/vsizip/' + path
 
-    if file_name:
-        return path, file_name
-
-    file_name = os.path.basename(path)
-    path = path.replace(file_name, '')
-
-    return path, file_name
+    return path
 
 def rename_geom(db, schema, table):
 
@@ -471,8 +463,7 @@ def read_compressed(temp_dir, path = None, input_file = None):
         full_path = os.path.join(path, input_file)
 
     else:
-        path, input_file = parse_geospatial_file_path(path, input_file)
-        full_path = os.path.join(path, input_file)
+        full_path = parse_geospatial_file_path(path)
 
     return full_path, path, input_file
 
@@ -684,28 +675,28 @@ def retrieve_gpkg_tbl_names(dbo, full_path):
 
     return gpkg_tbl_names
 
-def convert_cmd(input_full_path, output_full_path, gpkg_tbl = None, _update = None, _overwrite = None, feature_class = None):
+def convert_cmd(input_full_path, output_full_path, _update = None, _overwrite = None, input_table = None, output_table = None):
 
     """
     Generate the cmd text to convert a geospatial file to another geospatial rformat
     """
-    if input_full_path.endswith('shp') and output_full_path.endswith('gpkg'):
+    if '.shp' in input_full_path and '.gpkg' in output_full_path:
         cmd = WRITE_SHP_CMD_GPKG.format(shp_path = input_full_path,
                                         gpkg_path = output_full_path,
                                         _update = _update,
                                         _overwrite = _overwrite,
-                                        gpkg_tbl = gpkg_tbl)
+                                        gpkg_tbl = output_table)
     
-    elif input_full_path.endswith('.gpkg') and output_full_path.endswith('.shp'):
+    elif '.gpkg' in input_full_path and 'shp' in output_full_path:
         cmd = WRITE_GPKG_CMD_SHP.format(    gpkg_path = input_full_path,
-                                            gpkg_tbl = gpkg_tbl,
+                                            gpkg_tbl = input_table,
                                             shp_path=output_full_path
                                             )
-    elif input_full_path.endswith('.gdb') and output_full_path.endswith('.gpkg'):
+    elif '.gdb' in input_full_path and '.gpkg' in output_full_path:
         cmd = WRITE_GDB_CMD_GPKG.format(    shp_path=input_full_path,
-                                            feature_class = feature_class,
+                                            feature_class = input_table,
                                             gpkg_path = output_full_path,
-                                            gpkg_tbl = gpkg_tbl,
+                                            gpkg_tbl = output_table,
                                             _update = _update,
                                             _overwrite = _overwrite,
                                             )
@@ -758,8 +749,12 @@ def execute_cmd(cmd, dbo = None, feature_class = None, cmd_env = None):
         except subprocess.CalledProcessError as e:
             print("Ogr2ogr Output:\n", e.output)
             print('Ogr2ogr command failed. The Geopackage/Shapefile/feature class was not written.')
-            raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
-    
+
+            if dbo:
+                raise subprocess.CalledProcessError(cmd=print_cmd_string([dbo.password], cmd), returncode=1)
+            else:
+                # applies to the geospatial_convert 
+                (f'Ogr2ogr command failed. Geospatial file was not converted.')
 
     else:
         try:
