@@ -300,7 +300,7 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     geospatial_convert( path = 'C:/Documents/files/test1.shp',
                         output_file = 'my_new_gpkg.gpkg/resulting_table')
 
-    geospatial_convert( path = 'C:/Documents/files/zipped_file.zip/testgdb.gdb',
+    geospatial_convert( path = 'C:/Documents/files/zipped_file.zip/testgdb.gdb/table2',
                         output_file = 'my_new_gpkg.gpkg/resulting_table2')
     """
 
@@ -310,58 +310,48 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     
     # assert the OUTPUT file formats are correct
     if output_file:
-        assert output_file.endswith('.shp') or any(x in output_file for x in ['.gpkg/', '.gpkg\\']), "The output file must end with .shp or .gpkg/[gpkg_tbl]. Cannot create new Geodatabase via GDAL"
+        assert output_file.endswith('.shp') or any(x in output_file for x in ['.gpkg/', '.gpkg\\']), \
+            "The output file must end with .shp or .gpkg/[gpkg_tbl]. Cannot create new Geodatabase via GDAL"
 
     # if the file happens to be a zip file, this will 
-    input_path = parse_geospatial_file_path(path)
+    input_path = add_zip_to_geo_path(path)
 
     # set variables
-    _overwrite = ''
+    if overwrite:
+        _overwrite = '-overwrite'
+    else:
+        _overwrite = ''
     _update = ''
-    input_table = ''
-    output_table = ''
 
     # fill in other variables if applicable
-    if '.gpkg' in input_path:
-        input_table = re.search(r'(?<=.gpkg[/\\]).*', input_path).group(0)
-        input_path = re.search(r'.*[^/\\]', re.search(r'.*(?<=[/\\)])', input_path).group(0)).group(0)
-    elif '.gdb' in input_path:
-        input_table = re.search(r'(?<=.gdb[/\\]).*', input_path).group(0)
-        input_path = re.search(r'.*[^/\\]', re.search(r'.*(?<=[/\\)])', input_path).group(0)).group(0)
-        input_table = input_table.replace('.shp', '') # clean up name if needed
+    # TODO use os.basename and os.dirname
+    input_table = os.path.basename(path)
+    input_path = os.path.dirname(path)
+    output_table = os.path.basename(output_file)
+    output_path = os.path.dirname(output_file)
+    if not output_path:
+        output_path=input_path
 
-    # create the output file path
-    if not '/' in output_file and not '\\' in output_file:
-        # if there is no gpkg_tbl, then it's a straight join
-        output_file = os.path.join(os.path.dirname(input_path), output_file)
-    else:
-        # if the input is .gpkg/[gpkg_tbl]....
-        output_table = re.search(r'(?<=.gpkg[/\\]).*', output_file).group(0).replace('/', '')
-        output_file = re.search(r'.*[^/\\]', re.search(r'.*(?<=[/\\)])', os.path.join(os.path.dirname(input_path), output_file)).group(0)).group(0)
+    if not overwrite:
+        # check if output exists - if so return error
+        if geospatial_exists(os.path.join(os.path.dirname(input_path), output_file)):
+            print(
+                "The output already exists. Either change to Overwrite = True or check the name of the table to be copied.")
+            exit
+
 
     # if the output file is a gpkg, do these additional checks
     if '.gpkg' in output_file:
-        # if gpkg exists and overwrite is explicityly written
-        if overwrite == True and geospatial_exists(os.path.join(os.path.dirname(input_path), output_file)):
-            _overwrite = '-overwrite'
-            
         # if gpkg exists and overwrite was not explicitly called
         if geospatial_exists(path = os.path.join(os.path.dirname(input_path), output_file)) \
                 and not geospatial_tbl_exists(path = os.path.join(os.path.dirname(input_path), output_file),
                                                                         geospatial_tbl = output_table) and overwrite == False:
             _update = '-update' # then add the table to the gpkg
-    
-        # if the gpkg and table exists but no overwrite was called
-        if geospatial_exists(path = os.path.join(os.path.dirname(input_path), output_file)) \
-                and geospatial_tbl_exists(path = os.path.join(os.path.dirname(input_path), output_file),
-                                                                    geospatial_tbl = output_table) and overwrite == False:
-            print("The table name to be copied to the geopackage already exists. Either change to Overwrite = True or check the name of the table to be copied.")
-            exit # stop process so user can fix
-            
 
 
+    # todo update for param changes
     # update the command
-    cmd = convert_cmd(input_path, output_file, _update, _overwrite, input_table, output_table)
+    cmd = convert_cmd(input_path, input_table, output_path, output_table, _update, _overwrite)
 
     # execute the cmd
     execute_cmd(cmd = cmd)
