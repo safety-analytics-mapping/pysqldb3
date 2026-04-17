@@ -356,9 +356,9 @@ def print_cmd_string(password_list, cmd_string):
             cmd_string = cmd_string.replace(p, '*' * len(p))
     return cmd_string
 
-def parse_geospatial_file_path(path=None):
+def update_zip_path(path=None):
     """
-    Unzip a zipped geospatial file path if required.
+    Unzip a zipped file path if required.
     :param path: folder path with or without file name
     :return: path (without file), file_name
     """

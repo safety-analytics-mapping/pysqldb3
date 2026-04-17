@@ -108,7 +108,7 @@ def write_geo_cmd_query(dbo, query_or_table, path, is_query = False, schema = ''
         right_bracket = ']' 
 
     columns_with_brackets = [left_bracket + c[0] + right_bracket for c in columns_with_types]
-
+        
     # certain database connections + output formats require formatting for dates
     if path.endswith('.shp'):
         results = format_dte_columns(dbo, columns_with_types, columns_with_brackets)
@@ -285,11 +285,11 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     Converts a single Geospatial file or table to another Geospatial format.
     Possible converions: shp -> gpkg, gpkg -> shp, gdb -> gpkg
 
-    :param path: Path for the geospatial input AND export (ends with .shp, .gdb, or .gpkg).
+    :param input_path: Path for the geospatial input (ends with .shp, .gdb, or .gpkg).
                     If it's a GPKG, you must include the table name by adding '/[gpkg_tbl]'
                     to the suffix. If it's a GDB, you must include the feature class
                     by adding '/[feature_class]' to the suffix.
-    :param output_file (str): File path or file name for output (ends with .shp or .gpkg).
+    :param output_file (str): File path or name for output (ends with .shp or .gpkg).
                         If it's a GPKG, you must include the table name by adding '/[gpkg_tbl]'
                         to the suffix.
     :param overwrite (bool): Boolean; defaults to False. Overwrite table in the geopackage
@@ -298,70 +298,81 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
 
     Examples:
     geospatial_convert( path = 'C:/Documents/files/test1.shp',
-                        output_file = 'my_new_gpkg.gpkg/resulting_table')
+                        output_file = 'my_new_gpkg.gpkg/resulting_table',
+                        overwrite = True)
 
     geospatial_convert( path = 'C:/Documents/files/zipped_file.zip/testgdb.gdb',
-                        output_file = 'my_new_gpkg.gpkg/resulting_table2')
+                        output_file = 'C:/Documents/export_files/my_new_gpkg.gpkg/resulting_table2')
     """
 
     # assert the INPUT file formats are correct
-    assert path.endswith('.shp') or any(x in path for x in ['.gpkg/', '.gpkg\\', '.gdb/', '']), "The input file must end with .shp. Or .gpkg or .gdb files must end with their table name"
-    assert not path.endswith(('.gpkg', '.gdb', '.gpkg/', '.gdb/', '.gdb\\', '.gpkg\\')), "Specify the gpkg or feature class table in the output name"
+    assert path.endswith('.shp') or any(x in path for x in ['.gpkg/', '.gpkg\\', '.gdb/', '']), \
+        "The input file must end with .shp. Or .gpkg or .gdb files must end with their table name"
+    assert not path.endswith(('.gpkg', '.gdb', '.gpkg/', '.gdb/', '.gdb\\', '.gpkg\\')), \
+        "Specify the gpkg or feature class table in the output name"
     
     # assert the OUTPUT file formats are correct
     if output_file:
-        assert output_file.endswith('.shp') or any(x in output_file for x in ['.gpkg/', '.gpkg\\']), "The output file must end with .shp or .gpkg/[gpkg_tbl]. Cannot create new Geodatabase via GDAL"
+        assert output_file.endswith('.shp') or any(x in output_file for x in ['.gpkg/', '.gpkg\\']), \
+            "The output file must end with .shp or .gpkg/[gpkg_tbl]. Cannot create new Geodatabase via GDAL"
 
-    # if the file happens to be a zip file, this will 
-    input_path = parse_geospatial_file_path(path)
+    # if the file happens to be a zip file, this will help us read it
+    input_path = update_zip_path(path)
 
     # set variables
     _overwrite = ''
     _update = ''
-    input_table = ''
-    output_table = ''
 
     # fill in other variables if applicable
     if '.gpkg' in input_path:
-        input_table = re.search(r'(?<=.gpkg[/\\]).*', input_path).group(0)
-        input_path = re.search(r'.*[^/\\]', re.search(r'.*(?<=[/\\)])', input_path).group(0)).group(0)
+        input_table = os.path.basename(input_path)
+        input_path = os.path.dirname(input_path)
     elif '.gdb' in input_path:
-        input_table = re.search(r'(?<=.gdb[/\\]).*', input_path).group(0)
-        input_path = re.search(r'.*[^/\\]', re.search(r'.*(?<=[/\\)])', input_path).group(0)).group(0)
-        input_table = input_table.replace('.shp', '') # clean up name if needed
+        input_table = os.path.basename(input_path).replace('.shp', '') # clean up name if needed
+        input_path = os.path.dirname(input_path)
+    else: # shp
+        input_table = ''
 
-    # create the output file path
-    if not '/' in output_file and not '\\' in output_file:
-        # if there is no gpkg_tbl, then it's a straight join
-        output_file = os.path.join(os.path.dirname(input_path), output_file)
-    else:
-        # if the input is .gpkg/[gpkg_tbl]....
-        output_table = re.search(r'(?<=.gpkg[/\\]).*', output_file).group(0).replace('/', '')
-        output_file = re.search(r'.*[^/\\]', re.search(r'.*(?<=[/\\)])', os.path.join(os.path.dirname(input_path), output_file)).group(0)).group(0)
+    ### create the output file path ###
+    
+    # if shapefile output and no file path
+    if not '/' in output_file and not '\\' in output_file and '.shp' in output_file:
+        output_table = ''
+        output_path = os.path.join(os.path.dirname(input_path), output_file)
+    
+    # if shapefile witt a different file path
+    elif '.shp' in output_file:
+        output_table = ''
+        output_path = output_file
+
+    # if the input is .gpkg/[gpkg_tbl]....
+    elif '.gpkg' in output_file:
+        output_table = os.path.basename(output_file) # gpkg_tbl
+        output_path = os.path.dirname(output_file) # .gpkg
+
+        # if there is no file path from the output path argument
+        if not '/' in output_path and not '\\' in output_path:
+            output_path = os.path.join(os.path.dirname(input_path), os.path.dirname(output_file))
+
+    # if overwrite is not called and the shp or gpkg tbl exists, it errors out
+    assert not (overwrite == False and ((geospatial_exists(path = output_path) and '.shp' in output_path) 
+                or geospatial_tbl_exists(path = output_path, geospatial_tbl = output_table))),  \
+        "The table name to be copied to the geopackage already exists. Either change to Overwrite = True or check the name of the table to be copied."
 
     # if the output file is a gpkg, do these additional checks
-    if '.gpkg' in output_file:
+    if '.gpkg' in output_path:
+
         # if gpkg exists and overwrite is explicityly written
-        if overwrite == True and geospatial_exists(os.path.join(os.path.dirname(input_path), output_file)):
+        if overwrite == True and geospatial_exists(output_path):
             _overwrite = '-overwrite'
             
         # if gpkg exists and overwrite was not explicitly called
-        if geospatial_exists(path = os.path.join(os.path.dirname(input_path), output_file)) \
-                and not geospatial_tbl_exists(path = os.path.join(os.path.dirname(input_path), output_file),
-                                                                        geospatial_tbl = output_table) and overwrite == False:
+        if geospatial_exists(path = output_path) \
+                and not geospatial_tbl_exists(path = output_path, geospatial_tbl = output_table) and overwrite == False:
             _update = '-update' # then add the table to the gpkg
-    
-        # if the gpkg and table exists but no overwrite was called
-        if geospatial_exists(path = os.path.join(os.path.dirname(input_path), output_file)) \
-                and geospatial_tbl_exists(path = os.path.join(os.path.dirname(input_path), output_file),
-                                                                    geospatial_tbl = output_table) and overwrite == False:
-            print("The table name to be copied to the geopackage already exists. Either change to Overwrite = True or check the name of the table to be copied.")
-            exit # stop process so user can fix
             
-
-
     # update the command
-    cmd = convert_cmd(input_path, output_file, _update, _overwrite, input_table, output_table)
+    cmd = convert_cmd(input_path, output_path, _update, _overwrite, input_table, output_table)
 
     # execute the cmd
     execute_cmd(cmd = cmd)
@@ -372,13 +383,16 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     
 
 def gpkg_to_shp_bulk(   path,
+                        output_path = '',
                         print_cmd = False):
     """
     Converts an entire Geopackage (all tables) to a Shapefile.
     The output Shapefile name will match the name of the geopackage table to be copied.
 
-    :param path: str File path to geopackage input. Shp output will also be located here.
-    :param print_cmd (bool): Print command
+    :param path (str): File path to geopackage input.
+    :param output_path (str): Optional output path for the resulting shp files.
+                            If no output path given, it will default to the input path.
+    :param print_cmd (bool): Print command                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
     """
 
     assert path.endswith('.gpkg'), "The input file must end with .gpkg and the output file with .shp"
@@ -390,7 +404,7 @@ def gpkg_to_shp_bulk(   path,
 
         for t_i_g in tables_in_gpkg:
             geospatial_convert(path = path + '/' + t_i_g,
-                               output_file = t_i_g +'.shp', print_cmd = print_cmd)
+                               output_file = os.path.join(output_path, t_i_g +'.shp'), print_cmd = print_cmd)
     
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
