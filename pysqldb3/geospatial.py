@@ -451,9 +451,9 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
         assert path.endswith(('.shp', '.gpkg', '.gdb')), "The path should end with .gpkg, .shp, .gdb"
 
     full_path, path, input_file = read_compressed(temp_dir, path, input_file)
-    
+
     # if shapefile is selected, you can't have feature class filled in since it will not take that argument
-    if full_path.endswith('.shp',):
+    if full_path.endswith('.shp'):
         assert not feature_class, "feature_class input will not be considered if the input file is .shp"
 
     # Use default schema from db object
@@ -492,7 +492,7 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
         # produce command
         cmd = read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, schema,
                             table, precision, port, gpkg_tbl, feature_class, skip_failures)
-
+  
         if extra_cmd:
             cmd = cmd + f' {extra_cmd}'
 

@@ -369,6 +369,28 @@ def update_zip_path(path=None):
 
     return path
 
+def parse_file_path(path = None, file_name = None):
+    """
+    Parse the file name to separate the path and file name.
+    :param path: Optional file path
+    :param file_name: Optional file name
+    """
+
+    # if no file name is given, then we parse the path
+    if not file_name:
+        file_name = os.path.basename(path)
+        full_path = path
+        path = path.replace(file_name, '')
+
+    # if the path is given, combine path + file name (if it exists)
+    elif path:
+        full_path = os.path.join(path, file_name)
+
+    else: # if no path but the file name exists
+        full_path = file_name
+        
+    return full_path, path, file_name
+
 def rename_geom(db, schema, table):
 
     """
@@ -463,7 +485,8 @@ def read_compressed(temp_dir, path = None, input_file = None):
         full_path = os.path.join(path, input_file)
 
     else:
-        full_path = parse_geospatial_file_path(path)
+        full_path = update_zip_path(path) # this function only runs if applicable
+        full_path, path, input_file = parse_file_path(full_path, input_file)
 
     return full_path, path, input_file
 
