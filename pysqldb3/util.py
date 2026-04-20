@@ -356,7 +356,7 @@ def print_cmd_string(password_list, cmd_string):
             cmd_string = cmd_string.replace(p, '*' * len(p))
     return cmd_string
 
-def update_zip_path(path=None):
+def add_zip_to_geo_path(path=None):
     """
     Unzip a zipped file path if required.
     :param path: folder path with or without file name
@@ -485,7 +485,7 @@ def read_compressed(temp_dir, path = None, input_file = None):
         full_path = os.path.join(path, input_file)
 
     else:
-        full_path = update_zip_path(path) # this function only runs if applicable
+        full_path = add_zip_to_geo_path(path) # this function only runs if applicable
         full_path, path, input_file = parse_file_path(full_path, input_file)
 
     return full_path, path, input_file
