@@ -379,16 +379,15 @@ def parse_file_path(path = None, file_name = None):
     # if no file name is given, then we parse the path
     if not file_name:
         file_name = os.path.basename(path)
-        full_path = path
         path = path.replace(file_name, '')
+    
+    # if no path is given, parse file name
+    if not path:
+        path  = file_name.replace(os.path.basename(file_name), '')[:-1] # remove last slash
+        file_name = os.path.basename(file_name) # for gpkg/gdb, this becomes the table name
+    
+    full_path = os.path.join(path, file_name)
 
-    # if the path is given, combine path + file name (if it exists)
-    elif path:
-        full_path = os.path.join(path, file_name)
-
-    else: # if no path but the file name exists
-        full_path = file_name
-        
     return full_path, path, file_name
 
 def rename_geom(db, schema, table):
@@ -701,8 +700,16 @@ def retrieve_gpkg_tbl_names(dbo, full_path):
 def convert_cmd(input_full_path, output_full_path, _update = None, _overwrite = None, input_table = None, output_table = None):
 
     """
-    Generate the cmd text to convert a geospatial file to another geospatial rformat
+    Generate the cmd text to convert a geospatial file to another geospatial format
+
+    :param input_full_path: Full path including file name for input
+    :param output_full_path: Full path including file name for output
+    :param _update: '-update' flag if adding a table to an existing gpkg
+    :param _overwrite: '-overwrite' flag if overwriting output file
+    :param input_table: Input table name if GPKG or GDB
+    :param output_table: Input table name if GPKG
     """
+    
     if '.shp' in input_full_path and '.gpkg' in output_full_path:
         cmd = WRITE_SHP_CMD_GPKG.format(shp_path = input_full_path,
                                         gpkg_path = output_full_path,
@@ -839,3 +846,25 @@ def bulk_upload_table_setup(dbo, full_path, input_file, table, feature_class = N
         gpkg_tbl_names[gpkg_tbl] = table
 
     return gpkg_tbl_names
+
+
+def geo_convert_assert_formats(path, output_file = None):
+    
+    """
+    Check the file types included in the geospatial_convert function
+    :param path: Path argument from geospatial_convert function
+    :param output_file: Output file argument from geospatial_convert function
+    """
+
+        # assert the INPUT file formats are correct
+    assert path.endswith('.shp') or any(x in path for x in ['.gpkg/', '.gpkg\\', '.gdb/', '']), \
+        "The input file must end with .shp. Or .gpkg or .gdb files must end with their table name"
+    assert not path.endswith(('.gpkg', '.gdb', '.gpkg/', '.gdb/', '.gdb\\', '.gpkg\\')), \
+        "Specify the gpkg or feature class table in the output name"
+    
+    # assert the OUTPUT file formats are correct
+    if output_file:
+        assert output_file.endswith('.shp') or any(x in output_file for x in ['.gpkg/', '.gpkg\\']), \
+            "The output file must end with .shp or .gpkg/[gpkg_tbl]. Cannot create new Geodatabase via GDAL"
+
+    return

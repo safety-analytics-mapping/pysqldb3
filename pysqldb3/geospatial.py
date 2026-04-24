@@ -304,35 +304,19 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     geospatial_convert( path = 'C:/Documents/files/zipped_file.zip/testgdb.gdb/table2',
                         output_file = 'C:/Documents/export_files/my_new_gpkg.gpkg/resulting_table2')
     """
-
-    # assert the INPUT file formats are correct
-    assert path.endswith('.shp') or any(x in path for x in ['.gpkg/', '.gpkg\\', '.gdb/', '']), \
-        "The input file must end with .shp. Or .gpkg or .gdb files must end with their table name"
-    assert not path.endswith(('.gpkg', '.gdb', '.gpkg/', '.gdb/', '.gdb\\', '.gpkg\\')), \
-        "Specify the gpkg or feature class table in the output name"
-    
-    # assert the OUTPUT file formats are correct
-    if output_file:
-        assert output_file.endswith('.shp') or any(x in output_file for x in ['.gpkg/', '.gpkg\\']), \
-            "The output file must end with .shp or .gpkg/[gpkg_tbl]. Cannot create new Geodatabase via GDAL"
+    ## ASSERTIONS ##
+    geo_convert_assert_formats(path = path, output_file = output_file)
 
     # if the file happens to be a zip file, this will help us read it
     input_path = add_zip_to_geo_path(path)
 
-    # set variables
-    if overwrite:
-        _overwrite = '-overwrite'
-    else:
-        _overwrite = ''
-    _update = ''
-
+    # determine input/output paths and file names
     if '.shp' in input_path:
         input_table = ''
     else:
         # gpkg or gdb
-        input_table = os.path.basename(input_path)
-        input_path = os.path.dirname(input_path)
-    
+        input_full_path, input_path, input_table = parse_file_path(file_name = input_path)
+
     ### create the output file path ###
     if '.shp' in output_file:
         output_table = ''
@@ -345,12 +329,18 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
 
     # if the input is .gpkg/[gpkg_tbl]....
     else:
-        output_table = os.path.basename(output_file) # gpkg_tbl
-        output_path = os.path.dirname(output_file) # .gpkg
+        output_full_path, output_path, output_table = parse_file_path(file_name = output_file) # gpkg_tbl
 
         # if there is no file path from the output path argument, set to input path
         if not '/' in output_path and not '\\' in output_path:
             output_path = os.path.join(os.path.dirname(input_path), os.path.dirname(output_file))
+
+    # set variables
+    if overwrite:
+        _overwrite = '-overwrite'
+    else:
+        _overwrite = ''
+    _update = ''
 
     # if overwrite is not called and the shp or gpkg tbl exists, it errors out
     if not overwrite:
@@ -429,14 +419,14 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
     :param port (int): Optional port
     :param srid (str): SRID for geometry. Defaults to 2263
     :param gdal_data_loc:
-    :param precision: Default to False
-    :param private: Default to False
-    :param encoding: encoding of data within Geopackage
-    :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
-    :param temp: If True any new tables will be logged for deletion at a future date; defaults to True
-    :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
-    :param extra_cmd: allows user to pass any additional flag/paramters to OGR2OGR.
-    :return:
+    :param precision (bool): Default to False
+    :param private : Default to False
+    :param encoding (str): encoding of data within Geopackage
+    :param print_cmd (bool): Optional flag to print the GDAL command that is being used; defaults to False
+    :param temp (bool):  If True any new tables will be logged for deletion at a future date; defaults to True
+    :param days (int): if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+    :param extra_cmd (str): Optional additional command. Helpful if you cmd = None and you want to add extra arguments
+    :return: 
     """
 
     temp_dir = None
