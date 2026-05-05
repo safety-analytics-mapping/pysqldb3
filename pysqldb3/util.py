@@ -388,7 +388,23 @@ def parse_file_path(path = None, file_name = None):
     
     full_path = os.path.join(path, file_name)
 
+    if '.shp' in full_path:
+        file_name=''
+
     return full_path, path, file_name
+
+def parse_file_path_for_last_dir(path):
+    if any (ext in path for ext in ('.zip', '.shp', '.gdb', '.gpkg')):
+        _dir = os.path.dirname(path)
+        while '.' in _dir:
+            _dir = os.path.dirname(_dir)
+        return  _dir
+    else:
+        return path
+
+
+
+
 
 def rename_geom(db, schema, table):
 

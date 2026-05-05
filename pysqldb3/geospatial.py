@@ -311,11 +311,12 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     input_path = add_zip_to_geo_path(path)
 
     # determine input/output paths and file names
-    if '.shp' in input_path:
-        input_table = ''
-    else:
-        # gpkg or gdb
-        input_full_path, input_path, input_table = parse_file_path(file_name = input_path)
+    input_full_path, input_path, input_table = parse_file_path(file_name = input_path)
+    last_input_dir = parse_file_path_for_last_dir(input_full_path)
+    if not os.path.isdir(output_file):
+        output_file = os.path.join(last_input_dir, output_file)
+
+    output_full_path, output_path, output_table = parse_file_path(file_name = input_path)
 
     ### create the output file path ###
     if '.shp' in output_file:
