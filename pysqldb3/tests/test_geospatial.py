@@ -1465,8 +1465,12 @@ class TestGpkgShpConversion:
         s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
                            path = os.path.join(FOLDER_PATH, shp_name), print_cmd=True)
         
+        assert os.path.isfile(os.path.join(FOLDER_PATH, shp_name))
+
         s.geospatial_convert(path = os.path.join(FOLDER_PATH, shp_name),
                              output_file = os.path.join(gpkg_name, test_write_gpkg_table_name), print_cmd = True)
+
+        assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # drop SQL table and GPKG
         sql.query(f"drop table if exists {ms_schema}.{test_write_gpkg_table_name}")

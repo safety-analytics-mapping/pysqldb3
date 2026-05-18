@@ -311,29 +311,16 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     input_path = add_zip_to_geo_path(path)
 
     # determine input/output paths and file names
+    input_full_path, input_folder, input_path, input_table = parse_file_path(path = input_path)
+    output_full_path, output_folder, output_path, output_table = parse_file_path(path = output_file) # gpkg_tbl
+
+    # if there is no file path from the output path argument, set to input path
+    if output_folder == '':
+        output_path = os.path.join(input_folder, output_path)
+
+    # add folder directory to input file name if input is a shp
     if '.shp' in input_path:
-        input_table = ''
-    else:
-        # gpkg or gdb
-        input_full_path, input_path, input_table = parse_file_path(file_name = input_path)
-
-    ### create the output file path ###
-    if '.shp' in output_file:
-        output_table = ''
-        
-        if not '/' in output_file and not '\\' in output_file:
-            # if the output_file has no path, set it to the input_path
-            output_path = os.path.join(os.path.dirname(input_path), output_file)
-        else: # if it does include a path
-            output_path = output_file
-
-    # if the input is .gpkg/[gpkg_tbl]....
-    else:
-        output_full_path, output_path, output_table = parse_file_path(file_name = output_file) # gpkg_tbl
-
-        # if there is no file path from the output path argument, set to input path
-        if not '/' in output_path and not '\\' in output_path:
-            output_path = os.path.join(os.path.dirname(input_path), os.path.dirname(output_file))
+        input_path = os.path.join(input_folder, input_path)
 
     # set variables
     if overwrite:
@@ -458,10 +445,10 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
             feature_class = feature_class[:-4]
 
     # clean table name if it's a single input   
-    table = clean_table_name(table, gpkg_tbl, full_path, input_file)
+    table = clean_table_name(table, gpkg_tbl, full_path, path)
 
     # if the inputs suggest bulk uploading
-    gpkg_tbl_names = bulk_upload_table_setup(dbo, full_path, input_file, table, feature_class, temp_dir, gpkg_tbl)
+    gpkg_tbl_names = bulk_upload_table_setup(dbo, full_path, path, table, feature_class, temp_dir, gpkg_tbl)
 
     # start of loop
     for gpkg_tbl, table in gpkg_tbl_names.items():
@@ -478,7 +465,7 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
                 dbo.drop_table(schema, table, cascade = True)
 
         # produce command
-        cmd = read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, schema,
+        cmd = read_geospatial_command(dbo, gdal_data_loc, srid, full_path, schema,
                             table, precision, port, gpkg_tbl, feature_class, skip_failures)
   
         if extra_cmd:

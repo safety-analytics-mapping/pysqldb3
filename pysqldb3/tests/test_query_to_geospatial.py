@@ -1205,6 +1205,8 @@ class TestQueryToShpPg:
         # import shp to db to compare
         db.shp_to_table(path=fldr, shp_name = shp, table=test_table + 'QA', schema=pg_schema, print_cmd=True)
 
+        assert db.table_exists(schema = pg_schema, table = test_table + 'QA')
+
         db.query(f"""
         select
             t1.fld2 = t2.fld2,

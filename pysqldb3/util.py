@@ -377,18 +377,33 @@ def parse_file_path(path = None, file_name = None):
     """
 
     # if no file name is given, then we parse the path
-    if not file_name:
+
+    if not file_name and path:
         file_name = os.path.basename(path)
         path = path.replace(file_name, '')
     
     # if no path is given, parse file name
-    if not path:
-        path  = file_name.replace(os.path.basename(file_name), '')[:-1] # remove last slash
+    elif not path and file_name:
+        path = file_name.replace(os.path.basename(file_name), '') # remove last slash
         file_name = os.path.basename(file_name) # for gpkg/gdb, this becomes the table name
-    
-    full_path = os.path.join(path, file_name)
 
-    return full_path, path, file_name
+    # remove any slashes at the end of the path if it was cleaned
+    try:
+        while path[-1] in ('\\', '/'):
+            path = path[:-1]
+    except:
+        pass
+
+    file_dir = os.path.dirname(path) # get the folder of the geo file
+    full_path = path + '/' + file_name # combine for the full path
+
+    # if .shp in file_name
+    if '.' in file_name:
+        file_dir = path # this becomes the folder dir
+        path = file_name # this is the .shp file
+        file_name = '' # then set file_name to blanks
+
+    return full_path, file_dir, path, file_name
 
 def rename_geom(db, schema, table):
 
@@ -485,18 +500,18 @@ def read_compressed(temp_dir, path = None, input_file = None):
 
     else:
         full_path = add_zip_to_geo_path(path) # this function only runs if applicable
-        full_path, path, input_file = parse_file_path(full_path, input_file)
+        full_path, input_folder, path, input_file = parse_file_path(full_path, input_file)
 
     return full_path, path, input_file
 
-def read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, schema,
+def read_geospatial_command(dbo, gdal_data_loc, srid, full_path, schema,
                             table, precision, port, gpkg_tbl = None, feature_class = None, skip_failures = None):
     
     """"
     Generate the cmd text to read a Geospatial file into the database
     """
 
-    if dbo.type == 'PG' and input_file.endswith('.gpkg'):
+    if dbo.type == 'PG' and '.gpkg' in full_path:
         cmd = READ_GPKG_CMD_PG.format(
             gdal_data=gdal_data_loc,
             srid=srid,
@@ -512,7 +527,7 @@ def read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, sch
             port=port
         )
 
-    elif dbo.type == 'MS' and input_file.endswith('.gpkg'):
+    elif dbo.type == 'MS' and '.gpkg' in full_path:
         if dbo.LDAP:
             cmd = READ_GPKG_CMD_MS.format(
                 gdal_data=gdal_data_loc,
@@ -544,7 +559,7 @@ def read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, sch
                 port=port
             )
 
-    elif dbo.type == 'PG' and input_file.endswith('.shp') and not feature_class:
+    elif dbo.type == 'PG' and '.shp' in full_path and not feature_class:
         
             cmd = READ_SHP_CMD_PG.format(
                     gdal_data = gdal_data_loc,
@@ -559,7 +574,7 @@ def read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, sch
                     perc = precision,
                     port = port)
 
-    elif dbo.type == 'MS' and input_file.endswith('.shp') and not feature_class:
+    elif dbo.type == 'MS' and '.shp' in full_path and not feature_class:
         
         if dbo.LDAP:
             cmd = READ_SHP_CMD_MS.format(
@@ -590,7 +605,7 @@ def read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, sch
                 port = port
             )
     
-    elif dbo.type == 'PG' and input_file.endswith('.gdb') and feature_class:
+    elif dbo.type == 'PG' and '.gdb' in full_path and feature_class:
         
         cmd = READ_FEATURE_CMD.format(
             gdal_data = gdal_data_loc,
@@ -604,7 +619,7 @@ def read_geospatial_command(dbo, input_file, gdal_data_loc, srid, full_path, sch
             tbl_name = table,
             sch = schema
         )
-    elif dbo.type == 'MS' and input_file.endswith('.gdb') and feature_class:
+    elif dbo.type == 'MS' and '.gdb' in full_path and feature_class:
             # TODO: add LDAP version trusted_connection=yes
         cmd = READ_FEATURE_CMD_MS.format(
                 gdal_data = gdal_data_loc,
