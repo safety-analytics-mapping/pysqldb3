@@ -269,7 +269,6 @@ class TestReadgpkgPG:
     def teardown_class(cls):
         helpers.clean_up_geopackage()
 
-
 class TestReadgpkgMS:
     @classmethod
     def setup_class(cls):
@@ -524,7 +523,6 @@ class TestReadgpkgMS:
     def teardown_class(cls):
         helpers.clean_up_geopackage()
         helpers.clean_up_test_table_pg(db)
-
 
 class TestWritegpkgPG:
     @classmethod
@@ -975,7 +973,6 @@ class TestWritegpkgPG:
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
         helpers.clean_up_geopackage()
-
 
 class TestWritegpkgMS:
     def test_write_gpkg_table(self):
@@ -1599,7 +1596,6 @@ class TestGpkgShpConversion:
         helpers.clean_up_geopackage()
         helpers.clean_up_shapefile()
 
-
 class TestReadShpPG:
     @classmethod
     def setup_class(cls):
@@ -1884,7 +1880,6 @@ class TestReadShpPG:
         helpers.clean_up_shapefile()
         helpers.clean_up_test_table_pg(db)
 
-
 class TestReadShpMS:
     @classmethod
     def setup_class(cls):
@@ -2160,7 +2155,6 @@ class TestReadShpMS:
     def teardown_class(cls):
         helpers.clean_up_shapefile()
         helpers.clean_up_test_table_sql(sql)
-
 
 class TestWriteShpPG:
     @classmethod
@@ -3068,7 +3062,6 @@ class TestSHPDeleteIndexPG:
     def teardown_class(cls):
         helpers.clean_up_shapefile()
 
-
 class TestSHPDeleteIndexMS:
     @classmethod
     def setup_class(cls):
@@ -3143,3 +3136,172 @@ class TestSHPDeleteIndexMS:
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_shapefile()
+
+
+class Testparse_file_path:
+    def test_input_types_shp(self):
+        _file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA'
+        _file_name = 'test_shapefile.shp'
+
+        # simple path and file
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=_file_path, file_name=_file_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path
+        assert file_name == _file_name
+        assert table_name == ''
+
+        # shp in path and file name -- ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _file_name), file_name=_file_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path
+        assert file_name == _file_name
+        assert table_name == ''
+
+        # shp in path and no file name
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _file_name), file_name=None)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path
+        assert file_name == _file_name
+        assert table_name == ''
+
+        # no path and file name ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=None, file_name=_file_name)
+        assert full_path.replace('/', '\\') == _file_name
+        assert file_dir == ''
+        assert file_name == _file_name
+        assert table_name == ''
+
+    def test_input_types_shp_zip(self):
+        _file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_zipfile.zip'
+        _file_name = 'test_shapefile.shp'
+
+        # simple path and file
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=_file_path, file_name=_file_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path.replace('\\test_zipfile.zip', '')
+        assert file_name == _file_name
+        assert table_name == ''
+
+        # shp in path and file name -- ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _file_name), file_name=_file_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path.replace('\\test_zipfile.zip', '')
+        assert file_name == _file_name
+        assert table_name == ''
+
+        # shp in path and no file name
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _file_name), file_name=None)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path.replace('\\test_zipfile.zip', '')
+        assert file_name == _file_name
+        assert table_name == ''
+
+
+        # no path and file name ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=None, file_name=_file_name)
+        assert full_path.replace('/', '\\') == _file_name
+        assert file_dir == ''
+        assert file_name == _file_name
+        assert table_name == ''
+
+
+        # zip file with sub directory
+        _file_path = os.path.join(_file_path, 'sub_dir')
+        # simple path and file
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=_file_path, file_name=_file_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path.replace('\\test_zipfile.zip', '')
+        assert file_name == _file_name
+        assert table_name == ''
+
+        # shp in path and file name -- ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _file_name), file_name=_file_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path.replace('\\test_zipfile.zip', '')
+        assert file_name == _file_name
+        assert table_name == ''
+
+        # shp in path and no file name
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _file_name), file_name=None)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _file_name)
+        assert file_dir == _file_path.replace('\\test_zipfile.zip', '')
+        assert file_name == _file_name
+        assert table_name == ''
+
+    def test_input_types_gdb(self):
+        _file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_geodb.gdb'
+        _table_name = 'test_shapefile'
+
+        # simple path and file
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=_file_path, file_name=_table_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _table_name)
+        assert file_dir == _file_path.replace('\\test_geodb.gdb', '')
+        assert file_name == 'test_geodb.gdb'
+        assert table_name == _table_name
+
+        # table in path and file name -- ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _table_name), file_name=_table_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _table_name)
+        assert file_dir == _file_path.replace('\\test_geodb.gdb', '')
+        assert file_name == 'test_geodb.gdb'
+        assert table_name == _table_name
+
+        # table in path and no file name
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _table_name), file_name=None)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _table_name)
+        assert file_dir == _file_path.replace('\\test_geodb.gdb', '')
+        assert file_name == 'test_geodb.gdb'
+        assert table_name == _table_name
+
+        # no path and file name ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=None, file_name=_table_name)
+        assert full_path.replace('/', '\\') == _table_name
+        assert file_dir == ''
+        assert file_name == ''
+        assert table_name == _table_name
+
+        # path and no file name
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=_file_path, file_name=None)
+        assert full_path.replace('/', '\\') == _file_path
+        assert file_dir == _file_path.replace('\\test_geodb.gdb', '')
+        assert file_name == 'test_geodb.gdb'
+        assert table_name == ''
+
+    def test_input_types_geopakage_zip(self):
+        _file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\test_geodb.gpkg'
+        _table_name = 'test_shapefile'
+
+        # simple path and file
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=_file_path, file_name=_table_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _table_name)
+        assert file_dir == _file_path.replace('\\zip_file_name.zip\\test_geodb.gpkg', '')
+        assert file_name == 'test_geodb.gpkg'
+        assert table_name == _table_name
+
+        # table in path and file name -- ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _table_name), file_name=_table_name)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _table_name)
+        assert file_dir == _file_path.replace('\\zip_file_name.zip\\test_geodb.gpkg', '')
+        assert file_name == 'test_geodb.gpkg'
+        assert table_name == _table_name
+
+        # table in path and no file name
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=os.path.join(_file_path, _table_name), file_name=None)
+        assert full_path.replace('/', '\\') == os.path.join(_file_path, _table_name)
+        assert file_dir == _file_path.replace('\\zip_file_name.zip\\test_geodb.gpkg', '')
+        assert file_name == 'test_geodb.gpkg'
+        assert table_name == _table_name
+
+        # no path and file name ## FAILING
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=None, file_name=_table_name)
+        assert full_path.replace('/', '\\') == _table_name
+        assert file_dir == _file_path.replace('\\zip_file_name.zip\\test_geodb.gpkg', '')
+        assert file_name == 'test_geodb.gpkg'
+        assert table_name == _table_name
+
+        # path and no file name
+        full_path, file_dir, file_name, table_name = s.parse_file_path(path=_file_path, file_name=None)
+        assert full_path.replace('/', '\\') == _file_path
+        assert file_dir == _file_path.replace('\\zip_file_name.zip\\test_geodb.gpkg', '')
+        assert file_name == 'test_geodb.gpkg'
+        assert table_name == ''
