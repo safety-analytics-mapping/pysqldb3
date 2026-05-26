@@ -1203,7 +1203,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        db.shp_to_table(path=fldr, shp_name = shp, table=test_table + 'QA', schema=pg_schema, print_cmd=True)
+        db.shp_to_table(path=os.path.join(fldr, shp), table=test_table + 'QA', schema=pg_schema, print_cmd=True)
 
         assert db.table_exists(schema = pg_schema, table = test_table + 'QA')
 
@@ -1261,7 +1261,7 @@ class TestQueryToShpPg:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        db.shp_to_table(path=fldr, shp_name = shp, table=test_table + 'QA', schema=pg_schema, print_cmd=True)
+        db.shp_to_table(path= os.path.join(fldr, shp), table=test_table + 'QA', schema=pg_schema, print_cmd=True)
 
         db.query(f"""
         select
@@ -1578,7 +1578,7 @@ class TestQueryToShpMs:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, shp_name = shp, table=test_table_shp + 'QA', schema=ms_schema, print_cmd=True)
+        sql.shp_to_table(path=os.path.join(fldr, shp), table=test_table_shp + 'QA', schema=ms_schema, print_cmd=True)
 
         sql.query(f"""
         select
@@ -1636,7 +1636,7 @@ class TestQueryToShpMs:
         assert os.path.isfile(os.path.join(fldr, shp))
 
         # import shp to db to compare
-        sql.shp_to_table(path=fldr, shp_name = shp, table=test_table_shp + 'QA', schema=ms_schema, print_cmd=True)
+        sql.shp_to_table(path=os.path.join(fldr, shp), table=test_table_shp + 'QA', schema=ms_schema, print_cmd=True)
 
         sql.query(f"""
         select

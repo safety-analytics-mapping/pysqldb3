@@ -1993,7 +1993,7 @@ class DbConnect:
         write_geospatial(dbo = self, path = path, query = query,
                             cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
         
-    def feature_class_to_table(self, path, table, shp_name = None, feature_class = None, schema=None, 
+    def feature_class_to_table(self, path, table, feature_class = None, schema=None, 
                                port = 5432, srid = '2263', private=False, fc_encoding=None, skip_failures='', extra_cmd = None,
                                temp = True, days = 7, print_cmd = False):
         """
@@ -2019,7 +2019,7 @@ class DbConnect:
         if not schema:
             schema = self.default_schema
 
-        upload_geospatial(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class,
+        upload_geospatial(dbo = self, path = path, schema = schema, table = table, feature_class = feature_class,
                                 port = port, srid = srid, private = private, encoding = fc_encoding, skip_failures = skip_failures,
                                 extra_cmd = extra_cmd, temp = temp, days = days, print_cmd=print_cmd)
         
@@ -2041,12 +2041,12 @@ class DbConnect:
         write_geospatial(dbo = self, path = path, query = query, gpkg_tbl = gpkg_tbl,
                             overwrite = overwrite, cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
 
-    def shp_to_table(self, path,  shp_name = None, table=None, schema=None, feature_class = None,
+    def shp_to_table(self, path, table=None, schema=None, feature_class = None,
                      srid=2263, port=5432, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
                      shp_encoding=None, extra_cmd = None, print_cmd=False, days=7):
         """
         Imports shape file to database. This uses GDAL to generate the table.
-        :param path: File path of the shapefile
+        :param path: File path of the shapefile (ending with .shp)
         :param table: Table name to use in the database
         :param schema: Schema to use in the database (defaults to db's default schema)
         :param shp_name: Shapefile name (ends in .shp or .dbf)
@@ -2065,7 +2065,7 @@ class DbConnect:
         :return:
         """
 
-        upload_geospatial(dbo = self, path = path, input_file = shp_name, schema = schema, table = table, feature_class = feature_class, port = port,
+        upload_geospatial(dbo = self, path = path,  schema = schema, table = table, feature_class = feature_class, port = port,
                             srid = srid, gdal_data_loc = gdal_data_loc, precision=precision, private=private, encoding=shp_encoding,
                             temp = temp, days = days, extra_cmd = extra_cmd, print_cmd=print_cmd)
 

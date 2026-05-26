@@ -223,7 +223,7 @@ DEL_INDICES_QUERY_MS = r"""
 
 SHP_COMMENT_QUERY = r"""
 comment on table {s}.{t} is '{t} created by {u} on {d}
-shp source: {p}\{shp}
+shp source: {p}
 - imported using pysql module -'
 """
 

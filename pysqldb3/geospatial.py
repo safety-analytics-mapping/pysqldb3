@@ -311,8 +311,8 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     input_path = add_zip_to_geo_path(path)
 
     # determine input/output paths and file names
-    input_full_path, input_folder, input_path, input_table = parse_file_path(path = input_path)
-    output_full_path, output_folder, output_path, output_table = parse_file_path(path = output_file) # gpkg_tbl
+    input_folder, input_path, input_table = parse_file_path(path = input_path)
+    output_folder, output_path, output_table = parse_file_path(path = output_file) # gpkg_tbl
 
     # if there is no file path from the output path argument, set to input path
     if output_folder == '':
@@ -388,7 +388,7 @@ def gpkg_to_shp_bulk(   path,
 
     return
 
-def upload_geospatial(dbo, path, input_file = None, schema = None, table = None, gpkg_tbl = None, feature_class = None, port = 5432,
+def upload_geospatial(dbo, path, schema = None, table = None, gpkg_tbl = None, feature_class = None, port = 5432,
                                 srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, print_cmd=False, 
                                 skip_failures = '', temp = True, days = 7, extra_cmd = None):
 
@@ -398,7 +398,6 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
 
     :param path: Input file path for geopackage
     :param dbo: Database connection
-    :param input_file(str): Optional file name for input (must end with .gpkg or .gdb)
     :param schema (str): Schema that the imported geopackage data will be found
     :param table (str): SINGLE TABLE EXPORT ONLY. Name of table in db.
     :param gpkg_tbl (str): SINGLE TABLE EXPORT ONLY. Name of geopackage table for input to db.
@@ -419,16 +418,13 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
     temp_dir = None
     
     # check input file path
-    if input_file:
-        assert input_file.endswith(('.shp', '.gpkg', '.gdb')), "The input file should end with .gpkg, .shp or .gdb"
-        assert path, "Fill in the file path to the input file"
-    else:
-        assert path.endswith(('.shp', '.gpkg', '.gdb')), "The path should end with .gpkg, .shp, .gdb"
-
-    full_path, path, input_file = read_compressed(temp_dir, path, input_file)
+    assert path.endswith(('.shp', '.gpkg', '.gdb')), "The path should end with .gpkg, .shp, .gdb"
+    
+    # if the file happens to be a zip file, this will help us read it
+    path, input_table = read_compressed(temp_dir, path)
 
     # if shapefile is selected, you can't have feature class filled in since it will not take that argument
-    if full_path.endswith('.shp'):
+    if path.endswith('.shp'):
         assert not feature_class, "feature_class input will not be considered if the input file is .shp"
 
     # Use default schema from db object
@@ -445,10 +441,10 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
             feature_class = feature_class[:-4]
 
     # clean table name if it's a single input   
-    table = clean_table_name(table, gpkg_tbl, full_path, path)
+    table = clean_table_name(table, gpkg_tbl, path)
 
     # if the inputs suggest bulk uploading
-    gpkg_tbl_names = bulk_upload_table_setup(dbo, full_path, path, table, feature_class, temp_dir, gpkg_tbl)
+    gpkg_tbl_names = bulk_upload_table_setup(dbo, path, table, feature_class, temp_dir, gpkg_tbl)
 
     # start of loop
     for gpkg_tbl, table in gpkg_tbl_names.items():
@@ -465,9 +461,9 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
                 dbo.drop_table(schema, table, cascade = True)
 
         # produce command
-        cmd = read_geospatial_command(dbo, gdal_data_loc, srid, full_path, schema,
+        cmd = read_geospatial_command(dbo, gdal_data_loc, srid, path, schema,
                             table, precision, port, gpkg_tbl, feature_class, skip_failures)
-  
+        
         if extra_cmd:
             cmd = cmd + f' {extra_cmd}'
 
@@ -479,7 +475,7 @@ def upload_geospatial(dbo, path, input_file = None, schema = None, table = None,
         execute_cmd(dbo = dbo, cmd = cmd, feature_class = feature_class, cmd_env = cmd_env)
 
         # add a comment to the query
-        comment_query(dbo, feature_class, schema, table, path, input_file)
+        comment_query(dbo, feature_class, schema, table, path)
 
         if not private and dbo.type == 'PG':
             # can only grant select to public in PG

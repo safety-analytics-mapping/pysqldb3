@@ -369,41 +369,26 @@ def add_zip_to_geo_path(path=None):
 
     return path
 
-def parse_file_path(path = None, file_name = None):
+def parse_file_path(path = None):
     """
     Parse the file name to separate the path and file name.
-    :param path: Optional file path
-    :param file_name: Optional file name
+    :param path: Full file path or file name
     """
+    level1 = os.path.basename(path) # take base name
+    level2 = os.path.dirname(path) # take directory
+    folder_dir = os.path.dirname(level2) # take level above if needed
 
-    # if no file name is given, then we parse the path
+    if '.' in level1:
+        # no table name
+        file_name = level1 # .shp or .gpkg or .gdb
+        table = ''
+        folder_dir = level2 # directory
+    else:
+        # table name exists
+        table = level1 # table
+        file_name = level2 # .shp or .gpkg or .gdb
 
-    if not file_name and path:
-        file_name = os.path.basename(path)
-        path = path.replace(file_name, '')
-    
-    # if no path is given, parse file name
-    elif not path and file_name:
-        path = file_name.replace(os.path.basename(file_name), '') # remove last slash
-        file_name = os.path.basename(file_name) # for gpkg/gdb, this becomes the table name
-
-    # remove any slashes at the end of the path if it was cleaned
-    try:
-        while path[-1] in ('\\', '/'):
-            path = path[:-1]
-    except:
-        pass
-
-    file_dir = os.path.dirname(path) # get the folder of the geo file
-    full_path = path + '/' + file_name # combine for the full path
-
-    # if .shp in file_name
-    if '.' in file_name:
-        file_dir = path # this becomes the folder dir
-        path = file_name # this is the .shp file
-        file_name = '' # then set file_name to blanks
-
-    return full_path, file_dir, path, file_name
+    return folder_dir, file_name, table
 
 def rename_geom(db, schema, table):
 
@@ -456,7 +441,7 @@ def rename_geom(db, schema, table):
                 print('Warning - could not update index name after renaming geometry. It may not exist.')
 
 
-def read_compressed(temp_dir, path = None, input_file = None):
+def read_compressed(temp_dir, path = None):
     
     # unzip and read compressed file if applicable
 
@@ -464,29 +449,36 @@ def read_compressed(temp_dir, path = None, input_file = None):
     # note: Since the compressed file may contain multiple different SHP files, this logic only applies when the path
     # includes the name of the compressed file and the input file is the name of the specific SHP file.
     compressed_exts = ['.tar', '.gz', '.tgz', '.7z', '.rar']
+    path_ = path # make a copy
 
-    if os.path.splitext(path)[1].lower() in compressed_exts:
+    if any(c in path for c in compressed_exts):
         print("Importing Shp from compressed file")
 
         # Create a temporary directory to extract files
         temp_dir = tempfile.mkdtemp()
-        suffix = Path(path).suffix.lower()
+        
+        while not any(path_.endswith(c) for c in compressed_exts):
+            # in case there are many subfolders
+            path_ = os.path.dirname(path_)
+        
+        suffix = Path(path_).suffix.lower()
 
         # Extract compressed archive into temp_dir
         if suffix in ['.tar', '.gz', '.tgz', '.tar.gz']:
-            with tarfile.open(path, 'r:*') as tar:
+            with tarfile.open(path_, 'r:*') as tar:
                 tar.extractall(temp_dir)
         elif suffix == '.7z':
-            with py7zr.SevenZipFile(path, mode='r') as archive:
+            with py7zr.SevenZipFile(path_, mode='r') as archive:
                 archive.extractall(path=temp_dir)
         elif suffix == '.rar':
-            with rarfile.RarFile(path) as archive:
+            with rarfile.RarFile(path_) as archive:
                 archive.extractall(path=temp_dir)
         else:
             shutil.rmtree(temp_dir)
             raise ValueError(f"Unsupported compression format: {suffix}")
 
         # Look for a specific .shp file by name
+        input_file = os.path.basename(path)
         target_shp = Path(temp_dir).rglob(input_file)
         shp_path = next(target_shp, None)
 
@@ -495,14 +487,15 @@ def read_compressed(temp_dir, path = None, input_file = None):
             raise FileNotFoundError(f"'{input_file}' not found in the archive.")
 
         # Return the folder path, .shp filename, and temp dir for later cleanup
-        path, input_file = str(shp_path.parent), shp_path.name
-        full_path = os.path.join(path, input_file)
+        path = os.path.join(str(shp_path.parent), shp_path.name)
+        input_table = ''
 
     else:
         full_path = add_zip_to_geo_path(path) # this function only runs if applicable
-        full_path, input_folder, path, input_file = parse_file_path(full_path, input_file)
+        file_dir, input_file, input_table = parse_file_path(full_path)
+        path = file_dir + '/' + input_file
 
-    return full_path, path, input_file
+    return path, input_table
 
 def read_geospatial_command(dbo, gdal_data_loc, srid, full_path, schema,
                             table, precision, port, gpkg_tbl = None, feature_class = None, skip_failures = None):
@@ -641,7 +634,7 @@ def read_geospatial_command(dbo, gdal_data_loc, srid, full_path, schema,
     return cmd
 
 def comment_query(dbo, feature_class = None, schema = None,
-                  table = None, path = None, input_file = None):
+                  table = None, path = None):
     
     """
     Add a comment to a shp table
@@ -655,13 +648,12 @@ def comment_query(dbo, feature_class = None, schema = None,
             d = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
         ), timeme=False, internal=True)
     
-    elif dbo.type == 'PG' and input_file.endswith('.shp') and feature_class == False:
+    elif dbo.type == 'PG' and path.endswith('.shp') and feature_class == False:
         dbo.query(SHP_COMMENT_QUERY.format(
                 s=schema,
                 t=table,
                 u=dbo.user,
                 p=path,
-                shp=input_file,
                 d=datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             ), timeme=False, internal=True)
         
@@ -815,7 +807,7 @@ def execute_cmd(cmd, dbo = None, feature_class = None, cmd_env = None):
         
     return
 
-def clean_table_name(table = None, gpkg_tbl = None, full_path = None, input_file = None):
+def clean_table_name(table = None, gpkg_tbl = None, full_path = None):
     """
     Clean the table name for input_geospatial_bulk
     """
@@ -826,11 +818,11 @@ def clean_table_name(table = None, gpkg_tbl = None, full_path = None, input_file
         table = gpkg_tbl.replace('.gpkg', '').replace('.shp', '').lower()
         # if the gpkg_table is left blank, we will populate the name using input_gpkg
     elif not table and full_path.endswith(('.shp')):
-        table = input_file.replace('.shp', '').lower()
+        table = os.path.basename(full_path).replace('.shp', '').lower()
 
     return table
 
-def bulk_upload_table_setup(dbo, full_path, input_file, table, feature_class = None, temp_dir = None, gpkg_tbl = None):
+def bulk_upload_table_setup(dbo, full_path, table, feature_class = None, temp_dir = None, gpkg_tbl = None):
 
     """
     Sets up the dictionary for bulk uploading loop based on the type of geospatial input file
@@ -847,12 +839,12 @@ def bulk_upload_table_setup(dbo, full_path, input_file, table, feature_class = N
         # exclude compressed files from this if statement
         gpkg_tbl_names[full_path.replace('.shp', '')] = table
         
-    elif input_file.endswith('.shp') and '.zip' in full_path: # this is for zip files
-        gpkg_tbl_names[input_file.replace('.shp', '')] = table
+    elif full_path.endswith('.shp') and '.zip' in full_path: # this is for zip files
+        gpkg_tbl_names[os.path.basename(full_path).replace('.shp', '')] = table
 
     elif full_path.endswith('.shp') and temp_dir:
         # compressed files if statement
-        gpkg_tbl_names[input_file.replace('.shp', '')] = table
+        gpkg_tbl_names[os.path.basename(full_path).replace('.shp', '')] = table
       
     elif full_path.endswith('.gdb') and feature_class:
         gpkg_tbl_names[feature_class.replace('.shp', '')] = table
