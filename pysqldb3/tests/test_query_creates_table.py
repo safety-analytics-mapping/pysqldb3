@@ -1,6 +1,17 @@
+import configparser, os
+
 from .. import query
 from ..util import PG, MS
+from .. import pysqldb3 as pysqldb
 
+test_config = configparser.ConfigParser()
+test_config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
+
+db = pysqldb.DbConnect(default=True, password=test_config.get('PG_DB', 'DB_PASSWORD'),
+                       user=test_config.get('PG_DB', 'DB_USER'))
+
+pg_schema = 'working'
+pg_table = f'_cretes_tables_testing_{db.user}'
 
 class TestQueryCreatesTablesSql():
     def test_complicated(self):
@@ -942,3 +953,38 @@ class TestQueryCreatesTablesPgSql():
                                    from fatality.dbo.FARS_Fatal_Other
                                """
         assert query.Query.query_creates_table(query_string, 'working', PG) == [(None, None, 'working','temp1')]
+
+
+class TestQueryCreatesTablesPgSqlDbConnection():
+    def test_query_creates_table_from_qry_simple(self):
+        db.drop_table(pg_schema, pg_table)
+        db.query(f"""
+            CREATE TABLE IF NOT EXISTS {pg_schema}.{pg_table}
+                    (
+                        shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry(Point,2263)
+                    );""")
+        assert db.table_exists(pg_table, schema=pg_schema)
+        assert db.tables_created == [(db.server, db.database, pg_schema, pg_table)]
+        db.drop_table(pg_schema, pg_table)
+        assert (db.server, db.database, pg_schema, pg_table) not in db.tables_created
+
+    def test_query_creates_table_from_qry_simple_w_drop(self):
+        db.drop_table(pg_schema, pg_table)
+        db.query(f"""
+            DROP TABLE IF EXISTS {pg_schema}.{pg_table};
+            CREATE TABLE IF NOT EXISTS {pg_schema}.{pg_table}
+                    (
+                        shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry(Point,2263)
+                    );""")
+        assert db.table_exists(pg_table, schema=pg_schema)
+        assert db.tables_created == [(db.server, db.database, pg_schema, pg_table)]
+        db.drop_table(pg_schema, pg_table)
+        assert (db.server, db.database, pg_schema, pg_table) not in db.tables_created
