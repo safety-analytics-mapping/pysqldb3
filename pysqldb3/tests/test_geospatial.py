@@ -2850,6 +2850,7 @@ class TestFeatureClassToTablePg:
     @classmethod
     def teardown_class(cls):
         db.cleanup_new_tables()
+        helpers.clean_up_feature_class()
 
 class TestFeatureClassToTableMs:
     @classmethod
@@ -3023,6 +3024,7 @@ class TestFeatureClassToTableMs:
     @classmethod
     def teardown_class(cls):
         sql.cleanup_new_tables()
+        helpers.clean_up_feature_class()
 
 class TestSHPDeleteIndexPG:
     @classmethod

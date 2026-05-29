@@ -284,10 +284,9 @@ def set_up_feature_class():
 def clean_up_feature_class():
     zip_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/nyclion_21d.zip')
     fldr = os.path.dirname(zip_path)+'/lion'
-    gdb = "lion.gdb"
     print ('Deleting any existing gdb')
     # os.remove(os.path.join(fldr, gdb))
-    os.rmdir(fldr)
+    # os.rmdir(fldr)
     
     # remove subfolder if created (it's not created in test_query_to_geospatial.py)
     if os.path.isdir(f'{DIR}/subfolder_gdb.zip'):

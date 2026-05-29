@@ -93,22 +93,22 @@ class TestQueryCreatesTablesSql:
         assert query.Query.query_renames_table(query_string, schema_name, ms_db_type) == {f'{schema_name}.node_{sql.user}': f'test_{sql.user}'}
 
     def test_query_renames_table_logging_not_temp(self, schema_name=sql_test_schema):
-        sql.drop_table(schema_name,f'___test___test___{sql.user}___')
+        sql.drop_table(schema_name,f'___test___test___{sql.user}___', schema = schema_name)
         assert not db.table_exists(f'___test___test___{sql.user}___', schema=schema_name)
-        sql.query(f"create table {schema_name}.___test___test___{sql.user}___ (id int);", temp=False)
+        sql.query(f"create table {schema_name}.___test___test___{sql.user}___ (id int);", schema = schema_name, temp=False)
         assert sql.table_exists(f'___test___test___{sql.user}___', schema=schema_name)
         assert not sql.check_table_in_log(f'___test___test___{sql.user}___', schema=schema_name)
 
-        sql.drop_table(schema_name, f'___test___test___2___{sql.user}___')
-        sql.query(f"EXEC sp_rename '{schema_name}.___test___test___{sql.user}___', '___test___test___2___{sql.user}___'")
+        sql.drop_table(schema_name, f'___test___test___2___{sql.user}___', schema = schema_name)
+        sql.query(f"EXEC sp_rename '{schema_name}.___test___test___{sql.user}___', '___test___test___2___{sql.user}___'", schema = schema_name)
         assert sql.table_exists(f'___test___test___2___{sql.user}___', schema=schema_name)
         assert not sql.check_table_in_log(f'___test___test___2___{sql.user}___', schema=schema_name)
-        sql.drop_table(schema_name, f'___test___test___2___{sql.user}___')
+        sql.drop_table(schema_name, f'___test___test___2___{sql.user}___', schema = schema_name)
 
     def test_query_renames_table_logging_temp(self, schema_name=sql_test_schema):
-        sql.drop_table(schema_name, f'___test___test___{sql.user}___')
+        sql.drop_table(schema_name, f'___test___test___{sql.user}___', schema = schema_name)
         assert not db.table_exists(f'___test___test___{sql.user}___', schema=schema_name)
-        sql.query(f"create table {schema_name}.___test___test___{sql.user}___ (id int);", temp=True)
+        sql.query(f"create table {schema_name}.___test___test___{sql.user}___ (id int);", schema = schema_name, temp=True)
         assert sql.table_exists(f'___test___test___{sql.user}___', schema=schema_name)
         assert sql.check_table_in_log(f'___test___test___{sql.user}___', schema=schema_name)
 
