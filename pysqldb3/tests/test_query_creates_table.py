@@ -886,6 +886,17 @@ class TestQueryCreatesTablesPgSql():
                            """
         assert query.Query.query_creates_table(query_string, 'public', PG) == []
 
+    def test_query_creates_table_with_cte(self):
+        query_string = """
+            CREATE TABLE dbo.test_with_cte AS
+             with d as (
+                SELECT TOP 10 *
+                FROM RISCRASHDATA.dbo.node) 
+            SELECT * FROM d;
+        """
+        assert query.Query.query_creates_table(query_string, 'dbo', MS) == [(None,None,'dbo','test_with_cte')]
+
+
     def test_multiple_qrys_select_into_dif_parts(self):
         query_string = """
             insert into working.safety_projects_segs (id, src, segmentid, mft, dte, conservative)

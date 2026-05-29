@@ -89,6 +89,8 @@ class TestReadgpkgPG:
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
 
+        assert db.tables_created[-1] == (db.server, db.database, pg_schema, test_read_gpkg_table_name)
+
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
         
@@ -276,6 +278,8 @@ class TestReadgpkgMS:
 
         assert len(diff_df) == 1
         assert int(diff_df.iloc[0]['distance']) == 0
+
+        assert sql.tables_created[-1] == (sql.server, sql.database, ms_schema, test_read_gpkg_table_name)
 
         # Cleanup
         sql.query(f"drop table if exists {ms_schema}.{test_read_gpkg_table_name}")

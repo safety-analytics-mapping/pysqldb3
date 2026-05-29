@@ -39,6 +39,7 @@ class TestFeatureClassToTablePg:
         assert not db.table_exists(table, schema=db.default_schema)
 
         db.feature_class_to_table(fgdb, table, schema=None, shp_name=fc)
+        
         assert db.table_exists(table, schema=db.default_schema)
 
         db.drop_table(db.default_schema, table)
@@ -137,8 +138,19 @@ class TestFeatureClassToTablePg:
         """.format(s=db.default_schema, t=table))
 
         assert db.data[0][0] < 1
+    db.drop_table(db.default_schema, table)
+
+    @pytest.mark.order1
+    def test_import_fc_basic(self):
+        db.drop_table(table=table, schema=db.default_schema)
+        assert not db.table_exists(table, schema=db.default_schema)
+
+        db.feature_class_to_table(fgdb, table, schema=None, shp_name='lion', extra_cmd='-nlt MULTILINESTRING')
+        assert db.table_exists(table, schema=db.default_schema)
 
         db.drop_table(db.default_schema, table)
+
+
 
     @pytest.mark.order6
     def test_import_fc_new_name_schema_no_fc(self):

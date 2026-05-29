@@ -83,12 +83,12 @@ class TestCleanUpNewTablesPg:
         assert db.table_exists(table_name, schema=pg_schema)
 
         db.query("alter table {s}.{t} rename to {t}_rename".format(s=pg_schema, t=table_name))
-        assert db.table_exists(table_name, schema=pg_schema) == False
+        assert not db.table_exists(table_name, schema=pg_schema)
         assert db.table_exists(table_name + '_rename', schema=pg_schema)
 
         db.cleanup_new_tables()
-        assert db.table_exists(table_name, schema=pg_schema) == False
-        assert db.table_exists(table_name + '_rename', schema=pg_schema) == False
+        assert not db.table_exists(table_name, schema=pg_schema)
+        assert not db.table_exists(table_name + '_rename', schema=pg_schema)
 
     def test_clean_up_new_tables_temp(self):
         table_name = 'test_new_table_92820_testing'
@@ -187,12 +187,12 @@ class TestCleanUpNewTablesMs:
         assert sql.table_exists(table_name, schema=ms_schema)
 
         sql.query("EXEC sp_rename '{s}.{t}', '{t}_rename';".format(s=ms_schema, t=table_name))
-        assert sql.table_exists(table_name, schema=ms_schema) == False
+        assert not sql.table_exists(table_name, schema=ms_schema)
         assert sql.table_exists(table_name + '_rename', schema=ms_schema)
 
         sql.cleanup_new_tables()
-        assert sql.table_exists(table_name, schema=ms_schema) == False
-        assert sql.table_exists(table_name + '_rename', schema=ms_schema) == False
+        assert not sql.table_exists(table_name, schema=ms_schema)
+        assert not sql.table_exists(table_name + '_rename', schema=ms_schema)
 
     def test_clean_up_new_tables_temp(self):
         table_name = 'test_new_table_92820_testing'
@@ -265,6 +265,7 @@ class TestCleanUpNewTablesIO:
         """.format(pg_schema, test_pg_to_pg_cleanup_table))
 
         assert len(ris.tables_created) == 0
+        ris.drop_table(pg_schema, test_pg_to_pg_cleanup_table)
         assert not ris.table_exists(schema=pg_schema, table=test_pg_to_pg_cleanup_table)
 
         pg_to_pg(from_pg=db, to_pg=ris, org_schema=pg_schema, org_table=test_pg_to_pg_cleanup_table,
