@@ -243,7 +243,7 @@ class Query:
                 # check tables dropped if they were also added, if yes AND they still exist they werent really dropped and can be removed from the dropped list
                 if self.dropped_tables:
                     self.__remove_false_positive_drops()
-                    
+
                 if self.permission:
                     for row in self.new_tables:
                         # account for pg should only use schema and table
