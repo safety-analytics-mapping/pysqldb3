@@ -141,6 +141,7 @@ class TestRenamesGeomPg:
 
     @classmethod
     def teardown_class(cls):
+        helpers.clean_up_feature_class()
         helpers.clean_up_shapefile()
 
 
