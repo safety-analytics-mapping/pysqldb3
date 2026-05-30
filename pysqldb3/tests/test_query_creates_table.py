@@ -590,9 +590,7 @@ class TestQueryCreatesTablesPgSql():
                        CREATE TABLE "test2" (
                            PersonID int
                        );
-                       CREATE TABLE "staging"."test3" AS
-                       SELECT TOP 10 *
-                       FROM {ms_schema}.node
+                       CREATE TABLE "staging"."test3" (col_1 int, col_2 varchar(4), col_3 geometry);
                        """
         x = query.Query.query_creates_table(query_string, 'public', PG)
 
