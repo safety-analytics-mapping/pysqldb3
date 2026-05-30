@@ -955,8 +955,8 @@ class TestQueryCreatesTablesPgSql():
         assert query.Query.query_creates_table(query_string, 'working', PG) == [(None, None, 'working','temp1')]
 
 
-class TestQueryCreatesTablesPgSqlDbConnection():
-    def test_query_creates_table_from_qry_simple(self):
+class TestTablesCreatedPG:
+    def test_tables_created_simple(self):
         db.drop_table(pg_schema, pg_table)
         db.query(f"""
             CREATE TABLE IF NOT EXISTS {pg_schema}.{pg_table}
@@ -972,7 +972,8 @@ class TestQueryCreatesTablesPgSqlDbConnection():
         db.drop_table(pg_schema, pg_table)
         assert (db.server, db.database, pg_schema, pg_table) not in db.tables_created
 
-    def test_query_creates_table_from_qry_simple_w_drop(self):
+
+    def test_tables_created_simple_w_drop(self):
         db.drop_table(pg_schema, pg_table)
         db.query(f"""
             DROP TABLE IF EXISTS {pg_schema}.{pg_table};
@@ -988,3 +989,162 @@ class TestQueryCreatesTablesPgSqlDbConnection():
         assert db.tables_created == [(db.server, db.database, pg_schema, pg_table)]
         db.drop_table(pg_schema, pg_table)
         assert (db.server, db.database, pg_schema, pg_table) not in db.tables_created
+
+
+    def test_tables_created_multi_tables(self):
+        # check if it still works if multiple tables are created at the same
+
+        for i in range(1, 8):
+            db.drop_table(schema = pg_schema, table = f'test_table_{i}')
+            assert not db.table_exists(schema = pg_schema, table = f'test_table_{i}')
+
+        for i in range(1, 8):
+            db.query(f"""
+                    CREATE TABLE IF NOT EXISTS {pg_schema}.test_table_{i}
+                    (   shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry(Point,2263)
+                    );
+                    """)
+            assert db.table_exists(schema = pg_schema, table = f'test_table_{i}')
+
+            assert (db.server, db.database, pg_schema, f'test_table_{i}') in db.tables_created
+
+        for i in range(1, 8):
+            db.drop_table(schema = pg_schema, table = f'test_table_{i}')
+
+
+    def test_tables_created_edited(self):
+        # create table, make changes to table, and add another table and see if both still appear
+
+        db.drop_table(pg_schema, pg_table)
+        db.query(f"""
+            CREATE TABLE IF NOT EXISTS {pg_schema}.{pg_table}
+                    (
+                        shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry(Point,2263)
+                    );""")
+
+        db.query(f"""
+                insert into {pg_schema}.{pg_table} (shape_id, shape_pt_lat, shape_pt_lon, shape_pt_sequence, geom)
+                values (1234957, 84373.29287, 11.00009, 5000, st_setsrid(st_point(1015329.1, 213793.1), 2263));
+                 """)
+        
+        assert db.table_exists(pg_table, schema=pg_schema)
+
+        db.query(f"""
+            CREATE TABLE IF NOT EXISTS {pg_schema}.{pg_table}_2
+                    (
+                        shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry(Point,2263)
+                    );""")
+        
+        assert db.table_exists(pg_table + '_2', schema=pg_schema)
+
+        assert (db.server, db.database, pg_schema, pg_table) in db.tables_created
+        assert (db.server, db.database, pg_schema, pg_table + '_2') in db.tables_created
+
+        db.drop_table(schema = pg_schema, table = pg_table)
+        db.drop_table(schema = pg_schema, table = pg_table + '_2')
+
+class TestTablesCreatedMS:
+    
+    def test_tables_created_simple(self):
+        sql.drop_table(schema = ms_schema, table = ms_table)
+        sql.query(f"""
+                CREATE TABLE {ms_schema}.{ms_table}
+                    (   shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry
+                    );""")
+        assert sql.table_exists(ms_table, schema=ms_schema)
+        assert sql.tables_created == [(sql.server, sql.database, ms_schema, ms_table)]
+        sql.drop_table(schema = ms_schema, table = ms_table)
+        assert (sql.server, sql.database, ms_schema, ms_table) not in sql.tables_created
+
+    def test_tables_created_simple_w_drop(self):
+        sql.drop_table(ms_schema, ms_table)
+        sql.query(f"""
+            DROP TABLE IF EXISTS {pg_schema}.{ms_table};
+            CREATE TABLE {ms_schema}.{ms_table}
+                    (   shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry
+                    );""")
+        assert db.table_exists(ms_table, schema=ms_schema)
+        assert sql.tables_created == [(sql.server, sql.database, ms_schema, ms_table)]
+        sql.drop_table(ms_schema, ms_table)
+        assert (sql.server, sql.database, ms_schema, ms_table) not in sql.tables_created
+
+
+    def test_tables_created_multi_tables(self):
+        # check if it still works if multiple tables are created at the same
+
+        for i in range(1, 8):
+            sql.drop_table(schema = ms_schema, table = f'test_table_{i}')
+            assert not sql.table_exists(schema = ms_schema, table = f'test_table_{i}')
+
+        for i in range(1, 8):
+            sql.query(f"""
+                    CREATE TABLE {ms_schema}.test_table_{i}
+                    (   shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry
+                    );""")
+            assert sql.table_exists(schema = ms_schema, table = f'test_table_{i}')
+
+            assert (sql.server, sql.database, ms_schema, f'test_table_{i}') in sql.tables_created
+
+        for i in range(1, 8):
+            sql.drop_table(schema = ms_schema, table = f'test_table_{i}')
+
+
+    def test_tables_created_edited(self):
+        # create table, make changes to table and see if it still appears
+
+        sql.drop_table(ms_schema, ms_table)
+        sql.query(f"""
+           CREATE TABLE {ms_schema}.{ms_table}
+                    (   shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry
+                    );""")
+        assert sql.table_exists(ms_table, schema=ms_schema)
+
+        sql.query(f"""
+                insert into {ms_schema}.{ms_table} (shape_id, shape_pt_lat, shape_pt_lon, shape_pt_sequence, geom);
+                INSERT INTO {ms_schema}.{ms_table} VALUES (100, 'lll', geometry::STGeomFromText('POINT(100 100)', 0))
+                 """)
+
+        sql.query(f"""
+           CREATE TABLE {ms_schema}.{ms_table}_2
+                    (   shape_id character varying,
+                        shape_pt_lat double precision,
+                        shape_pt_lon double precision,
+                        shape_pt_sequence bigint,
+                        geom geometry
+                    );""")
+        
+        assert sql.table_exists(ms_table + '_2', schema=ms_schema)
+                
+        assert (sql.server, sql.database, ms_schema, ms_table) in sql.tables_created
+        assert (sql.server, sql.database, ms_schema, ms_table + '_2') in sql.tables_created
+
+        sql.drop_table(schema = ms_schema, table = ms_table)
+        sql.drop_table(schema = ms_schema, table = ms_table + '_2')
