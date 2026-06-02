@@ -406,20 +406,24 @@ def rename_geom(db, schema, table):
     comparison_set = {i[0] for i in db.internal_queries[-1].data}
 
     f = comparison_set.intersection(geom_set) # this finds the intersection of the 2 sets (the geometry field)
-
-    # Get the column in question
-    if 'wkb_geometry' in [i[0] for i in db.internal_queries[-1].data]:
-        f = 'wkb_geometry'
-    elif 'shape' in [i[0] for i in db.internal_queries[-1].data]:
-        f = 'shape'
-    elif 'geometry' in [i[0] for i in db.internal_queries[-1].data]:
-        f = 'geometry'
-    elif 'ogr_geometry' in [i[0] for i in db.internal_queries[-1].data]:
-        f = 'ogr_geometry'
+    #
+    # # Get the column in question
+    # if 'wkb_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'wkb_geometry'
+    # elif 'shape' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'shape'
+    # elif 'Shape' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'Shape'
+    # elif 'SHAPE' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'SHAPE'
+    # elif 'geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'geometry'
+    # elif 'ogr_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'ogr_geometry'
 
     if f:
         # if f exists, take the string of f
-        # f = f.pop()
+        f = f.pop()
 
         # Rename column
         db.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
