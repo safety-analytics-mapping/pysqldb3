@@ -230,7 +230,6 @@ class TestReadgpkgPG:
     #     return
 
     @classmethod
-    @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()
         # helpers.clean_up_test_table_pg(db)

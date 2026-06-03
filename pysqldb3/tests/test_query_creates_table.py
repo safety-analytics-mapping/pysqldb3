@@ -1017,7 +1017,7 @@ class TestTablesCreatedMS:
                         shape_pt_sequence bigint,
                         geom geometry
                     );""")
-        assert db.table_exists(ms_table, schema=ms_schema)
+        assert sql.table_exists(ms_table, schema=ms_schema)
         assert sql.tables_created == [(sql.server, sql.database, ms_schema, ms_table)]
         sql.drop_table(ms_schema, ms_table)
         assert (sql.server, sql.database, ms_schema, ms_table) not in sql.tables_created
@@ -1062,8 +1062,8 @@ class TestTablesCreatedMS:
         assert sql.table_exists(ms_table, schema=ms_schema)
 
         sql.query(f"""
-                insert into {ms_schema}.{ms_table} (shape_id, shape_pt_lat, shape_pt_lon, shape_pt_sequence, geom);
-                INSERT INTO {ms_schema}.{ms_table} VALUES (100, 'lll', geometry::STGeomFromText('POINT(100 100)', 0))
+                insert into {ms_schema}.{ms_table}(shape_id, shape_pt_sequence, geom)
+                VALUES (100, 123, geometry::STGeomFromText('POINT(100 100)', 0))
                  """)
 
         sql.query(f"""
