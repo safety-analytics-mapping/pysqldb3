@@ -926,27 +926,36 @@ class TestTablesCreatedPG:
 
 
     def test_tables_created_multi_tables(self):
-        # check if it still works if multiple tables are created at the same
+        # check if it still works if multiple tables are created at the same time
 
-        for i in range(1, 8):
+        for i in range(1, 3):
             db.drop_table(schema = pg_schema, table = f'test_table_{i}')
             assert not db.table_exists(schema = pg_schema, table = f'test_table_{i}')
 
-        for i in range(1, 8):
-            db.query(f"""
-                    CREATE TABLE IF NOT EXISTS {pg_schema}.test_table_{i}
-                    (   shape_id character varying,
-                        shape_pt_lat double precision,
-                        shape_pt_lon double precision,
-                        shape_pt_sequence bigint,
-                        geom geometry(Point,2263)
-                    );
-                    """)
+
+        db.query(f"""
+                CREATE TABLE IF NOT EXISTS {pg_schema}.test_table_1
+                (   shape_id character varying,
+                    shape_pt_lat double precision,
+                    shape_pt_lon double precision,
+                    shape_pt_sequence bigint,
+                    geom geometry(Point,2263)
+                );
+                
+                CREATE TABLE IF NOT EXISTS {pg_schema}.test_table_2
+                (   shape_id character varying,
+                    shape_pt_lat double precision,
+                    shape_pt_lon double precision,
+                    shape_pt_sequence bigint,
+                    geom geometry(Point,2263)
+                );
+                """)
+        for i in range(1, 3):
             assert db.table_exists(schema = pg_schema, table = f'test_table_{i}')
 
             assert (db.server, db.database, pg_schema, f'test_table_{i}') in db.tables_created
 
-        for i in range(1, 8):
+        for i in range(1, 3):
             db.drop_table(schema = pg_schema, table = f'test_table_{i}')
 
 
