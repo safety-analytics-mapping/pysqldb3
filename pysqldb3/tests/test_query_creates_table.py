@@ -1033,26 +1033,36 @@ class TestTablesCreatedMS:
 
 
     def test_tables_created_multi_tables(self):
-        # check if it still works if multiple tables are created at the same
+        # check if it still works if multiple tables are created at the same time
 
-        for i in range(1, 8):
+        for i in range(1, 3):
             sql.drop_table(schema = ms_schema, table = f'test_table_{i}')
             assert not sql.table_exists(schema = ms_schema, table = f'test_table_{i}')
 
-        for i in range(1, 8):
-            sql.query(f"""
-                    CREATE TABLE {ms_schema}.test_table_{i}
-                    (   shape_id character varying,
-                        shape_pt_lat double precision,
-                        shape_pt_lon double precision,
-                        shape_pt_sequence bigint,
-                        geom geometry
-                    );""")
+
+        sql.query(f"""
+                CREATE TABLE {ms_schema}.test_table_1
+                (   shape_id character varying,
+                    shape_pt_lat double precision,
+                    shape_pt_lon double precision,
+                    shape_pt_sequence bigint,
+                    geom geometry
+                );
+                
+                CREATE TABLE {ms_schema}.test_table_2
+                (   shape_id character varying,
+                    shape_pt_lat double precision,
+                    shape_pt_lon double precision,
+                    shape_pt_sequence bigint,
+                    geom geometry
+                );
+        """)
+        for i in range(1, 3):
             assert sql.table_exists(schema = ms_schema, table = f'test_table_{i}')
 
             assert (sql.server, sql.database, ms_schema, f'test_table_{i}') in sql.tables_created
 
-        for i in range(1, 8):
+        for i in range(1, 3):
             sql.drop_table(schema = ms_schema, table = f'test_table_{i}')
 
 
