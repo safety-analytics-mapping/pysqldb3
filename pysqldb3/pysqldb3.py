@@ -954,8 +954,12 @@ class DbConnect:
         :param kwargs:
         :return:
         """
+        if not type(row_columns) == list:
+            row_columns = [row_columns]
+        if qry.strip().endswith(';'):
+            qry = qry.strip()[:-1]
         # get values for crosstab columns
-        self.query(f"with t as ({qry}) select distinct {column_column} from t", timeme=False, internal=True)
+        self.query(f"with t as ({qry}) select distinct {column_column} from t order by {column_column}", timeme=False, internal=True)
         col_values = [i[0] for i in self.internal_data if i[0]]
         cols = ''
         if count_column:
@@ -966,7 +970,7 @@ class DbConnect:
             for _ in col_values:
                 cols += (f"""sum(distinct case when {column_column} = '{_}' then {sum_column} else null end) as "{_}",""")
 
-        _qry = f"select {str(row_columns)[1:-1]}, {cols[:-1]} from ({qry}) t group by {str(row_columns)[1:-1]}"
+        _qry = f"select {str(row_columns)[1:-1].replace("'","")}, {cols[:-1]} from ({qry}) t group by {str(row_columns)[1:-1].replace("'","")}"
         if df:
             return self.dfquery(_qry, **kwargs)
         else:
