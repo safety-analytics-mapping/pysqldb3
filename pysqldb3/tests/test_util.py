@@ -1,6 +1,6 @@
 import pandas as pd
 import os
-
+import zipfile
 from ..util import convert_geom_col, parse_table_string, parse_file_path, add_zip_to_geo_path
 
 
@@ -170,7 +170,9 @@ class TestParseFilePathShp:
         file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_shapefile.shp'
 
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(path=file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(path=file_path)
+        
+        assert full_path == 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA/test_shapefile.shp'
         assert folder_dir == os.path.dirname(file_path)
         assert file_name == os.path.basename(file_path)
         assert table_name == ''
@@ -180,7 +182,9 @@ class TestParseFilePathShp:
         file_path = 'test_shapefile.shp'
         
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(path=file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(path=file_path)
+
+        assert full_path == '/test_shapefile.shp'
         assert folder_dir == ''
         assert file_name == file_path
         assert table_name == ''
@@ -190,8 +194,9 @@ class TestParseFilePathShp:
         file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_zipfile.zip\\test_shapefile.shp'
 
         new_path = add_zip_to_geo_path(file_path)
-        folder_dir, file_name, table_name = parse_file_path(new_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(new_path)
 
+        assert full_path == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_zipfile.zip/test_shapefile.shp'
         assert folder_dir == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_zipfile.zip'
         assert file_name == 'test_shapefile.shp'
         assert table_name == ''
@@ -201,8 +206,9 @@ class TestParseFilePathShp:
         file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_zipfile.zip\\subfolder\\test_shapefile.shp'
 
         new_path = add_zip_to_geo_path(file_path)
-        folder_dir, file_name, table_name = parse_file_path(new_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(new_path)
 
+        assert full_path == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_zipfile.zip\\subfolder/test_shapefile.shp'
         assert folder_dir == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_zipfile.zip\\subfolder'
         assert file_name == 'test_shapefile.shp'
         assert table_name == ''
@@ -214,8 +220,9 @@ class TestParseFilePathGdb:
         file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_geodb.gdb\\test_shapefile'
 
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(file_path)
 
+        assert full_path == 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_geodb.gdb'
         assert folder_dir == 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA'
         assert file_name == 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_geodb.gdb'
         assert table_name == 'test_shapefile'
@@ -226,8 +233,9 @@ class TestParseFilePathGdb:
         file_path = 'test_geodb.gdb\\test_shapefile'
 
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(file_path)
 
+        assert full_path == 'test_geodb.gdb'
         assert folder_dir == ''
         assert file_name == 'test_geodb.gdb'
         assert table_name == 'test_shapefile'
@@ -237,12 +245,42 @@ class TestParseFilePathGdb:
         file_path = 'test_geodb.gdb'
 
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(file_path)
 
+        assert full_path == '/test_geodb.gdb'
         assert folder_dir == ''
         assert file_name == 'test_geodb.gdb'
         assert table_name == ''
 
+    def test_input_types_gdb_zip(self):
+        
+        # we are going to change the current directory so that the zip file created will 
+        # not have too many subfolders
+        
+        # set current directory because we are going to change it
+        current_dir = os.getcwd()
+
+        # change working directory
+        os.chdir('E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\lion\\')
+
+        # create zip file
+        with zipfile.ZipFile("E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip",
+                             "w") as myzip:
+            myzip.write(os.path.dirname('15a\\lion.gdb')) # remove the node part from the path
+            myzip.close()
+        # add zip file to the existing
+
+        # simple path and file
+        new_path = add_zip_to_geo_path('E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\15a\\lion.gdb\\node')
+        full_path, file_dir, file_name, table_name = parse_file_path(new_path)
+        
+        assert full_path == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\15a\\lion.gdb'
+        assert file_dir == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\15a'
+        assert file_name == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\15a\\lion.gdb'
+        assert table_name == 'node'
+    
+        os.chdir(current_dir) # change the default directory back
+        os.remove('E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip')
 
 class TestParseFilePathGpkg:
 
@@ -251,8 +289,9 @@ class TestParseFilePathGpkg:
         file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_geopackage.gpkg\\test_gpkg_table'
 
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(file_path)
 
+        assert full_path == 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_geopackage.gpkg'
         assert folder_dir == 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA'
         assert file_name == 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\test_geopackage.gpkg'
         assert table_name == 'test_gpkg_table'
@@ -262,8 +301,9 @@ class TestParseFilePathGpkg:
         file_path = 'test_geopackage.gpkg\\test_gpkg_table'
 
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(file_path)
 
+        assert full_path == 'test_geopackage.gpkg'
         assert folder_dir == ''
         assert file_name == 'test_geopackage.gpkg'
         assert table_name == 'test_gpkg_table'
@@ -273,19 +313,21 @@ class TestParseFilePathGpkg:
         file_path = 'test_geopackage.gpkg'
 
         # simple path and file
-        folder_dir, file_name, table_name = parse_file_path(file_path)
+        full_path, folder_dir, file_name, table_name = parse_file_path(file_path)
 
+        assert full_path == '/test_geopackage.gpkg'
         assert folder_dir == ''
         assert file_name == 'test_geopackage.gpkg'
         assert table_name == ''
 
-    def test_input_types_geopakage_zip(self):
+    def test_input_types_geopackage_zip(self):
         
         file_path = 'E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\test_geodb.gpkg\\test_geopackage_table'
 
         # simple path and file
         new_path = add_zip_to_geo_path(file_path)
-        file_dir, file_name, table_name = parse_file_path(new_path)
+        full_path, file_dir, file_name, table_name = parse_file_path(new_path)
+        assert full_path == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\test_geodb.gpkg'
         assert file_dir == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip'
         assert file_name == '/vsizip/E:\\RIS\\Staff Folders\\Seth H\\DATA\\OUTPUT_DATA\\zip_file_name.zip\\test_geodb.gpkg'
         assert table_name == 'test_geopackage_table'

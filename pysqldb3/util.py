@@ -383,12 +383,15 @@ def parse_file_path(path = None):
         file_name = level1 # .shp or .gpkg or .gdb
         table = ''
         folder_dir = level2 # directory
+        # GDAL has an issue with reading this as os.path.join()
+        full_path = folder_dir + '/' + file_name
     else:
         # table name exists
         table = level1 # table
-        file_name = level2 # .shp or .gpkg or .gdb
+        file_name = level2 # .gpkg or .gdb
+        full_path = file_name
 
-    return folder_dir, file_name, table
+    return full_path, folder_dir, file_name, table
 
 def rename_geom(db, schema, table):
 
@@ -492,8 +495,7 @@ def read_compressed(temp_dir, path = None):
 
     else:
         full_path = add_zip_to_geo_path(path) # this function only runs if applicable
-        file_dir, input_file, input_table = parse_file_path(full_path)
-        path = file_dir + '/' + input_file
+        path, file_dir, input_file, input_table = parse_file_path(full_path)
 
     return path, input_table
 

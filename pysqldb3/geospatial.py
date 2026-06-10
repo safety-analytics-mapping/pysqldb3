@@ -311,16 +311,18 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
     input_path = add_zip_to_geo_path(path)
 
     # determine input/output paths and file names
-    input_folder, input_path, input_table = parse_file_path(path = input_path)
-    output_folder, output_path, output_table = parse_file_path(path = output_file) # gpkg_tbl
+    input_full_path, input_folder, input_path, input_table = parse_file_path(path = input_path)
+    output_full_path, output_folder, output_path, output_table = parse_file_path(path = output_file)
 
     # if there is no file path from the output path argument, set to input path
     if output_folder == '':
-        output_path = os.path.join(input_folder, output_path)
+        # if input folder is a zip file, loop through until it's no longer
+        while '.zip' in input_folder:
+            input_folder = os.path.dirname(input_folder)
 
-    # add folder directory to input file name if input is a shp
-    if '.shp' in input_path:
-        input_path = os.path.join(input_folder, input_path)
+        print(f'Output file was written to {input_folder}')
+        
+        output_path = os.path.join(input_folder, output_path)
 
     # set variables
     if overwrite:
@@ -346,7 +348,7 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
                 _update = '-update' # then add the table to the gpkg
             
     # update the command
-    cmd = convert_cmd(input_full_path = input_path, input_table = input_table, output_full_path = output_path,  output_table = output_table,
+    cmd = convert_cmd(input_full_path = input_full_path, input_table = input_table, output_full_path = output_path,  output_table = output_table,
                       _update = _update, _overwrite = _overwrite)
 
     # execute the cmd
