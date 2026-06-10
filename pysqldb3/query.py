@@ -238,7 +238,11 @@ class Query:
 
                 # Add renamed tables to query's new table list
                 # self.new_tables += [t for t in self.renamed_tables.keys()]
-                self.dropped_tables = self.query_drops_table(self.query_string, self.dbo.type)
+                self.dropped_tables = [self.__missing_server_database(i) for i in self.query_drops_table(self.query_string, self.dbo.default_schema, self.dbo.type)]
+
+                # check tables dropped if they were also added, if yes AND they still exist they werent really dropped and can be removed from the dropped list
+                if self.dropped_tables:
+                    self.__remove_false_positive_drops()
 
                 if self.permission:
                     for row in self.new_tables:
@@ -404,7 +408,7 @@ class Query:
 
 
     @staticmethod
-    def query_drops_table(query_string, db_type):
+    def query_drops_table(query_string, default_schema, db_type):
         """
         Checks if query drops any tables.
         Tables that were dropped should be removed from the to drop queue. This should help
@@ -452,8 +456,23 @@ class Query:
                         get_unique_table_schema_string(t, db_type)
                         for t in row[2].split('.')])
                 )
-        return dropped_tables
+        # Clean table names via parse_table_string, get_query_table_schema_name
+        parsed_tables = [parse_table_string(a, default_schema, db_type) for a in dropped_tables]
+        return parsed_tables
 
+    def __remove_false_positive_drops(self):
+        """
+        Checks for tables created and dropped in the same query. If the overlap between created and droppped still
+        exists remove the table from the dropped list
+        :return: None
+        """
+        # list of tables added and dropped in the same query
+        to_check = set(self.dropped_tables).intersection(set(self.new_tables))
+        # check if each table still exists, if yes it was not dropped and can be removed from dropped list
+        for _ in to_check:
+            _ser, _db, _schema, _table = _
+            if self.dbo.table_exists(_table, schema=_schema, internal=True):
+                self.dropped_tables.remove(_)
 
     @staticmethod
     def query_renames_table(query_string, default_schema, db_type):

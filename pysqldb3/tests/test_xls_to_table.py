@@ -420,8 +420,8 @@ class TestBulkXLSToTablePG:
         db.query('drop table if exists {}.{}'.format(db.default_schema, xls_table_name))
 
         # Save multi-sheet xlsx
-        pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, 'Sheet1', index=False)
-        pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, 'Sheet2', index=False)
+        pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, sheet_name='Sheet1', index=False)
+        pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, sheet_name='Sheet2', index=False)
         writer.close()
 
         # Try via bulk loader
@@ -986,8 +986,8 @@ class TestBulkXLSToTableMS:
             sql.query('drop table {}.{}'.format(sql.default_schema, xls_table_name))
 
         # Save multi-sheet xlsx
-        pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, 'Sheet1', index=False)
-        pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, 'Sheet2', index=False)
+        pd.DataFrame([1, 2], columns=["sheet1"]).to_excel(writer, sheet_name='Sheet1', index=False)
+        pd.DataFrame([3, 4], columns=["sheet2"]).to_excel(writer, sheet_name='Sheet2', index=False)
         writer.close()
 
         # Try via bulk loader
