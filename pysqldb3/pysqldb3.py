@@ -941,6 +941,37 @@ class DbConnect:
         """
         Query.print_query(self.last_query)
 
+    def crosstab_query(self, qry, row_columns, column_column, count_column=None, sum_column=None, df=False, **kwargs):
+        """
+        Creates crosstab query from input query
+        TODO - add more details
+        :param qry:
+        :param row_columns:
+        :param column_column:
+        :param count_column:
+        :param sum_column:
+        :param df:
+        :param kwargs:
+        :return:
+        """
+        # get values for crosstab columns
+        self.query(f"with t as ({qry}) select distinct {column_column} from t", timeme=False, internal=True)
+        col_values = [i[0] for i in self.internal_data if i[0]]
+        cols = ''
+        if count_column:
+            for _ in col_values:
+                cols += (f"""count(distinct case when {column_column} = '{_}' then {count_column} else null end) as "{_}",""")
+
+        if sum_column:
+            for _ in col_values:
+                cols += (f"""sum(distinct case when {column_column} = '{_}' then {sum_column} else null end) as "{_}",""")
+
+        _qry = f"select {str(row_columns)[1:-1]}, {cols[:-1]} from ({qry}) t group by {str(row_columns)[1:-1]}"
+        if df:
+            return self.dfquery(_qry, **kwargs)
+        else:
+            return self.query(_qry, kwargs)
+
     """
     IO Functions
     """
