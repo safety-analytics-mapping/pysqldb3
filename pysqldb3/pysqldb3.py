@@ -127,7 +127,6 @@ class DbConnect:
             self.type = self.inherits_from.type
             self.__set_type()
 
-
     def __get_default_schema(self, db_type):
         # type: (str) -> str
         """
@@ -252,6 +251,7 @@ class DbConnect:
             #                           datetime2 will not be interpreted correctly\n')
             #
             #     self.conn = pymssql.connect(**self.params)
+
     def __connect_az(self):
         # type: (DbConnect) -> None
         """
@@ -658,8 +658,6 @@ class DbConnect:
                     on i.tablename = l.table_name
                 where i.schemaname='{schema}'
             """, internal = True)
-
-
 
     def table_exists(self, table, **kwargs):
         # type: (DbConnect, str, **str) -> bool
@@ -1344,7 +1342,6 @@ class DbConnect:
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema
 
-
     def _bulk_csv_to_table_pyarrow(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
         """
         Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.
@@ -1603,7 +1600,6 @@ class DbConnect:
                 table_schema2.append([column, 'varchar (500)'])
         return table_schema2
 
-
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
                      allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
@@ -1717,7 +1713,6 @@ class DbConnect:
                             self.query(f"alter table {schema}.{table} drop column {c}", internal=True)
         except Exception as e:
             print(e)
-
 
     def query_to_csv(self, query, output_file=None, strict=True, open_file=False, sep=',', quote_strings=True,
                      quiet=False, overwrite=False):
@@ -2225,7 +2220,6 @@ class DbConnect:
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
 
-
     def query_to_gpkg(self, query, gpkg_tbl, gpkg_name = '', path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
@@ -2243,7 +2237,6 @@ class DbConnect:
             
         self.query_to_shp(query, gpkg_tbl = gpkg_tbl, path = path, shp_name = gpkg_name, cmd = cmd, 
                           gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
-        
 
     def table_to_gpkg(self, table, gpkg_name, gpkg_tbl = None, schema=None, path=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
@@ -2587,7 +2580,6 @@ class DbConnect:
 
         return backup_schema, backup_table
 
-
     def get_table_indexes(self, schema, table):
         """
         Generates the create index sql scripts for any table.
@@ -2608,8 +2600,6 @@ class DbConnect:
             idxs = self.internal_data
             idx_qry = ';'.join([_[1].replace(_[0], _[0]+'_backup') for _ in idxs])
             return idx_qry.replace(f'{schema}.{table}', '"{schema}"."{table}"') + "\n"
-
-
 
     def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None, temp=False):
         """
