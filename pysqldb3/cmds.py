@@ -83,7 +83,7 @@ ogr2ogr --config GDAL_DATA "{gdal_data}" {_overwrite} -f "GPKG" {_update} "{full
 
 READ_GPKG_CMD_PG = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -lco OVERWRITE=YES -overwrite -a_srs 
 "EPSG:{srid}" -progress -f "PostgreSQL" PG:"host={host} port={port} dbname={dbname} 
-user={user} password={password}" "{gpkg_name}" '{gpkg_tbl}' -nln {schema}.{tbl_name} {perc}
+user={user} password={password}" "{gpkg_name}" {gpkg_tbl} -nln {schema}.{tbl_name} {perc}
 """.replace('\n', ' ')
 
 READ_GPKG_CMD_MS = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -lco OVERWRITE=YES -overwrite -a_srs 

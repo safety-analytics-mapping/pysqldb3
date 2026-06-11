@@ -126,7 +126,7 @@ class TestRenamesGeomPg:
         # import with pysqldb
         assert not db.table_exists(table, schema=db.default_schema)
 
-        db.shp_to_table(path=fldr, table=table, shp_name=shp)
+        db.shp_to_table(path=os.path.join(fldr, shp), table=table)
 
         db.query("""
                     SELECT column_name, data_type
@@ -141,7 +141,7 @@ class TestRenamesGeomPg:
 
     @classmethod
     def teardown_class(cls):
-        # helpers.clean_up_feature_class()
+        helpers.clean_up_feature_class()
         helpers.clean_up_shapefile()
 
 
@@ -247,7 +247,7 @@ class TestRenamesGeomMs:
         # import with pysqldb
         assert sql.table_exists(table, schema=sql.default_schema) is False
 
-        sql.shp_to_table(path=fldr, table=table, shp_name=shp)
+        sql.shp_to_table(path=os.path.join(fldr, shp), table=table)
 
         sql.query("""
                     SELECT column_name, data_type
@@ -263,5 +263,5 @@ class TestRenamesGeomMs:
 
     @classmethod
     def teardown_class(cls):
-        # helpers.clean_up_feature_class()
+        helpers.clean_up_feature_class()
         helpers.clean_up_shapefile()

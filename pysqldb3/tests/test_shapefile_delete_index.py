@@ -2,7 +2,7 @@ import configparser
 import os
 
 from .. import pysqldb3 as pysqldb
-import ..geosp
+from .. import geospatial as s
 from ..sql import *
 from . import helpers
 
@@ -43,8 +43,7 @@ class TestSHPDeleteIndexPG:
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
-        s = Shapefile(dbo=db, path=fp, shp_name=shp_name, table=test_read_shp_table_name, schema='working')
-        s.read_shp()
+        s.upload_geospatial(dbo=db, path=os.path.join(fp, shp_name), table=test_read_shp_table_name, schema='working')
 
         # Assert two indexes were made; one for PK
         indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
@@ -52,7 +51,7 @@ class TestSHPDeleteIndexPG:
         assert len(indexes_df[indexes_df['index_name'].str.contains('pkey')]) == 1
 
         # Call del_indexes
-        s.del_indexes()
+        s.del_indexes(dbo = db, schema = 'working', table = test_read_shp_table_name)
 
         # Assert one indexes left; contains pkey
         indexes_df = db.dfquery(DEL_INDICES_QUERY_PG.format(s='working', t=test_read_shp_table_name))
@@ -86,8 +85,7 @@ class TestSHPDeleteIndexMS:
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
-        s = Shapefile(dbo=sql, path=fp, shp_name=shp_name, table=test_read_shp_table_name, schema='dbo')
-        s.read_shp()
+        s.upload_geospatial(dbo=sql, path=os.path.join(fp, shp_name), table=test_read_shp_table_name, schema='dbo')
 
         # Assert one index was made; one for PK
         indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
@@ -95,7 +93,7 @@ class TestSHPDeleteIndexMS:
         assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
 
         # Call del_indexes
-        s.del_indexes()
+        s.del_indexes(dbo = sql, schema = 'dbo', table = test_read_shp_table_name)
 
         # Assert still one index left; contains PK
         indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
@@ -118,7 +116,7 @@ class TestSHPDeleteIndexMS:
         assert len(indexes_df) == 0
 
         # Read shp to new, test table
-        s = s.input_geospatial_file(dbo=sql, path=fp, shp_name=shp_name, table=test_read_shp_table_name, schema='dbo')
+        s.upload_geospatial(dbo=sql, path=os.path.join(fp, shp_name), table=test_read_shp_table_name, schema='dbo')
 
         # Add one more
         sql.query("""
@@ -131,7 +129,7 @@ class TestSHPDeleteIndexMS:
         assert len(indexes_df[indexes_df['index_name'].str.contains('PK')]) == 1
 
         # Call del_indexes
-        s.del_indexes()
+        s.del_indexes(dbo = sql, schema = 'dbo', table = test_read_shp_table_name)
 
         # Assert still one index left; contains PK
         indexes_df = sql.dfquery(DEL_INDICES_QUERY_MS.format(s='dbo', t=test_read_shp_table_name))
