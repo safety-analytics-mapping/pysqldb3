@@ -943,24 +943,34 @@ class DbConnect:
 
     def crosstab_query(self, qry, row_columns, column_column, count_column=None, sum_column=None, df=False, **kwargs):
         """
-        Creates crosstab query from input query
-        TODO - add more details
-        :param qry:
-        :param row_columns:
-        :param column_column:
-        :param count_column:
-        :param sum_column:
-        :param df:
-        :param kwargs:
-        :return:
+        Creates crosstab query from input query. Selects from the input query data and aggrigates on the row_columns,
+        creates new columns for each unique value in the column_column field and then sums or counts the values in sum_column or count_column.
+        :param qry: Query string to use as base data
+        :param row_columns: List of column names to use for row aggrigation
+        :param column_column: Column to use for the cross, each value will become a new column in the output
+        :param count_column: Column whose values will be counted
+        :param sum_column: Column whose values will be summed
+        :param df: Boolean vakue, defaulting to False, if True will retunn the data as a dataframe
+        :param kwargs: Keyword arguments to pass to the query or dfquery function
+        :return: List or Datafram of resultant crosstabb query
         """
+
+        # Since the input query is used as a cte to query from for the result, crop/create tables are not allowed
+        assert 'drop table' not in qry.lower(), "Crosstab query must not include drop table"
+        assert 'create table' not in qry.lower(), "Crosstab query must not include create table"
+        assert 'create temp table' not in qry.lower(), "Crosstab query must not include create table"
+
+        # Check if input row_columns is a list or a single row, if single value, convert to list for consistency
         if not type(row_columns) == list:
             row_columns = [row_columns]
+        # remove ending ; from input query, this will break the cte
         if qry.strip().endswith(';'):
             qry = qry.strip()[:-1]
+
         # get values for crosstab columns
         self.query(f"with t as ({qry}) select distinct {column_column} from t order by {column_column}", timeme=False, internal=True)
         col_values = [i[0] for i in self.internal_data if i[0]]
+        # build the cross tab query string for columns
         cols = ''
         if count_column:
             for _ in col_values:
@@ -970,7 +980,10 @@ class DbConnect:
             for _ in col_values:
                 cols += (f"""sum(distinct case when {column_column} = '{_}' then {sum_column} else null end) as "{_}",""")
 
+        # build full query string
         _qry = f"select {str(row_columns)[1:-1].replace("'","")}, {cols[:-1]} from ({qry}) t group by {str(row_columns)[1:-1].replace("'","")}"
+
+        # pass new crosstab query to query or df query to get results
         if df:
             return self.dfquery(_qry, **kwargs)
         else:
