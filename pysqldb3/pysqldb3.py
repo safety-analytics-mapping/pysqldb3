@@ -1079,6 +1079,96 @@ class DbConnect:
         df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema_table}", timeme=False, internal = True)
         print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
+    def snowflake_to_table(self, sf_table, table=None, schema=None, warehouse_size='xsmall', overwrite=False, temp=True,
+                           table_schema=None, allow_max_varchar=False, column_type_overrides=None, days=7,
+                           temp_table=False):
+        """
+            creates a dataframe from a Snowflake table,
+            and writes the DataFrame to a database table using dataframe_to_table().
+            :param sf_table: Full path of snowflake table
+            :param table: Destination table name in the database
+            :param schema: Database schema to use for writing the destination table
+            :param warehouse_size: determines which snowflake warehouse to use between (xsmall, small, medium)
+                    default is xsmall, larger warehouses increase compute resources
+            :param overwrite: If True, overwrite table if it already exists; defaults to False
+            :param table_schema: schema of dataframe (returned from dataframe_to_table_schema)
+            :param temp: If True, creates a temporary table; defaults to True
+            :param allow_max_varchar: Boolean flag to allow unlimited/max varchar columns; defaults to False
+            :param column_type_overrides: 'all' or Dict specifying column name → column type overrides.
+                   If 'all', all fields become varchar(max). **Will not override a custom table_schema if provided**
+            :param days: If temp=True and a temp schema/table needs to be created, number of days it is kept (default 7)
+            :param temp_table: if True imports to a temp table that is deleted at end of session
+            :return: None
+        """
+        if not schema:
+            schema = self.default_schema
+
+        if not table:
+            table = sf_table
+
+        if not overwrite and self.table_exists(schema=schema, table=table):
+            print('Must set overwrite=True; table already exists.')
+            return
+
+        if warehouse_size.lower() == 'xsmall':
+            warehouse = 'DOT_ALL_DEV_ANALYSIS_XSMALL_WH'
+        elif warehouse_size.lower() == 'small':
+            warehouse = 'DOT_ALL_DEV_DATASCIENCE_SMALL_WH'
+        elif warehouse_size.lower() == 'medium':
+            warehouse = 'DOT_RIS_DEV_ANALYSIS_MEDIUM_WH'
+        else:
+            print('Invalid warehouse, choose between xsmall, small, or medium')
+            return
+
+        print(f"Connecting to Snowflake and downloading: {sf_table}")
+
+        conn = pyodbc.connect("DSN=snowflake", autocommit=True)
+        cursor = conn.cursor()
+        cursor.execute(f"USE WAREHOUSE {warehouse}")
+        df = pd.read_sql(f"select * from {sf_table}", conn)
+
+        # If dataframe is over 1000 rows export to csv and use csv to table
+
+        if df.shape[0] > 999 and not temp_table:
+
+            # Is there a certain directory this should go?
+            temp_file = os.path.join(os.getcwd(), f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv')
+
+            df.to_csv(temp_file, index=False)
+
+            self.csv_to_table(
+                input_file=temp_file,
+                overwrite=overwrite,
+                schema=schema,
+                table=table,
+                temp=temp,
+                allow_max_varchar=allow_max_varchar,
+                column_type_overrides=column_type_overrides,
+                days=days,
+                temp_table=temp_table
+            )
+
+            try:
+                os.remove(temp_file)
+            except Exception as e:
+                print(f'Could not remove temp file\n{e}')
+
+        # If dataframe is less than 1000 rows just use dataframe to table
+        else:
+            # Write DataFrame to DB
+            self.dataframe_to_table(
+                df,
+                table=table,
+                table_schema=table_schema,
+                schema=schema,
+                overwrite=overwrite,
+                temp=temp,
+                allow_max_varchar=allow_max_varchar,
+                column_type_overrides=column_type_overrides,
+                days=days,
+                temp_table=temp_table
+            )
+
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
                      allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False,
                      **kwargs):
