@@ -1597,10 +1597,10 @@ class DbConnect:
                 updated.append(column)
 
         for c in table_schema:
-            if not c[0] == updated:
+            if not c[0] in updated:
                 table_schema2.append(c)
             else:
-                table_schema2.append([column, 'varchar (500)'])
+                table_schema2.append([c[0], 'varchar (500)'])
         return table_schema2
 
 
