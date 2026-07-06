@@ -221,15 +221,14 @@ class TestReadgpkgPG:
     #     # TODO: pending permissions defaults convo
     #     return
 
-    def test_read_temp(self):
-        # TODO: pending temp functionality
-        return
+    # def test_read_temp(self):
+    #     # TODO: pending temp functionality
+    #     return
+    #
+    # def test_read_gpkg_encoding(self):
+    #     # TODO: add test with fix to special characters
+    #     return
 
-    def test_read_gpkg_encoding(self):
-        # TODO: add test with fix to special characters
-        return
-
-    @classmethod
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()

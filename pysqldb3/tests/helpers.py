@@ -6,6 +6,8 @@ import zipfile
 import configparser
 import csv
 import openpyxl
+import xlsxwriter
+import xlwt
 from xlrd import open_workbook
 from xlutils.copy import copy
 from zipfile import ZipFile
@@ -122,6 +124,27 @@ def set_up_test_csv():
         w = csv.writer(csvfile, delimiter=',')
         for row in data9_bulk:
             w.writerow(row)
+
+    # multi row header - copied from ACS data
+    data_multi = [
+        ['GEO_ID','NAME','DP05_0001E','DP05_0001M','DP05_0002E','DP05_0002M'],
+        ['Geography','Geographic Area Name','Estimate!!SEX AND AGE!!Total population','Margin of Error!!SEX AND AGE!!Total population','Estimate!!SEX AND AGE!!Total population!!Male','Margin of Error!!SEX AND AGE!!Total population!!Male'],
+        ['1400000US36005000100','Census Tract 1; Bronx County; New York','3538','1209','3259','1010'],
+        ['1400000US36005000200','Census Tract 2; Bronx County; New York','5177','721','2647','507'],
+        ['1400000US36005000400','Census Tract 4; Bronx County; New York','6481','1051','3104','628']
+    ]
+    with open(DIR+"\\test10_multi.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data_multi:
+            w.writerow(row)
+
+    # bulk
+    with open(DIR+"\\test10_multi_bulk.csv", 'w', newline='') as csvfile:
+        w = csv.writer(csvfile, delimiter=',')
+        for row in data_multi:
+            w.writerow(row)
+        for row in range(1000):
+            w.writerow(data_multi[-1])
 
 
 def set_up_test_table_sql(sql, schema='dbo'):
@@ -370,6 +393,7 @@ def clean_up_schema(db, schema):
         c = ''
     db.query("DROP SCHEMA IF EXISTS {}{};".format(schema, c))
 
+
 def clean_up_shp(file_path):
     for ext in ('.shp', '.dbf', '.shx', '.prj'):
         clean_up_file(file_path.replace('.shp', ext))
@@ -377,8 +401,29 @@ def clean_up_shp(file_path):
 
 def clean_up_file(file_path):
     if os.path.isfile(file_path):
-        os.remove(file_path)
-        print ('%s file removed\n' % os.path.basename(file_path))
+        try:
+            os.remove(file_path)
+            print ('%s file removed\n' % os.path.basename(file_path))
+        except Exception as e:
+            print(f'Failed to remove {file_path}\n', e)
+
+
+def write_xls_from_df(file, df, sheet='Sheet1'):
+    """
+    This is needed for newer pandas - cannot write old xls file format
+    :param file:
+    :param df:
+    :param sheet:
+    :return:
+    """
+    workbook = xlwt.Workbook(file)
+    worksheet = workbook.add_sheet(sheet, cell_overwrite_ok=True)
+    for z, value in enumerate(df.columns):
+        worksheet.write(0, z, value)
+    for x, y in df.iterrows():
+        for z, value in enumerate(y):
+            worksheet.write(x+1, z, value)
+    workbook.save(file)
 
 
 def set_up_xls():
@@ -387,7 +432,8 @@ def set_up_xls():
         clean_up_file(xls_file1)
 
     test_df1 = pd.DataFrame({'a': {0: 1, 1: 2, 2:3}, 'b': {0: 3, 1: 4, 2:5}, 'Unnamed: 0': {0: 0, 1: 1, 2:6}})
-    test_df1.to_excel(os.path.join(DIR, 'test_xls.xls'), index=False)
+    write_xls_from_df(os.path.join(DIR, 'test_xls.xls'), test_df1, sheet='Sheet1')
+
     print ('%s created\n' % os.path.basename(xls_file1))
 
     xls_file2 = os.path.join(DIR, 'test_xls_with_sheet.xls')
@@ -396,7 +442,8 @@ def set_up_xls():
 
     test_df2 = pd.DataFrame({'a': {0: 1, 1: 2}, 'b': {0: 3, 1: 4}, 'Unnamed: 0': {0: 0, 1: 1}})
 
-    test_df2.to_excel(os.path.join(DIR, 'test_xls_with_sheet.xls'), sheet_name='AnotherSheet', index=False)
+    write_xls_from_df(os.path.join(DIR, 'test_xls_with_sheet.xls'), test_df2, sheet='AnotherSheet')
+
     w = copy(open_workbook(xls_file2))
     Sheet2 = w.add_sheet('Sheet2')
     col, row = 0, 0
@@ -471,6 +518,98 @@ def set_up_xls():
 
     wb.save(filename=xls_file3_bulk)
 
+    # create excel file with multiple headers
+    xls_file4_multirow_header = os.path.join(DIR, 'test_xls_multirow_headers.xlsx')
+    try:
+        os.remove(xls_file4_multirow_header)
+    except:
+        pass
+
+    # headers
+    # cols B->J
+    header_row1 = ['Report Year', 'Location', '', 'Annual Crash Rates by Type', '', '', '', '', '']
+    header_row2 = ['', '', '', 'Fatailities VMT', '', 'Injuries VMT', '', 'PDO VMT', '']
+    header_row3 = ['', '', 'Segment', 'Date Collected', 'Data', 'Date Collected', 'Data', 'Date Collected', 'Data']
+    data = [
+        [2025, 'PS 154', 'ACP from CPN to 155 St', 2011, 0, 2011, 7.147, 2011,1.572],
+        [2024, 'PS 154', '8 ave from 125 to 155 St', 2011, 0, 2011, 8.414, 2011,1.505],
+        [2023, 'PS 154', '125 from 8 ave to 5 Ave', 2009, 0.061656938, 2009, 10.852, 2009,2.897876073]
+
+    ]
+
+    # Create a new Excel file and add a worksheet
+    workbook = xlsxwriter.Workbook(xls_file4_multirow_header)
+    worksheet = workbook.add_worksheet()
+
+    # format headers
+    header_format = workbook.add_format(
+        {'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#ADD8E6', 'border': 1})
+
+    # Write the 1st header row simple
+    for col_num, value in enumerate(header_row1[:4]):
+        worksheet.write(2, col_num+1, value, header_format)
+    # Write the 1st header row merged
+    worksheet.merge_range(2, 4, 2, 9, header_row1[3], header_format)
+
+    # Write the 2nd header row
+    worksheet.merge_range(2, 1, 4, 1, header_row1[0], header_format)
+    worksheet.merge_range(2, 2, 3, 2, header_row1[1], header_format)
+    worksheet.write(2, 3, '', header_format)
+    worksheet.write(3, 3, '', header_format)
+    worksheet.merge_range(3, 4, 3, 5, header_row2[3], header_format)
+    worksheet.merge_range(3, 6, 3, 7, header_row2[5], header_format)
+    worksheet.merge_range(3, 8, 3, 9, header_row2[7], header_format)
+
+    # Write the 3rd header row
+
+    for col_num, value in enumerate(header_row3):
+        worksheet.write(4, col_num+1, value, header_format)
+    # Write the data starting from col 2 row 5
+    for row_num, row_data in enumerate(data):
+        for col_num, value in enumerate(row_data):
+            worksheet.write(row_num + 5, col_num+1, value)
+
+    workbook.close()
+
+    # Bulk multirow
+    # Create a new Excel file and add a worksheet
+    workbook = xlsxwriter.Workbook(xls_file4_multirow_header.replace('.xlsx', '_bulk.xlsx'))
+    worksheet = workbook.add_worksheet()
+
+    # format headers
+    header_format = workbook.add_format(
+        {'bold': True, 'align': 'center', 'valign': 'vcenter', 'bg_color': '#ADD8E6', 'border': 1})
+
+    # Write the 1st header row simple
+    for col_num, value in enumerate(header_row1[:4]):
+        worksheet.write(2, col_num+1, value, header_format)
+    # Write the 1st header row merged
+    worksheet.merge_range(2, 4, 2, 9, header_row1[3], header_format)
+
+    # Write the 2nd header row
+    worksheet.merge_range(2, 1, 4, 1, header_row1[0], header_format)
+    worksheet.merge_range(2, 2, 3, 2, header_row1[1], header_format)
+    worksheet.write(2, 3, '', header_format)
+    worksheet.write(3, 3, '', header_format)
+    worksheet.merge_range(3, 4, 3, 5, header_row2[3], header_format)
+    worksheet.merge_range(3, 6, 3, 7, header_row2[5], header_format)
+    worksheet.merge_range(3, 8, 3, 9, header_row2[7], header_format)
+
+    # Write the 3rd header row
+
+    for col_num, value in enumerate(header_row3):
+        worksheet.write(4, col_num+1, value, header_format)
+
+    bulk_data = []
+    for i in range(1000):
+        bulk_data.append(data[random.randint(0, 2)])
+    # Write the data starting from col 2 row 5
+    for row_num, row_data in enumerate(bulk_data):
+        for col_num, value in enumerate(row_data):
+            worksheet.write(row_num + 5, col_num+1, value)
+
+    workbook.close()
+
 
 def set_up_geopackage(user):
 
@@ -502,6 +641,7 @@ def set_up_geopackage(user):
 
     print ('Sample geopackage ready...')
 
+
 def clean_up_geopackage():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
     
@@ -512,3 +652,13 @@ def clean_up_geopackage():
             os.remove(_fle)
 
     print ('Deleting any existing gpkg')
+
+
+def clean_up_ext(ext, path=DIR):
+    for f in os.listdir(DIR):
+        if f.endswith(f'.{ext}'):
+            try:
+                os.remove(os.path.join(path, f))
+            except Exception as e:
+                print(f'Failed file removal:\n{e}')
+

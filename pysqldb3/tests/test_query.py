@@ -215,7 +215,7 @@ class TestQuery:
         """.format(test_query_table)
         db.query(drop_table_string)
 
-        assert db.tables_dropped[0] == 'working.' + test_query_table
+        assert db.tables_dropped[0] == (db.server, db.database, 'working', test_query_table)
         assert len(db.tables_dropped) == 1
 
     def test_dbconnect_state_remove_ms(self):
@@ -236,7 +236,7 @@ class TestQuery:
                 """.format(test_query_table)
         sql.query(drop_table_string)
 
-        assert sql.tables_dropped[0] == 'dbo.' + test_query_table
+        assert sql.tables_dropped[0] == (sql.server,  sql.database, 'dbo', test_query_table)
         assert len(sql.tables_dropped) == 1
 
     def test_dbconnect_state_pg(self):

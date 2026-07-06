@@ -895,7 +895,7 @@ class DbConnect:
                     self.query(f'DROP TABLE {ser}{db}{schema}.{table} {c}',
                                timeme=False, strict=strict, internal=internal)
             else:
-                dropped_tables_list = Query.query_drops_table(f'DROP TABLE {schema}.{table}', self.type)
+                dropped_tables_list = Query.query_drops_table(f'DROP TABLE {schema}.{table}', self.default_schema, self.type)
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
 
     def rename_column(self, schema, table, old_column, new_column):
@@ -1223,6 +1223,12 @@ class DbConnect:
 
         if 'ogc_fid' in df.columns:
             df = df.drop('ogc_fid', 1)
+        # Multi-row headers?
+        if 'header' in kwargs:
+            if type(kwargs.get('header')) == list:
+                df.columns = df.columns.map('_'.join)
+
+
 
         # Calls dataframe_to_table_schema fn
         table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
@@ -1236,11 +1242,12 @@ class DbConnect:
             try:
                 temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
 
-
+                # df.to_csv(temp_file, chunksize=10 ** 15, index=False)
                 with pd.read_csv(input_file, chunksize=10 ** 15, sep=sep, **kwargs) as reader:
                     for chunk in reader:
+                        if 'header' in kwargs:
+                            chunk.columns = chunk.columns.map('_'.join)
                         chunk.to_csv(temp_file, mode='a', index=False, header=True)
-
 
                 success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
                                                   table_schema=table_schema, days=days)
@@ -1680,10 +1687,10 @@ class DbConnect:
                 updated.append(column)
 
         for c in table_schema:
-            if not c[0] == updated:
+            if not c[0] in updated:
                 table_schema2.append(c)
             else:
-                table_schema2.append([column, 'varchar (500)'])
+                table_schema2.append([c[0], 'varchar (500)'])
         return table_schema2
 
 
@@ -1741,7 +1748,10 @@ class DbConnect:
 
         try:
             df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
-
+            if 'header' in kwargs:
+                if type(kwargs.get('header')) == list:
+                    # todo clean out unnamed sub headers
+                    df.columns = df.columns.map('_'.join)
             # Match previous styles
             cols = []
             for c in df.columns:

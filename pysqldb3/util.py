@@ -138,9 +138,9 @@ def parse_table_string(tbl_str, default_schema, db_type):
     start = 0
     names_arr=list()
     if db_type == MS:
-        regex = '\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
+        regex = r'\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
     elif db_type == PG:
-        regex = '\.(?=([^\"]*\"[^\"]*\")*[^\"]*$)'
+        regex = r'\.(?=([^\"]*\"[^\"]*\")*[^\"]*$)'
     else:
         assert False, "Invalid Type"
 
@@ -283,11 +283,8 @@ def clean_column(x):
         assert e
 
     a = x.strip().lower()
-    b = a.replace(' ', '_')
-    c = b.replace('.', '')
-    d = c.replace('(s)', '')
-    e = d.replace(':', '_')
-    return e
+    b=a.replace(' ', '_').replace('.', '').replace('(s)', '').replace(':', '_').replace('!', '_').replace('@', '_')
+    return b
 
 
 def convert_geom_col(df, geom_name="geom"):
@@ -409,8 +406,20 @@ def rename_geom(db, schema, table):
     comparison_set = {i[0] for i in db.internal_queries[-1].data}
 
     f = comparison_set.intersection(geom_set) # this finds the intersection of the 2 sets (the geometry field)
-
-    # Get the column in question
+    #
+    # # Get the column in question
+    # if 'wkb_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'wkb_geometry'
+    # elif 'shape' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'shape'
+    # elif 'Shape' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'Shape'
+    # elif 'SHAPE' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'SHAPE'
+    # elif 'geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'geometry'
+    # elif 'ogr_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'ogr_geometry'
 
     if f:
         # if f exists, take the string of f
