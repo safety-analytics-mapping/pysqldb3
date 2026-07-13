@@ -37,7 +37,7 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 1. [`drop_table`](#drop_table):  Drops table from database and removes from the temp log table
 1. [`rename_column`](#rename_column): Renames a column to the new column name on the specified table.
 1. [`dfquery`](#dfquery): Runs from input SQL string, calls Query object with `return_df=True`; returns Pandas DataFrame
-1. [`crosstab_query`](#crosstab_query): Creates crosstab query from input query. Sends reformted query to query or dfquery methods.
+1. [`crosstab_query`](#crosstab_query): Creates crosstab query from input query. Sends reformatted query to query or dfquery methods.
 1. [`print_last_query`](#print_last_query): Prints latest query run with basic formatting
 1. [`dataframe_to_table_schema`](#dataframe_to_table_schema): Translates Pandas DataFrame into empty database table.
 1. [`dataframe_to_table`](#dataframe_to_table): Adds data from Pandas DataFrame to existing table
@@ -1243,7 +1243,7 @@ CREATE INDEX mt_idx_backup ON "{schema}"."{table}" USING btree (masteridto);CREA
 ### crosstab_query
 **`DbConnect.crosstab_query(qry, row_columns, column_column, count_column=None, sum_column=None, df=False, **kwargs)`**
 
-reates crosstab query from input query. Selects from the input query data and aggrigates on the row_columns, creates new columns for each unique value in the column_column field and then sums or counts the values in sum_column or count_column. 
+Creates crosstab query from input query. Selects from the input query data and aggregates on the row_columns, creates new columns for each unique value in the column_column field and then sums or counts the values in sum_column or count_column. 
  
 ###### Parameters:
  - **`qry` str**: Base query to use as data input to crosstab
@@ -1251,7 +1251,7 @@ reates crosstab query from input query. Selects from the input query data and ag
  - **`column_column` str**:  Column to use for the cross, each value will become a new column in the output
  - **`count_column` str**:  Column whose values will be counted
  - **`sum_column` str**:  Column whose values will be summed
- - **`df` bool**:  Boolean vakue, defaulting to False, if True will retunn the data as a dataframe
+ - **`df` bool**:  Boolean value, defaulting to False, if True will return the data as a dataframe
  - **`kwargs` **:  Keyword arguments to pass to the query or dfquery function
 
 **Sample**

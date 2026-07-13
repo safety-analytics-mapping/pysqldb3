@@ -943,16 +943,16 @@ class DbConnect:
 
     def crosstab_query(self, qry, row_columns, column_column, count_column=None, sum_column=None, df=False, **kwargs):
         """
-        Creates crosstab query from input query. Selects from the input query data and aggrigates on the row_columns,
+        Creates crosstab query from input query. Selects from the input query data and aggregates on the row_columns,
         creates new columns for each unique value in the column_column field and then sums or counts the values in sum_column or count_column.
         :param qry: Query string to use as base data
-        :param row_columns: List of column names to use for row aggrigation
+        :param row_columns: List of column names to use for row aggregation
         :param column_column: Column to use for the cross, each value will become a new column in the output
         :param count_column: Column whose values will be counted
         :param sum_column: Column whose values will be summed
-        :param df: Boolean vakue, defaulting to False, if True will retunn the data as a dataframe
+        :param df: Boolean value, defaulting to False, if True will return the data as a dataframe
         :param kwargs: Keyword arguments to pass to the query or dfquery function
-        :return: List or Datafram of resultant crosstabb query
+        :return: List or Dataframe of resultant crosstab query
         """
 
         # Since the input query is used as a cte to query from for the result, crop/create tables are not allowed
