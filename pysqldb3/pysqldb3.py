@@ -945,8 +945,8 @@ class DbConnect:
         """
         Creates crosstab query from input query. Selects from the input query data and aggregates on the row_columns,
         creates new columns for each unique value in the column_column field and then sums or counts the values in sum_column or count_column.
-        :param qry: Query string to use as base data
-        :param row_columns: List of column names to use for row aggregation
+        :param qry: String, base query to use as data input to crosstab
+        :param row_columns: List of column names to use for row-level aggregation
         :param column_column: Column to use for the cross, each value will become a new column in the output
         :param count_column: Column whose values will be counted
         :param sum_column: Column whose values will be summed
