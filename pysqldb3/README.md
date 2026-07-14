@@ -37,6 +37,7 @@ In Jupyter or Python shell, use help(pysqldb) to show all public functions and t
 1. [`drop_table`](#drop_table):  Drops table from database and removes from the temp log table
 1. [`rename_column`](#rename_column): Renames a column to the new column name on the specified table.
 1. [`dfquery`](#dfquery): Runs from input SQL string, calls Query object with `return_df=True`; returns Pandas DataFrame
+1. [`crosstab_query`](#crosstab_query): Creates crosstab query from input query. Sends reformatted query to query or dfquery methods.
 1. [`print_last_query`](#print_last_query): Prints latest query run with basic formatting
 1. [`dataframe_to_table_schema`](#dataframe_to_table_schema): Translates Pandas DataFrame into empty database table.
 1. [`dataframe_to_table`](#dataframe_to_table): Adds data from Pandas DataFrame to existing table
@@ -1233,6 +1234,43 @@ Gets create index queries from existing database tables. Intended to be used wit
 >>> db.get_table_indexes('public', 'lion')
 
 CREATE INDEX mt_idx_backup ON "{schema}"."{table}" USING btree (masteridto);CREATE INDEX mf_idx_backup ON "{schema}"."{table}" USING btree (masteridfrom);CREATE INDEX nt_idx_backup ON "{schema}"."{table}" USING btree (nodeidto);CREATE INDEX nf_idx_backup ON "{schema}"."{table}" USING btree (nodeidfrom);CREATE INDEX mft_idx_backup ON "{schema}"."{table}" USING btree (mft);CREATE INDEX seg_idx_backup ON "{schema}"."{table}" USING btree (segmentid);CREATE INDEX lion_seg_idx_backup ON "{schema}"."{table}" USING btree (segmentid);CREATE INDEX lion_shape_geom_idx_backup ON "{schema}"."{table}" USING gist (geom);CREATE UNIQUE INDEX lion_pkey_backup ON "{schema}"."{table}" USING btree (objectid)
+
+```
+
+[Back to Table of Contents](#pysqldb3-public-functions)
+<br>
+
+### crosstab_query
+**`DbConnect.crosstab_query(qry, row_columns, column_column, count_column=None, sum_column=None, df=False, **kwargs)`**
+
+Creates crosstab query from input query. Selects from the input query data and aggregates on the row_columns, creates new columns for each unique value in the column_column field and then sums or counts the values in sum_column or count_column. 
+ 
+###### Parameters:
+ - **`qry` str**: Base query to use as data input to crosstab
+ - **`row_columns` list**:  List of column names to use for row level aggregation
+ - **`column_column` str**:  Column to use for the cross, each value will become a new column in the output
+ - **`count_column` str**:  Column whose values will be counted
+ - **`sum_column` str**:  Column whose values will be summed
+ - **`df` bool**:  Boolean value, defaulting to False, if True will return the data as a dataframe
+ - **`kwargs` **:  Keyword arguments to pass to the query or dfquery function
+
+**Sample**
+
+
+```
+>>> from pysqldb3 import pysqldb3
+>>> db = pysqldb3.DbConnect(type='pg', server=server_address, database='ris', user='user_name', password='*******')
+>>> qry = f"select * from working.sample_table"
+>>> db.crosstab_query(qry, ['year', 'month'], 'veh_type', 'vehicle_id', df=True)
+>>> 
+   year  month  bike  car
+0  2025      1     2    0
+1  2025      2     1    1
+2  2026      1     1    0
+3  2026      2     1    0
+4  2026      3     1    0
+5  2026      4     0    1
+[6 rows x 4 columns]
 
 ```
 

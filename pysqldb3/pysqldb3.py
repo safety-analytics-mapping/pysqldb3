@@ -127,7 +127,6 @@ class DbConnect:
             self.type = self.inherits_from.type
             self.__set_type()
 
-
     def __get_default_schema(self, db_type):
         # type: (str) -> str
         """
@@ -252,6 +251,7 @@ class DbConnect:
             #                           datetime2 will not be interpreted correctly\n')
             #
             #     self.conn = pymssql.connect(**self.params)
+
     def __connect_az(self):
         # type: (DbConnect) -> None
         """
@@ -659,8 +659,6 @@ class DbConnect:
                 where i.schemaname='{schema}'
             """, internal = True)
 
-
-
     def table_exists(self, table, **kwargs):
         # type: (DbConnect, str, **str) -> bool
         """
@@ -942,6 +940,54 @@ class DbConnect:
         :return: None
         """
         Query.print_query(self.last_query)
+
+    def crosstab_query(self, qry, row_columns, column_column, count_column=None, sum_column=None, df=False, **kwargs):
+        """
+        Creates crosstab query from input query. Selects from the input query data and aggregates on the row_columns,
+        creates new columns for each unique value in the column_column field and then sums or counts the values in sum_column or count_column.
+        :param qry: String, base query to use as data input to crosstab
+        :param row_columns: List of column names to use for row-level aggregation
+        :param column_column: Column to use for the cross, each value will become a new column in the output
+        :param count_column: Column whose values will be counted
+        :param sum_column: Column whose values will be summed
+        :param df: Boolean value, defaulting to False, if True will return the data as a dataframe
+        :param kwargs: Keyword arguments to pass to the query or dfquery function
+        :return: List or Dataframe of resultant crosstab query
+        """
+
+        # Since the input query is used as a cte to query from for the result, crop/create tables are not allowed
+        assert 'drop table' not in qry.lower(), "Crosstab query must not include drop table"
+        assert 'create table' not in qry.lower(), "Crosstab query must not include create table"
+        assert 'create temp table' not in qry.lower(), "Crosstab query must not include create table"
+
+        # Check if input row_columns is a list or a single row, if single value, convert to list for consistency
+        if not type(row_columns) == list:
+            row_columns = [row_columns]
+        # remove ending ; from input query, this will break the cte
+        if qry.strip().endswith(';'):
+            qry = qry.strip()[:-1]
+
+        # get values for crosstab columns
+        self.query(f"with t as ({qry}) select distinct {column_column} from t order by {column_column}", timeme=False, internal=True)
+        col_values = [i[0] for i in self.internal_data if i[0]]
+        # build the cross tab query string for columns
+        cols = ''
+        if count_column:
+            for _ in col_values:
+                cols += (f"""count(distinct case when {column_column} = '{_}' then {count_column} else null end) as "{_}",""")
+
+        if sum_column:
+            for _ in col_values:
+                cols += (f"""sum(distinct case when {column_column} = '{_}' then {sum_column} else null end) as "{_}",""")
+
+        # build full query string
+        _qry = f"select {str(row_columns)[1:-1].replace("'","")}, {cols[:-1]} from ({qry}) t group by {str(row_columns)[1:-1].replace("'","")}"
+
+        # pass new crosstab query to query or df query to get results
+        if df:
+            return self.dfquery(_qry, **kwargs)
+        else:
+            return self.query(_qry, **kwargs)
 
     """
     IO Functions
@@ -1344,7 +1390,6 @@ class DbConnect:
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema
 
-
     def _bulk_csv_to_table_pyarrow(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
         """
         Shell for bulk_file_to_table. Routed to by csv_to_table when record count is >= 1,000.
@@ -1603,7 +1648,6 @@ class DbConnect:
                 table_schema2.append([c[0], 'varchar (500)'])
         return table_schema2
 
-
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
                      allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
@@ -1717,7 +1761,6 @@ class DbConnect:
                             self.query(f"alter table {schema}.{table} drop column {c}", internal=True)
         except Exception as e:
             print(e)
-
 
     def query_to_csv(self, query, output_file=None, strict=True, open_file=False, sep=',', quote_strings=True,
                      quiet=False, overwrite=False):
@@ -2225,7 +2268,6 @@ class DbConnect:
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
 
-
     def query_to_gpkg(self, query, gpkg_tbl, gpkg_name = '', path=None, cmd=None,  gdal_data_loc=GDAL_DATA_LOC,
                      print_cmd=False, srid=2263):
         """
@@ -2243,7 +2285,6 @@ class DbConnect:
             
         self.query_to_shp(query, gpkg_tbl = gpkg_tbl, path = path, shp_name = gpkg_name, cmd = cmd, 
                           gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid, shp = False)
-        
 
     def table_to_gpkg(self, table, gpkg_name, gpkg_tbl = None, schema=None, path=None, cmd=None,
                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
@@ -2587,7 +2628,6 @@ class DbConnect:
 
         return backup_schema, backup_table
 
-
     def get_table_indexes(self, schema, table):
         """
         Generates the create index sql scripts for any table.
@@ -2608,8 +2648,6 @@ class DbConnect:
             idxs = self.internal_data
             idx_qry = ';'.join([_[1].replace(_[0], _[0]+'_backup') for _ in idxs])
             return idx_qry.replace(f'{schema}.{table}', '"{schema}"."{table}"') + "\n"
-
-
 
     def create_table_from_backup(self, backup_path, overwrite_name=None, overwrite_schema=None, temp=False):
         """
