@@ -987,7 +987,7 @@ class DbConnect:
         if df:
             return self.dfquery(_qry, **kwargs)
         else:
-            return self.query(_qry, kwargs)
+            return self.query(_qry, **kwargs)
 
     """
     IO Functions
