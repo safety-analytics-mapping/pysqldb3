@@ -731,7 +731,7 @@ def retrieve_input_tbl_names(dbo, full_path):
         gpkg_tbl_names[t_i_g] = insert_val # add the cleaned name
 
     # assert that the new cleaned names are unique. if not, we won't get the same dimensions
-    if len(gpkg_tbl_names) == len(tables_in_gpkg):
+    if len(gpkg_tbl_names) != len(tables_in_gpkg):
         raise Exception("Clean geopackage table names for db upload and make sure they are unique.")
 
     return gpkg_tbl_names
