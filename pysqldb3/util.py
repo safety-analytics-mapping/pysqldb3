@@ -49,38 +49,6 @@ def clean_query_special_characters(query_string):
     return query_string
 
 
-def clean_geom_column(db, table, schema):
-    """
-    Checks for column named wkb_geometry and renames to geom
-    :param db: pysql.DbConect object
-    :param table: table name
-    :param schema: database schema name
-    :return:
-    """
-    # Check if there is a geom column
-    # Rename column to geom (only if wkb_geom or shape); otherwise could cause issues if more than 1 geom
-    db.query("""SELECT COLUMN_NAME 
-                FROM information_schema.COLUMNS 
-                WHERE data_type='USER-DEFINED' 
-                and lower(TABLE_NAME)=lower('{t}')
-                and table_schema = '{s}'
-            """.format(t=table, s=schema), timeme=False, internal=True)
-
-    if db.internal_data:
-        if db.internal_data[-1][0] == 'wkb_geometry':
-            c = 'wkb_geometry'
-            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
-                     timeme=False, internal=True)
-        elif db.internal_data[-1][0] == 'shape':
-            c = 'shape'
-            db.query("ALTER TABLE {s}.{t} RENAME COLUMN {c} to geom".format(c=c, t=table, s=schema),
-                     timeme=False, internal=True)
-        elif db.internal_data[-1][0] == 'Shape':
-            c = 'Shape'
-            db.query('ALTER TABLE {s}.{t} RENAME COLUMN "{c}" to geom'.format(c=c, t=table, s=schema),
-                     timeme=False, internal=True)
-
-
 def get_unique_table_schema_string(tbl_str, db_type):
     """
     This takes a raw input for a PG/MS table and distills the name in the way the database stores it.
@@ -170,9 +138,9 @@ def parse_table_string(tbl_str, default_schema, db_type):
     start = 0
     names_arr=list()
     if db_type == MS:
-        regex = '\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
+        regex = r'\.(?=([^\[\]]*\[[^\[\]]*\])*[^\[\]]*$)'
     elif db_type == PG:
-        regex = '\.(?=([^\"]*\"[^\"]*\")*[^\"]*$)'
+        regex = r'\.(?=([^\"]*\"[^\"]*\")*[^\"]*$)'
     else:
         assert False, "Invalid Type"
 
@@ -186,6 +154,10 @@ def parse_table_string(tbl_str, default_schema, db_type):
     database = None
 
     # Assumes 2-4 .(dots) for MS and 0 - 1 for pg
+    # > 4 accounts for servers with urls (ex.devpgserversql02.host.net)
+    if len(names_arr) > 4:
+        database, schema, table = names_arr[-3:]
+        server = '.'.join(names_arr[:-3])
     if len(names_arr) == 4:
         server, database, schema, table = names_arr
     elif len(names_arr) == 3:
@@ -311,11 +283,8 @@ def clean_column(x):
         assert e
 
     a = x.strip().lower()
-    b = a.replace(' ', '_')
-    c = b.replace('.', '')
-    d = c.replace('(s)', '')
-    e = d.replace(':', '_')
-    return e
+    b=a.replace(' ', '_').replace('.', '').replace('(s)', '').replace(':', '_').replace('!', '_').replace('@', '_')
+    return b
 
 
 def convert_geom_col(df, geom_name="geom"):
@@ -433,36 +402,41 @@ def rename_geom(db, schema, table):
                 """, timeme=False, internal=True)
     f = None
 
-    if db.type == 'PG':
+    geom_set = {'wkb_geometry', 'shape', 'Shape', 'geometry', 'SHAPE', 'ogr_geometry'}
+    comparison_set = {i[0] for i in db.internal_queries[-1].data}
 
-        # Get the column in question
-        if 'wkb_geometry' in [i[0] for i in db.internal_queries[-1].data]:
-            f = 'wkb_geometry'
-        elif 'shape' in [i[0] for i in db.internal_queries[-1].data]:
-            f = 'shape'
+    f = comparison_set.intersection(geom_set) # this finds the intersection of the 2 sets (the geometry field)
+    #
+    # # Get the column in question
+    # if 'wkb_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'wkb_geometry'
+    # elif 'shape' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'shape'
+    # elif 'Shape' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'Shape'
+    # elif 'SHAPE' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'SHAPE'
+    # elif 'geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'geometry'
+    # elif 'ogr_geometry' in [i[0] for i in db.internal_queries[-1].data]:
+    #     f = 'ogr_geometry'
 
-        if f:
-            # Rename column
-            db.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
+    if f:
+        # if f exists, take the string of f
+        f = f.pop()
 
+        # Rename column
+        db.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
+
+        if db.type == 'PG':
             # Rename index
             db.query(f"""
-                ALTER INDEX IF EXISTS
-                {schema}.{table}_{f}_geom_idx
-                RENAME to {table}_geom_idx
-            """, timeme=False, internal=True)
+                    ALTER INDEX IF EXISTS
+                    {schema}.{table}_{f}_geom_idx
+                    RENAME to {table}_geom_idx
+                """, timeme=False, internal=True)
 
-    elif db.type == 'MS':
-        # Get the column in question
-        if 'ogr_geometry' in [i[0] for i in db.internal_queries[-1].data]:
-            f = 'ogr_geometry'
-        elif 'Shape' in [i[0] for i in db.internal_queries[-1].data]:
-            f = 'Shape'
-
-        if f:
-            # Rename column
-            db.rename_column(schema=schema, table=table, old_column=f, new_column='geom')
-
+        elif db.type == 'MS':
             # Rename index if exists
             try:
                 db.query(f"""

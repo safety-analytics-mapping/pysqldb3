@@ -80,6 +80,7 @@ class DbConnect:
         self.last_query = None
         self.default_schema = None
         self.connection_count = 0
+        self.connection_print_count = 0
         self.__set_type()
 
         # Connect and clean logs
@@ -335,8 +336,13 @@ class DbConnect:
             try:
                 self.conn._conn.connected
             except Exception as e:
-                print(e)
+                if str(e) != 'Connection is closed.':
+                    print(e)
                 self.connect(True)
+                if self.connection_print_count == 0:
+                    print(f'Database connection ({self.type}) to {self.database} on {self.server} - user: '\
+                            f'{self.user} \nConnection established {self.connection_start}, \n- ris version {__version__} - ')
+                    self.connection_print_count += 1
         else:
             if self.conn.closed:
                 self.connect(True)
@@ -439,6 +445,12 @@ class DbConnect:
                     f"""DELETE FROM {schema}."{self.log_table}" WHERE table_schema = '{schema}' AND table_name = '{table}'""",
                     timeme=False, internal=True
                 )
+                # check if dropped table is in tables created list, if so remove it since it no longer exists
+                server = server or self.server
+                database = database or self.database
+                if (server, database, schema, table) in self.tables_created:
+                    self.tables_created.remove((server, database, schema, table))
+
 
     def __run_table_logging(self, new_tables, days=7):
         """
@@ -472,7 +484,9 @@ class DbConnect:
         if table == self.log_table:
             return
 
-        if server:
+        if server and server != self.server:
+            # if new table is in same server as dbo not needed in table definition
+            # this is a workaround for servers with '.' in the server name
             ser = server + '.'
         else:
             ser = ''
@@ -541,17 +555,19 @@ class DbConnect:
         self.check_conn()
         return self.internal_data
 
-    def cleanup_new_tables(self):
+    def cleanup_new_tables(self, cascade=False):
         # type: (DbConnect) -> None
         """
         Drops all newly created tables from this DbConnect object
         :return: None
         """
-        for tbl in self.tables_created:
+        to_clean = len(self.tables_created)
+        while self.tables_created:
+            tbl = self.tables_created.pop()
             server, database, schema, table = parse_table_string(tbl, self.default_schema, self.type)
-            self.drop_table(schema, table)
+            self.drop_table(schema, table, cascade)
 
-        print('Dropped %i tables' % len(self.tables_created))
+        print('Dropped %i tables' % to_clean)
 
         # Clean out list
         self.tables_created = list()
@@ -879,7 +895,7 @@ class DbConnect:
                     self.query(f'DROP TABLE {ser}{db}{schema}.{table} {c}',
                                timeme=False, strict=strict, internal=internal)
             else:
-                dropped_tables_list = Query.query_drops_table(f'DROP TABLE {schema}.{table}', self.type)
+                dropped_tables_list = Query.query_drops_table(f'DROP TABLE {schema}.{table}', self.default_schema, self.type)
                 self.__remove_dropped_tables_from_log(dropped_tables_list)
 
     def rename_column(self, schema, table, old_column, new_column):
@@ -896,7 +912,7 @@ class DbConnect:
             schema = self.default_schema
 
         if self.type == PG:
-            self.query(f"alter table {schema}.{table} rename column {old_column} to {new_column}", internal = True)
+            self.query(f'alter table {schema}.{table} rename column "{old_column}" to {new_column}', internal = True)
         elif self.type == MS:
             self.query(f"EXEC sp_RENAME '{schema}.{table}.{old_column}', '{new_column}', 'COLUMN'", internal = True)
 
@@ -932,7 +948,7 @@ class DbConnect:
     """
 
     def dataframe_to_table_schema(self, df, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
-                                  column_type_overrides=None, days=7):
+                                  column_type_overrides=None, days=7, temp_table=False):
 
         """
         Translates Pandas DataFrame into empty database table.
@@ -942,10 +958,11 @@ class DbConnect:
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table as not-temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+        :param column_type_overrides: 'all' or Dict of type key=column name, value=column type. Will manually set the
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
-                detection.
+                detection. If 'all' is provided, all fields will be set to varchar(max).
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, the table made from the dataframe will be a temporary table
         :return: Table schema that was created from DataFrame
         """
         if not schema:
@@ -974,7 +991,11 @@ class DbConnect:
             #clean col_name to check against overrides and insert
             col_name=clean_column(col_name)
 
-            if column_type_overrides and col_name in column_type_overrides.keys():
+            if column_type_overrides == 'all':
+                col_type = f'varchar ({VARCHAR_MAX[self.type]})'
+                input_schema.append([col_name, col_type])
+
+            elif column_type_overrides and col_name in column_type_overrides.keys():
                 input_schema.append([col_name, column_type_overrides[col_name]])
             else:
                 input_schema.append([col_name, col_type])
@@ -983,8 +1004,18 @@ class DbConnect:
             self.drop_table(schema=schema, table=table, cascade=False)
 
         # Create table in database
+        if temp_table and self.type==PG:
+            t='temporary'
+            table_schema = f'"{table}"'
+        elif temp_table and self.type==MS:
+            t = ''
+            # setting as global temp - if we want private temps will need additional parmeters
+            table_schema = f"[##{table}]"
+        else:
+            t = ''
+            table_schema = f"{schema}.{table}"
         qry = f"""
-                CREATE TABLE {schema}.{table} (
+                CREATE {t} TABLE {table_schema} (
                 {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
                 )
         """
@@ -993,7 +1024,7 @@ class DbConnect:
         return input_schema
 
     def dataframe_to_table(self, df, table, table_schema=None, schema=None, overwrite=False, temp=True,
-                           allow_max_varchar=False, column_type_overrides=None, days=7):
+                           allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False):
         """
         Adds data from Pandas DataFrame to existing table
         :param df: Pandas DataFrame to be added to database
@@ -1003,11 +1034,13 @@ class DbConnect:
         :param overwrite: If table exists in database will overwrite if True (defaults to False)
         :param temp: Optional flag to make table temporary (defaults to True)
         :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
+        :param column_type_overrides: 'all' or Dict of type key=column name, value=column type. Will manually set the
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection. **Will not override a custom table_schema, if inputted**
+                If 'all' is provided, all fields will be set to varchar(max).
         :param days: if temp=True and table schema needs to be created, the number of days that the temp table will be
                      kept. Defaults to 7.
+        :param temp_table: if True, dataframe created as a temporary table, which will be lost when db connection is closed
         :return: None
         """
 
@@ -1018,27 +1051,37 @@ class DbConnect:
             table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                           allow_max_varchar=allow_max_varchar,
                                                           column_type_overrides=column_type_overrides,
-                                                          days=days)
+                                                          days=days, temp_table=temp_table)
 
         # Insert data
         print('Reading data into Database\n')
+        if temp_table and self.type==PG:
+            schema_table = f'"{table}"'
+        elif temp_table and self.type==MS:
+            # setting as global temp - if we want private temps will need additional parmeters
+            schema_table = f"[##{table}]"
+        else:
+            schema_table = f"{schema}.{table}"
 
         for _, row in tqdm(df.iterrows()):
             # Clean up empty cells and prime for input into db
             row = row.replace({np.nan: None})
-            row_values = ",".join([clean_cell(i) for i in row.values])
-            row_values = row_values.replace('None', 'NULL')
+            row_list = [clean_cell(i) for i in row.values]
+            # convert ints stored as decimals to string ints if column type is big int
+            bigints = [i for i, x in enumerate(table_schema) if x[1] == 'bigint']
+            row_values = ",".join([c.replace('.0','') if p in bigints else c for p, c in enumerate(row_list)]).replace('None', 'NULL')
 
             self.query(f"""
-                INSERT INTO {schema}.{table} ({str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", '')})
+                INSERT INTO {schema_table} ({str(['"' + str(i[0]) + '"' for i in table_schema])[1:-1].replace("'", '')})
                 VALUES ({row_values})
             """, strict=False, timeme=False, internal = True)
 
-        df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema}.{table}", timeme=False, internal = True)
-        print(f'\n{df.cnt.values[0]} rows added to {schema}.{table}\n')
+        df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema_table}", timeme=False, internal = True)
+        print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
+                     allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False,
+                     **kwargs):
         """
         Imports csv file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -1047,23 +1090,24 @@ class DbConnect:
         :param table: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
         :param sep: Separator for csv file, defaults to comma (,)
-        :param long_varchar_check: Boolean to allow unlimited/max varchar columns; defaults to False
-        :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
-        raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
-        detection. **Will not override a custom table_schema, if inputted**
+        :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
+        :param column_type_overrides: Dict of type key=column name, value=column type.
+        Will manually set the raw column name as that type in the query, regardless of the pandas/postgres/sql server
+        automatic detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, Uploads csv to temporary table, which will be lost when db connection is closed
         :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
         :return:
         """
 
         def contains_long_columns(df2):
+            long_cols = []
             for c in list(df2.columns):
-                if df2[c].dtype in ('O','object', 'str'):
-                    if df2[c].apply(lambda x: len(x) if x else 0).max() > 500:
-                        print('Varchar column with length greater than 500 found; allowing max varchar length.')
-                        return True
-
-            return False
+                if df2[c].dtype in ('O','object', 'str') and df2[c].apply(lambda x: len(str(x)) if x else 0).max() > 500:
+                    long_cols.append(c)
+            if long_cols:
+                print(f'Varchar column with length greater than 500 found; allowing max varchar length.\n{long_cols}')
+            return long_cols
 
         if not schema:
             schema = self.default_schema
@@ -1074,47 +1118,46 @@ class DbConnect:
         if not table:
             table = os.path.basename(input_file).split('.')[0]
 
-        if not overwrite and self.table_exists(schema=schema, table=table):
+        if not overwrite and self.table_exists(schema=schema, table=f'"{table}"') and not temp_table:
             print('Must set overwrite=True; table already exists.')
             return
 
         # Use pandas to get existing data and schema
         # Check for varchar columns > 500 in length
-        allow_max = False
-        if os.path.getsize(input_file) > 1000000:
+        if os.path.getsize(input_file) > 1000000 and not temp_table:
             data = pd.read_csv(input_file, iterator=True, chunksize=10 ** 15, sep=sep, **kwargs)
             df = data.get_chunk(1000)
-
-            # Check for long column iteratively
-            while df is not None and long_varchar_check:
-                if contains_long_columns(df):
-                    allow_max = True
-                    break
-
-                df = data.get_chunk(1000)
         else:
             df = pd.read_csv(input_file, sep=sep, **kwargs)
-            allow_max = long_varchar_check and contains_long_columns(df)
+        allow_max = allow_max_varchar or contains_long_columns(df)
 
         if 'ogc_fid' in df.columns:
             df = df.drop('ogc_fid', 1)
+        # Multi-row headers?
+        if 'header' in kwargs:
+            if type(kwargs.get('header')) == list:
+                df.columns = df.columns.map('_'.join)
+
+
 
         # Calls dataframe_to_table_schema fn
         table_schema = self.dataframe_to_table_schema(df, table, overwrite=overwrite, schema=schema, temp=temp,
                                                       allow_max_varchar=allow_max,
                                                       column_type_overrides=column_type_overrides,
-                                                      days=days)
+                                                      days=days, temp_table=temp_table)
 
         # For larger files use GDAL to import
-        if df.shape[0] > 999:
+        # if temp table cant use bulk import - gdal has its own connection thread
+        if df.shape[0] > 999 and not temp_table:
             try:
                 temp_file = os.path.dirname(input_file)+'\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
 
-
+                # df.to_csv(temp_file, chunksize=10 ** 15, index=False)
                 with pd.read_csv(input_file, chunksize=10 ** 15, sep=sep, **kwargs) as reader:
                     for chunk in reader:
+                        if 'header' in kwargs:
+                            chunk.columns = chunk.columns.map('_'.join)
                         chunk.to_csv(temp_file, mode='a', index=False, header=True)
-
 
                 success = self._bulk_csv_to_table(input_file=temp_file, schema=schema, table=table,
                                                   table_schema=table_schema, days=days)
@@ -1136,7 +1179,18 @@ class DbConnect:
         else:
             # Calls dataframe_to_table fn
             self.dataframe_to_table(df, table, table_schema=table_schema, overwrite=overwrite, schema=schema,
-                                    temp=temp, days=days)
+                                    temp=temp, days=days, temp_table=temp_table)
+
+
+        # clean up unnamed columns
+        cols = self.get_table_columns(table, schema=schema)
+        unnamed = [i[0] for i in cols if 'unnamed' in i[0]]
+        if unnamed:
+            for c in unnamed:
+                self.query(f"select distinct rtrim(ltrim(cast({c} as varchar)))  from {schema}.{table}", internal=True)
+                if len({i for i in self.internal_data if i[0]!= ''}) <=1:
+                    if not self.internal_data[0][0]:
+                        self.query(f"alter table {schema}.{table} drop column {c}", internal=True)
 
     def _bulk_csv_to_table(self, input_file=None, schema=None, table=None, table_schema=None, print_cmd=False, days=7):
         """
@@ -1154,7 +1208,7 @@ class DbConnect:
                                         table_schema=table_schema, print_cmd=print_cmd, excel_header=False, days=days)
 
     def csv_to_table_pyarrow(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
-                     long_varchar_check=False, column_type_overrides=None, days=7, **kwargs):
+                     long_varchar_check=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
         Imports csv file to database. This uses pyarrow datatypes to generate the table schema.
 
@@ -1171,6 +1225,7 @@ class DbConnect:
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection. **Will not override a custom table_schema, if inputted**
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, Uploads csv to temporary table, which will be lost when db connection is closed
         :param **kwargs: parameters to pass to pandas for read csv (ex. skiprows=1)
         :return:
         """
@@ -1203,26 +1258,31 @@ class DbConnect:
                                                               temp=temp,
                                                               allow_max_varchar=allow_max,
                                                               column_type_overrides=column_type_overrides,
-                                                              days=days)
+                                                              days=days,
+                                                              temp_table=temp_table)
         # Default to bulk importer
-
-        try:
-            success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
-                                              table_schema=table_schema, days=days)
-
-            if not success:
-                raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
-
-        except Exception as e:
-            print(e)
-            # fall back to pandas dataframe to table
-            # Calls dataframe_to_table fn
+        if temp_table:
             self.dataframe_to_table(data.to_pandas(), table, table_schema=table_schema, overwrite=overwrite,
                                     schema=schema,
-                                    temp=temp, days=days)
+                                    temp=temp, days=days, temp_table=temp_table)
+        else:
+            try:
+                success = self._bulk_csv_to_table(input_file=input_file, schema=schema, table=table,
+                                                  table_schema=table_schema, days=days)
+
+                if not success:
+                    raise AssertionError('Bulk CSV loading failed.'.format(schema, table))
+
+            except Exception as e:
+                print(e)
+                # fall back to pandas dataframe to table
+                # Calls dataframe_to_table fn
+                self.dataframe_to_table(data.to_pandas(), table, table_schema=table_schema, overwrite=overwrite,
+                                        schema=schema,
+                                        temp=temp, days=days)
 
     def dataframe_to_table_schema_pyarrow(self, data, table, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
-                                          column_type_overrides=None, days=7):
+                                          column_type_overrides=None, days=7, temp_table=False):
 
         """
         Translates Pandas DataFrame into empty database table.
@@ -1236,6 +1296,7 @@ class DbConnect:
                 raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
                 detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, dataframe created as a temporary table, which will be lost when db connection is closed
         :return: Table schema that was created from DataFrame
         """
         if not schema:
@@ -1264,11 +1325,21 @@ class DbConnect:
             self.drop_table(schema=schema, table=table, cascade=False)
 
         # Create table in database
+        if temp_table and self.type == PG:
+            t = 'temporary'
+            table_schema = table
+        elif temp_table and self.type == MS:
+            t = ''
+            # setting as global temp - if we want private temps will need additional parmeters
+            table_schema = f"##{table}"
+        else:
+            t = ''
+            table_schema = f"{schema}.{table}"
         qry = f"""
-                CREATE TABLE {schema}.{table} (
-                {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
-                )
-        """
+                   CREATE {t} TABLE {table_schema} (
+                   {str(['"' + str(i[0]) + '" ' + i[1] for i in input_schema])[1:-1].replace("'", "")}
+                   )
+           """
 
         self.query(qry.replace('\n', ' '), timeme=False, temp=temp, days=days)
         return input_schema
@@ -1466,7 +1537,7 @@ class DbConnect:
                 FROM {schema}.stg_{table}
                 """
 
-                self.query(qry, timeme=False, days=days, internal = True)
+                self.query(qry, timeme=False, days=days)
 
             # Drop stg table
             self.drop_table(schema=schema, table=f'stg_{table}')
@@ -1526,15 +1597,15 @@ class DbConnect:
                 updated.append(column)
 
         for c in table_schema:
-            if not c[0] == updated:
+            if not c[0] in updated:
                 table_schema2.append(c)
             else:
-                table_schema2.append([column, 'varchar (500)'])
+                table_schema2.append([c[0], 'varchar (500)'])
         return table_schema2
 
 
     def xls_to_table(self, input_file=None, sheet_name=0, overwrite=False, schema=None, table=None, temp=True,
-                     column_type_overrides=None, days=7, **kwargs):
+                     allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False, **kwargs):
         """
         Imports xls/x file to database. This uses pandas datatypes to generate the table schema.
         :param input_file: File path to csv file; if None, prompts user input
@@ -1543,10 +1614,12 @@ class DbConnect:
         :param schema: Schema of table; if None, defaults to db's default schema
         :param table: Name for final database table; defaults to filename in path
         :param temp: Boolean for temporary table; defaults to True
+        :param allow_max_varchar: Boolean to allow unlimited/max varchar columns; defaults to False
         :param column_type_overrides: Dict of type key=column name, value=column type. Will manually set the
         raw column name as that type in the query, regardless of the pandas/postgres/sql server automatic
         detection.
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
+        :param temp_table: if True, Uploads xls/x file to temporary table, which will be lost when db connection is closed
         :return:
         """
 
@@ -1585,7 +1658,10 @@ class DbConnect:
 
         try:
             df = pd.read_excel(input_file, sheet_name=sheet_name, **kwargs)
-
+            if 'header' in kwargs:
+                if type(kwargs.get('header')) == list:
+                    # todo clean out unnamed sub headers
+                    df.columns = df.columns.map('_'.join)
             # Match previous styles
             cols = []
             for c in df.columns:
@@ -1595,14 +1671,15 @@ class DbConnect:
             if 'ogc_fid' in df.columns:
                 df = df.drop('ogc_fid', 1)
 
-            if df.shape[0] > 100:
+            if df.shape[0] > 100 and not temp_table:
                 try:
                     table_schema = self.dataframe_to_table_schema(df, table,
                                                                   schema=schema,
                                                                   overwrite=overwrite,
                                                                   temp=temp,
                                                                   column_type_overrides=column_type_overrides,
-                                                                  days=days)
+                                                                  days=days,
+                                                                  allow_max_varchar=allow_max_varchar)
                     temp_file = os.path.dirname(
                         input_file) + '\\'f'_temp_data_{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}.csv'
                     df.to_csv(temp_file, index=False, header=True)
@@ -1624,7 +1701,20 @@ class DbConnect:
                     raise AssertionError('Bulk file loading failed.'.format(schema, table))
             else:
                 self.dataframe_to_table(df, table, schema=schema, overwrite=overwrite, temp=temp,
-                                        column_type_overrides=column_type_overrides, days=days)
+                                        allow_max_varchar=allow_max_varchar,
+                                        column_type_overrides=column_type_overrides, days=days,
+                                        temp_table=temp_table)
+
+            # clean up unnamed columns
+            cols = self.get_table_columns(table, schema=schema)
+            unnamed = [i[0] for i in cols if 'unnamed' in i[0]]
+            if unnamed:
+                for c in unnamed:
+                    self.query(f"select distinct rtrim(ltrim(cast({c} as varchar)))  from {schema}.{table}",
+                               internal=True)
+                    if len({i for i in self.internal_data if i[0] != ''}) <= 1:
+                        if not self.internal_data[0][0]:
+                            self.query(f"alter table {schema}.{table} drop column {c}", internal=True)
         except Exception as e:
             print(e)
 
@@ -2089,14 +2179,12 @@ class DbConnect:
 
         shp.read_shp(precision, private, shp_encoding, print_cmd, zip=zip)
 
-        self.tables_created.append(f"{schema}.{table}")
-
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
 
     def feature_class_to_table(self, path, table = None, schema=None, shp_name=None, gdal_data_loc=GDAL_DATA_LOC,
                                srid=2263, private=False, temp=True, fc_encoding=None, print_cmd=False,
-                               days=7, skip_failures=''):
+                               days=7, skip_failures='', extra_cmd=None):
         """
         Imports shape file feature class to database. This uses GDAL to generate the table.
         :param path: Filepath to the geodatabase
@@ -2111,7 +2199,9 @@ class DbConnect:
         Options inlude LATIN1, UTF-8.
         :param print_cmd: Optional flag to print the GDAL command that is being used; defaults to False
         :param days: if temp=True, the number of days that the temp table will be kept. Defaults to 7.
-        :return:
+        :param skip_failures: allows user to pass skip failures flag to OGR2OGR.
+        :param extra_cmd: allows user to pass any additional flag/paramters to OGR2OGR.
+        :return: None
         """
         if not schema:
             schema = self.default_schema
@@ -2130,7 +2220,7 @@ class DbConnect:
                         shp_name=shp_name, cmd=None, srid=srid, gdal_data_loc=gdal_data_loc,
                         skip_failures=skip_failures)
 
-        shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd)
+        shp.read_feature_class(private, fc_encoding=fc_encoding, print_cmd=print_cmd, extra_cmd=extra_cmd)
 
         if temp:
             self.__run_table_logging([schema + "." + table], days=days)
@@ -2267,9 +2357,6 @@ class DbConnect:
                             self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                     except:
                         pass
-                        
-                self.tables_created.append(f"{schema}.{table}")
-
                 if temp:
                     self.__run_table_logging([schema + "." + table], days=days)
 
@@ -2305,8 +2392,6 @@ class DbConnect:
                         self.query(f"alter table {schema}.{table} rename column {geom_output} to geom", internal = True)
                 except:
                     pass
-                        
-            self.tables_created.append(f"{schema}.{table}")
 
             if temp:
                 self.__run_table_logging([schema + "." + table], days=days)
@@ -2347,7 +2432,71 @@ class DbConnect:
                             days=days,
                             bulk_upload = True)
 
-    def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table):
+    def _get_table_constraints(self, schema, table):
+        """
+        Gets constraints for a given table
+        :param schema: table schema
+        :param table: table name
+        :return: List of constraints [name of constraint, table schema, table name, column constraint is on, constraint defintion]
+        """
+        if self.type == PG:
+            self.query(f"""
+                select distinct 
+                    pgc.conname||'_backup' as constraint_name,
+                    i.table_schema,
+                    i.table_name, 
+                    i.column_name, 
+                    pg_get_constraintdef(pgc.oid)  
+                from pg_constraint pgc
+                join information_schema.key_column_usage i
+                on pgc.conname = i.constraint_name
+                where 
+                    i.table_name = '{table}'
+                    and i.table_schema = '{schema}'
+                order by 1;
+            """, internal=True, timeme=False)
+            return self.internal_data
+        elif self.type == MS:
+            self.query(f"""
+                SELECT * 
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+                WHERE TABLE_SCHEMA = '{schema}'
+                and TABLE_NAME='{table}';
+            """, internal=True)
+            if self.internal_data:
+                _df = self.dfquery(f"sp_helpconstraint '{schema}.{table}', 'nomsg'", internal=True)
+            else:
+                return []
+            
+            constraints = []
+
+            # sp_helpconstraint returns pairs of rows for each constraint:
+            #   - Row 0: constraint name, type, key
+            #   - Row 1: constraint definition (e.g., FOREIGN KEY ...)
+            # So we iterate 2 rows at a time
+            for i in range(0, len(_df), 2):
+                name = _df.constraint_name[i].strip()
+                ctype = _df.constraint_type[i].strip()
+                key = _df.constraint_keys[i].strip()
+                definition = _df.constraint_keys[i + 1].strip()
+
+                if name and ctype and key and definition:
+                    # Rename the constraint to avoid name conflict in backup table
+                    # c_name, _tbl, _sch, _col, c_details
+                    constraint_header = f"{name}_backup {ctype} ({key})"
+                    constraints.append([
+                        constraint_header,  # c_name
+                        table,  # _tbl
+                        schema,  # _sch
+                        name,  # _col (original constraint name)
+                        definition  # c_details
+                    ])
+
+            return constraints
+        else:
+            return None
+
+    def backup_table(self, org_schema, org_table, backup_path, backup_schema, backup_table, columns=[], exclude_columns=[]):
         """
         Generates a backup script and saves as .sql file, includes schema, data, and indexes. This wil not be as fast
         as backing up to csv for large tables, but it will ensure identical schema.
@@ -2356,21 +2505,32 @@ class DbConnect:
         :param backup_path: File path where the .sql file will be written.
         :param backup_schema: Name of database schema the backed up table will be written back to.
         :param backup_table: Name of database table the backed up table will be written back to.
+        :param columns: Default Empty List. If provided only columns listed will be included in the backup.
+        :param exclude_columns: Default Empty List. If provided only columns not included will be included in the backup.
         :return: backup_schema, backup_table
         """
 
         # TODO
         #  - think about bulk tables?
 
-
-
         tbl_schema = self.get_table_columns(org_table, schema=org_schema)
+
+        # get table constraints
+        constraints = self._get_table_constraints(org_schema, org_table)
+
+        if exclude_columns:
+            tbl_schema = [i for i in tbl_schema if i[0] not in exclude_columns]
+            constraints = [i for i in constraints if i[3] not in exclude_columns]
+
+        if columns:
+            tbl_schema = [i for i in tbl_schema if i[0] in columns]
+            constraints = [i for i in constraints if i[3] in columns]
 
         # CREATE TABLE QUERY
         _create_qry = f'CREATE TABLE "{backup_schema}"."{backup_table}" ('
         for col, dtyp in tbl_schema:
             _create_qry += f'\n"{col}" {dtyp},'
-            
+
             if dtyp == 'ARRAY': # if dtype is ARRAY, we needs its dimension
 
                 # query the data (to find out the length of the array)
@@ -2382,12 +2542,16 @@ class DbConnect:
 
                 # change dtype if applicable
                 dtyp = array_type + ' ARRAY[' + str(boxes) + ']'
-
+        if constraints:
+            for constraint in constraints:
+                c_name, _tbl, _sch, _col, c_details = constraint
+                _create_qry+= f'\nCONSTRAINT {c_name} {c_details},'
         _create_qry=_create_qry[:-1]+');\n'
 
         # INSERT INTO TABLE QUERY
         _insert_qry = f'INSERT INTO "{backup_schema}"."{backup_table}" values\n'
-        self.query(f'select * from "{org_schema}"."{org_table}"', internal=True)
+        cols = str(['"'+i[0]+'"' for i in tbl_schema])[1:-1].replace("'", "")
+        self.query(f'select {cols} from "{org_schema}"."{org_table}"', internal=True)
         data  = self.internal_data
         for row in data:
             r = "("
@@ -2470,3 +2634,6 @@ class DbConnect:
         self.query(read_data, temp=temp)
         assert self.table_exists(schema_table_name.split('.')[1], schema=schema_table_name.split('.')[0])
         return schema_table_name
+
+
+
