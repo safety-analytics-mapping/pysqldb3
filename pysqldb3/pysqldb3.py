@@ -10,7 +10,15 @@ import configparser
 import os
 from .Config import write_config
 import pyarrow.csv as pyarrowcsv
+import shutil
+import tempfile
 import numpy as np
+
+from io import StringIO
+from io import BytesIO
+from office365.sharepoint.files.file import File
+from office365.sharepoint.client_context import ClientContext
+from office365.runtime.auth.user_credential import UserCredential
 
 write_config(confi_path=os.path.dirname(os.path.abspath(__file__)) + "\\config.cfg")
 config = configparser.ConfigParser()
@@ -1079,6 +1087,82 @@ class DbConnect:
         df = self.dfquery(f"SELECT COUNT(*) as cnt FROM {schema_table}", timeme=False, internal = True)
         print(f'\n{df.cnt.values[0]} rows added to {schema_table}\n')
 
+    def sharepoint_to_table(self, table, file_url, sharepoint_user=None,sharepoint_password=None,
+                            sheet_name=0, schema=None, overwrite=False, temp=True, allow_max_varchar=False,
+                           column_type_overrides=None, days=7, temp_table=False):
+        """
+            Downloads an Excel file from SharePoint, converts it to a Pandas DataFrame,
+            and writes the DataFrame to a database table using dataframe_to_table().
+
+            :param abs_file_url: Full SharePoint file URL pointing to the Excel file
+            :param sheet_name: Excel sheet name or index to load (defaults to first sheet if None)
+            :param db_obj: Database connection object, must include dataframe_to_table() method
+            :param table: Destination table name in the database
+            :param table_schema: Schema of the table (optional; defaults to db_obj's default schema)
+            :param schema: Database schema to use for writing the destination table
+            :param overwrite: If True, overwrite table if it already exists; defaults to False
+            :param temp: If True, creates a temporary table; defaults to True
+            :param allow_max_varchar: Boolean flag to allow unlimited/max varchar columns; defaults to False
+            :param column_type_overrides: 'all' or Dict specifying column name → column type overrides.
+                   If 'all', all fields become varchar(max). **Will not override a custom table_schema if provided**
+            :param days: If temp=True and a temp schema/table needs to be created, number of days it is kept (default 7)
+
+            :return: None
+        """
+
+        print(f"Connecting to SharePoint and downloading: {file_url}")
+
+        if sharepoint_user is None:
+            sharepoint_user = self.user
+
+        if sharepoint_password is None:
+            sharepoint_password = self.password
+
+        username = sharepoint_user.lower() + "@dot.nyc.gov"
+        password = sharepoint_password
+
+        # Create SharePoint client context
+        #ctx = ClientContext(file_url).with_credentials(UserCredential(username, password))
+
+        # Create an in-memory buffer instead of saving to a local file
+        file_stream = BytesIO()
+
+        # Download the file content into the memory buffer
+
+        file = File.from_url(file_url).with_credentials(UserCredential(username, password))
+        file.download(file_stream).execute_query()
+
+        file_stream.seek(0)
+
+        df = pd.read_excel(file_stream, sheet_name=sheet_name)
+        print(f"Successfully loaded sheet '{sheet_name}' with {len(df)} rows.")
+
+        with tempfile.NamedTemporaryFile(
+                mode="w",
+                suffix=".csv",
+                delete=False,
+                newline="",
+                encoding="utf-8"
+        ) as tmp:
+            csv_path = tmp.name
+            df.to_csv(csv_path, index=False)
+
+        # Write DataFrame to DB
+        self.csv_to_table(
+            input_file=csv_path,
+            table=table,
+            schema=schema,
+            overwrite=overwrite,
+            temp=temp,
+            allow_max_varchar=allow_max_varchar,
+            column_type_overrides=column_type_overrides,
+            days=days,
+            temp_table=temp_table
+        )
+
+        # Close memory stream
+        file_stream.close()
+
     def csv_to_table(self, input_file=None, overwrite=False, schema=None, table=None, temp=True, sep=',',
                      allow_max_varchar=False, column_type_overrides=None, days=7, temp_table=False,
                      **kwargs):
@@ -2130,6 +2214,75 @@ class DbConnect:
 
         if not self.allow_temp_tables:
             self.disconnect(True)
+
+    def table_to_sharepoint(
+            self, table, sharepoint_user,
+            target_subfolder="", output_filename=None, schema=None,
+            sep=",", quote_strings=True, overwrite = False):
+        """
+        Exports a database table to CSV and uploads the resulting file to the user's
+        local OneDrive (OneDrive - NYCDOT) folder, allowing automatic sync to SharePoint.
+
+        :param table: Name of the database table to export
+        :param target_subfolder: Folder inside the user's OneDrive - NYCDOT directory
+                                 where the CSV will be placed (e.g., 'upload test')
+        :param output_filename: Output CSV filename (defaults to '<table>.csv')
+        :param schema: Database schema for the source table
+        :param sep: CSV separator; defaults to ','
+        :param quote_strings: Boolean flag controlling whether string fields are quoted;
+                              defaults to True (equivalent to QUOTE_ALL)
+
+        :return: None
+        """
+
+        # Determine filenames
+
+        if output_filename is None:
+            output_filename = f"{table}.xlsx"
+        else:
+            # force .xlsx extension
+            if not output_filename.lower().endswith(".xlsx"):
+                output_filename = os.path.splitext(output_filename)[0] + ".xlsx"
+
+            # final output file path
+        local_xlsx_path = os.path.join(os.getcwd(), output_filename)
+
+        df=self.dfquery(f'select * from {schema}.{table}')
+
+        df = df.drop(columns=["WKT"], errors="ignore")
+        df.to_excel(local_xlsx_path, index=False, engine="openpyxl")
+        print("XLSX export completed.")
+
+        # Build OneDrive path
+        raw_user = sharepoint_user.lower()
+        user = raw_user[0].upper() + raw_user[1:]  # hshi → HShi,
+        onedrive_root = f"C:/Users/{user}/OneDrive - NYCDOT"
+
+
+        if target_subfolder:
+            onedrive_folder = os.path.join(onedrive_root, target_subfolder)
+        else:
+            onedrive_folder = onedrive_root
+
+        # Create folder if missing
+        os.makedirs(onedrive_folder, exist_ok=True)
+
+        final_dest = os.path.join(onedrive_folder, output_filename)
+
+        # Copy to OneDrive folder
+
+        print(f"Copying file to OneDrive (local sync folder):\n{final_dest}")
+        shutil.copy(local_xlsx_path, final_dest)
+
+        print(f"SUCCESS — xlsx is now in OneDrive and will sync to SharePoint:\n{final_dest}")
+
+        # Clean local temp file
+
+        try:
+            os.remove(local_xlsx_path)
+            print("Local temporary xlsx deleted.")
+        except:
+            print("Failed to delete local temporary xlsx")
 
     def shp_to_table(self, path=None, table=None, schema=None, shp_name=None, cmd=None,
                      srid=2263, port=None, gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, temp=True,
