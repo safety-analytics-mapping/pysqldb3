@@ -981,7 +981,8 @@ class DbConnect:
                 cols += (f"""sum(distinct case when {column_column} = '{_}' then {sum_column} else null end) as "{_}",""")
 
         # build full query string
-        _qry = f"select {str(row_columns)[1:-1].replace("'","")}, {cols[:-1]} from ({qry}) t group by {str(row_columns)[1:-1].replace("'","")}"
+        cleaned_row_cols = str(row_columns)[1:-1].replace("'", "")
+        _qry = f"select {cleaned_row_cols}, {cols[:-1]} from ({qry}) t group by {cleaned_row_cols}"
 
         # pass new crosstab query to query or df query to get results
         if df:
