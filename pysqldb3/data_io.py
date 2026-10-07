@@ -3,7 +3,9 @@ import os
 import subprocess
 import shlex
 import pysqldb3
+import datetime
 
+from .Config import get_gdal_data_path
 from .cmds import *
 from .util import *
 
@@ -11,7 +13,7 @@ from .util import *
 
 # PG to SQL ##########################################################################################################
 def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, dest_table=None,
-              print_cmd=False, temp=True):
+              print_cmd=False, temp=True, ignore_pk=True):
     """
     Migrates tables from Postgres to SQL Server, generates spatial tables in MS if spatial in PG.
 
@@ -25,6 +27,7 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
     :param dest_table: Table name of final migrated table in SQL Server database
     :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
     :param temp: Flag for temporary table (defaults to True)
+    :param ignore_pk: Flag to keep or remove `-unsetFid` flag
     :return:
     """
     if not org_schema:
@@ -43,6 +46,11 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
         spatial = ' '
         nlt_spatial = '-nlt NONE'
 
+    if ignore_pk:
+        pk = ' -unsetFid '
+    else:
+        pk = ' '
+
     if LDAP:
         cmd = PG_TO_SQL_LDAP_CMD.format(
             ms_pass='',
@@ -60,7 +68,8 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
             spatial=spatial,
             dest_name=dest_table,
             nlt_spatial=nlt_spatial,
-            gdal_data=GDAL_DATA_LOC
+            gdal_data=GDAL_DATA_LOC,
+            ignore_pk=pk
         )
     else:
         cmd = PG_TO_SQL_CMD.format(
@@ -79,7 +88,8 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
             spatial=spatial,
             dest_name=dest_table,
             nlt_spatial=nlt_spatial,
-            gdal_data=GDAL_DATA_LOC
+            gdal_data=GDAL_DATA_LOC,
+            ignore_pk=pk
         )
 
     if print_cmd:
@@ -307,6 +317,34 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     # comments with /* */ do not need to be filtered out from the query
     query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
+    INFO_SQL = r"""ogrinfo --config GDAL_DATA "{gdal_data}" -ro -so -al "MSSQL:server={ms_server};database={ms_database};UID={ms_user};PWD={ms_pass}" -sql "{sql_select}" """
+    info_query = INFO_SQL.format(
+        gdal_data=GDAL_DATA_LOC,
+        ms_pass=ms.password,
+        ms_user=ms.user,
+        pg_pass=pg.password,
+        pg_user=pg.user,
+        ms_server=ms.server,
+        ms_database=ms.database,
+        sql_select=query)
+
+    ogrinfo_response = subprocess.check_output(shlex.split(info_query.replace('\n', ' ')), stderr=subprocess.STDOUT) #, env=cmd_env)
+
+    match = re.search(r"FID Column\s+=\s+(\w+)", str(ogrinfo_response), re.M)
+    if match:
+        fid = match.group(1)
+        org_tmp = ms.allow_temp_tables
+        ms.allow_temp_tables = True
+        # makle a temp table and update query to be select from temp - should remove the not null
+        t = f"##__{ms.user}__{pg.user}__{datetime.datetime.now().strftime('%Y%m%d%H%M')}__"
+        ms.query(f"drop table {t}", strict=False, timeme=False)
+        ms.query(f"select * into {t} from ({query} ) t", timeme=False)
+        query = f"select row_number() over (order by {fid}) as row_num, * from {t}"
+
+
+        # query = query.replace(fid, f'cast({fid} as bigint) {fid}')
+
+
     if LDAP:
         cmd = SQL_TO_PG_LDAP_QRY_CMD.format(
             ms_pass='',
@@ -352,6 +390,11 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     cmd_env = os.environ.copy()
     cmd_env['PGCLIENTENCODING'] = pg_encoding
 
+
+
+
+
+
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
@@ -372,7 +415,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
         pg.log_temp_table(dest_schema, dest_table, pg.user)
 
 def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, print_cmd=False,
-              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True):
+              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True, ignore_pk=True):
     """
     Migrates tables from SQL Server to PostgreSQL, generates spatial tables in PG if spatial in MS.
 
@@ -389,6 +432,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     :param gdal_data_loc: location of GDAL data
     :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
     :param permission: set permission to Public on destination table
+    :param ignore_pk: Flag to keep or remove `-unsetFid` flag
     :return:
     """
     if not org_schema:
@@ -406,6 +450,11 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     else:
         spatial = 'MSSQL'
         nlt_spatial = '-nlt NONE'
+
+    if ignore_pk:
+        pk = ' -unsetFid '
+    else:
+        pk = ' '
 
     if LDAP:
         cmd = SQL_TO_PG_LDAP_CMD.format(
@@ -426,7 +475,8 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
             ms_schema=org_schema,
             spatial=spatial,
             to_pg_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            ignore_pk=pk
         )
     else:
         cmd = SQL_TO_PG_CMD.format(
@@ -447,7 +497,8 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
             ms_schema=org_schema,
             spatial=spatial,
             to_pg_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            ignore_pk=pk
         )
 
     if print_cmd:
