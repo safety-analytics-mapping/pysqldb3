@@ -5,8 +5,12 @@ import configparser
 import pandas as pd
 import datetime
 
+import subprocess
+import shlex
+
 from .. import pysqldb3 as pysqldb, data_io
 from . import helpers
+from ..util import GDAL_DATA_LOC
 
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.abspath(__file__)) + "\\db_config.cfg")
@@ -1329,6 +1333,94 @@ class TestSqlToPgQry:
         # drop tables
         db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
         sql.query(f"""drop table if exists ##{test_sql_to_pg_qry_table}""") # run query for global temp table
+
+
+    @classmethod
+    def teardown_class(cls):
+        helpers.clean_up_test_table_sql(sql)
+        helpers.clean_up_test_table_pg(db)
+
+
+class TestSqlToPgQryPkErr:
+    def test_sql_to_pg_qry_basic_table_pk_err(self):
+        """
+        Copy a spatial query from SQL to Postgres
+        """
+
+        # Assert pg table doesn't exist
+        db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
+        assert not db.table_exists(table=test_sql_to_pg_qry_table, schema = pg_schema)
+
+        sql.drop_table(schema=sql_schema, table=test_sql_to_pg_qry_table)
+        assert not sql.table_exists(table=test_sql_to_pg_qry_table, schema=sql_schema)
+        cmd_env = os.environ.copy()
+        cmd_env['PGCLIENTENCODING'] = 'UTF8'
+        ogr_create = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite 
+        MSSQL "MSSQL:server={sql_server};database={sql_database}; UID={usr};PWD={pwd}" 
+        -sql "CREATE TABLE {sql_schema}.{tbl} ( ogc_fid INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(50), geom GEOMETRY)" 
+        --config MSSQLSPATIAL_LIST_ALL_TABLES YES"""
+        ogr_create = ogr_create.format(
+            gdal_data=GDAL_DATA_LOC,
+            sql_server=sql.server,
+            sql_database=sql.database,
+            usr=sql.user,
+            pwd=sql.password,
+            sql_schema=sql_schema,
+            tbl=test_sql_to_pg_qry_table
+        )
+        ogr_response = subprocess.check_output(shlex.split(ogr_create.replace('\n', ' ')), stderr=subprocess.STDOUT,
+                                               env=cmd_env)
+
+        sql.query(f"insert into {sql_schema}.{test_sql_to_pg_qry_table} (name) values ('test1')")
+
+        _qry_ = f"""
+            select ogc_fid, ogc_fid as id, name, geom from {sql_schema}.{test_sql_to_pg_qry_table}
+            union all select 1, 1, 'test2', null
+        """
+        # alt with existing data
+        # _qry_ = """
+        #     select ogc_fid, id_ id, street name, geom from  dbo.yellow_streets where id_=1
+        #     union all select ogc_fid, id_ id, street name, geom from  dbo.yellow_streets where id_=1
+        # """
+
+        # run sql_to_pg_qry
+        data_io.sql_to_pg_qry(sql, db, query=_qry_,
+                              dest_table=test_sql_to_pg_qry_table,
+                              dest_schema = pg_schema, print_cmd=True)
+
+        # Assert sql to pg query was successful (table exists)
+        assert db.table_exists(table=test_sql_to_pg_qry_table, schema = pg_schema)
+
+        # Assert df equality
+        sql_df = sql.dfquery(f"""
+        select * from ({_qry_}) q
+         order by id
+        """).infer_objects().replace('\s+', '', regex=True)
+
+        pg_df = db.dfquery(f"""
+        select * from {pg_schema}.{test_sql_to_pg_qry_table}
+        order by id
+        """).infer_objects().replace('\s+', '', regex=True)
+
+        # Assert that data frames are equal
+        pd.testing.assert_frame_equal(
+            sql_df.drop(['geom', 'ogc_fid'], axis = 1),
+            pg_df.drop(['wkt'], axis = 1),
+            check_dtype=False,
+            check_column_type=False)
+
+        # assert that permissions are changed to public
+        assert db.dfquery(f"""SELECT bool_or(CASE WHEN GRANTEE IN ('PUBLIC') THEN True ELSE False END)
+                            FROM information_schema.role_table_grants
+                            WHERE table_schema = '{pg_schema}' and table_name = '{test_sql_to_pg_qry_table}'""").values[0][0]  == True, "Dest table permissions not set to PUBLIC"
+
+        # assert added to tables created in dest dbo
+        assert  db.tables_created[-1] == (db.server, db.database, f'{pg_schema}', f'{test_sql_to_pg_qry_table}')
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=test_sql_to_pg_qry_table)
+        sql.drop_table(schema=sql_schema, table=test_sql_to_pg_qry_table)
+
 
 
     @classmethod

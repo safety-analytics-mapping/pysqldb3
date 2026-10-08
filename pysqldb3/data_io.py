@@ -2,6 +2,8 @@ import getpass
 import os
 import subprocess
 import shlex
+from email.policy import strict
+
 import pysqldb3
 
 from .cmds import *
@@ -270,6 +272,36 @@ def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_c
 
 
 # SQL to PG ##########################################################################################################
+def fall_back_sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
+                  dest_table=None, pg_encoding='UTF8', permission=True):
+    if not dest_schema:
+        dest_schema = pg.default_schema
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=pg.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    if spatial:
+        spatial = 'MSSQLSpatial'
+        nlt_spatial = ' '
+    else:
+        spatial = 'MSSQL'
+        nlt_spatial = '-nlt NONE'
+
+        # apply regex to the query to filter out any dashed comments in the query
+        # comments are defined by at least 2 dashes followed by a line break or the end of the query
+        # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
+    output_file = os.path.join(os.getcwd(),
+                               f"data_{datetime.datetime.now().strftime('%Y%m%d%H%M')}.csv")
+    ms.query_to_csv(query, output_file=output_file, strict=True, open_file=False, sep=',', quote_strings=True,
+                     quiet=True, overwrite=True)
+    pg.csv_to_table(input_file=output_file, table=f'{dest_table}', schema=dest_schema, temp_table=False, temp=temp, allow_max_varchar=True, overwrite=True)
+    os.remove(output_file)
+
+
+
+
+
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
                   dest_table=None, pg_encoding='UTF8', permission = True):
     """
@@ -356,11 +388,17 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
         if permission == True:
-            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True) 
+            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True, strict=False)
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
+        # raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
+
+    if not pg.table_exists(dest_table,schema=dest_schema):
+        fall_back_sql_to_pg_qry(ms, pg, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema, print_cmd=print_cmd,
+                                temp=temp, dest_table=dest_table, pg_encoding=pg_encoding, permission=permission)
+    if not pg.table_exists(dest_table, schema=dest_schema):
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
     rename_geom(pg, dest_schema, dest_table)
