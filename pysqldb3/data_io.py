@@ -387,18 +387,18 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
+        if 'ERROR:  current transaction is aborted' in str(ogr_response):
+            if not pg.table_exists(dest_table, schema=dest_schema):
+                fall_back_sql_to_pg_qry(ms, pg, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema,
+                                        print_cmd=print_cmd,
+                                        temp=temp, dest_table=dest_table, pg_encoding=pg_encoding,
+                                        permission=permission)
         if permission == True:
-            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True, strict=False)
+            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
-        # raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
-
-    if not pg.table_exists(dest_table,schema=dest_schema):
-        fall_back_sql_to_pg_qry(ms, pg, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema, print_cmd=print_cmd,
-                                temp=temp, dest_table=dest_table, pg_encoding=pg_encoding, permission=permission)
-    if not pg.table_exists(dest_table, schema=dest_schema):
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
     rename_geom(pg, dest_schema, dest_table)
