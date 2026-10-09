@@ -857,16 +857,20 @@ class TestPgToSqlQryTemp:
 class TestPgToSqlPkErr:
     def test_pg_to_sql_basic_table_pk_err(self):
         """
-        Copy a spatial query from SQL to Postgres
+        Copy a PG table to sql
+        Source data has a non-nullable field that GDAL will assume to be a PK
+        this tests scenarios where it is not a PK and duplicates exist, default GDAL behavior will fail with a unique violation
         """
 
         # Assert pg table doesn't exist
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_table)
         assert not db.table_exists(table=test_pg_to_sql_table, schema = pg_schema)
 
+        # Assert sql table doesn't exist
         sql.drop_table(schema=sql_schema, table=test_pg_to_sql_table)
         assert not sql.table_exists(table=test_pg_to_sql_table, schema=sql_schema)
 
+        # Use gdal to create the table to ensure field is picked up as pk on gdal transfer
         cmd_env = os.environ.copy()
         cmd_env['PGCLIENTENCODING'] = 'UTF8'
         ogr_create = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite 
@@ -885,16 +889,16 @@ class TestPgToSqlPkErr:
         )
         ogr_response = subprocess.check_output(shlex.split(ogr_create.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
-
+        # Add duplicate data
         db.query(f"insert into {pg_schema}.{test_pg_to_sql_table} (ogc_fid,name) values (1,'test1')")
         db.query(f"insert into {pg_schema}.{test_pg_to_sql_table} (ogc_fid,name) values (1,'test2')")
 
-        # run sql_to_pg_qry
+        # run pg_to_sql
         data_io.pg_to_sql(db, sql, test_pg_to_sql_table, org_schema=pg_schema,
                               dest_table=test_pg_to_sql_table,
                               dest_schema = sql_schema, print_cmd=True)
 
-        # Assert sql to pg query was successful (table exists)
+        # Assert pg_to_sql was successful (table exists)
         assert sql.table_exists(table=test_pg_to_sql_table, schema = sql_schema)
 
         # Assert df equality
@@ -908,7 +912,7 @@ class TestPgToSqlPkErr:
         order by name
         """).infer_objects().replace('\s+', '', regex=True)
 
-        # Assert that data frames are equal
+        # Assert that data frames are equal, ignore geom as sql and pg can introduce minor differences
         pd.testing.assert_frame_equal(
             sql_df.drop(['geom'], axis = 1),
             pg_df.drop(['geom'], axis = 1),
@@ -924,7 +928,9 @@ class TestPgToSqlPkErr:
 
     def test_pg_to_sql_qry_basic_table_pk_err(self):
         """
-        Copy a spatial query from SQL to Postgres
+        Copy a data from a query in PG to a table in sql
+        Source data has a PK field that GDAL will bring unquie constraints to destination
+        this tests scenarios where the query results in duplicates in the PK field, default GDAL behavior will fail with a unique violation
         """
 
         # Assert pg table doesn't exist
@@ -933,6 +939,8 @@ class TestPgToSqlPkErr:
 
         sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_table)
         assert not sql.table_exists(table=test_pg_to_sql_qry_table, schema=sql_schema)
+
+        # Use gdal to create the table to ensure field is picked up as pk on gdal transfer
         cmd_env = os.environ.copy()
         cmd_env['PGCLIENTENCODING'] = 'UTF8'
         ogr_create = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite 
@@ -952,27 +960,24 @@ class TestPgToSqlPkErr:
 
         ogr_response = subprocess.check_output(shlex.split(ogr_create.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
-
-
-
+        # Query that adds duplicate data
         db.query(f"insert into {pg_schema}.{test_pg_to_sql_qry_table} (name) values ('test1')")
-
         _qry_ = f"""
             select ogc_fid, ogc_fid as id, name, geom from {pg_schema}.{test_pg_to_sql_qry_table}
             union all select 1, 1, 'test2', null
         """
-        # alt with existing data
+        # alternate approach with pre-existing data
         # _qry_ = """
         #     select ogc_fid, id_ id, street name, geom from  dbo.yellow_streets where id_=1
         #     union all select ogc_fid, id_ id, street name, geom from  dbo.yellow_streets where id_=1
         # """
 
-        # run sql_to_pg_qry
+        # run pg_to_sql_qry
         data_io.pg_to_sql_qry(db, sql, query=_qry_,
                               dest_table=test_pg_to_sql_qry_table,
                               dest_schema = sql_schema, print_cmd=True)
 
-        # Assert sql to pg query was successful (table exists)
+        # Assert pg_to_sql_qry was successful (table exists)
         assert db.table_exists(table=test_pg_to_sql_qry_table, schema = pg_schema)
 
         # Assert df equality
