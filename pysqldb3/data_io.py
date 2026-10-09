@@ -10,6 +10,7 @@ from .cmds import *
 from .util import *
 
 # TODO: standardize all of this into db to db (table, query, temp table) DRY up code and simplify
+# TODO: check output table to ensure the same columns as the source if new columns are added they should be removed
 
 def fall_back_db_to_db_qry(src_db, dest_db, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
                            dest_table=None, pg_encoding='UTF8', permission=True, LDAP_from=False, LDAP_to=False):
