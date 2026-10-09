@@ -853,6 +853,7 @@ class TestPgToSqlQryTemp:
     def teardown_class(cls):
         helpers.clean_up_test_table_pg(db)
 
+
 class TestPgToSqlPkErr:
     def test_pg_to_sql_basic_table_pk_err(self):
         """
@@ -998,6 +999,7 @@ class TestPgToSqlPkErr:
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
         sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_table)
+
 # SQL to PG ##########################################################################################################
 class TestSqlToPg:
     def test_sql_to_pg_basic_table(self):
@@ -1775,6 +1777,8 @@ class TestSqlToPgQryTemp:
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=f'[{test_io_table_funky_name}]')
+
+
 class TestSqlToPgPkErr:
     def test_sql_to_pg_basic_table_pk_err(self):
         """
