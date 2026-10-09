@@ -497,6 +497,14 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
+
+        if not pg.table_exists(dest_table, schema=dest_schema):
+            query = f"select * from {org_schema}.{org_table}"
+            fall_back_sql_to_pg_qry(ms, pg, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema,
+                                    print_cmd=print_cmd,
+                                    temp=temp, dest_table=dest_table, pg_encoding=pg_encoding,
+                                    permission=permission)
+
         if permission == True:
             pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True) 
         print(ogr_response)
