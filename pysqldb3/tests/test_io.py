@@ -154,11 +154,18 @@ def base_table_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, dest_sc
            """).infer_objects().replace('\s+', '', regex=True)
 
     # Assert that data frames are equal, ignore geom as sql and pg can introduce minor differences
-    pd.testing.assert_frame_equal(
-        src_df.drop(['geom'], axis=1),
-        dest_df.drop(['geom'], axis=1),
-        check_dtype=False,
-        check_column_type=False)
+    if dest_dbo.type=='MS':
+        pd.testing.assert_frame_equal(
+            src_df.drop(['geom'], axis=1),
+            dest_df.drop(['geom', 'ogr_fid'], axis=1),
+            check_dtype=False,
+            check_column_type=False)
+    else:
+        pd.testing.assert_frame_equal(
+            src_df.drop(['geom'], axis=1),
+            dest_df.drop(['geom'], axis=1),
+            check_dtype=False,
+            check_column_type=False)
 
     # assert added to tables created in dest dbo
     assert dest_dbo.tables_created[-1] == (dest_dbo.server, dest_dbo.database, f'{dest_schema}', f'{dest_table}')
