@@ -1178,8 +1178,8 @@ class DbConnect:
             df = pd.read_csv(input_file, sep=sep, **kwargs)
         allow_max = allow_max_varchar or contains_long_columns(df)
 
-        if 'ogc_fid' in df.columns:
-            df = df.drop('ogc_fid', axis=1)
+        # if 'ogc_fid' in df.columns:
+        #     df = df.drop('ogc_fid', axis=1)
         # Multi-row headers?
         if 'header' in kwargs:
             if type(kwargs.get('header')) == list:
