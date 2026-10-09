@@ -205,7 +205,7 @@ def base_table_qry_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, des
     elif src_dbo.type =='MS':
         ogr_create = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite 
                MSSQL "MSSQL:server={sql_server};database={sql_database}; UID={usr};PWD={pwd}" 
-               -sql "CREATE TABLE {sql_schema}.{tbl} ( ogc_fid INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(50), geom GEOMETRY)" 
+               -sql "CREATE TABLE {schema}.{tbl} ( ogc_fid INT IDENTITY(1,1) PRIMARY KEY, name VARCHAR(50), geom GEOMETRY)" 
                --config MSSQLSPATIAL_LIST_ALL_TABLES YES"""
         ogr_create = ogr_create.format(
             gdal_data=GDAL_DATA_LOC,
@@ -219,38 +219,10 @@ def base_table_qry_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, des
     ogr_response = subprocess.check_output(shlex.split(ogr_create.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
 
-
-
-    # Assert pg table doesn't exist
-    db.drop_table(schema=pg_schema, table=test_pg_to_sql_qry_table)
-    assert not db.table_exists(table=test_pg_to_sql_qry_table, schema=pg_schema)
-
-    sql.drop_table(schema=sql_schema, table=test_pg_to_sql_qry_table)
-    assert not sql.table_exists(table=test_pg_to_sql_qry_table, schema=sql_schema)
-
-    # Use gdal to create the table to ensure field is picked up as pk on gdal transfer
-    cmd_env = os.environ.copy()
-    cmd_env['PGCLIENTENCODING'] = 'UTF8'
-    ogr_create = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite 
-               "PostgreSQL" PG:"host={pg_host} port={pg_port} dbname={pg_database} user={pg_user} password={pg_pass}"
-               -sql "CREATE TABLE {schema}.{tbl} ( ogc_fid SERIAL PRIMARY KEY not null, name VARCHAR(50), geom GEOMETRY)" 
-               --config MSSQLSPATIAL_LIST_ALL_TABLES YES"""
-    ogr_create = ogr_create.format(
-        gdal_data=GDAL_DATA_LOC,
-        pg_host=db.server,
-        pg_port=db.port,
-        pg_database=db.database,
-        pg_user=db.user,
-        pg_pass=db.password,
-        schema=pg_schema,
-        tbl=test_pg_to_sql_qry_table
-    )
-
-    ogr_response = subprocess.check_output(shlex.split(ogr_create.replace('\n', ' ')), stderr=subprocess.STDOUT,
-                                           env=cmd_env)
+    assert src_dbo.table_exists(table=src_table, schema=src_schema)
 
     # Add duplicate data
-    db.query(f"insert into {src_schema}.{src_table} (name) values ('test1')")
+    src_dbo.query(f"insert into {src_schema}.{src_table} (name) values ('test1')")
     _qry_ = f"""
         select ogc_fid, ogc_fid as id, name, geom from {src_schema}.{src_table}
         union all select 1, 1, 'test2', null
