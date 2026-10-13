@@ -12,48 +12,25 @@ from .util import *
 # TODO: standardize all of this into db to db (table, query, temp table) DRY up code and simplify
 # TODO: check output table to ensure the same columns as the source if new columns are added they should be removed
 
-def fall_back_db_to_db_qry(src_db, dest_db, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
-                           dest_table=None, pg_encoding='UTF8', permission=True, LDAP_from=False, LDAP_to=False):
-
-    if LDAP_from:
-        from_user = ''
-        from_password = ''
-    else:
-        from_user = src_db.user
-        from_password = src_db.password
-    if LDAP_to:
-        to_user = ''
-        to_password = ''
-    else:
-        to_user = dest_db.user
-        to_password = dest_db.password
+def fall_back_db_to_db_qry(src_db, dest_db, query, dest_schema=None, temp=True,
+                           dest_table=None):
+    """
+    Fallback workflow for query transfer, if standard GDLA workflow fails, this will use a local CSV as a passthrough.
+    This may be required to work around GDAL's inferred PK behavior
+    :param src_db: DbConnect instance connecting to source database
+    :param dest_db: DbConnect instance connecting to destination database
+    :param query: Query String to run on source database so results can be transfered to destination
+    :param dest_schema: Schema name for destination table (defaults to db's default schema)
+    :param temp: Flag for temporary table (defaults to True)
+    :param dest_table: Table name of final migrated table in destination database
+    :return: None
+    """
 
     if not dest_schema:
         dest_schema = dest_db.default_schema
 
     if not dest_table:
         dest_table = '_{u}_{d}'.format(u=dest_db.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
-
-    if src_db.type==PG and dest_db.type==MS:
-        if spatial:
-            spatial = ' -a_srs EPSG:2263 '
-            nlt_spatial = ' '
-        else:
-            spatial = ' '
-            nlt_spatial = '-nlt NONE'
-    if src_db.type == MS and (dest_db.type == PG or dest_db.type == MS):
-        if spatial:
-            spatial = 'MSSQLSpatial'
-            nlt_spatial = ' '
-        else:
-            spatial = 'MSSQL'
-            nlt_spatial = '-nlt NONE'
-    if src_db.type == PG and dest_db.type == PG:
-        if spatial:
-            nlt_spatial = ' '
-
-        if not spatial:
-            nlt_spatial = '-nlt NONE'
 
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
@@ -154,9 +131,7 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
         except:
             if not ms.table_exists(dest_table, schema=dest_schema):
                 query = f"select * from {org_schema}.{org_table}"
-                fall_back_db_to_db_qry(pg, ms, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema,
-                                       print_cmd=print_cmd,
-                                       temp=temp, dest_table=dest_table)
+                fall_back_db_to_db_qry(pg, ms, query, dest_schema=dest_schema, temp=temp, dest_table=dest_table)
 
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
@@ -251,9 +226,7 @@ def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, des
 
     except subprocess.CalledProcessError as e:
         if not ms.table_exists(dest_table, schema=dest_schema):
-            fall_back_db_to_db_qry(pg, ms, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema,
-                                   print_cmd=print_cmd,
-                                   temp=temp, dest_table=dest_table)
+            fall_back_db_to_db_qry(pg, ms, query, dest_schema=dest_schema, temp=temp, dest_table=dest_table)
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
         if not ms.table_exists(dest_table, schema=dest_schema):
@@ -436,10 +409,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
                                                env=cmd_env)
         if 'ERROR:  current transaction is aborted' in str(ogr_response):
             if not pg.table_exists(dest_table, schema=dest_schema):
-                fall_back_db_to_db_qry(ms, pg, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema,
-                                       print_cmd=print_cmd,
-                                       temp=temp, dest_table=dest_table, pg_encoding=pg_encoding,
-                                       permission=permission)
+                fall_back_db_to_db_qry(ms, pg, query, dest_schema=dest_schema, temp=temp, dest_table=dest_table)
         if permission == True:
             pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
         print(ogr_response)
@@ -547,10 +517,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
 
         if not pg.table_exists(dest_table, schema=dest_schema):
             query = f"select * from {org_schema}.{org_table}"
-            fall_back_db_to_db_qry(ms, pg, query, LDAP=LDAP, spatial=spatial, dest_schema=dest_schema,
-                                   print_cmd=print_cmd,
-                                   temp=temp, dest_table=dest_table, pg_encoding=pg_encoding,
-                                   permission=permission)
+            fall_back_db_to_db_qry(ms, pg, query,  dest_schema=dest_schema, temp=temp, dest_table=dest_table )
 
         if permission == True:
             pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True) 
@@ -956,8 +923,7 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
 
         if not to_pg.table_exists(dest_table, schema=dest_schema):
             query = f"select * from {org_schema}.{org_table}"
-            fall_back_db_to_db_qry(from_pg, to_pg, query, spatial=spatial, dest_schema=dest_schema,
-                                   print_cmd=print_cmd,
+            fall_back_db_to_db_qry(from_pg, to_pg, query, dest_schema=dest_schema,
                                    temp=temp, dest_table=dest_table)
         
         if permission == True:
@@ -1038,9 +1004,8 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
 
         if 'ERROR:  current transaction is aborted' in str(ogr_response):
             if not to_pg.table_exists(dest_table, schema=dest_schema):
-                fall_back_db_to_db_qry(from_pg, to_pg, query, spatial=spatial, dest_schema=dest_schema,
-                                       print_cmd=print_cmd,
-                                       temp=temp, dest_table=dest_table, permission=permission)
+                fall_back_db_to_db_qry(from_pg, to_pg, query, dest_schema=dest_schema,
+                                       temp=temp, dest_table=dest_table)
         
         if permission:
             to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
