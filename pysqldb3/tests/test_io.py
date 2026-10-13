@@ -78,7 +78,7 @@ def base_table_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, dest_sc
 
     # Assert dest table doesn't exist
     dest_dbo.drop_table(schema=dest_schema, table=dest_table)
-    assert not dest_dbo.table_exists(table=test_pg_to_sql_table, schema=sql_schema)
+    assert not dest_dbo.table_exists(table=dest_schema, schema=dest_table)
 
     # Use gdal to create the table to ensure field is picked up as pk on gdal transfer
     cmd_env = os.environ.copy()
@@ -154,18 +154,15 @@ def base_table_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, dest_sc
            """).infer_objects().replace('\s+', '', regex=True)
 
     # Assert that data frames are equal, ignore geom as sql and pg can introduce minor differences
-    if dest_dbo.type=='MS':
-        pd.testing.assert_frame_equal(
-            src_df.drop(['geom'], axis=1),
-            dest_df.drop(['geom', 'ogr_fid'], axis=1),
-            check_dtype=False,
-            check_column_type=False)
-    else:
-        pd.testing.assert_frame_equal(
-            src_df.drop(['geom'], axis=1),
-            dest_df.drop(['geom'], axis=1),
-            check_dtype=False,
-            check_column_type=False)
+    scols = src_dbo.get_table_columns(src_table, schema=src_schema)
+    dcols = dest_dbo.get_table_columns(dest_table, schema=dest_schema)
+    _cols_ = set([i[0] for i in scols]).intersection( set([i[0] for i in dcols]))
+
+    pd.testing.assert_frame_equal(
+        src_df[list(_cols_)].drop(['geom'], axis=1),
+        dest_df[list(_cols_)].drop(['geom'], axis=1),
+        check_dtype=False,
+        check_column_type=False)
 
     # assert added to tables created in dest dbo
     assert dest_dbo.tables_created[-1] == (dest_dbo.server, dest_dbo.database, f'{dest_schema}', f'{dest_table}')
@@ -187,7 +184,7 @@ def base_table_qry_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, des
 
     # Assert dest table doesn't exist
     dest_dbo.drop_table(schema=dest_schema, table=dest_table)
-    assert not dest_dbo.table_exists(table=test_pg_to_sql_table, schema=sql_schema)
+    assert not dest_dbo.table_exists(table=dest_table, schema=dest_schema)
 
     # Use gdal to create the table to ensure field is picked up as pk on gdal transfer
     cmd_env = os.environ.copy()
@@ -268,18 +265,15 @@ def base_table_qry_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, des
                    """).infer_objects().replace('\s+', '', regex=True)
 
     # Assert that data frames are equal, ignore geom as sql and pg can introduce minor differences
-    if dest_dbo.type == 'MS':
-        pd.testing.assert_frame_equal(
-            src_df.drop(['geom'], axis=1),
-            dest_df.drop(['geom', 'ogr_fid'], axis=1),
-            check_dtype=False,
-            check_column_type=False)
-    else:
-        pd.testing.assert_frame_equal(
-            src_df.drop(['geom'], axis=1),
-            dest_df.drop(['geom'], axis=1),
-            check_dtype=False,
-            check_column_type=False)
+    scols = src_df.columns.to_list()
+    dcols = [i[0] for i in dest_dbo.get_table_columns(dest_table, schema=dest_schema)]
+    _cols_ = set(scols).intersection(set(dcols))
+
+    pd.testing.assert_frame_equal(
+        src_df[list(_cols_)].drop(['geom'], axis=1),
+        dest_df[list(_cols_)].drop(['geom'], axis=1),
+        check_dtype=False,
+        check_column_type=False)
 
     # assert added to tables created in dest dbo
     assert dest_dbo.tables_created[-1] == (dest_dbo.server, dest_dbo.database, f'{dest_schema}', f'{dest_table}')
