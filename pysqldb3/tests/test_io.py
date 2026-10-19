@@ -74,11 +74,11 @@ def base_table_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, dest_sc
 
     # Assert src table doesn't exist
     src_dbo.drop_table(schema=src_schema, table=src_table)
-    assert not src_dbo.table_exists(table=src_schema, schema=src_schema)
+    assert not src_dbo.table_exists(table=src_table, schema=src_schema)
 
     # Assert dest table doesn't exist
     dest_dbo.drop_table(schema=dest_schema, table=dest_table)
-    assert not dest_dbo.table_exists(table=dest_schema, schema=dest_table)
+    assert not dest_dbo.table_exists(table=dest_table, schema=dest_schema)
 
     # Use gdal to create the table to ensure field is picked up as pk on gdal transfer
     cmd_env = os.environ.copy()
@@ -88,7 +88,7 @@ def base_table_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, dest_sc
         ogr_create = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite 
                "PostgreSQL" PG:"host={pg_host} port={pg_port} dbname={pg_database} user={pg_user} password={pg_pass}"
                -sql "CREATE TABLE {schema}.{tbl} ( ogc_fid INT not null, name VARCHAR(50), geom GEOMETRY)" 
-               --config MSSQLSPATIAL_LIST_ALL_TABLES YES"""
+               --config PG_LIST_ALL_TABLES  YES"""
         ogr_create = ogr_create.format(
             gdal_data=GDAL_DATA_LOC,
             pg_host=src_dbo.server,
@@ -139,7 +139,7 @@ def base_table_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, dest_sc
                       dest_table=dest_table,
                       dest_schema=dest_schema)
 
-    # Assert pg_to_sql was successful (table exists)
+    # Assert transfer was successful (table exists)
     assert dest_dbo.table_exists(table=dest_table, schema=dest_schema)
 
     # Assert df equality
@@ -180,7 +180,7 @@ def base_table_qry_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, des
 
     # Assert src table doesn't exist
     src_dbo.drop_table(schema=src_schema, table=src_table)
-    assert not src_dbo.table_exists(table=src_schema, schema=src_schema)
+    assert not src_dbo.table_exists(table=src_table, schema=src_schema)
 
     # Assert dest table doesn't exist
     dest_dbo.drop_table(schema=dest_schema, table=dest_table)
@@ -194,7 +194,7 @@ def base_table_qry_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, des
         ogr_create = r"""ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite 
                "PostgreSQL" PG:"host={pg_host} port={pg_port} dbname={pg_database} user={pg_user} password={pg_pass}"
                -sql "CREATE TABLE {schema}.{tbl} ( ogc_fid SERIAL PRIMARY KEY not null, name VARCHAR(50), geom GEOMETRY)" 
-               --config MSSQLSPATIAL_LIST_ALL_TABLES YES"""
+               --config PG_LIST_ALL_TABLES  YES"""
         ogr_create = ogr_create.format(
             gdal_data=GDAL_DATA_LOC,
             pg_host=src_dbo.server,
@@ -266,7 +266,7 @@ def base_table_qry_transfer_pk_err(src_dbo, src_schema, src_table, dest_dbo, des
 
     # Assert that data frames are equal, ignore geom as sql and pg can introduce minor differences
     scols = src_df.columns.to_list()
-    dcols = [i[0] for i in dest_dbo.get_table_columns(dest_table, schema=dest_schema)]
+    dcols = dest_df.columns.to_list()
     _cols_ = set(scols).intersection(set(dcols))
 
     pd.testing.assert_frame_equal(

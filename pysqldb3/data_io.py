@@ -15,7 +15,7 @@ from .util import *
 def fall_back_db_to_db_qry(src_db, dest_db, query, dest_schema=None, temp=True,
                            dest_table=None):
     """
-    Fallback workflow for query transfer, if standard GDLA workflow fails, this will use a local CSV as a passthrough.
+    Fallback workflow for query transfer, if standard GDAL workflow fails, this will use a local CSV as a passthrough.
     This may be required to work around GDAL's inferred PK behavior
     :param src_db: DbConnect instance connecting to source database
     :param dest_db: DbConnect instance connecting to destination database
@@ -45,7 +45,7 @@ def fall_back_db_to_db_qry(src_db, dest_db, query, dest_schema=None, temp=True,
         os.remove(output_file)
     src_db.dfquery(query).to_csv(output_file, index=False)
 
-    dest_db.csv_to_table(input_file=output_file, table=f'{dest_table}', schema=dest_schema, temp_table=False, temp=temp, allow_max_varchar=True, overwrite=True)
+    dest_db.csv_to_table(input_file=output_file, table=dest_table, schema=dest_schema, temp_table=False, temp=temp, allow_max_varchar=True, overwrite=True)
     os.remove(output_file)
 
 # PG to SQL ##########################################################################################################
