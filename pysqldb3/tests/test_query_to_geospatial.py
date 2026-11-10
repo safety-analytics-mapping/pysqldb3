@@ -54,8 +54,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg,  test_table), print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -85,11 +85,11 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # add first table
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                            path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                            path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True, srid=2263)
         # add second table to the same gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table + '_2',
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table + '_2'), print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -123,8 +123,8 @@ class TestQueryToGpkgPg:
         
         assert db.table_exists(test_table, schema=pg_schema)
 
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True, srid=2263)
 
         # create table
         db.query(f"""
@@ -136,8 +136,8 @@ class TestQueryToGpkgPg:
          """)
         
         # overwrite the table
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}_2", gpkg_tbl = test_table, overwrite = True,
-                            path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}_2", overwrite = True,
+                            path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -171,7 +171,7 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg - make sure output_file overwrites any gpkg in the path
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=os.path.join(FOLDER_PATH, gpkg), gpkg_tbl = test_table, print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -200,8 +200,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg - make sure gpkg_tbl overwrites any gpkg in the path
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, 'test_' + gpkg), print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, 'test_' + gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, 'test_' + gpkg))
@@ -224,8 +224,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -248,8 +248,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -276,8 +276,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        db.query_to_gpkg(f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -300,8 +300,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table} limit 0", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table} limit 0",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -336,8 +336,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -388,8 +388,8 @@ class TestQueryToGpkgPg:
         assert db.table_exists(test_table, schema=pg_schema)
 
         # table to gpkg
-        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}", gpkg_tbl = test_table,
-                         path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        db.query_to_gpkg(query = f"select * from {pg_schema}.{test_table}",
+                         path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -416,8 +416,8 @@ class TestQueryToGpkgPg:
 
         # This should fail
         try:
-            db.query_to_gpkg(query="select * from table_does_not_exist", gpkg_tbl = test_table,
-                             path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+            db.query_to_gpkg(query="select * from table_does_not_exist",
+                             path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
         except:
             Failed = True
         # check table in not folder
@@ -442,8 +442,8 @@ class TestQueryToGpkgPg:
             os.remove(os.path.join(FOLDER_PATH, gpkg))
 
         # Write gpkg
-        db.query_to_gpkg(path=os.path.join(FOLDER_PATH, gpkg), query = f"select * from {pg_schema}.{test_table}",
-                         gpkg_tbl=test_table, print_cmd=True)
+        db.query_to_gpkg(path=os.path.join(FOLDER_PATH, gpkg, test_table),
+                         query = f"select * from {pg_schema}.{test_table}", print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -485,8 +485,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -515,8 +515,8 @@ class TestQueryToGpkgMs:
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
         assert sql.table_exists(test_table, schema=ms_schema)
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True, srid=2263)
 
         sql.drop_table(schema=ms_schema, table=test_table)
         # add similar table under a different name in the same gpkg
@@ -529,8 +529,8 @@ class TestQueryToGpkgMs:
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
         assert sql.table_exists(test_table, schema=ms_schema)
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table + '_2',
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table + '_2'), print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -561,8 +561,8 @@ class TestQueryToGpkgMs:
              VALUES (1, 'test text', CURRENT_TIMESTAMP,
              geometry::Point(1015329.1, 213793.1, 2263 ))
         """)
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True, srid=2263)
 
         # create new, slightly different table
         sql.drop_table(schema=ms_schema, table=test_table)
@@ -577,8 +577,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # overwrite the same table
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True, srid=2263)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True, srid=2263)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -615,8 +615,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to geospatial - make sure geospatial overwrites any gpkg in the path
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                        path= os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                        path= os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -649,7 +649,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", path=os.path.join(FOLDER_PATH, gpkg), gpkg_tbl = test_table, print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -675,8 +676,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg - make sure Geopackage overwrites any gpkg in the path
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                        path= os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                        path= os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -702,8 +703,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -729,8 +730,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -759,8 +760,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -786,8 +787,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(f"select top 0 * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(f"select top 0 * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -821,8 +822,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -870,8 +871,8 @@ class TestQueryToGpkgMs:
         assert sql.table_exists(test_table, schema=ms_schema)
 
         # table to gpkg
-        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}", gpkg_tbl = test_table,
-                          path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+        sql.query_to_gpkg(query = f"select * from {ms_schema}.{test_table}",
+                          path=os.path.join(FOLDER_PATH, gpkg, test_table), print_cmd=True)
 
         # check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg))
@@ -898,8 +899,8 @@ class TestQueryToGpkgMs:
 
         # This should fail
         try:
-            sql.query_to_gpkg(query="select * from table_does_not_exist", gpkg_tbl = 'table_does_not_exist',
-                              path=os.path.join(FOLDER_PATH, gpkg), print_cmd=True)
+            sql.query_to_gpkg(query="select * from table_does_not_exist",
+                              path=os.path.join(FOLDER_PATH, gpkg, 'table_does_not_exist'), print_cmd=True)
         except:
             Failed = True
         # check table in not folder
@@ -925,8 +926,8 @@ class TestQueryToGpkgMs:
             os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Write gpkg
-        sql.query_to_gpkg(path=os.path.join(FOLDER_PATH, gpkg_name), query = f"select * from {ms_schema}.{test_table}",
-                         gpkg_tbl=test_table, print_cmd=True)
+        sql.query_to_gpkg(path=os.path.join(FOLDER_PATH, gpkg_name, test_table),
+                          query = f"select * from {ms_schema}.{test_table}",  print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))

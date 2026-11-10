@@ -73,7 +73,7 @@ class TestRenamesGeomPg:
         # import with pysqldb
 
         assert db.table_exists(table, schema=db.default_schema) is False
-        db.feature_class_to_table(fgdb, table, schema=None, feature_class=fc)
+        db.feature_class_to_table(os.path.join(fgdb, fc), table, schema=None)
 
         db.query("""
             SELECT column_name, data_type
@@ -139,6 +139,60 @@ class TestRenamesGeomPg:
 
         db.drop_table(db.default_schema, table)
 
+    @pytest.mark.order3
+    def test_rename_geom_shp_special_char(self):
+        fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
+        shp = 'test.shp'
+        special_char_tbl_name = 'Great!@'
+
+        # import data without pysqldb
+        db.drop_table(table=table, schema=db.default_schema)
+        assert not db.table_exists(table, schema=db.default_schema)
+
+        cmd = """
+        ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
+        "EPSG:{srid}" -progress -f "PostgreSQL" PG:"host={host} port={port} dbname={dbname} 
+        user={user} password={password}" "{shp}" -nln {schema}.{tbl_name} 
+        """.format(gdal_data=util.GDAL_DATA_LOC,
+                   srid=2263,
+                   host=db.server,
+                   dbname=db.database,
+                   user=db.user,
+                   password=db.password,
+                   shp=os.path.join(fldr, shp),
+                   schema=db.default_schema,
+                   tbl_name=special_char_tbl_name,
+                   port=5432
+                   ).replace('\n', ' ')
+
+        subprocess.call(cmd, shell=True)
+
+        db.query("""
+                            SELECT column_name, data_type
+                            FROM information_schema.columns
+                            WHERE table_name  = '{t}'
+                            and column_name='geom'
+                        """.format(t=special_char_tbl_name.lower()))
+        assert db.data == []
+        db.drop_table(db.default_schema, special_char_tbl_name.lower())
+        # clean up gdal import
+
+        # import with pysqldb
+        assert not db.table_exists(special_char_tbl_name.lower(), schema=db.default_schema)
+
+        db.shp_to_table(path=os.path.join(fldr, shp), table=special_char_tbl_name.lower())
+
+        db.query("""
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_name  = '{t}'
+                    and column_name='geom'
+                """.format(t=special_char_tbl_name.lower()))
+
+        assert db.data[0] == ('geom', 'USER-DEFINED')
+
+        db.drop_table(db.default_schema, special_char_tbl_name.lower())
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_feature_class()
@@ -151,7 +205,7 @@ class TestRenamesGeomMs:
         helpers.set_up_feature_class()
         helpers.set_up_shapefile()
 
-    @pytest.mark.order3
+    @pytest.mark.order4
     def test_rename_geom_fc(self):
         fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
         fc = 'node'
@@ -193,7 +247,7 @@ class TestRenamesGeomMs:
         # import with pysqldb
         assert not sql.table_exists(table, schema=sql.default_schema)
 
-        sql.feature_class_to_table(fgdb, table, schema=None, feature_class=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(os.path.join(fgdb, fc), table, schema=None, skip_failures='-skip_failures')
 
         sql.query("""
             SELECT column_name, data_type
@@ -207,7 +261,7 @@ class TestRenamesGeomMs:
 
         sql.drop_table(table=table, schema=sql.default_schema)
 
-    @pytest.mark.order4
+    @pytest.mark.order5
     def test_rename_geom_shp(self):
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data')
         shp = 'test.shp'
@@ -260,6 +314,64 @@ class TestRenamesGeomMs:
         assert sql.data[0][1] == u'geometry'
 
         sql.drop_table(sql.default_schema, table)
+
+    @pytest.mark.order6
+    def test_rename_geom_fc_special_char(self):
+        fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
+        fc = 'node'
+        special_char_tbl_name = 'Wonder$Col'
+
+        # import data without pysqldb
+        sql.drop_table(table=special_char_tbl_name, schema=sql.default_schema)
+        assert sql.table_exists(special_char_tbl_name, schema=sql.default_schema) is False
+
+        cmd = """
+        ogr2ogr --config GDAL_DATA "{gdal_data}" -nlt PROMOTE_TO_MULTI -overwrite -a_srs 
+        "EPSG:{srid}" -f MSSQLSpatial "MSSQL:server={host};database={dbname};UID={user};PWD={password}"
+         "{gdb}" "{feature}" -nln {sch}.{tbl_name} -progress --config MSSQLSPATIAL_USE_GEOMETRY_COLUMNS NO
+        """.format(gdal_data=util.GDAL_DATA_LOC,
+                   srid=2263,
+                   host=sql.server,
+                   dbname=sql.database,
+                   user=sql.user,
+                   password=sql.password,
+                   gdb=fgdb,
+                   feature=fc,
+                   sch=sql.default_schema,
+                   tbl_name=special_char_tbl_name
+                   ).replace('\n', ' ')
+
+        subprocess.call(cmd, shell=True)
+
+        sql.query("""
+                    SELECT column_name, data_type
+                    FROM information_schema.columns
+                    WHERE table_name  = '{t}'
+                    AND TABLE_SCHEMA='{s}'
+                    and column_name='geom'
+                """.format(t=special_char_tbl_name, s=sql.default_schema))
+
+        assert sql.data == []
+        sql.drop_table(sql.default_schema, special_char_tbl_name)
+        # clean up gdal import
+
+        # import with pysqldb
+        assert not sql.table_exists(special_char_tbl_name.lower(), schema=sql.default_schema)
+
+        sql.feature_class_to_table(os.path.join(fgdb, fc), special_char_tbl_name.lower(),
+                                   schema=None, skip_failures='-skip_failures')
+
+        sql.query("""
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_name  = '{t}'
+            and column_name='geom'
+        """.format(t=special_char_tbl_name.lower()))
+
+        assert sql.data[0][0] == u'geom'
+        assert sql.data[0][1] == u'geometry'
+
+        sql.drop_table(table=special_char_tbl_name.lower(), schema=sql.default_schema)
 
     @classmethod
     def teardown_class(cls):

@@ -45,7 +45,7 @@ ms_schema = 'dbo'
 pg_schema = 'working'
 
 fgdb = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data/lion/lion.gdb')
-fc = 'node.shp'
+fc = 'node'
 
 db_int, db_geom = helpers.identify_default_dtypes(db, pg_schema)
 sql_int, sql_geom = helpers.identify_default_dtypes(sql, ms_schema)
@@ -67,7 +67,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s.upload_geospatial(path=FOLDER_PATH + '//' + gpkg_name, dbo=db, gpkg_tbl = test_layer1,
+        s.upload_geospatial(path=FOLDER_PATH + '//' + gpkg_name + '//' + test_layer1, dbo=db,
                                 table=test_read_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -192,7 +192,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_layer2)
 
         # Read gpkg to new, test table
-        s.upload_geospatial(dbo=db, path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_layer2,
+        s.upload_geospatial(dbo=db, path=os.path.join(FOLDER_PATH, gpkg_name, test_layer2),
                                 table = test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -231,7 +231,7 @@ class TestReadgpkgPG:
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s.upload_geospatial(path=subzip_filepath + '/' + gpkg_name, dbo=db, gpkg_tbl = test_layer1,
+        s.upload_geospatial(path=subzip_filepath + '/' + gpkg_name + '/' + test_layer1, dbo=db,
                                 table=test_read_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -265,6 +265,32 @@ class TestReadgpkgPG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
 
+    def test_input_gpkg_special_char_name(self):
+
+        gpkg_name = "testgpkg.gpkg"
+        unique_table_name = 'F!unky N@mE?'
+
+        # Assert successful
+        assert gpkg_name in os.listdir(FOLDER_PATH)
+        db.drop_table(schema=pg_schema, table=test_read_gpkg_table_name)
+
+        # Read gpkg to new, test table (name with special chars)
+        s.upload_geospatial(path=FOLDER_PATH + '//' + gpkg_name + '//' + test_layer1, dbo=db,
+                                table=unique_table_name, schema=pg_schema, print_cmd=True)
+
+        # Assert read_gpkg happened successfully and contents are correct
+        assert db.table_exists(schema=pg_schema, table = unique_table_name)
+
+        table_df = db.dfquery(f'select * from {pg_schema}."{unique_table_name.lower()}"')
+
+        assert set(table_df.columns) == {'gid', 'some_value', 'fid', 'geom'}
+        assert len(table_df) == 2
+
+        assert db.tables_created[-1] == (db.server, db.database, pg_schema, '"' + unique_table_name.lower() + '"')
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table='"'+unique_table_name+'"')
+
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()
@@ -285,7 +311,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_read_gpkg_table_name}")
 
         # Read gpkg to new, test table
-        s.upload_geospatial(dbo=sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_layer2,
+        s.upload_geospatial(dbo=sql, path=FOLDER_PATH + '//' + gpkg_name + '//' + test_layer2,
                                 table=test_read_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -414,7 +440,7 @@ class TestReadgpkgMS:
         sql.drop_table(schema=sql.default_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s.upload_geospatial(dbo=sql, path= os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_layer1, table=test_read_gpkg_table_name, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path= os.path.join(FOLDER_PATH, gpkg_name, test_layer1), table=test_read_gpkg_table_name, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema=sql.default_schema, table=test_read_gpkg_table_name)
@@ -451,7 +477,7 @@ class TestReadgpkgMS:
         sql.query(f"drop table if exists {ms_schema}.{test_layer1}")
 
         # Read gpkg to new, test table
-        s.upload_geospatial(dbo=sql, path = os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl=test_layer1, schema=ms_schema, print_cmd=True)
+        s.upload_geospatial(dbo=sql, path = os.path.join(FOLDER_PATH, gpkg_name, test_layer1), schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
         assert sql.table_exists(schema = ms_schema, table= test_layer1)
@@ -487,10 +513,10 @@ class TestReadgpkgMS:
         subzip_filepath = FOLDER_PATH + '/subfolder_gpkg.zip/extra_subfolder'
         
         # Assert successful
-        db.drop_table(schema=ms_schema, table=test_read_gpkg_table_name)
+        sql.drop_table(schema=ms_schema, table=test_read_gpkg_table_name)
 
         # Read gpkg to new, test table
-        s.upload_geospatial(path=subzip_filepath + '/' + gpkg_name, dbo=sql, gpkg_tbl = test_layer1,
+        s.upload_geospatial(path=subzip_filepath + '/' + gpkg_name + '/' + test_layer1, dbo=sql,
                                 table=test_read_gpkg_table_name, schema=ms_schema, print_cmd=True)
 
         # Assert read_gpkg happened successfully and contents are correct
@@ -520,6 +546,35 @@ class TestReadgpkgMS:
 
         assert sql.tables_created[-1] == (sql.server, sql.database, ms_schema, test_read_gpkg_table_name)
 
+    def test_input_gpkg_special_char_name(self):
+
+        gpkg_name = "testgpkg.gpkg"
+        unique_table_name = 'FUNKY N@m3?'
+
+        # Assert successful
+        assert gpkg_name in os.listdir(FOLDER_PATH)
+
+        # remove temp table from MS SQL Server if it already exists
+        sql.query(f'drop table if exists {ms_schema}."{unique_table_name}"')
+
+        # Read gpkg to new, test table
+        s.upload_geospatial(dbo=sql, path=FOLDER_PATH + '//' + gpkg_name + '//' + test_layer2,
+                                table=unique_table_name, schema=ms_schema, print_cmd=True)
+
+        # Assert read_gpkg happened successfully and contents are correct
+        assert sql.table_exists(schema = ms_schema, table=unique_table_name)
+
+        # todo: this fails because odbc 17 driver isnt supporting geometry
+        table_df = sql.dfquery(f'select * from {ms_schema}."{unique_table_name}"')
+
+        assert set(table_df.columns) == {'fid', 'gid', 'some_value', 'geom'}
+        assert len(table_df) == 2
+
+        assert sql.tables_created[-1] == (sql.server, sql.database, ms_schema, unique_table_name.lower())
+
+        # Cleanup
+        sql.query(f'drop table if exists {ms_schema}."{unique_table_name}"')
+        
     @classmethod
     def teardown_class(cls):
         helpers.clean_up_geopackage()
@@ -545,13 +600,14 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), dbo=db,
+                           schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
                                 schema=pg_schema, table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -596,7 +652,8 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -611,11 +668,11 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema,
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), dbo=db, schema=pg_schema,
                            table=test_write_gpkg_table_name, overwrite = True, print_cmd=True) # overwrite to 2 rows
 
         # Reupload as table
-        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name), schema=pg_schema, gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), schema=pg_schema,
                          table = test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -661,8 +718,8 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=FOLDER_PATH + '//' + gpkg_name, dbo=db, schema=pg_schema,
-                           gpkg_tbl = test_reuploaded_table_name, table= test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=FOLDER_PATH + '//' + gpkg_name + '//' + test_reuploaded_table_name, dbo=db, schema=pg_schema,
+                           table= test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -677,8 +734,9 @@ class TestWritegpkgPG:
         order by id
         limit 2
         """)
-        s.write_geospatial(dbo=db, schema=pg_schema, table = test_write_gpkg_table_name + '_2', path=os.path.join(FOLDER_PATH, gpkg_name),
-                           gpkg_tbl = test_reuploaded_table_name + '_2', overwrite = False, print_cmd=True) # add another table
+        s.write_geospatial(dbo=db, schema=pg_schema, table = test_write_gpkg_table_name + '_2',
+                           path=os.path.join(FOLDER_PATH, gpkg_name, test_reuploaded_table_name + '_2'),
+                           overwrite = False, print_cmd=True) # add another table
 
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name)) # assert that the table is still there
 
@@ -746,14 +804,15 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.upload_geospatial(dbo = db, path=os.path.join(FOLDER_PATH, gpkg_name), schema=pg_schema,
-                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = db, path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), schema=pg_schema,
+                            table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -799,14 +858,15 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           dbo=db, table=test_write_gpkg_table_name, schema=pg_schema, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name),schema=pg_schema,
-                        table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                            schema=pg_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -844,14 +904,14 @@ class TestWritegpkgPG:
 
         # Write gpkg
         s.write_geospatial(dbo=db, query=f"""select * from {pg_schema}.{pg_table_name} order by id limit 100""",
-                            path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+                            path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name), schema=pg_schema,
-                         table=test_reuploaded_table_name, gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = db, path= os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), schema=pg_schema,
+                                table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
         db_df = db.dfquery(f"select * from {pg_schema}.{pg_table_name} order by id limit 100")
@@ -900,7 +960,8 @@ class TestWritegpkgPG:
             os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -929,7 +990,8 @@ class TestWritegpkgPG:
             os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -955,7 +1017,8 @@ class TestWritegpkgPG:
         gpkg_name = 'testgpkg.gpkg'
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           dbo=db, schema=pg_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -991,14 +1054,15 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s.write_geospatial(dbo=sql, schema = ms_schema, path=os.path.join(FOLDER_PATH, gpkg_name), table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(dbo=sql, schema = ms_schema, path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.upload_geospatial(dbo = sql, path= os.path.join(FOLDER_PATH, gpkg_name), schema = ms_schema, table=test_reuploaded_table_name,
-                          gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = sql, path= os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), schema = ms_schema,
+                            table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1")
@@ -1041,7 +1105,8 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg. Gpkg table will be named the same as the query table
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), dbo=sql,
+                           schema = ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1057,14 +1122,14 @@ class TestWritegpkgMS:
 
         # Write gpkg. Gpkg table will be named the same as the previous table to overwrite it
         s.write_geospatial(dbo=sql, schema = ms_schema, table=test_write_gpkg_table_name + '_2',
-                          path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, overwrite = True, print_cmd=True)
+                          path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), overwrite = True, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.upload_geospatial(dbo = sql, path=os.path.join(FOLDER_PATH, gpkg_name), schema = ms_schema,
-                          gpkg_tbl = test_write_gpkg_table_name, table=test_reuploaded_table_name, print_cmd=True)
+        s.upload_geospatial(dbo = sql, path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), schema = ms_schema,
+                           table=test_reuploaded_table_name, print_cmd=True)
 
         # # Assert equality
         db_df = sql.dfquery(f"select top 10 * from {ms_schema}.{test_write_gpkg_table_name}_2 order by test_col3")
@@ -1110,7 +1175,7 @@ class TestWritegpkgMS:
 
         # Write gpkg. Gpkg table will be named the same as the query table
         s.write_geospatial(dbo=sql, schema = ms_schema, table= test_write_gpkg_table_name,
-                           path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_reuploaded_table_name, print_cmd=True)
+                           path=os.path.join(FOLDER_PATH, gpkg_name, test_reuploaded_table_name), print_cmd=True)
 
         # # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1126,7 +1191,7 @@ class TestWritegpkgMS:
 
         # Write gpkg.
         s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2',
-                           path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl=test_reuploaded_table_name + '_2', print_cmd=True) # add second table
+                           path=os.path.join(FOLDER_PATH, gpkg_name, test_reuploaded_table_name + '_2'), print_cmd=True) # add second table
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1184,13 +1249,14 @@ class TestWritegpkgMS:
         gpkg_name = 'test_write.gpkg'
 
         # Write gpkg
-        s.write_geospatial(dbo=sql, path = os.path.join(FOLDER_PATH, gpkg_name), table= test_write_gpkg_table_name, gpkg_tbl = test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
+        s.write_geospatial(dbo=sql, path = os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
+                           table= test_write_gpkg_table_name, schema=ms_schema, print_cmd=True)
  
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
  
         # Reupload as table
-        s.upload_geospatial(dbo = sql, path=os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = sql, path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name),
                  schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1235,13 +1301,13 @@ class TestWritegpkgMS:
 
         # Write gpkg
         s.write_geospatial(dbo=sql, query=f"""select top 10 * from {ms_schema}.{test_write_gpkg_table_name} order by test_col1""",
-                            path= os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+                            path= os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Reupload as table
-        s.upload_geospatial(dbo = sql, path=FOLDER_PATH + '//' + gpkg_name, gpkg_tbl = test_write_gpkg_table_name,
+        s.upload_geospatial(dbo = sql, path=FOLDER_PATH + '//' + gpkg_name + '//' + test_write_gpkg_table_name,
                             schema=ms_schema, table=test_reuploaded_table_name, print_cmd=True)
 
         # Assert equality
@@ -1291,7 +1357,8 @@ class TestWritegpkgMS:
             os.remove(os.path.join(FOLDER_PATH, gpkg_name))
 
         # Write gpkg
-        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name), dbo=sql, schema=ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
+        s.write_geospatial(path=os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), dbo=sql,
+                           schema=ms_schema, table=test_write_gpkg_table_name, print_cmd=True)
 
         # Assert successful
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1323,7 +1390,7 @@ class TestWritegpkgMS:
 
         # Write gpkg
         s.write_geospatial(dbo=sql, query=f"select * from {ms_schema}.{test_write_gpkg_table_name}",
-                            path= os.path.join(FOLDER_PATH, gpkg_name), gpkg_tbl = test_write_gpkg_table_name, print_cmd=True)
+                            path= os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), print_cmd=True)
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1358,7 +1425,7 @@ class TestGpkgShpConversion:
 
         # write geopackage file
         s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
-                           path = os.path.join(FOLDER_PATH, gpkg_name), print_cmd=True)
+                           path = os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), print_cmd=True)
 
         # # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1401,7 +1468,8 @@ class TestGpkgShpConversion:
                 """)
 
         # write geopackage file
-        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema, path = os.path.join(FOLDER_PATH, gpkg_name), print_cmd=True)
+        s.write_geospatial(dbo=sql, table= test_write_gpkg_table_name, schema=ms_schema,
+                           path = os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name), print_cmd=True)
 
         # add an extra table to test multiple
         sql.query(f"""drop table if exists {ms_schema}.{test_write_gpkg_table_name}_2;
@@ -1414,7 +1482,7 @@ class TestGpkgShpConversion:
         assert sql.table_exists(schema = ms_schema, table = f"{test_write_gpkg_table_name}_2")
 
         s.write_geospatial(dbo=sql, schema = ms_schema, table = test_write_gpkg_table_name + '_2',
-                           path = os.path.join(FOLDER_PATH, gpkg_name), print_cmd=True) # this will append 
+                           path = os.path.join(FOLDER_PATH, gpkg_name, test_write_gpkg_table_name + '_2'), print_cmd=True) # this will append 
 
         # Check table in folder
         assert os.path.isfile(os.path.join(FOLDER_PATH, gpkg_name))
@@ -1877,6 +1945,28 @@ class TestReadShpPG:
         # Cleanup
         db.drop_table(schema=db.default_schema, table=test_read_shp_table_name)
 
+    def test_read_shp_special_char(self):
+
+        fp = FOLDER_PATH
+        shp_name = "test.shp"
+        unique_table_name = '!!T@BLE !!'
+
+        # Assert successful
+        assert shp_name in os.listdir(fp)
+        db.drop_table(schema=pg_schema, table=unique_table_name)
+
+        # Read shp to new, test table
+        s.upload_geospatial(dbo=db, path=os.path.join(fp, shp_name), schema=pg_schema, table = unique_table_name, print_cmd=True)
+
+        # Assert read_shp happened successfully and contents are correct
+        assert db.table_exists(schema=pg_schema, table=unique_table_name.lower()), f'table {unique_table_name} does not exist'
+        table_df = db.dfquery(f'select * from {pg_schema}."{unique_table_name.lower()}"')
+
+        assert set(table_df.columns) == {'ogc_fid', 'gid', 'some_value', 'geom'}, "columns don't match"
+        assert len(table_df) == 2, "table size not 2"
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=unique_table_name.lower())
 
     @classmethod
     def teardown_class(cls):
@@ -2153,6 +2243,29 @@ class TestReadShpMS:
 
         # Cleanup
         sql.drop_table(schema=sql.default_schema, table=test_read_shp_table_name)
+
+    def test_read_shp_special_char(self):
+        
+        fp = FOLDER_PATH
+        shp_name = "test.shp"
+        unique_table_name = '!!T@BLE !!'
+
+        # Assert successful
+        assert shp_name in os.listdir(fp)
+        sql.drop_table(schema=ms_schema, table=unique_table_name)
+
+        # Read shp to new, test table
+        s.upload_geospatial(dbo=sql, path=os.path.join(fp, shp_name), schema=ms_schema, table = unique_table_name, print_cmd=True)
+
+        # Assert read_shp happened successfully and contents are correct
+        assert sql.table_exists(schema=ms_schema, table=unique_table_name.lower())
+        table_df = sql.dfquery(f'select * from {ms_schema}."{unique_table_name.lower()}"')
+
+        assert set(table_df.columns) == {'gid', 'some_value', 'geom', 'ogr_fid'}
+        assert len(table_df) == 2
+
+        # Cleanup
+        sql.drop_table(schema=ms_schema, table=unique_table_name.lower())
 
     @classmethod
     def teardown_class(cls):
@@ -2678,7 +2791,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        db.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, schema=None, feature_class=fc)
+        db.feature_class_to_table(path = os.path.join(fgdb, fc), table = test_feature_class_table_name, schema=None)
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
@@ -2687,7 +2800,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table = test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class = fc)
+        db.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name, schema=None)
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
@@ -2697,7 +2810,8 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        db.feature_class_to_table(path = FOLDER_PATH + "/nyclion_21d.zip/lion/lion.gdb", table = test_feature_class_table_name, schema=None, feature_class=fc)
+        db.feature_class_to_table(path = FOLDER_PATH + f"/nyclion_21d.zip/lion/lion.gdb/{fc}",
+                                  table = test_feature_class_table_name, schema=None)
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
@@ -2707,7 +2821,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table = test_feature_class_table_name, schema=pg_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class = fc, schema=pg_schema)
+        db.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name, schema=pg_schema)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
         db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{test_feature_class_table_name}'")
@@ -2720,7 +2834,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=pg_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
-        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema, srid=4326)
+        db.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name, schema=pg_schema, srid=4326)
         assert db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
         db.query(f'select distinct st_srid(geom) from {pg_schema}.{test_feature_class_table_name}')
@@ -2732,7 +2846,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc)
+        db.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name, schema=None)
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.query(f"""
@@ -2788,7 +2902,7 @@ class TestFeatureClassToTablePg:
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         try:
-            db.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=pg_schema)
+            db.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name, schema=pg_schema)
         except:
             assert not db.table_exists(test_feature_class_table_name, schema=pg_schema)
 
@@ -2800,7 +2914,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=private_table, schema=pg_schema)
         assert not db.table_exists(private_table, schema=pg_schema)
 
-        db.feature_class_to_table(path = fgdb, table=private_table, feature_class=fc, schema=pg_schema, private=True)
+        db.feature_class_to_table(path = os.path.join(fgdb, fc), table=private_table, schema=pg_schema, private=True)
         assert db.table_exists(private_table, schema=pg_schema)
 
         db.query(f"""
@@ -2818,7 +2932,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=not_temp_table, schema=pg_schema)
         assert not db.table_exists(not_temp_table, schema=pg_schema)
 
-        db.feature_class_to_table(path = fgdb, table=not_temp_table, feature_class=fc, schema=pg_schema, temp=False)
+        db.feature_class_to_table(path = os.path.join(fgdb, fc), table=not_temp_table, schema=pg_schema, temp=False)
         assert db.table_exists(not_temp_table, schema=pg_schema)
 
         db.query(f"select * from {pg_schema}.__temp_log_table_{db.user}__ where table_name = '{not_temp_table}'")
@@ -2830,7 +2944,7 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        db.feature_class_to_table(fgdb, test_feature_class_table_name, schema=None, feature_class='lion', extra_cmd='-nlt MULTILINESTRING')
+        db.feature_class_to_table(os.path.join(fgdb, 'lion'), test_feature_class_table_name, schema=None, extra_cmd='-nlt MULTILINESTRING')
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
@@ -2842,10 +2956,24 @@ class TestFeatureClassToTablePg:
         db.drop_table(table=test_feature_class_table_name, schema=db.default_schema)
         assert not db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
-        db.feature_class_to_table(fgdb_subfolder, test_feature_class_table_name, schema=None, feature_class='lion', extra_cmd='-nlt MULTILINESTRING')
+        db.feature_class_to_table(os.path.join(fgdb_subfolder, 'lion'), test_feature_class_table_name,
+                                  schema=None,  extra_cmd='-nlt MULTILINESTRING')
         assert db.table_exists(test_feature_class_table_name, schema=db.default_schema)
 
         db.drop_table(db.default_schema, test_feature_class_table_name)
+
+    def test_import_fc_special_char(self):
+
+        unique_table_name = 'F!unky N@mE?'
+
+        db.drop_table(table=unique_table_name, schema=db.default_schema)
+        assert not db.table_exists(unique_table_name, schema=db.default_schema)
+
+        db.feature_class_to_table(os.path.join(fgdb, 'lion'), unique_table_name,
+                                  schema=None,  extra_cmd='-nlt MULTILINESTRING')
+        assert db.table_exists(unique_table_name.lower(), schema=db.default_schema)
+
+        db.drop_table(db.default_schema, unique_table_name.lower())
 
     @classmethod
     def teardown_class(cls):
@@ -2861,7 +2989,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
-        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, print_cmd=True,skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name,
+                                   schema=None, print_cmd=True,skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
         sql.drop_table(sql.default_schema, test_feature_class_table_name)
@@ -2870,7 +2999,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
-        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name,
+                                   schema=None, skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
         sql.drop_table(sql.default_schema, test_feature_class_table_name)
@@ -2880,7 +3010,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
-        sql.feature_class_to_table(path = FOLDER_PATH + "/nyclion_21d.zip/lion/lion.gdb", table = test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = FOLDER_PATH + f"/nyclion_21d.zip/lion/lion.gdb/{fc}",
+                                   table = test_feature_class_table_name, schema=None, skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
 
         sql.drop_table(sql.default_schema, test_feature_class_table_name)
@@ -2890,7 +3021,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema=ms_schema, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name,
+                                   schema=ms_schema, skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
         sql.drop_table(ms_schema, test_feature_class_table_name)
@@ -2900,7 +3032,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc, schema = ms_schema, srid=4326, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name,
+                                    schema = ms_schema, srid=4326, skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema = ms_schema)
 
         sql.query(f"select distinct geom.STSrid from {ms_schema}.{test_feature_class_table_name}")
@@ -2912,7 +3045,8 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=sql.default_schema)
 
         assert not sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
-        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, schema=None, feature_class=fc, skip_failures='-skip_failures')
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name, 
+                                   schema=None, skip_failures='-skip_failures')
 
         assert sql.table_exists(test_feature_class_table_name, schema=sql.default_schema)
         sql.query(f"""
@@ -2964,7 +3098,8 @@ class TestFeatureClassToTableMs:
         assert not sql.table_exists(test_feature_class_table_name, schema=schema)
 
         try:
-            sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class=fc, schema=schema, skip_failures='-skip_failures')
+            sql.feature_class_to_table(path = os.path.join(fgdb, fc), table = test_feature_class_table_name,
+                                       schema=schema, skip_failures='-skip_failures')
         except:
             assert not sql.table_exists(test_feature_class_table_name, schema=schema)
 
@@ -2975,7 +3110,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema = ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class=fc, schema=ms_schema, temp=False,
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table = test_feature_class_table_name, schema=ms_schema, temp=False,
         skip_failures='-skip_failures')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
@@ -2989,7 +3124,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema = ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table=test_feature_class_table_name, feature_class=fc,
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table=test_feature_class_table_name,
                                    schema = ms_schema, private=True, skip_failures='-skip_failures')
         assert sql.table_exists(table = test_feature_class_table_name, schema = ms_schema)
 
@@ -3002,7 +3137,7 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema,
+        sql.feature_class_to_table(path = os.path.join(fgdb, fc), table = test_feature_class_table_name, schema=ms_schema,
                                     extra_cmd='-nlt MULTILINESTRING')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
@@ -3015,11 +3150,24 @@ class TestFeatureClassToTableMs:
         sql.drop_table(table=test_feature_class_table_name, schema=ms_schema)
         assert not sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
-        sql.feature_class_to_table(path = fgdb_subfolder, table = test_feature_class_table_name, feature_class = fc, schema=ms_schema,
+        sql.feature_class_to_table(path = fgdb_subfolder + '/' + fc, table = test_feature_class_table_name, schema=ms_schema,
                                     extra_cmd='-nlt MULTILINESTRING')
         assert sql.table_exists(test_feature_class_table_name, schema=ms_schema)
 
         sql.drop_table(ms_schema, test_feature_class_table_name)
+
+    def test_import_fc_special_char(self):
+
+        unique_table_name = 'F!unky N@mE?'
+
+        sql.drop_table(table=unique_table_name, schema=ms_schema)
+        assert not sql.table_exists(unique_table_name, schema=ms_schema)
+
+        sql.feature_class_to_table(os.path.join(fgdb, 'lion'), unique_table_name,
+                                  schema=ms_schema,  extra_cmd='-nlt MULTILINESTRING')
+        assert sql.table_exists(unique_table_name.lower(), schema=ms_schema)
+
+        sql.drop_table(ms_schema, unique_table_name.lower())
 
     @classmethod
     def teardown_class(cls):

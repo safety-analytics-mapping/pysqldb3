@@ -175,31 +175,37 @@ def format_dte_columns(dbo, columns_with_types, columns_with_brackets):
 
     return results
 
-def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_tbl = None,
-                        srid='2263', gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
+def write_geospatial(dbo, path,  table = None, schema = '', query = None, srid='2263',
+                     gdal_data_loc=GDAL_DATA_LOC, cmd = None, overwrite = False, print_cmd=False):
     
     """
     Converts a SQL or Postgresql query to a new Geospatial (Shapefile, GPKG) file. Cannot write to a GDB.
 
     :param dbo: Database connection
     :param path (str): File path to the output file. Must include file name and extension.
+                        If the output is a geopackage or geodatabase, the table name should be 
+                        added as '/[table name]' after the file extension. 
     :param table (str): DB Table to be written to a GPKG
     :param schema (str): DB schema
     :param query (str): DB query whose output is to be written to a GPKG
-    :param gpkg_tbl (str):  Name of the output table in the geopackage.
-                            Required input if you write a query to gpkg.
-                            Otherwise, optional if writing an existing db table to the gpkg; if blank, the table name
-                            in the geopackage output will match the name of the input db table.
     :param srid (str): SRID for geometry. Defaults to 2263
     :param cmd (str): Command
     :param overwrite (bool): Overwrite the specific table in the geopackage; defaults to False
     :param print_cmd (bool): Optional flag to print the GDAL command being used; defaults to False
-    :return:
+    :return: 
+
+    Examples:
+        write_geospatial(path = 'C:/User/Document/test1.shp', table = 'testing_table', schema = 'working')
+        write_geospatial(path = 'C:/User/Document/hello.gpkg/goodbye', query = 'select * from my_table')
+        write_geospatial(path = 'C:/User/Document/newyorkcity.gdb/streets', query = 'select * from nyc_streets')
     """
 
     ## INPUT CHECKS ##    
     # assert that a valid file format was input
-    assert path.endswith(('.gpkg', '.shp')), "Output path needs to end with .gpkg or .shp if no file name is supplied"
+    assert '.gpkg' in path or '.shp' in path, "Output path needs to include .gpkg or .shp if no file name is supplied"
+    geospatial_assert_formats(path) # check for proper table syntax if it's a geopackage
+
+    path, output_folder, output_path, output_tbl = decompress_and_parse_file_path(path)
 
     original_temp_flag = dbo.allow_temp_tables
     dbo.allow_temp_tables = True
@@ -207,7 +213,7 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_t
     if not query and not table:
         raise Exception('You must specify the db table or query to be written.')
     
-    if query and not gpkg_tbl and path.endswith('.gpkg'):
+    if query and not output_tbl and path.endswith('.gpkg' ):
         raise Exception ('You must specify a gpkg_tbl name in the function for the output table if you are writing a db query to a geopackage.')
 
     # defaults for table input
@@ -229,9 +235,6 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_t
         path = path[:-4].replace(".", "_") + ".shp"
         print(' The "." character is not allowed in output shp file names. Any "." have been replaced with "_".')
 
-    if not gpkg_tbl:
-        gpkg_tbl = table
-
     # overwrite vs update vs an issue has arisen
     if overwrite:
         # if explict overwrite, then create command line as directed
@@ -245,7 +248,7 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_t
     
     elif not overwrite and geospatial_exists(path) and path.endswith('.gpkg'): # check if the geopackage already exists
         
-        table_exists = geospatial_tbl_exists(path, geospatial_tbl = gpkg_tbl)
+        table_exists = geospatial_tbl_exists(path, geospatial_tbl = output_tbl)
         
         if table_exists == True:
             print("The table name to be exported already exists in the geopackage. Either change to Overwrite = True or check the name of the table to be copied.")
@@ -262,7 +265,7 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, gpkg_t
 
     # run the final command
     if not cmd:
-        cmd = write_cmd(dbo, path, gpkg_tbl, table, _overwrite, _update, srid, gdal_data_loc, qry)
+        cmd = write_cmd(dbo, path, output_tbl, table, _overwrite, _update, srid, gdal_data_loc, qry)
 
     if print_cmd:
         print(print_cmd_string([dbo.password], cmd))
@@ -305,14 +308,11 @@ def geospatial_convert(path, output_file = None, overwrite = False, print_cmd = 
                         output_file = 'C:/Documents/export_files/my_new_gpkg.gpkg/resulting_table2')
     """
     ## ASSERTIONS ##
-    geo_convert_assert_formats(path = path, output_file = output_file)
-
-    # if the file happens to be a zip file, this will help us read it
-    input_path = add_zip_to_geo_path(path)
+    geospatial_assert_formats(path = path, output_file = output_file)
 
     # determine input/output paths and file names
-    input_full_path, input_folder, input_path, input_table = parse_file_path(path = input_path)
-    output_full_path, output_folder, output_path, output_table = parse_file_path(path = output_file)
+    input_full_path, input_folder, input_path, input_table = decompress_and_parse_file_path(path = path)
+    output_full_path, output_folder, output_path, output_table = decompress_and_parse_file_path(path = output_file)
 
     # if there is no file path from the output path argument, set to input path
     if output_folder == '':
@@ -375,7 +375,7 @@ def gpkg_to_shp_bulk(   path,
     assert path.endswith('.gpkg'), "The input file must end with .gpkg and the output file with .shp"
 
     try:
-        count_cmd = COUNT_GPKG_LAYERS.format(full_path = path)
+        count_cmd = COUNT_GEOSPATIAL_LAYERS.format(full_path = path)
         ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
         tables_in_gpkg = re.findall(r"\\n\d+:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response)) 
 
@@ -390,20 +390,18 @@ def gpkg_to_shp_bulk(   path,
 
     return
 
-def upload_geospatial(dbo, path, schema = None, table = None, gpkg_tbl = None, feature_class = None, port = 5432,
-                                srid = '2263', gdal_data_loc=GDAL_DATA_LOC, precision=False, private=False, encoding=None, print_cmd=False, 
-                                skip_failures = '', temp = True, days = 7, extra_cmd = None):
+def upload_geospatial(dbo, path, schema = None, table = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
+                        precision=False, private=False, encoding=None, print_cmd=False, 
+                        skip_failures = '', temp = True, days = 7, extra_cmd = None):
 
     """
     Reads all tables within a Geopackage/Geodatabase file into SQL or Postgresql as tables.
-    Function is NOT applicable to Shapefiles.
 
-    :param path: Input file path for geopackage
+    :param path: Input file path for geospatial file (.shp/.gpkg/.gdb). If an sub-table/feature class
+            is to be uploaded, include as '/[table_name]'. If bulk uploading, 
     :param dbo: Database connection
     :param schema (str): Schema that the imported geopackage data will be found
     :param table (str): SINGLE TABLE EXPORT ONLY. Name of table in db.
-    :param gpkg_tbl (str): SINGLE TABLE EXPORT ONLY. Name of geopackage table for input to db.
-    :param feature_class (str): SINGLE TABLE EXPORT ONLY. Name of feature class in .gdb.
     :param port (int): Optional port
     :param srid (str): SRID for geometry. Defaults to 2263
     :param gdal_data_loc:
@@ -415,19 +413,19 @@ def upload_geospatial(dbo, path, schema = None, table = None, gpkg_tbl = None, f
     :param days (int): if temp=True, the number of days that the temp table will be kept. Defaults to 7.
     :param extra_cmd (str): Optional additional command. Helpful if you cmd = None and you want to add extra arguments
     :return: 
+
+    Example inputs:
+    upload_geospatial(path = 'C:/User/Name1/Documents/my_geopackage.gpkg/gpkg_tbl_for_upload') # single tbl
+    upload_geospatial(path = 'C:/User/Name1/Documents/my_geopdatabase.gdb/') # bulk upload all in geodatabase
+    upload_geospatial(path = 'C:/User/Name1/Documents/my_geopackage.shp')
     """
 
-    temp_dir = None
-    
-    # check input file path
-    assert path.endswith(('.shp', '.gpkg', '.gdb')), "The path should end with .gpkg, .shp, .gdb"
+    # check input file path syntax
+    # If bulk uploading, a table name is not required
+    geospatial_assert_formats(path = path, bulk_optional = True)
     
     # if the file happens to be a zip file, this will help us read it
-    path, input_table = read_compressed(temp_dir, path)
-
-    # if shapefile is selected, you can't have feature class filled in since it will not take that argument
-    if path.endswith('.shp'):
-        assert not feature_class, "feature_class input will not be considered if the input file is .shp"
+    path, file_dir, file_name, input_table = decompress_and_parse_file_path(path)
 
     # Use default schema from db object
     if not schema:
@@ -438,19 +436,17 @@ def upload_geospatial(dbo, path, schema = None, table = None, gpkg_tbl = None, f
     else:
         precision = ''
 
-    if feature_class:
-        if feature_class.endswith('.shp'):
-            feature_class = feature_class[:-4]
+    # create a dictionary 
+    input_tbl_names = set_up_geo_tbl_dict(dbo, path, table, input_table)
 
-    # clean table name if it's a single input   
-    table = clean_table_name(table, gpkg_tbl, path)
-
-    # if the inputs suggest bulk uploading
-    gpkg_tbl_names = bulk_upload_table_setup(dbo, path, table, feature_class, temp_dir, gpkg_tbl)
-
-    # start of loop
-    for gpkg_tbl, table in gpkg_tbl_names.items():
+    # loop through file names and db upload names
+    for file_tbl, table in input_tbl_names.items():
+        
         table = table.lower()
+        
+        # put double quotes if dbo = PG for any tbl names with special chars
+        if re.search(r'[^A-Za-z0-9_]+', table) and dbo.type == 'PG':
+            table = '"' + table + '"'
 
         if dbo.table_exists(table = table, schema = schema):
 
@@ -463,9 +459,9 @@ def upload_geospatial(dbo, path, schema = None, table = None, gpkg_tbl = None, f
                 dbo.drop_table(schema, table, cascade = True)
 
         # produce command
-        cmd = read_geospatial_command(dbo, gdal_data_loc, srid, path, schema,
-                            table, precision, port, gpkg_tbl, feature_class, skip_failures)
-        
+        cmd = read_geospatial_command(dbo, gdal_data_loc, srid, path, schema, table,
+                                      file_tbl, precision, port, skip_failures)
+    
         if extra_cmd:
             cmd = cmd + f' {extra_cmd}'
 
@@ -474,24 +470,20 @@ def upload_geospatial(dbo, path, schema = None, table = None, gpkg_tbl = None, f
 
         cmd_env = encoding_changes(encoding)
 
-        execute_cmd(dbo = dbo, cmd = cmd, feature_class = feature_class, cmd_env = cmd_env)
+        execute_cmd(dbo = dbo, cmd = cmd, cmd_env = cmd_env)
 
         # add a comment to the query
-        comment_query(dbo, feature_class, schema, table, path)
+        comment_query(dbo, schema, table, path)
 
         if not private and dbo.type == 'PG':
             # can only grant select to public in PG
-            dbo.query(f'grant select on {schema}."{table}" to public;', timeme=False, internal=True, strict=True)
+            dbo.query(f'grant select on {schema}.{table} to public;', timeme=False, internal=True, strict=True)
 
         rename_geom(dbo, schema, table)
         dbo.tables_created.append((dbo.server, dbo.database, schema,  table))
         
         if temp:
             dbo._run_table_logging([schema + "." + table], days=days)
-
-        # remove temp folders of any decompressed files
-        if temp_dir:
-            shutil.rmtree(temp_dir)
 
 
 def del_indexes(dbo, schema, table):

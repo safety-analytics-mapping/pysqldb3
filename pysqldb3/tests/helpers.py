@@ -566,6 +566,9 @@ def clean_up_geopackage():
 
     print ('Deleting any existing gpkg')
 
+    # remove the zip folder too
+    if os.path.isdir(DIR + '\\subfolder_gpkg.zip'):
+        os.remove(DIR + '\\subfolder_gpkg.zip')
 
 def identify_default_dtypes(db, schema = 'working'):
 

@@ -98,7 +98,7 @@ WRITE_GPKG_CMD_SHP = r'ogr2ogr -f "ESRI Shapefile" "{shp_path}" "{gpkg_path}" {g
 
 WRITE_GDB_CMD_GPKG = r'ogr2ogr -f GPKG {_update} "{gpkg_path}" -nln {gpkg_tbl}  "{shp_path}" {feature_class}'
 
-COUNT_GPKG_LAYERS = r'ogrinfo "{full_path}"' # command used for reading in all geopackage tables
+COUNT_GEOSPATIAL_LAYERS = r'ogrinfo "{full_path}"' # command used for reading in geopackage or geodatabase tables
 
 """
 Db to Db IO 
