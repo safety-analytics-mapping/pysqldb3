@@ -707,7 +707,7 @@ def retrieve_input_tbl_names(dbo, full_path):
     # create empty dictionary
     gpkg_tbl_names = {}
     
-    # count numbre of tables and parse through them
+    # count number of tables and parse through them
     try:
         if full_path.endswith('.gpkg'):
             count_cmd = COUNT_GEOSPATIAL_LAYERS.format(full_path = full_path) 
@@ -716,7 +716,7 @@ def retrieve_input_tbl_names(dbo, full_path):
         # only allows tables names with underscores, numbers, and letters as the first character
         # excludes any dtype description that's also returned by the command line
         else: # .gdb
-            count_cmd = COUNT_GEOSPATIAL_LAYERS.format(full_path = os.path.dirname(full_path)) 
+            count_cmd = COUNT_GEOSPATIAL_LAYERS.format(full_path = full_path) 
             ogr_response = subprocess.check_output(shlex.split(count_cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
             tables_in_gpkg = re.findall(r"Layer:\s(.*?)(?=\\r|\s\(.*\))", str(ogr_response))
 
