@@ -2096,6 +2096,43 @@ class DbConnect:
                             srid = srid, gdal_data_loc = gdal_data_loc, precision=precision, private=private, encoding=gpkg_encoding,
                             temp = temp, days = days, extra_cmd = extra_cmd, print_cmd=print_cmd)
 
+    def table_to_shp(self, table, schema=None, strict=True, path=None, shp_name=None, cmd=None,
+                     gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
+        """
+        Exports database table to a shp file.
+        :param table: SQL database table
+        :param schema: SQL database schema
+        :param path: Folder path for output shp. Filename must end in .shp
+        :param cmd: GDAL command to overwrite default
+        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
+        :param print_cmd: boolean to print ogr command (without password)
+        :param srid: SRID to manually set output to; defaults to 2263
+        :return:
+        """
+        
+        write_geospatial(dbo = self, path = path, schema = schema, table = table,
+                        cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
+
+    def table_to_gpkg(self, schema, table, path, overwrite = True, cmd=None,
+                      gdal_data_loc=GDAL_DATA_LOC, print_cmd=False, srid=2263):
+        """
+        Exports table to a Geopackage file.
+        :param schema: SQL database schema
+        :param table: SQL database table
+        :param path: folder path for output gpkg. Must end with .gpkg/[table_name]
+        :param overwrite: Defaults to True. Will overwrite table with the same name if it exists.
+        :param cmd: GDAL command to overwrite default
+        :param gdal_data_loc: Path to gdal data, if not stored in system env correctly
+        :param print_cmd: boolean to print ogr command (without password)
+        :param srid: SRID to manually set output to; defaults to 2263
+        :return:
+
+        Example: table_to_gpkg(schema = 'public', table = 'run1', path = 'C:/User/Docs/my_geopackage.gpkg/my_gpkg_tbl')
+        """
+        
+        write_geospatial(dbo = self, path = path, schema = schema, table = table, overwrite = overwrite,
+                         cmd = cmd, gdal_data_loc = gdal_data_loc, print_cmd = print_cmd, srid = srid)
+
 
     def table_to_csv(self, table, schema=None, strict=True, output_file=None, open_file=False, sep=',',
                      quote_strings=True):

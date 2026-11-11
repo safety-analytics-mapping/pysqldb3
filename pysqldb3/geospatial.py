@@ -246,7 +246,7 @@ def write_geospatial(dbo, path,  table = None, schema = '', query = None, srid='
         _update = ''
         _overwrite = ''
     
-    elif not overwrite and geospatial_exists(path) and path.endswith('.gpkg'): # check if the geopackage already exists
+    elif not overwrite and geospatial_exists(path) and '.gpkg' in path: # check if the geopackage already exists
         
         table_exists = geospatial_tbl_exists(path, geospatial_tbl = output_tbl)
         
