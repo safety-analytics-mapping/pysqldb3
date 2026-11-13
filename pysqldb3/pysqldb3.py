@@ -263,7 +263,7 @@ class DbConnect:
 
         self.params = {
             'database': self.database,
-            'SERVER': self.server,
+            'host': self.server,
             'PORT' : '1433;DATABASE = '+self.database,
             'UID': self.user+'@dot.nyc.gov',
             'AUTHENTICATION' : 'ActiveDirectoryInteractive',
