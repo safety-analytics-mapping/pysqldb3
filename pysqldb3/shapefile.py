@@ -279,8 +279,9 @@ class Shapefile:
             except:
                 pass
         rename_geom(db = self.dbo, schema = self.schema, table = self.table)
+        self.dbo.tables_created.append((self.dbo.server, self.dbo.database, self.schema, self.table))
 
-    def read_feature_class(self, private=False, print_cmd=False, fc_encoding=None):
+    def read_feature_class(self, private=False, print_cmd=False, fc_encoding=None, extra_cmd=None):
         """
         Reads a feature of a shapefile in as a table
         :param private:
@@ -332,6 +333,8 @@ class Shapefile:
                 sf=self.skip_failures
             )
 
+        if extra_cmd:
+            cmd = cmd+f' {extra_cmd}'
         cmd_env = os.environ.copy()
         if fc_encoding and fc_encoding.upper() == 'LATIN1':
             cmd_env['PGCLIENTENCODING'] = 'LATIN1'
@@ -367,6 +370,6 @@ class Shapefile:
             except:
                 pass
         rename_geom(db = self.dbo, schema = self.schema, table = self.table)
-        self.dbo.tables_created.append(self.schema + "." + self.table)
+        self.dbo.tables_created.append((self.dbo.server, self.dbo.database, self.schema, self.table))
 
     

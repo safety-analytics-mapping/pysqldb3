@@ -453,7 +453,8 @@ class TestLogging:
         assert before_drop_working_log_length == 0
 
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
-        df.to_excel(fp)
+        # df.to_excel(fp)
+        helpers.write_xls_from_df(fp, df)
         db.xls_to_table(input_file=fp, schema='working', table=table_for_testing_logging)
 
         after_log_df = db.dfquery("""
@@ -466,6 +467,7 @@ class TestLogging:
         assert after_drop_working_log_length == 1
 
         db.drop_table(table=table_for_testing_logging, schema='working')
+        helpers.clean_up_ext('xlsx')
 
     def test_dataframe_to_table_logging(self):
         before_log_df = db.dfquery("""
@@ -554,6 +556,7 @@ class TestLogging:
         assert after_drop_working_log_length == 1
 
         db.drop_table(table=table_for_testing_logging, schema='working')
+        helpers.clean_up_ext('csv')
 
     def test_table_to_csv_check_file_quote_name(self):
         schema = 'working'
@@ -582,7 +585,7 @@ class TestLogging:
 
         # clean up
         db.drop_table(schema, table_for_testing_logging)
-        os.remove(os.path.join(fldr, table_for_testing_logging + '.csv'))
+        helpers.clean_up_ext('csv')
 
     def test_pg_capitals(self):
         # Assert no test table
@@ -956,7 +959,7 @@ class TestLogging:
 class TestInheritence:
     def test_pg_connect_all_but_db(self):
         second_db = test_config.get('SECOND_PG_DB', 'DB_NAME')
-        db2 = pysqldb.DbConnect(inherits_from=db, database=second_db)
+        db2 = pysqldb.DbConnect(inherits_from=db, database=second_db, server='dotdevrhpgsql01')
         assert db2.database==second_db
         assert db.database != second_db
     def test_pg_connect_all_but_user(self):

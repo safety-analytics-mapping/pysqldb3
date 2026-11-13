@@ -7,7 +7,7 @@ class TestQueryDropsTablesSql():
         DROP TABLE RISCRASHDATA.dbo.test;
         """
 
-        assert query.Query.query_drops_table(query_string, 'MS') == ['riscrashdata.dbo.test']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == [(None, 'riscrashdata', 'dbo', 'test')]
 
     def test_query_drops_table_from_qry_w_comment(self):
         query_string = """
@@ -20,52 +20,52 @@ class TestQueryDropsTablesSql():
         DROP TABLE "RISCRASHDATA".dbo.[Test];
         """
 
-        assert query.Query.query_drops_table(query_string,'MS') == ['RISCRASHDATA.dbo.Test']
+        assert query.Query.query_drops_table(query_string,'dbo','MS') == [(None, 'riscrashdata', 'dbo', 'test')]
 
     def test_query_drops_table_from_qry_brackets(self):
         query_string = """
         DROP TABLE [RISCRASHDATA].[dbo].[test];
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == ['RISCRASHDATA.dbo.test']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') ==  [(None, 'riscrashdata', 'dbo', 'test')]
 
         query_string = """
         DROP TABLE [RISCRASHDATA].[dbo].[123 test];
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == ['RISCRASHDATA.dbo.123 test']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') ==  [(None, 'riscrashdata', 'dbo', '123 test')]
 
         query_string = """
         DROP TABLE [RISCRASHDATA].[dbo].test;
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == ['RISCRASHDATA.dbo.test']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == [(None, 'riscrashdata', 'dbo', 'test')]
 
     def test_query_drops_table_from_qry_brackets_quotes(self):
         query_string = """
         DROP TABLE [RISCRASHDATA].[dbo].["test"];
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == ['RISCRASHDATA.dbo."test"']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == [(None, 'riscrashdata', 'dbo', 'test')]
 
         query_string = """
         DROP TABLE [RISCRASHDATA].[dbo].["123 test"];
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == ['RISCRASHDATA.dbo."123 test"']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == [(None, 'riscrashdata', 'dbo', '123 test')]
 
     def test_query_drops_table_from_with_server(self):
         query_string = """
         DROP TABLE dotdevgissql01.riscrashdata.dbo.test;
         """
 
-        assert query.Query.query_drops_table(query_string, 'MS') == ['dotdevgissql01.riscrashdata.dbo.test']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == [('dotdevgissql01', 'riscrashdata', 'dbo', 'test')]
 
     def test_query_drops_table_from_with_server_brackets(self):
         query_string = """
         DROP TABLE dotdevgissql01.riscrashdata.dbo.[test];
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == ['dotdevgissql01.riscrashdata.dbo.test']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == [('dotdevgissql01', 'riscrashdata', 'dbo', 'test')]
 
         query_string = """
          DROP TABLE dotdevgissql01.riscrashdata.dbo.[123 test];
          """
-        assert query.Query.query_drops_table(query_string, 'MS') == ['dotdevgissql01.riscrashdata.dbo.123 test']
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == [('dotdevgissql01', 'riscrashdata', 'dbo', '123 test')]
 
     def test_query_drops_table_multiple_tables(self):
         query_string = """
@@ -75,8 +75,8 @@ class TestQueryDropsTablesSql():
         
         DROP TABLE RISCRASHDATA.dbo.test3;
         """
-        x = query.Query.query_drops_table(query_string, 'MS')
-        assert x == ['riscrashdata.dbo.test', 'riscrashdata.dbo.test2', 'riscrashdata.dbo.test3']
+        x = query.Query.query_drops_table(query_string, 'dbo', 'MS')
+        assert x == [(None, 'riscrashdata', 'dbo', 'test'), (None, 'riscrashdata', 'dbo', 'test2'), (None, 'riscrashdata', 'dbo', 'test3')]
 
     def test_query_drops_table_multiple_tables_brackets(self):
         query_string = """
@@ -86,61 +86,61 @@ class TestQueryDropsTablesSql():
         
         DROP TABLE [RISCRASHDATA].dbo.[test3];
         """
-        x = query.Query.query_drops_table(query_string, 'MS')
+        x = query.Query.query_drops_table(query_string, 'dbo','MS')
         x = set(x)
-        assert x == set(['RISCRASHDATA.dbo.test3', 'riscrashdata.dbo.test2', 'dbo.test'])
+        assert x == {(None, None, 'dbo', 'test'), (None, 'riscrashdata', 'dbo', 'test2'), (None, 'riscrashdata', 'dbo', 'test3')}
 
         query_string = """
         DROP TABLE riscrashdata.dbo.[123 test];
         DROP TABLE riscrashdata.dbo.[123 test2];
         DROP TABLE [RISCRASHDATA].[dbo].[123 test3];
         """
-        x = query.Query.query_drops_table(query_string, 'MS')
+        x = query.Query.query_drops_table(query_string, 'dbo','MS')
         x = set(x)
-        assert x == set(['riscrashdata.dbo.123 test2', 'RISCRASHDATA.dbo.123 test3', 'riscrashdata.dbo.123 test'])
+        assert x == {(None, 'riscrashdata', 'dbo', '123 test'), (None, 'riscrashdata', 'dbo', '123 test2'), (None, 'riscrashdata', 'dbo', '123 test3')}
 
     def test_query_drops_table_view(self):
         query_string = """
         DROP view dotdevgissql01.riscrashdata.dbo.test;
         """
 
-        assert query.Query.query_drops_table(query_string, 'MS') == []
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == []
 
     def test_query_drops_table_view_brackets(self):
         query_string = """
         DROP VIEW [dotdevgissql01].[riscrashdata].[dbo].[test];
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == []
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == []
 
         query_string = """
         DROP VIEW [dotdevgissql01].[riscrashdata].[dbo].[123 test];
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == []
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == []
 
     def test_query_drops_table_temp_table(self):
         query_string = """
         DROP table #test;
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == []
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == []
 
         query_string = """
         DROP table ##test;
         """
 
-        assert query.Query.query_drops_table(query_string, 'MS') == []
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == []
 
     def test_query_drops_table_temp_table_brackets(self):
         query_string = """
         DROP table [#test];
         
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == []
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == []
 
         query_string = """
         DROP table [##test];
 
         """
-        assert query.Query.query_drops_table(query_string, 'MS') == []
+        assert query.Query.query_drops_table(query_string, 'dbo','MS') == []
 
     def test_query_drops_table_from_into_multiple_statements(self):
         query_string = """
@@ -150,9 +150,9 @@ class TestQueryDropsTablesSql():
             
             DROP TABLE riscrashdata.dbo.[test1];
         """
-        x = query.Query.query_drops_table(query_string, 'MS')
+        x = query.Query.query_drops_table(query_string, 'dbo','MS')
         x = set(x)
-        assert x == {'riscrashdata.dbo.test1'}
+        assert x == {(None, 'riscrashdata', 'dbo', 'test1')}
 
     def test_query_drops_creates_drops_table(self):
         query_string = """
@@ -164,8 +164,8 @@ class TestQueryDropsTablesSql():
 
             DROP TABLE riscrashdata.dbo.[test1];
         """
-        x = query.Query.query_drops_table(query_string, 'MS')
-        assert x == ['riscrashdata.dbo.test1', 'riscrashdata.dbo.test1']
+        x = query.Query.query_drops_table(query_string, 'dbo', 'MS')
+        assert x == [(None, 'riscrashdata', 'dbo', 'test1'), (None, 'riscrashdata', 'dbo', 'test1')]
 
 
 class TestQueryDropsTablesPgSql():
@@ -179,7 +179,7 @@ class TestQueryDropsTablesPgSql():
         */
         DROP TABLE test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', 'test')]
 
         query_string = """
         -- DROP TABLE if exists error1;
@@ -190,7 +190,7 @@ class TestQueryDropsTablesPgSql():
         */
         DROP TABLE IF EXISTS test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', 'test')]
 
         query_string = """
         -- DROP TABLE working.error1;
@@ -201,7 +201,7 @@ class TestQueryDropsTablesPgSql():
         */
         DROP TABLE working.test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 'test')]
 
         query_string = """
         -- DROP TABLE if exists working.error1;
@@ -212,81 +212,81 @@ class TestQueryDropsTablesPgSql():
         */
         DROP TABLE IF EXISTS working.test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 'test')]
 
     def test_query_drops_table_from_qry_w_comments(self):
         query_string = """
         DROP TABLE test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', 'test')]
 
         query_string = """
         DROP TABLE IF EXISTS test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', 'test')]
 
         query_string = """
         DROP TABLE working.test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 'test')]
 
         query_string = """
         DROP TABLE IF EXISTS working.test;
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 'test')]
 
 
     def test_query_drops_table_from_qry_quotes(self):
         query_string = """
         DROP TABLE working."test";
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 'test')]
 
         query_string = """
         DROP TABLE IF EXISTS working."Test";
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.Test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 'test')]
 
         query_string = """
         DROP TABLE working."123 test";
         """
 
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.123 test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', '123 test')]
 
         query_string = """
         DROP TABLE "test";
         """
 
-        assert query.Query.query_drops_table(query_string, 'PG') == ['test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', 'test')]
 
         query_string = """
         DROP TABLE "123 test";
         """
 
-        assert query.Query.query_drops_table(query_string, 'PG') == ['123 test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', '123 test')]
 
     def test_query_drops_table_other_quotes(self):
         query_string = """
         DROP TABLE "working"."test";
         """
 
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 'test')]
 
         query_string = """
         DROP TABLE IF EXISTS "working"."t3st";
         """
 
-        assert query.Query.query_drops_table(query_string, 'PG') == ['working.t3st']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'working', 't3st')]
 
         query_string = """
         DROP TABLE "Test";
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['Test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', 'test')]
 
         query_string = """
         DROP TABLE IF EXISTS "Test";
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == ['Test']
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == [(None, None, 'public', 'test')]
 
     def test_query_drops_table_multiple_tables_quotes(self):
         query_string = """
@@ -296,26 +296,26 @@ class TestQueryDropsTablesPgSql():
         
         DROP TABLE "staging"."test3";
         """
-        x = query.Query.query_drops_table(query_string, 'PG')
+        x = query.Query.query_drops_table(query_string, 'public', 'PG')
 
-        assert x == [ 'working.test', 'test2', 'staging.test3']
+        assert x ==  [(None, None, 'working', 'test'), (None, None, 'public', 'test2'), (None, None, 'staging', 'test3')]
 
     def test_query_drops_table_view_quote(self):
         query_string = """
         DROP VIEW "public"."test";
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == []
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == []
 
     def test_query_drops_table_temp_table(self):
         query_string = """
         DROP temporary table test; 
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == []
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == []
 
         query_string = """
         DROP temp table test; 
         """
-        assert query.Query.query_drops_table(query_string, 'PG') == []
+        assert query.Query.query_drops_table(query_string, 'public', 'PG') == []
 
     def test_query_drops_table_from_into_multiple_wtemp(self):
         query_string = """
@@ -323,9 +323,9 @@ class TestQueryDropsTablesPgSql():
         
         DROP TEMPORARY TABLE test3;
         """
-        x = query.Query.query_drops_table(query_string, 'PG')
+        x = query.Query.query_drops_table(query_string, 'public', 'PG')
         x.sort()
-        assert x == ['working.test2']
+        assert x == [(None, None, 'working', 'test2')]
 
     def test_query_drops_creates_drops(self):
         query_string = """
@@ -335,5 +335,5 @@ class TestQueryDropsTablesPgSql():
 
         DROP TABLE working.test2;
         """
-        x = query.Query.query_drops_table(query_string, 'PG')
-        assert x == ['working.test1', 'working.test2']
+        x = query.Query.query_drops_table(query_string, 'public', 'PG')
+        assert x == [(None, None, 'working', 'test1'), (None, None, 'working', 'test2')]
