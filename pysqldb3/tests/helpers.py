@@ -289,7 +289,7 @@ def clean_up_feature_class():
     # os.rmdir(fldr)
     
     # remove subfolder if created (it's not created in test_query_to_geospatial.py)
-    if os.path.isdir(f'{DIR}/subfolder_gdb.zip'):
+    if os.path.isfile(f'{DIR}/subfolder_gdb.zip'):
         os.remove(f'{DIR}/subfolder_gdb.zip')
 
 # def set_up_fc_and_shapefile():
@@ -374,9 +374,11 @@ def set_up_shapefile():
 def clean_up_shapefile():
     fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)))
     for ext in ('shp', 'dbf', 'shx', 'prj', 'zip', '.tar', '.gz', '.tgz', '.7z', '.rar', '.gdb'):
-        _fle = f'{fldr}\\test_data\\test.{ext}'
-        if os.path.isfile(_fle):
-            os.remove(_fle)
+
+        for file_name in ['test', 'test_write']:
+            _fle = f'{fldr}\\test_data\\{file_name}.{ext}'
+            if os.path.isfile(_fle):
+                os.remove(_fle)
         
     # remove subfolder zip if it was created
     if os.path.isfile(f'{DIR}\\subfolder.zip'):
@@ -566,6 +568,9 @@ def clean_up_geopackage():
 
     print ('Deleting any existing gpkg')
 
+    # remove the zip folder too
+    if os.path.isfile(DIR + '\\subfolder_gpkg.zip'):
+        os.remove(DIR + '\\subfolder_gpkg.zip')
 
 def identify_default_dtypes(db, schema = 'working'):
 
