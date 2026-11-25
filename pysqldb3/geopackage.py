@@ -512,6 +512,8 @@ class Geopackage:
                 pass
         rename_geom(dbo, schema, table)
 
+        dbo.tables_created.append((dbo.server, dbo.database, schema, table))
+
 
     def read_gpkg_bulk(self, dbo, schema = None, port = 5432, srid = '2263', gdal_data_loc=GDAL_DATA_LOC,
                     precision=False, private=False, gpkg_encoding=None, print_cmd=False):

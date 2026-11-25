@@ -1,5 +1,6 @@
 import datetime
 import os
+import csv
 
 import configparser
 import pandas as pd
@@ -412,11 +413,20 @@ class Test_Table_to_CSV_MS:
         helpers.set_up_schema(sql, ms_schema=ms_schema)
         helpers.set_up_test_table_sql(sql, schema=ms_schema)
 
-    def test_table_to_csv_check_file_bad_path(self):
+    def test_table_to_csv_output_conflict(self):
         schema = ms_schema
         fldr = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_data_no_folder')
         sql.drop_table(schema=schema, table=create_table_name)
+        # make sure there is an existing file for overwrite conflict error
+        output_file_path = os.path.join(fldr, create_table_name + '.csv')
+        if not os.path.isfile(output_file_path):
+            if not os.path.isdir(fldr):
+                os.mkdir(fldr)
+            with open(output_file_path, 'w', newline='') as csvfile:
+                w = csv.writer(csvfile, delimiter=',')
+                w.writerow(['test, overwrite, error'])
 
+        assert os.path.isfile(output_file_path)
         # create table
         sql.query(f"""
             CREATE TABLE {schema}.{create_table_name} (
@@ -438,8 +448,9 @@ class Test_Table_to_CSV_MS:
         with raises(RuntimeError) as exc_info:
             sql.table_to_csv(create_table_name,
                              schema=schema,
-                             output_file=os.path.join(fldr, create_table_name + '.csv')
+                             output_file=output_file_path
                              )
+
         assert exc_info.type is RuntimeError
 
         # clean up

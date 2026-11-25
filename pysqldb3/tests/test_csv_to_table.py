@@ -4,6 +4,7 @@ import configparser
 import pandas as pd
 
 from .. import pysqldb3 as pysqldb
+from .. import util as util
 from . import helpers
 
 config = configparser.ConfigParser()
@@ -15,11 +16,16 @@ db = pysqldb.DbConnect(type=config.get('PG_DB', 'TYPE'),
                        user=config.get('PG_DB', 'DB_USER'),
                        password=config.get('PG_DB', 'DB_PASSWORD'))
 
+dbt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=db)
+
+
 sql = pysqldb.DbConnect(type=config.get('SQL_DB', 'TYPE'),
                         server=config.get('SQL_DB', 'SERVER'),
                         database=config.get('SQL_DB', 'DB_NAME'),
                         user=config.get('SQL_DB', 'DB_USER'),
                         password=config.get('SQL_DB', 'DB_PASSWORD'))
+
+sqlt = pysqldb.DbConnect(allow_temp_tables=True, inherits_from=sql)
 
 pg_table_name = 'pg_test_table_{}'.format(db.user)
 create_table_name = 'sample_acs_test_csv_to_table_{}'.format(db.user)
@@ -49,6 +55,23 @@ class TestCsvToTablePG:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
+    def test_csv_to_table_basic_override_all(self):
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, column_type_overrides='all')
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+
+        # check table schema
+        db.get_table_columns(create_table_name, schema=pg_schema)
+        assert set([i[1] for i in db.get_table_columns(create_table_name, schema=pg_schema)]) == {f'character varying ({util.VARCHAR_MAX[db.type]})'}
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -200,7 +223,7 @@ class TestCsvToTablePG:
 
         fp = helpers.DIR + "\\test4.csv"
         db.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema,
-                        skip_rows=1)
+                                skip_rows=1)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -245,7 +268,7 @@ class TestCsvToTablePG:
                                             where table_name = '{}' and lower(column_name) not like '%unnamed%';
 
                                       """.format(create_table_name))
-        )
+                                      )
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -282,7 +305,7 @@ class TestCsvToTablePG:
                                             where table_name = '{}' and lower(column_name) not like '%unnamed%';
 
                                       """.format(create_table_name))
-        )
+                                      )
 
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
@@ -369,7 +392,7 @@ class TestCsvToTablePG:
         base_string = 'text'*150
         fp = helpers.DIR + "\\varchar.csv"
         db.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -385,7 +408,70 @@ class TestCsvToTablePG:
         # Cleanup
         db.drop_table(schema=pg_schema, table=create_table_name)
 
+
+    def test_csv_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test9.csv"
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema)
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
     # Temp test is in logging tests
+
+    def test_multirow_header_csv(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        db.drop_table(pg_schema, create_table_name)
+        assert not db.table_exists(create_table_name, schema=pg_schema)
+
+        # import table
+        db.csv_to_table(csv_fle, schema=pg_schema, table=create_table_name, header=[0, 1])
+        assert db.table_exists(create_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(create_table_name, schema=pg_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        db.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {pg_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        db.drop_table(pg_schema, create_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -516,12 +602,11 @@ class TestBulkCSVToTablePG:
 
     def test_bulk_csv_to_table_long_column(self):
         # csv_to_table
-        if db.table_exists(schema=pg_schema, table=create_table_name):
-            db.drop_table(schema=pg_schema, table=create_table_name)
+        db.drop_table(schema=pg_schema, table=create_table_name)
 
         fp = helpers.DIR + "\\varchar.csv"
-        pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, long_varchar_check=True)
+        pd.DataFrame(['text'*150]*1000, columns=['long_column']).to_csv(fp)
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert db.table_exists(table=create_table_name, schema=pg_schema)
@@ -541,7 +626,67 @@ class TestBulkCSVToTablePG:
         # Test input schema
         return
 
-    # Temp test is in logging tests
+    def test_csv_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        db.query('drop table if exists {}.{}'.format(pg_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test9_bulk.csv"
+        db.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema)
+
+        # Check to see if table is in database
+        assert db.table_exists(table=create_table_name, schema=pg_schema)
+        db_df = db.dfquery("select * from {}.{}".format(pg_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        db.drop_table(schema=pg_schema, table=create_table_name)
+
+    def test_multirow_header_csv_bulk(self):
+        csv_fle = helpers.DIR + "\\test10_multi_bulk.csv"
+        db.drop_table(pg_schema, create_table_name)
+        assert not db.table_exists(create_table_name, schema=pg_schema)
+
+        # import table
+        db.csv_to_table(csv_fle, schema=pg_schema, table=create_table_name, header=[0, 1])
+        assert db.table_exists(create_table_name, schema=pg_schema)
+
+        cols = [i[0] for i in db.get_table_columns(create_table_name, schema=pg_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        db.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {pg_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in db.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        db.drop_table(pg_schema, create_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -571,6 +716,25 @@ class TestCsvToTableMS:
 
         # Assert df equality, including dtypes and columns
         pd.testing.assert_frame_equal(sql_df, csv_df)
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_csv_to_table_basic_override_all(self):
+        # csv_to_table
+        if sql.table_exists(schema=sql_schema, table=create_table_name):
+            sql.query('drop table {}.{}'.format(sql_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, column_type_overrides='all')
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check table schema
+        sql.get_table_columns(create_table_name, schema=sql_schema)
+        assert set([i[1] for i in sql.get_table_columns(create_table_name, schema=sql_schema)]) == {
+            f'varchar ({util.VARCHAR_MAX[sql.type]})'}
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
@@ -895,7 +1059,7 @@ class TestCsvToTableMS:
         base_string = 'text'*150
         fp = helpers.DIR + "\\varchar.csv"
         sql.dfquery("select '{}' as long_col".format(base_string)).to_csv(fp, index=False)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
@@ -910,6 +1074,68 @@ class TestCsvToTableMS:
 
         # Cleanup
         sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_csv_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        sql.drop_table(sql_schema, create_table_name)
+
+        fp = helpers.DIR + "\\test9.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_multirow_header_csv(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        sql.drop_table(sql_schema, create_table_name)
+        assert not sql.table_exists(create_table_name, schema=sql_schema)
+
+        # import table
+        sql.csv_to_table(csv_fle, schema=sql_schema, table=create_table_name, header=[0, 1])
+        assert sql.table_exists(create_table_name, schema=sql_schema)
+
+        cols = [i[0] for i in sql.get_table_columns(create_table_name, schema=sql_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        sql.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {sql_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sql.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        sql.drop_table(sql_schema, create_table_name)
 
     @classmethod
     def teardown_class(cls):
@@ -1047,7 +1273,7 @@ class TestBulkCSVToTableMS:
 
         fp = helpers.DIR + "\\varchar.csv"
         pd.DataFrame(['text'*150]*10000, columns=['long_column']).to_csv(fp)
-        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, long_varchar_check=True)
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema, allow_max_varchar=True)
 
         # Check to see if table is in database
         assert sql.table_exists(table=create_table_name, schema=sql_schema)
@@ -1067,16 +1293,283 @@ class TestBulkCSVToTableMS:
         # Test input schema
         return
 
-    # Temp test is in logging tests
+    def test_csv_to_table_empty_columns(self):
+        # test:
+        #  1. create csv with 3 columns with empty headers
+        #  - col 1 should be between 2 valid columns and empty
+        #  - col 2 should be between 2 valid columns and populated
+        #  - col 4 should be at the end and mostly empty with 1 junk value ''
+        #  2. Import and validate data
+        #  - col 1 should not be there
+        #  - col 2 should be there with empty header or unnamed col
+        #  - col 4 should not be there
+        # csv_to_table
+        sql.query('drop table if exists {}.{}'.format(sql_schema, create_table_name))
+
+        fp = helpers.DIR + "\\test9_bulk.csv"
+        sql.csv_to_table(input_file=fp, table=create_table_name, schema=sql_schema)
+
+        # Check to see if table is in database
+        assert sql.table_exists(table=create_table_name, schema=sql_schema)
+        db_df = sql.dfquery("select * from {}.{}".format(sql_schema, create_table_name))
+
+        # Get csv df via pd.read_csv
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [c.replace(' ', '_') for c in list(csv_df.columns)]
+        csv_df.drop(columns=['Unnamed:_2', 'Unnamed:_5'], inplace=True)
+
+        # Assert df equality, including dtypes and columns - non-null columns
+        pd.testing.assert_frame_equal(db_df[['id', 'col1', 'col2']], csv_df[['id', 'col1', 'col2']])
+
+        #  Index(['id', 'col1', 'unnamed__2', 'col2', 'unnamed__4', 'unnamed__5'], dtype='object')
+        # Assert col 1 is not there
+        assert 'unnamed__2' not in db_df.columns.to_list()
+        # Assert col 2 is there
+        assert 'unnamed__4' in db_df.columns.to_list()
+        # Assert Col 4 is not there
+        assert 'unnamed__5' not in db_df.columns.to_list()
+
+        # Cleanup
+        sql.drop_table(schema=sql_schema, table=create_table_name)
+
+    def test_multirow_header_csv_bulk(self):
+        csv_fle = helpers.DIR + "\\test10_multi_bulk.csv"
+        sql.drop_table(sql_schema, create_table_name)
+        assert not sql.table_exists(create_table_name, schema=sql_schema)
+
+        # import table
+        sql.csv_to_table(csv_fle, schema=sql_schema, table=create_table_name, header=[0, 1])
+        assert sql.table_exists(create_table_name, schema=sql_schema)
+
+        cols = [i[0] for i in sql.get_table_columns(create_table_name, schema=sql_schema)]
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == cols
+
+        sql.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {sql_schema}.{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sql.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+        sql.drop_table(sql_schema, create_table_name)
 
     @classmethod
     def teardown_class(cls):
         sql.cleanup_new_tables()
 
-# def test_sample_date():
-#     db.csv_to_table(input_file=r'E:\RIS\Data\AFinalDatasets\CrashData\NYSDOT\Recieved\2021\ApparentFactor.csv',
-#                     schema='working', table=test_csv_name, overwrite=True, sep=';')
-#     for i in db.get_table_columns(test_csv_name, schema='working'):
-#         if 'date' in i[0]:
-#             print(i)
-#             assert i[1] =='character varying'
+
+class TestCsvToTablePGTemp:
+    @classmethod
+    def setup_class(cls):
+        # helpers.set_up_test_table_pg(db)
+        helpers.set_up_test_csv()
+
+    def test_basic_csv_to_table_tmp(self):
+        # csv_to_table
+        dbt.query(f'drop table if exists {create_table_name}')
+
+        fp = helpers.DIR + "\\test.csv"
+        dbt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name)
+
+        # velidate data
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [i.replace(' ', '_') for i in csv_df.columns]
+        db_df = dbt.dfquery(f"select * from {create_table_name}")
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {create_table_name}", strict=False)
+        assert not db.data
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {create_table_name}", strict=False)
+        assert not dbt.data
+
+    def test_csv_to_table_basic_pyarrow(self):
+        # csv_to_table
+        dbt.query(f'drop table if exists {create_table_name}')
+
+        fp = helpers.DIR + "\\test.csv"
+        dbt.csv_to_table_pyarrow(input_file=fp, table=create_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {create_table_name}", strict=False)
+        assert not db.data
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {create_table_name}", strict=False)
+        assert not dbt.data
+
+
+    def test_big_csv_to_table_tmp(self):
+        # csv_to_table
+        dbt.query(f'drop table if exists {create_table_name}')
+
+        fp = helpers.DIR+"\\test8.csv"
+        dbt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 101004
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name, schema=pg_schema)
+
+        # check it cant be accessed from another connection
+        db.query(f"select * from {create_table_name}", strict=False)
+        assert not db.data
+
+        # disconnect and check table is no longer there
+        dbt.disconnect(quiet=True)
+        dbt.connect(quiet=True)
+        dbt.query(f"select * from {create_table_name}", strict=False)
+        assert not dbt.data
+
+    def test_multirow_header_csv_temp(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        dbt.query(f'drop table {create_table_name}', strict=False)
+
+        # import table
+        dbt.csv_to_table(csv_fle, table=create_table_name, header=[0, 1], temp_table=True)
+        # Check to see if table is in database
+        dbt.query(f"select * from {create_table_name}")
+        assert len(dbt.data) == 3
+
+        df = dbt.dfquery(f"select * from {create_table_name}")
+
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == df.columns.to_list()
+
+        dbt.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from {create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in dbt.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()
+
+
+
+class TestCsvToTableMSTemp:
+    @classmethod
+    def setup_class(cls):
+        # helpers.set_up_test_table_pg(db)
+        helpers.set_up_test_csv()
+
+    def test_basic_csv_to_table_tmp(self):
+        # csv_to_table
+        sqlt.query(f'drop table {create_table_name}', strict=False)
+
+        fp = helpers.DIR + "\\test.csv"
+        sqlt.csv_to_table(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{create_table_name}")
+        assert len(sqlt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check it can also be accessed from another connection
+        sql.query(f"select * from ##{create_table_name}", strict=False)
+        assert len(sql.data) == 5
+
+        # velidate data
+        csv_df = pd.read_csv(fp)
+        csv_df.columns = [i.replace(' ', '_') for i in csv_df.columns]
+        db_df = sqlt.dfquery(f"select * from ##{create_table_name}")
+        pd.testing.assert_frame_equal(db_df, csv_df)
+
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{create_table_name}", strict=False)
+        assert not sqlt.data
+
+    def test_csv_to_table_basic_pyarrow(self):
+        # csv_to_table
+        sqlt.query(f'drop table {create_table_name}', strict=False)
+
+        fp = helpers.DIR + "\\test.csv"
+        sqlt.csv_to_table_pyarrow(input_file=fp, table=create_table_name, schema=pg_schema, temp_table=True)
+
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{create_table_name}")
+        assert len(sqlt.data) == 5
+        # check its not a real table
+        assert not dbt.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check it can also be accessed from another connection
+        sql.query(f"select * from ##{create_table_name}", strict=False)
+        assert len(sql.data) == 5
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{create_table_name}", strict=False)
+        assert not sqlt.data
+
+    def test_big_csv_to_table_tmp(self):
+        # csv_to_table
+        sqlt.query(f'drop table {create_table_name}', strict=False)
+
+        fp = helpers.DIR+"\\test8.csv"
+        sqlt.csv_to_table(input_file=fp, table=create_table_name, temp_table=True)
+
+        # Check to see if table is in database
+        sqlt.query(f"select * from ##{create_table_name}")
+        assert len(sqlt.data) == 101004
+        # check its not a real table
+        assert not sqlt.table_exists(table=create_table_name, schema=sql_schema)
+
+        # check it can also be accessed from another connection
+        sql.query(f"select * from ##{create_table_name}", strict=False)
+        assert len(sql.data) == 101004
+
+        # disconnect and check table is no longer there
+        sqlt.disconnect(quiet=True)
+        sqlt.connect(quiet=True)
+        sqlt.query(f"select * from ##{create_table_name}", strict=False)
+        assert not sqlt.data
+
+    def test_multirow_header_csv_temp(self):
+        csv_fle = helpers.DIR + "\\test10_multi.csv"
+        sqlt.query(f'drop table {create_table_name}', strict=False)
+
+        # import table
+        sqlt.csv_to_table(csv_fle, schema=sql_schema, table=create_table_name, header=[0, 1], temp_table=True)
+        # Check to see if table is in database
+        sql.query(f"select * from ##{create_table_name}")
+        assert len(sql.data) == 3
+
+        df = sqlt.dfquery(f"select * from ##{create_table_name}")
+
+        assert ['geo_id_geography',
+                'name_geographic_area_name',
+                'dp05_0001e_estimate__sex_and_age__total_population',
+                'dp05_0001m_margin_of_error__sex_and_age__total_population',
+                'dp05_0002e_estimate__sex_and_age__total_population__male',
+                'dp05_0002m_margin_of_error__sex_and_age__total_population__male'] == df.columns.to_list()
+
+        sqlt.query(f"select dp05_0002m_margin_of_error__sex_and_age__total_population__male from ##{create_table_name}")
+        _df = pd.read_csv(csv_fle,  header=[0, 1])
+        _df.columns = _df.columns.map('_'.join)
+        assert [i[0] for i in sqlt.data] == _df['DP05_0002M_Margin of Error!!SEX AND AGE!!Total population!!Male'].to_list()

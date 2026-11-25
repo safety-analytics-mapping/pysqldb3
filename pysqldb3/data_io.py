@@ -1,11 +1,54 @@
+import getpass
+import os
 import subprocess
 import shlex
+from email.policy import strict
+import pandas as pd
 import pysqldb3
 
 from .cmds import *
 from .util import *
 
+# TODO: standardize all of this into db to db (table, query, temp table) DRY up code and simplify
+# TODO: check output table to ensure the same columns as the source if new columns are added they should be removed
 
+def fall_back_db_to_db_qry(src_db, dest_db, query, dest_schema=None, temp=True,
+                           dest_table=None):
+    """
+    Fallback workflow for query transfer, if standard GDAL workflow fails, this will use a local CSV as a passthrough.
+    This may be required to work around GDAL's inferred PK behavior
+    :param src_db: DbConnect instance connecting to source database
+    :param dest_db: DbConnect instance connecting to destination database
+    :param query: Query String to run on source database so results can be transfered to destination
+    :param dest_schema: Schema name for destination table (defaults to db's default schema)
+    :param temp: Flag for temporary table (defaults to True)
+    :param dest_table: Table name of final migrated table in destination database
+    :return: None
+    """
+
+    if not dest_schema:
+        dest_schema = dest_db.default_schema
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=dest_db.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
+    output_file = os.path.join(os.getcwd(),
+                               f"data_{datetime.datetime.now().strftime('%Y%m%d%H%M')}.csv")
+    # Cannot use because if GDAL suspects there is a PK it gets dropped from the output!
+    # src_db.query_to_csv(query, output_file=output_file, strict=True, open_file=False, sep=',', quote_strings=True,
+    #                     quiet=True, overwrite=True)
+    if os.path.exists(output_file):
+        os.remove(output_file)
+    src_db.dfquery(query).to_csv(output_file, index=False)
+
+    dest_db.csv_to_table(input_file=output_file, table=dest_table, schema=dest_schema, temp_table=False, temp=temp, allow_max_varchar=True, overwrite=True)
+    os.remove(output_file)
+
+# PG to SQL ##########################################################################################################
 def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, dest_table=None,
               print_cmd=False, temp=True):
     """
@@ -82,8 +125,14 @@ def pg_to_sql(pg, ms, org_table, LDAP=False, spatial=True, org_schema=None, dest
         print(print_cmd_string([ms.password, pg.password], cmd))
 
     try:
-        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
-        print(ogr_response)
+        try:
+            ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+            print(ogr_response)
+        except:
+            if not ms.table_exists(dest_table, schema=dest_schema):
+                query = f"select * from {org_schema}.{org_table}"
+                fall_back_db_to_db_qry(pg, ms, query, dest_schema=dest_schema, temp=temp, dest_table=dest_table)
+
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
@@ -127,7 +176,7 @@ def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, des
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     if LDAP:
         cmd = PG_TO_SQL_QRY_CMD.format(
@@ -172,16 +221,106 @@ def pg_to_sql_qry(pg, ms, query, LDAP=False, spatial=True, dest_schema=None, des
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
         print(ogr_response)
+        # if 'ERROR:  current transaction is aborted' in str(ogr_response):
+
+
     except subprocess.CalledProcessError as e:
+        if not ms.table_exists(dest_table, schema=dest_schema):
+            fall_back_db_to_db_qry(pg, ms, query, dest_schema=dest_schema, temp=temp, dest_table=dest_table)
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
-        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
+        if not ms.table_exists(dest_table, schema=dest_schema):
+            raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
     ms.tables_created.append((ms.server, ms.database, dest_schema, dest_table))
 
     if temp:
         ms.log_temp_table(dest_schema, dest_table, ms.user)
 
+def pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=None, print_cmd=False):
+    """
+    Migrates query from Postgres to SQL Server temp table.
+    :param pg: DbConnect instance connecting to PostgreSQL source database
+    :param ms: DbConnect instance connecting to SQL Server destination database
+    :param query: query in PG
+    :param dest_table: Table name of final migrated table in SQL Server database
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :return:
+    """
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=ms.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
+
+    # account for "table name"
+    if '"' in query:
+        query = query.replace('"', r'\"')
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    cmd = PG_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_pg_host=pg.server,
+        from_pg_port=pg.port,
+        from_pg_database=pg.database,
+        from_pg_user=pg.user,
+        from_pg_pass=pg.password,
+        sql_select=query
+    )
+    if print_cmd:
+        print(print_cmd_string([pg.password, pg.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
+
+    # import data to temp table
+    ms.csv_to_table(input_file=temp_csv, table=f'{dest_table}', temp_table=True)
+
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        # add geom column
+        ms.query(f"alter table [##{dest_table}] add [geom] [geometry];", internal=True, timeme=False)
+        # update from wkt
+        ms.query(f"update [##{dest_table}] set geom=geometry::STGeomFromText(wkt, 2263);", internal=True, timeme=False)
+        # drop wkt col
+        ms.query(f"alter table [##{dest_table}] drop column wkt", internal=True, timeme=False)
+
+    # clean up csv
+    os.remove(temp_csv)
+
+
+def pg_to_sql_temp_tbl(pg, ms, table,  org_schema=None, dest_table=None, print_cmd=False):
+    """
+    Migrates table from Postgres to SQL Server temp table.
+    :param pg: DbConnect instance connecting to PostgreSQL source database
+    :param ms: DbConnect instance connecting to SQL Server destination database
+    :param table: PG table to migrate
+    :param org_schema: PostgreSQL schema for origin table (defaults to orig db's default schema)
+    :param dest_table: Table name of final migrated table in SQL Server database
+    :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+    :return:
+    """
+
+    if not dest_table:
+        dest_table = table
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f'select * from {sch}"{table}"'
+    pg_to_sql_qry_temp_tbl(pg, ms, query, dest_table=dest_table, print_cmd=print_cmd)
+
+
+# SQL to PG ##########################################################################################################
 
 def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, print_cmd=False, temp=True,
                   dest_table=None, pg_encoding='UTF8', permission = True):
@@ -218,7 +357,7 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     if LDAP:
         cmd = SQL_TO_PG_LDAP_QRY_CMD.format(
@@ -268,22 +407,24 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
+        if 'ERROR:  current transaction is aborted' in str(ogr_response):
+            if not pg.table_exists(dest_table, schema=dest_schema):
+                fall_back_db_to_db_qry(ms, pg, query, dest_schema=dest_schema, temp=temp, dest_table=dest_table)
         if permission == True:
-            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True) 
+            pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
         print(ogr_response)
     except subprocess.CalledProcessError as e:
         print("Ogr2ogr Output:\n", e.output)
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
-    clean_geom_column(pg, dest_table, dest_schema)
+    rename_geom(pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    pg.tables_created.append(('', '', dest_schema, dest_table))
+    pg.tables_created.append((pg.server, pg.database, dest_schema, dest_table))
 
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
-
 
 def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, print_cmd=False,
               dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True):
@@ -373,6 +514,11 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
+
+        if not pg.table_exists(dest_table, schema=dest_schema):
+            query = f"select * from {org_schema}.{org_table}"
+            fall_back_db_to_db_qry(ms, pg, query,  dest_schema=dest_schema, temp=temp, dest_table=dest_table )
+
         if permission == True:
             pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True) 
         print(ogr_response)
@@ -381,15 +527,103 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, pg.password], cmd), returncode=1)
 
-    clean_geom_column(pg, dest_table, dest_schema)
+    rename_geom(pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    pg.tables_created.append(('', '', dest_schema, dest_table))
+    pg.tables_created.append((pg.server, pg.database, dest_schema, dest_table))
 
     if temp:
         pg.log_temp_table(dest_schema, dest_table, pg.user)
 
+def sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=None, LDAP_from=False, print_cmd=False):
+    """
+        Migrates query from SQL Server to Postgres temp table.
+        :param ms: DbConnect instance connecting to SQL Server source database
+        :param pg: DbConnect instance connecting to PostgreSQL destination database
+        :param query: query in SQL
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
 
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=pg.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(
+        getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    if LDAP_from:
+        from_user = ''
+        from_password = ''
+    else:
+        from_user = ms.user
+        from_password = ms.password
+
+    cmd = SQL_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_server=ms.server,
+        from_database=ms.database,
+        from_user=from_user,
+        from_pass=from_password,
+        sql_select=query
+    )
+
+    if print_cmd:
+        print(print_cmd_string([ms.password, ms.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([ms.password, ms.password], cmd), returncode=1)
+
+    # import data to temp table
+    pg.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        if not _df.WKT.isnull().all():
+            # add geom column
+            pg.query(f'alter table "{dest_table}" add geom geometry;')
+            # update from wkt
+            pg.query(f'update "{dest_table}" set geom=st_setsrid(st_geomfromtext(wkt), 2263);')
+        # drop wkt col
+        pg.query(f'alter table "{dest_table}" drop column wkt')
+
+    # clean up csv
+    os.remove(temp_csv)
+
+
+def sql_to_pg_temp_tbl(ms, pg, table, dest_table=None, org_schema=None, LDAP_from=False, print_cmd=False):
+    """
+        Migrates table from SQL Server to Postgres temp table.
+        :param ms: DbConnect instance connecting to SQL Server source database
+        :param pg: DbConnect instance connecting to PostgreSQL destination database
+        :param table: SQL table to migrate
+        :param org_schema: SQL Server schema for origin table (defaults to orig db's default schema)
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
+
+    if not dest_table:
+        dest_table = table
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f"select * from {sch}[{table}]"
+
+    sql_to_pg_qry_temp_tbl(ms, pg, query, dest_table=dest_table, LDAP_from=LDAP_from, print_cmd=print_cmd)
+
+# SQL to SQL ##########################################################################################################
 def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
                    print_cmd=False, dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = False):
     """
@@ -468,6 +702,14 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT,
                                                env=cmd_env)
+
+        if 'ERROR:  current transaction is aborted' in str(ogr_response):
+            if not to_sql.table_exists(dest_table, schema=dest_schema):
+                fall_back_db_to_db_qry(from_sql, to_sql, qry, LDAP_from=LDAP_from, LDAP_to=LDAP_to, spatial=spatial, dest_schema=dest_schema,
+                                       print_cmd=print_cmd,
+                                       temp=temp, dest_table=dest_table, pg_encoding=pg_encoding,
+                                       permission=permission)
+
         if permission == True:
             to_sql.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
         print(ogr_response)
@@ -477,13 +719,12 @@ def sql_to_sql_qry(from_sql, to_sql, qry, LDAP_from=False, LDAP_to=False, spatia
         raise subprocess.CalledProcessError(cmd=print_cmd_string([from_sql.password, to_sql.password], cmd),
                                             returncode=1)
 
-    clean_geom_column(to_sql, dest_table, dest_schema)
+    rename_geom(to_sql, dest_schema, dest_table)
 
     to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
 
     if temp:
         to_sql.log_temp_table(dest_schema, dest_table, to_sql.user)
-
 
 
 def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spatial=True, org_schema=None, dest_schema=None,
@@ -535,13 +776,96 @@ def sql_to_sql(from_sql, to_sql, org_table, LDAP_from=False, LDAP_to=False, spat
                 to_sql.query(f"ALTER TABLE [{dest_schema}].[{dest_table}] ALTER COLUMN [{c}] {cols[c]}",
                          timeme=False, internal=True, strict=False)
 
-    # tables created always has (server, db, schema, table), in pg server and db are not listed
-    to_sql.tables_created.append((to_sql.server, to_sql.database, dest_schema, dest_table))
 
 
+def sql_to_sql_qry_temp_tbl(from_sql, to_sql, query, dest_table=None, LDAP_from=False, print_cmd=False):
+    """
+           Migrates query from SQL Server to SQL Server temp table.
+           :param from_sql: DbConnect instance connecting to SQL Server source database
+           :param to_sql: DbConnect instance connecting to SQL Server destination database
+           :param query: query in SQL Server
+           :param dest_table: Table name of final migrated table in SQL Server database
+           :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+           :return:
+           """
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=to_sql.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    if LDAP_from:
+        from_user = ''
+        from_password = ''
+    else:
+        from_user = from_sql.user
+        from_password = from_sql.password
+    cmd = SQL_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_server=from_sql.server,
+        from_database=from_sql.database,
+        from_user=from_user,
+        from_pass=from_password,
+        sql_select=query
+    )
+
+    if print_cmd:
+        print(print_cmd_string([from_sql.password, from_sql.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([from_sql.password, from_sql.password], cmd), returncode=1)
+
+    # import data to temp table
+    to_sql.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        if not _df.WKT.isnull().all():
+            # add geom column
+            to_sql.query(f"alter table [##{dest_table}] add [geom] [geometry];")
+            # update from wkt
+            to_sql.query(f"update [##{dest_table}] set geom=geometry::STGeomFromText(wkt, 2263);")
+        # drop wkt col
+        to_sql.query(f"alter table  [##{dest_table}] drop column wkt")
+
+    # clean up csv
+    os.remove(temp_csv)
 
 
+def sql_to_sql_temp_tbl(from_sql, to_sql, table, dest_table=None, org_schema=None, LDAP_from=False, print_cmd=False):
+    """
+            Migrates table from SQL Server to SQL Server temp table.
+            :param from_sql: DbConnect instance connecting to SQL Server source database
+            :param to_sql: DbConnect instance connecting to SQL Server destination database
+            :param table: SQL table to migrate
+            :param org_schema: SQL Server schema for origin table (defaults to orig db's default schema)
+            :param dest_table: Table name of final migrated table in PG database
+            :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+            :return:
+            """
 
+    if not dest_table:
+        dest_table = table
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f"select * from {sch}[{table}]"
+
+    sql_to_sql_qry_temp_tbl(from_sql, to_sql, query,dest_table=dest_table, LDAP_from=LDAP_from, print_cmd=print_cmd)
+
+
+# PG to PG ##########################################################################################################
 def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print_cmd=False, dest_table=None,
              spatial=True, temp=True, permission = True):
     """
@@ -596,9 +920,14 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
 
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+
+        if not to_pg.table_exists(dest_table, schema=dest_schema):
+            query = f"select * from {org_schema}.{org_table}"
+            fall_back_db_to_db_qry(from_pg, to_pg, query, dest_schema=dest_schema,
+                                   temp=temp, dest_table=dest_table)
         
         if permission == True:
-            to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
+            to_pg.query(f'GRANT SELECT ON "{dest_schema}"."{dest_table}" TO PUBLIC;', internal = True)
         
         print(ogr_response)
     except subprocess.CalledProcessError as e:
@@ -606,10 +935,10 @@ def pg_to_pg(from_pg, to_pg, org_table, org_schema=None, dest_schema=None, print
         print('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([from_pg.password, to_pg.password], cmd), returncode=1)
 
-    clean_geom_column(to_pg, dest_table, dest_schema)
+    rename_geom(to_pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    to_pg.tables_created.append(('', '', dest_schema, dest_table))
+    to_pg.tables_created.append((to_pg.server, to_pg.database, dest_schema, dest_table))
 
     if temp:
         to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)
@@ -647,7 +976,7 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
     # apply regex to the query to filter out any dashed comments in the query
     # comments are defined by at least 2 dashes followed by a line break or the end of the query
     # comments with /* */ do not need to be filtered out from the query
-    query = re.sub('(-){2,}.*(\n|$)', '', query)
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
 
     cmd = PG_TO_PG_QRY_CMD.format(
         from_pg_host=from_pg.server,
@@ -672,6 +1001,11 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
 
     try:
         ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+
+        if 'ERROR:  current transaction is aborted' in str(ogr_response):
+            if not to_pg.table_exists(dest_table, schema=dest_schema):
+                fall_back_db_to_db_qry(from_pg, to_pg, query, dest_schema=dest_schema,
+                                       temp=temp, dest_table=dest_table)
         
         if permission:
             to_pg.query(f"GRANT SELECT ON {dest_schema}.{dest_table} TO PUBLIC;", internal = True)
@@ -682,10 +1016,90 @@ def pg_to_pg_qry(from_pg, to_pg, query, dest_schema=None, print_cmd=False, dest_
         print ('Ogr2ogr command failed.')
         raise subprocess.CalledProcessError(cmd=print_cmd_string([from_pg.password, to_pg.password], cmd), returncode=1)
 
-    clean_geom_column(to_pg, dest_table, dest_schema)
+    rename_geom(to_pg, dest_schema, dest_table)
 
     # tables created always has (server, db, schema, table), in pg server and db are not listed
-    to_pg.tables_created.append(('', '', dest_schema, dest_table))
+    to_pg.tables_created.append((to_pg.server, to_pg.database, dest_schema, dest_table))
 
     if temp:
         to_pg.log_temp_table(dest_schema, dest_table, to_pg.user)
+
+
+def pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=None, print_cmd=False):
+    """
+        Migrates query from Postgres to Postgres temp table.
+        :param from_pg: DbConnect instance connecting to PostgreSQL source database
+        :param to_pg: DbConnect instance connecting to PostgreSQL destination database
+        :param query: query in PostgreSQL
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
+
+    if not dest_table:
+        dest_table = '_{u}_{d}'.format(u=to_pg.user, d=datetime.datetime.now().strftime('%Y%m%d%H%M'))
+
+    # apply regex to the query to filter out any dashed comments in the query
+    # comments are defined by at least 2 dashes followed by a line break or the end of the query
+    # comments with /* */ do not need to be filtered out from the query
+    query = re.sub('(-){2,}.*(\n|$)', ' ', query)
+    query = query.replace('"', r'\"')
+
+    # write data to local csv
+    temp_csv = r'C:\Users\{}\Documents\temp_csv_{}.csv'.format(getpass.getuser(), datetime.datetime.now().strftime('%Y%m%d%H%M%S'))
+    cmd = PG_TO_CSV_CMD.format(
+        gdal_data=GDAL_DATA_LOC,
+        output_csv=temp_csv,
+        from_pg_host=from_pg.server,
+        from_pg_port=from_pg.port,
+        from_pg_database=from_pg.database,
+        from_pg_user=from_pg.user,
+        from_pg_pass=from_pg.password,
+        sql_select=query
+    )
+    if print_cmd:
+        print(print_cmd_string([from_pg.password, from_pg.password], cmd))
+    try:
+        ogr_response = subprocess.check_output(shlex.split(cmd.replace('\n', ' ')), stderr=subprocess.STDOUT)
+        print(ogr_response)
+    except subprocess.CalledProcessError as e:
+        print("Ogr2ogr Output:\n", e.output)
+        print('Ogr2ogr command failed.')
+        raise subprocess.CalledProcessError(cmd=print_cmd_string([to_pg.password, from_pg.password], cmd), returncode=1)
+
+    # import data to temp table
+    to_pg.csv_to_table(input_file=temp_csv, table=dest_table, temp_table=True)
+
+    _df = pd.read_csv(temp_csv)
+    if 'WKT' in _df.columns:
+        # add geom column
+        to_pg.query(f'alter table "{dest_table}" add geom geometry;')
+        # update from wkt
+        to_pg.query(f'update "{dest_table}" set geom=st_setsrid(st_geomfromtext(wkt), 2263);')
+        # drop wkt col
+        to_pg.query(f'alter table "{dest_table}" drop column wkt')
+
+    # clean up csv
+    os.remove(temp_csv)
+
+
+def pg_to_pg_temp_tbl(from_pg, to_pg, table, org_schema=None, dest_table=None, print_cmd=False):
+    """
+        Migrates table from Postgres to Postgres temp table.
+        :param from_pg: DbConnect instance connecting to PostgreSQL source database
+        :param to_pg: DbConnect instance connecting to PostgreSQL destination database
+        :param table: PostgreSQL table to migrate
+        :param org_schema: PostgreSQL schema for origin table (defaults to orig db's default schema)
+        :param dest_table: Table name of final migrated table in PG database
+        :param print_cmd: Option to print he ogr2ogr command line statement (defaults to False) - used for debugging
+        :return:
+        """
+
+    if not dest_table:
+        dest_table = table
+    if org_schema:
+        sch = f"{org_schema}."
+    else:
+        sch = ''
+    query = f'select * from {sch}"{table}"'
+    pg_to_pg_qry_temp_tbl(from_pg, to_pg, query, dest_table=dest_table, print_cmd=print_cmd)
