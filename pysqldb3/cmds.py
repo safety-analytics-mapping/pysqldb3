@@ -155,7 +155,7 @@ ogr2ogr --config GDAL_DATA "{gdal_data}" -overwrite -f "PostgreSQL" PG:"host={pg
 dbname={pg_database} 
 user={pg_user} password={pg_pass}" -f {spatial} "MSSQL:server={ms_server};database={ms_database};" 
 {ms_schema}.{ms_table} -nln {pg_schema}.{to_pg_name} {nlt_spatial} -progress 
---config MSSQLSPATIAL_LIST_ALL_TABLES YES
+--config MSSQLSPATIAL_LIST_ALL_TABLES YES {precision} 
 """.replace('\n', ' ')
 
 SQL_TO_PG_CMD = r"""
@@ -164,7 +164,7 @@ dbname={pg_database} user={pg_user} password={pg_pass}"
 -f {spatial} "MSSQL:server={ms_server};database={ms_database};
 UID={ms_user};PWD={ms_pass}" {ms_schema}.{ms_table} -lco OVERWRITE=yes 
 -nln {pg_schema}.{to_pg_name} {nlt_spatial} -progress 
---config MSSQLSPATIAL_LIST_ALL_TABLES YES
+--config MSSQLSPATIAL_LIST_ALL_TABLES YES {precision}
 """.replace('\n', ' ')
 
 SQL_TO_SQL_CMD = r"""

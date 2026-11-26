@@ -427,7 +427,8 @@ def sql_to_pg_qry(ms, pg, query, LDAP=False, spatial=True, dest_schema=None, pri
         pg.log_temp_table(dest_schema, dest_table, pg.user)
 
 def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest_schema=None, print_cmd=False,
-              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True):
+              dest_table=None, temp=True, gdal_data_loc=GDAL_DATA_LOC, pg_encoding='UTF8', permission = True,
+              precision=False ):
     """
     Migrates tables from SQL Server to PostgreSQL, generates spatial tables in PG if spatial in MS.
 
@@ -444,6 +445,7 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     :param gdal_data_loc: location of GDAL data
     :param pg_encoding: encoding to use for PG client (defaults to UTF-8)
     :param permission: set permission to Public on destination table
+    :param precision: set precision to false for column lenght issues
     :return:
     """
     if not org_schema:
@@ -461,6 +463,11 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
     else:
         spatial = 'MSSQL'
         nlt_spatial = '-nlt NONE'
+
+    if precision:
+        precision = '-lco PRECISION=NO '
+    else:
+        precision = ' '
 
     if LDAP:
         cmd = SQL_TO_PG_LDAP_CMD.format(
@@ -481,7 +488,8 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
             ms_schema=org_schema,
             spatial=spatial,
             to_pg_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            precision=precision
         )
     else:
         cmd = SQL_TO_PG_CMD.format(
@@ -502,7 +510,8 @@ def sql_to_pg(ms, pg, org_table, LDAP=False, spatial=True, org_schema=None, dest
             ms_schema=org_schema,
             spatial=spatial,
             to_pg_name=dest_table,
-            nlt_spatial=nlt_spatial
+            nlt_spatial=nlt_spatial,
+            precision=precision
         )
 
     if print_cmd:
